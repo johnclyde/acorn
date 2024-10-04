@@ -1,0 +1,45 @@
+[package]
+name = "acorn"
+version = "0.1.0"
+edition = "2021"
+default-run = "verify"
+
+[dependencies]
+chrono = "0.4.31"
+clap = { version = "4.5.17", features = ["derive"] }
+dashmap = "5.5.3"
+fxhash = "0.2.1"
+indoc = "1.0.8"
+ndarray = "0.16.1"
+ndarray-npy = "0.9.1"
+nohash-hasher = "0.2.0"
+ordered-float = "4.2.2"
+ort = "2.0.0-rc.6"
+qp-trie = "0.8.2"
+serde = "1.0.188"
+tokio = { version = "1.32.0", features = ["full"] }
+tower-lsp = "0.20.0"
+walkdir = "2.4.0"
+
+[profile.release]
+debug = true
+
+[[bin]]
+name = "verify"
+test = false
+
+[[bin]]
+name = "language_server"
+test = false
+
+[[bin]]
+name = "profile_prover"
+test = false
+
+[[bin]]
+name = "profile_scorer"
+test = false
+
+[profile.profiling]
+inherits = "release"
+debug = true

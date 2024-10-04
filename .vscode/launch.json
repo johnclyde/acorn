@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Extension Host",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/extension"
+      ],
+      "outFiles": ["${workspaceFolder}/vscode/extension/out/**/*.js"],
+      "preLaunchTask": "build all",
+      "env": {
+        "SERVER_PATH": "${workspaceFolder}/target/release/language_server"
+      }
+    }
+  ]
+}
