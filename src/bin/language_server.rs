@@ -215,7 +215,7 @@ struct Backend {
 impl Backend {
     fn new(client: Client) -> Backend {
         Backend {
-            project: Arc::new(RwLock::new(Project::new("math"))),
+            project: Arc::new(RwLock::new(Project::from_library().unwrap())),
             client,
             progress: Arc::new(Mutex::new(ProgressResponse::default())),
             documents: DashMap::new(),
