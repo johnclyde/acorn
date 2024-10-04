@@ -94,16 +94,23 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
     Ok(())
 }
 
+// Finds a directory named acorn-library.
+fn find_acorn_library(start: &Path) -> Option<PathBuf> {
+    let mut current = Some(start.to_path_buf());
+
+    while let Some(path) = current {
+        let library_path = path.join("acorn-library");
+        if library_path.is_dir() {
+            return Some(library_path);
+        }
+        current = path.parent().map(|p| p.to_path_buf());
+    }
+
+    None
+}
+
 impl Project {
-    // A Project where files are imported from the real filesystem.
-    pub fn new(root: &str) -> Project {
-        let root = if root.starts_with('/') {
-            PathBuf::from(root)
-        } else {
-            let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            d.push(root);
-            d
-        };
+    fn new(root: PathBuf) -> Project {
         Project {
             root,
             use_filesystem: true,
@@ -115,9 +122,19 @@ impl Project {
         }
     }
 
+    // A Project where files are imported from an acorn-library directory.
+    // Tries to heuristically figure out what library to use.
+    // Returns None if it can't find it.
+    pub fn from_library() -> Option<Project> {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let library_path = find_acorn_library(&manifest_dir)?;
+        Some(Project::new(library_path))
+    }
+
     // A Project where nothing can be imported.
     pub fn new_mock() -> Project {
-        let mut p = Project::new("/mock");
+        let mock_dir = PathBuf::from("/mock");
+        let mut p = Project::new(mock_dir);
         p.use_filesystem = false;
         p
     }

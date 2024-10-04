@@ -22,7 +22,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    let mut project = Project::new("math");
+    let mut project = Project::from_library().unwrap();
 
     let args = Args::parse();
     if let Some(module_name) = args.module {
