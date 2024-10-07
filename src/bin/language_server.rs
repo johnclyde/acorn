@@ -187,6 +187,7 @@ impl SearchTask {
     }
 }
 
+// One Backend per root folder.
 struct Backend {
     client: Client,
 
@@ -758,6 +759,33 @@ impl LanguageServer for Backend {
         });
         Ok(Some(result))
     }
+}
+
+// A LazyBackend initializes a Backend once it gets an initialize call.
+struct LazyBackend {
+    client: Client,
+    backend: Arc<RwLock<Option<Backend>>>,
+}
+
+impl LazyBackend {
+    fn new(client: Client) -> Self {
+        LazyBackend {
+            client,
+            backend: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        todo!();
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.did_save(params).await;
+        }
+    }
+
+    // TODO: proxy over the rest
 }
 
 #[tokio::main]
