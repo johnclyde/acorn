@@ -601,8 +601,12 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        log("initializing...");
+    async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        let message = match params.root_uri {
+            Some(p) => &format!("initializing with root {}", p),
+            None => "initializing with no root",
+        };
+        log(message);
 
         let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
             open_close: Some(true),
