@@ -11,7 +11,7 @@ use acorn::interfaces::{
 use acorn::module::Module;
 use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
-use acorn::token::{Token, LSP_TOKEN_TYPES};
+use acorn::token::Token;
 use chrono;
 use dashmap::DashMap;
 use tokio::sync::{mpsc, Mutex, RwLock, RwLockWriteGuard};
@@ -188,6 +188,8 @@ impl SearchTask {
 }
 
 // One Backend per root folder.
+// The Backend implements a similar API to the LanguageServer API, but it doesn't implement
+// "initialize" because that's used by the LazyBackend to create the Backend.
 struct Backend {
     client: Client,
 
@@ -598,67 +600,6 @@ impl Backend {
             result,
         })
     }
-}
-
-#[tower_lsp::async_trait]
-impl LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        let message = match params.root_uri {
-            Some(p) => &format!("initializing with root {}", p),
-            None => "initializing with no root",
-        };
-        log(message);
-
-        let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
-            open_close: Some(true),
-            change: Some(TextDocumentSyncKind::INCREMENTAL),
-            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                include_text: Some(true),
-            })),
-            ..TextDocumentSyncOptions::default()
-        });
-
-        let semantic_options = SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
-            SemanticTokensRegistrationOptions {
-                text_document_registration_options: {
-                    TextDocumentRegistrationOptions {
-                        document_selector: Some(vec![DocumentFilter {
-                            language: Some("acorn".to_string()),
-                            scheme: Some("file".to_string()),
-                            pattern: None,
-                        }]),
-                    }
-                },
-                semantic_tokens_options: SemanticTokensOptions {
-                    work_done_progress_options: WorkDoneProgressOptions::default(),
-                    legend: SemanticTokensLegend {
-                        token_types: LSP_TOKEN_TYPES.into(),
-                        token_modifiers: vec![],
-                    },
-                    range: Some(false),
-                    full: Some(SemanticTokensFullOptions::Bool(true)),
-                },
-                static_registration_options: StaticRegistrationOptions::default(),
-            },
-        );
-
-        // Toggle whether we do semantic tokens
-        let do_semantic_tokens = false;
-        let semantic_tokens_provider = if do_semantic_tokens {
-            Some(semantic_options)
-        } else {
-            None
-        };
-
-        Ok(InitializeResult {
-            server_info: None,
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(sync_options),
-                semantic_tokens_provider,
-                ..ServerCapabilities::default()
-            },
-        })
-    }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
@@ -808,14 +749,31 @@ impl LanguageServer for LazyBackend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         // Create a Backend
         let backend = Backend::new(self.client.clone());
-
-        // Forward the initialize call
-        let result = backend.initialize(params).await?;
-
-        // Store the Backend
         let mut locked_backend = self.backend.write().await;
         *locked_backend = Some(backend);
-        Ok(result)
+
+        let message = match params.root_uri {
+            Some(p) => &format!("initializing with root {}", p),
+            None => "initializing with no root",
+        };
+        log(message);
+
+        let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
+            open_close: Some(true),
+            change: Some(TextDocumentSyncKind::INCREMENTAL),
+            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                include_text: Some(true),
+            })),
+            ..TextDocumentSyncOptions::default()
+        });
+
+        Ok(InitializeResult {
+            server_info: None,
+            capabilities: ServerCapabilities {
+                text_document_sync: Some(sync_options),
+                ..ServerCapabilities::default()
+            },
+        })
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
