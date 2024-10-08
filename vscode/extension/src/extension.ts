@@ -474,7 +474,7 @@ async function showProgressBar() {
   }
 }
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
   let timestamp = new Date().toLocaleTimeString();
   console.log("activating acorn language extension at", timestamp);
   let searchPath = context.asAbsolutePath("../search/dist");
@@ -516,7 +516,9 @@ export function activate(context: ExtensionContext) {
     },
     traceOutputChannel,
     initializationFailedHandler: (error) => {
-      console.error("initialization failed:", error);
+      window.showErrorMessage(
+        "Acorn: " + error.message
+      );
       // Prevent automatic restart
       return false;
     },
@@ -531,7 +533,12 @@ export function activate(context: ExtensionContext) {
   );
 
   // Start the client. This will also launch the server
-  client.start();
+  try {
+    await client.start();
+  } catch (e) {
+    console.error("client failed to start:", e);
+    return;
+  }
 
   let onDocumentChange = async (document: TextDocument) => {
     if (document.languageId !== "acorn") {
@@ -557,7 +564,7 @@ export function activate(context: ExtensionContext) {
 }
 
 export function deactivate(): Thenable<void> | undefined {
-  if (!client) {
+  if (!client || !client.isRunning()) {
     return undefined;
   }
   return client.stop();

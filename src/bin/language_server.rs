@@ -221,7 +221,11 @@ impl Backend {
             jsonrpc::Error::invalid_params(format!("invalid file path in uri: {}", root_uri))
         })?;
         let project = Project::new_from_directory_search(&path).ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("could not find library at: {}", path.display()))
+            jsonrpc::Error {
+                code: 100.into(),
+                message: "could not find acorn-library".into(),
+                data: None,
+            }
         })?;
         Ok(Backend {
             project: Arc::new(RwLock::new(project)),
