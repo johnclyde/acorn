@@ -775,8 +775,47 @@ impl LazyBackend {
         }
     }
 
+    async fn handle_info_request(&self, params: InfoParams) -> jsonrpc::Result<InfoResponse> {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.handle_info_request(params).await
+        } else {
+            Err(jsonrpc::Error::invalid_params("backend not initialized"))
+        }
+    }
+
+    async fn handle_progress_request(
+        &self,
+        params: ProgressParams,
+    ) -> jsonrpc::Result<ProgressResponse> {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.handle_progress_request(params).await
+        } else {
+            Err(jsonrpc::Error::invalid_params("backend not initialized"))
+        }
+    }
+
+    async fn handle_search_request(&self, params: SearchParams) -> jsonrpc::Result<SearchResponse> {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.handle_search_request(params).await
+        } else {
+            Err(jsonrpc::Error::invalid_params("backend not initialized"))
+        }
+    }
+}
+
+#[tower_lsp::async_trait]
+impl LanguageServer for LazyBackend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        todo!();
+        // Create a Backend
+        let backend = Backend::new(self.client.clone());
+
+        // Forward the initialize call
+        let result = backend.initialize(params).await?;
+
+        // Store the Backend
+        let mut locked_backend = self.backend.write().await;
+        *locked_backend = Some(backend);
+        Ok(result)
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -785,7 +824,42 @@ impl LazyBackend {
         }
     }
 
-    // TODO: proxy over the rest
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.did_open(params).await;
+        }
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.did_change(params).await;
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.did_close(params).await;
+        }
+    }
+
+    async fn shutdown(&self) -> jsonrpc::Result<()> {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.shutdown().await
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> jsonrpc::Result<Option<SemanticTokensResult>> {
+        if let Some(backend) = self.backend.read().await.as_ref() {
+            backend.semantic_tokens_full(params).await
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[tokio::main]
@@ -793,10 +867,10 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::build(Backend::new)
-        .custom_method("acorn/info", Backend::handle_info_request)
-        .custom_method("acorn/progress", Backend::handle_progress_request)
-        .custom_method("acorn/search", Backend::handle_search_request)
+    let (service, socket) = LspService::build(LazyBackend::new)
+        .custom_method("acorn/info", LazyBackend::handle_info_request)
+        .custom_method("acorn/progress", LazyBackend::handle_progress_request)
+        .custom_method("acorn/search", LazyBackend::handle_search_request)
         .finish();
 
     Server::new(stdin, stdout, socket).serve(service).await;
