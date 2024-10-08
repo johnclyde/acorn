@@ -777,6 +777,8 @@ impl LanguageServer for LazyBackend {
             ..TextDocumentSyncOptions::default()
         });
 
+        log("initialization ok");
+
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {

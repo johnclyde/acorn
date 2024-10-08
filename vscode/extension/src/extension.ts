@@ -2,7 +2,6 @@ import {
   commands,
   Disposable,
   ExtensionContext,
-  languages,
   Position,
   ProgressLocation,
   Range,
@@ -516,6 +515,11 @@ export function activate(context: ExtensionContext) {
       fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
     },
     traceOutputChannel,
+    initializationFailedHandler: (error) => {
+      console.error("initialization failed:", error);
+      // Prevent automatic restart
+      return false;
+    },
   };
 
   // Create the language client and start the client.
