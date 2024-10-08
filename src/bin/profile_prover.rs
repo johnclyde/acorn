@@ -9,7 +9,7 @@ use acorn::project::Project;
 
 fn main() {
     for _ in 0..10 {
-        let mut project = Project::from_library().unwrap();
+        let mut project = Project::new_local().unwrap();
         assert!(project.add_target("nat"));
         assert!(project.add_target("nat_gcd"));
         assert!(project.add_target("int"));

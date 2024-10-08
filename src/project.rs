@@ -123,12 +123,23 @@ impl Project {
     }
 
     // A Project where files are imported from an acorn-library directory.
-    // Tries to heuristically figure out what library to use.
+    // Searches for a library root based on the given path.
     // Returns None if it can't find it.
+    fn new_from_directory_search(start: &Path) -> Option<Project> {
+        let root = find_acorn_library(start)?;
+        Some(Project::new(root))
+    }
+
+    // A Project based on the current working directory.
+    pub fn new_local() -> Option<Project> {
+        let current_dir = std::env::current_dir().ok()?;
+        Project::new_from_directory_search(&current_dir)
+    }
+
+    // TODO: deprecate
     pub fn from_library() -> Option<Project> {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let library_path = find_acorn_library(&manifest_dir)?;
-        Some(Project::new(library_path))
+        Project::new_from_directory_search(&manifest_dir)
     }
 
     // A Project where nothing can be imported.
