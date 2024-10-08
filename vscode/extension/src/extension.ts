@@ -18,6 +18,8 @@ import {
 import * as path from "path";
 import * as fs from "fs";
 import {
+  CloseAction,
+  ErrorAction,
   Executable,
   LanguageClient,
   LanguageClientOptions,
@@ -517,10 +519,20 @@ export async function activate(context: ExtensionContext) {
     traceOutputChannel,
     initializationFailedHandler: (error) => {
       window.showErrorMessage(
-        "Acorn: " + error.message
+        "Acorn error: " + error.message
       );
       // Prevent automatic restart
       return false;
+    },
+    errorHandler: {
+      error: (error, message, count) => {
+        console.error('Language server error:', error);
+        return {action: ErrorAction.Shutdown}; // Do not attempt to restart on error
+      },
+      closed: () => {
+        console.warn('Language server process closed.');
+        return {action: CloseAction.DoNotRestart}; // Do not restart on process close
+      },
     },
   };
 
