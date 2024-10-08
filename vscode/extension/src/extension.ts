@@ -509,6 +509,8 @@ export async function activate(context: ExtensionContext) {
     debug: exec,
   };
 
+  let initFailed = false;
+
   let clientOptions: LanguageClientOptions = {
     // Register the server for plain text documents
     documentSelector: [{ scheme: "file", language: "acorn" }],
@@ -518,6 +520,7 @@ export async function activate(context: ExtensionContext) {
     },
     traceOutputChannel,
     initializationFailedHandler: (error) => {
+      initFailed = true;
       window.showErrorMessage(
         "Acorn error: " + error.message
       );
@@ -527,11 +530,13 @@ export async function activate(context: ExtensionContext) {
     errorHandler: {
       error: (error, message, count) => {
         console.error('Language server error:', error);
-        return {action: ErrorAction.Shutdown}; // Do not attempt to restart on error
+        // Do not restart on error
+        return {action: ErrorAction.Shutdown, handled: initFailed};
       },
       closed: () => {
         console.warn('Language server process closed.');
-        return {action: CloseAction.DoNotRestart}; // Do not restart on process close
+         // Do not restart on process close
+        return {action: CloseAction.DoNotRestart, handled: initFailed};
       },
     },
   };
