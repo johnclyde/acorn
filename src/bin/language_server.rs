@@ -216,16 +216,22 @@ struct Backend {
 }
 
 impl Backend {
-    fn new(client: Client) -> Backend {
-        Backend {
-            project: Arc::new(RwLock::new(Project::from_library().unwrap())),
+    fn new(client: Client, root_uri: Url) -> jsonrpc::Result<Backend> {
+        let path = root_uri.to_file_path().map_err(|_| {
+            jsonrpc::Error::invalid_params(format!("invalid file path in uri: {}", root_uri))
+        })?;
+        let project = Project::new_from_directory_search(&path).ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!("could not find library at: {}", path.display()))
+        })?;
+        Ok(Backend {
+            project: Arc::new(RwLock::new(project)),
             client,
             progress: Arc::new(Mutex::new(ProgressResponse::default())),
             documents: DashMap::new(),
             versions: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
             diagnostic_map: Arc::new(RwLock::new(HashMap::new())),
-        }
+        })
     }
 
     // Run a build in a background thread, proving the goals in all open documents.
@@ -747,16 +753,20 @@ impl LazyBackend {
 #[tower_lsp::async_trait]
 impl LanguageServer for LazyBackend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        let root_uri = match params.root_uri {
+            Some(uri) => uri,
+            None => {
+                return Err(jsonrpc::Error::invalid_params(
+                    "initialize requires a root uri in the params",
+                ))
+            }
+        };
+        log(&format!("initializing with root {}", root_uri));
+
         // Create a Backend
-        let backend = Backend::new(self.client.clone());
+        let backend = Backend::new(self.client.clone(), root_uri)?;
         let mut locked_backend = self.backend.write().await;
         *locked_backend = Some(backend);
-
-        let message = match params.root_uri {
-            Some(p) => &format!("initializing with root {}", p),
-            None => "initializing with no root",
-        };
-        log(message);
 
         let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
             open_close: Some(true),
