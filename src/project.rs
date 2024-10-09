@@ -517,11 +517,6 @@ impl Project {
         }
     }
 
-    pub fn get_env_by_name(&self, module_name: &str) -> Option<&Environment> {
-        let module_ref = ModuleRef::Name(module_name.to_string());
-        self.get_env_by_ref(&module_ref)
-    }
-
     pub fn errors(&self) -> Vec<(ModuleId, &token::Error)> {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
@@ -1154,7 +1149,7 @@ mod tests {
             "#,
         );
 
-        let env = p.get_env_by_name("main").unwrap();
+        let env = p.get_env_by_ref(&ModuleRef::Name("main".to_string())).unwrap();
 
         let mut fast_count = 0;
         let mut slow_count = 0;
