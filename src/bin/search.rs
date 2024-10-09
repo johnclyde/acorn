@@ -20,7 +20,7 @@ async fn main() {
     let internal_line_number = external_line_number - 1;
 
     let mut project = Project::new_local().unwrap();
-    let module_id = project.load_module(&module_name).unwrap();
+    let module_id = project.load_module_by_name(&module_name).unwrap();
     let env = project.get_env_by_id(module_id).unwrap();
     let path = match env.path_for_line(internal_line_number) {
         Ok(path) => path,

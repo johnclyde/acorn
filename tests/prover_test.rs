@@ -14,7 +14,7 @@ mod prover_test {
         module_name: &str,
         goal_name: &str,
     ) -> (Outcome, Result<Vec<String>, CodeGenError>) {
-        let module_id = project.load_module(module_name).expect("load failed");
+        let module_id = project.load_module_by_name(module_name).expect("load failed");
         let env = project.get_env_by_id(module_id).unwrap();
         let node = env.get_node_by_name(goal_name);
         let facts = node.usable_facts(project);
@@ -51,7 +51,7 @@ mod prover_test {
     fn verify(text: &str) -> Outcome {
         let mut project = Project::new_mock();
         project.mock("/mock/main.ac", text);
-        let module_id = project.load_module("main").expect("load failed");
+        let module_id = project.load_module_by_name("main").expect("load failed");
         let env = match project.get_module_by_id(module_id) {
             Module::Ok(env) => env,
             Module::Error(e) => panic!("error: {}", e),
