@@ -31,6 +31,12 @@ pub enum ModuleRef {
     File(PathBuf),
 }
 
+impl ModuleRef {
+    pub fn from_name(name: &str) -> ModuleRef {
+        ModuleRef::Name(name.to_string())
+    }
+}
+
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {
     // The root directory of the project
@@ -497,8 +503,7 @@ impl Project {
 
     // TODO: deprecate
     pub fn get_module_by_name(&self, module_name: &str) -> &Module {
-        let module_ref = ModuleRef::Name(module_name.to_string());
-        self.get_module_by_ref(&module_ref)
+        self.get_module_by_ref(&ModuleRef::from_name(module_name))
     }
 
     pub fn get_env(&self, module_id: ModuleId) -> Option<&Environment> {
@@ -631,7 +636,7 @@ impl Project {
     // for the id will have an error.
     // If "open" is passed, then we cache this file's content in open files.
     pub fn load_module(&mut self, module_name: &str) -> Result<ModuleId, LoadError> {
-        let module_ref = ModuleRef::Name(module_name.to_string());
+        let module_ref = ModuleRef::from_name(module_name);
         if let Some(module_id) = self.module_map.get(&module_ref) {
             if *module_id < FIRST_NORMAL {
                 panic!("module {} should not be loadable", module_id);
