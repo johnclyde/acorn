@@ -97,7 +97,7 @@ pub struct Builder<'a> {
     pub log_when_slow: bool,
 
     // The current module we are proving. Not set when we are loading.
-    current_module: Option<String>,
+    current_module: Option<ModuleRef>,
 
     // Whether the current module is good so far.
     current_module_good: bool,
@@ -144,10 +144,11 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn module(&self) -> &str {
+    // Returns Anonymous while loading
+    fn module(&self) -> &ModuleRef {
         match self.current_module {
-            None => "<no module>",
-            Some(ref s) => s,
+            None => &ModuleRef::Anonymous,
+            Some(ref m) => m,
         }
     }
 
@@ -196,17 +197,17 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(&mut self, module: &str) {
-        self.current_module = Some(module.to_string());
+    pub fn module_proving_started(&mut self, module: &ModuleRef) {
+        self.current_module = Some(module.clone());
         self.current_module_good = true;
     }
 
-    pub fn module_proving_complete(&mut self, module: &str) {
+    pub fn module_proving_complete(&mut self, module: &ModuleRef) {
         assert_eq!(self.module(), module);
         if self.current_module_good {
             // Send a no-problems diagnostic, so that the IDE knows to clear squiggles.
             (self.event_handler)(BuildEvent {
-                diagnostic: Some((ModuleRef::from_name(module), None)),
+                diagnostic: Some((module.clone(), None)),
                 ..BuildEvent::default()
             });
         }

@@ -318,7 +318,8 @@ impl Project {
 
         // The second pass is the "proving phase".
         for (target, env) in targets.into_iter().zip(envs) {
-            self.verify_target(target, env, builder);
+            let target_ref = ModuleRef::from_name(target);
+            self.verify_target(&target_ref, env, builder);
             if builder.status.is_error() {
                 return;
             }
@@ -327,8 +328,8 @@ impl Project {
 
     // Verifies all goals within this target.
     // Returns the status for this file alone.
-    fn verify_target(&self, target: &str, env: &Environment, builder: &mut Builder) {
-        builder.module_proving_started(&target);
+    fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
+        builder.module_proving_started(target);
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.
@@ -336,7 +337,7 @@ impl Project {
             self.prove(prover, goal_context, builder)
         });
 
-        builder.module_proving_complete(&target);
+        builder.module_proving_complete(target);
     }
 
     // Create a prover for each goal in this environment, and call the callback on it.
