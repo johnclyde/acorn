@@ -16,6 +16,20 @@ use crate::module::{Module, ModuleId, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::{self, Token};
 
+// ModuleRef enumerates the different ways to refer to a module.
+enum ModuleRef {
+    // Anything that can't be referred to
+    Anonymous,
+
+    // An import chain like foo.bar.baz
+    // This sort of module can be either loaded by a project, or referred to in code.
+    Name(String),
+
+    // A filename.
+    // This sort of module can be loaded by a project, but not referred to in code.
+    File(String),
+}
+
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {
     // The root directory of the project
