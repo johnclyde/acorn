@@ -16,9 +16,9 @@ use crate::module::{Module, ModuleId, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::{self, Token};
 
-// ModuleRef enumerates the different ways to refer to a module.
+// ModuleRef enumerates the different ways a project can refer to a module.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-enum ModuleRef {
+pub enum ModuleRef {
     // Anything that can't be referred to
     Anonymous,
 
@@ -488,13 +488,17 @@ impl Project {
         }
     }
 
+    pub fn get_module_by_ref(&self, module_ref: &ModuleRef) -> &Module {
+        match self.module_map.get(module_ref) {
+            Some(id) => self.get_module(*id),
+            None => &Module::None,
+        }
+    }
+
+    // TODO: deprecate
     pub fn get_module_by_name(&self, module_name: &str) -> &Module {
         let module_ref = ModuleRef::Name(module_name.to_string());
-        if let Some(module) = self.module_map.get(&module_ref) {
-            self.get_module(*module)
-        } else {
-            &Module::None
-        }
+        self.get_module_by_ref(&module_ref)
     }
 
     pub fn get_env(&self, module_id: ModuleId) -> Option<&Environment> {
@@ -543,18 +547,28 @@ impl Project {
 
     // Returns a load error if the path doesn't correspond to a module.
     pub fn module_name_from_path(&self, path: &Path) -> Result<String, LoadError> {
-        let relative = path.strip_prefix(&self.root).map_err(|_| {
-            LoadError(format!(
+        let module_ref = self.module_ref_from_path(path)?;
+        match module_ref {
+            ModuleRef::Name(name) => Ok(name),
+            _ => Err(LoadError(format!(
                 "path {} is not in the project root {}",
                 path.display(),
                 self.root.display()
-            ))
-        })?;
+            )))
+        }
+    }
+
+    // Returns a load error if this isn't a valid path for an acorn file.
+    fn module_ref_from_path(&self, path: &Path) -> Result<ModuleRef, LoadError> {
+        let relative = match path.strip_prefix(&self.root) {
+            Ok(relative) => relative,
+            Err(_) => return Ok(ModuleRef::File(path.to_path_buf())),
+        };
         let components: Vec<_> = relative
             .components()
             .map(|comp| comp.as_os_str().to_string_lossy())
             .collect();
-        let mut answer = String::new();
+        let mut name = String::new();
         for (i, component) in components.iter().enumerate() {
             let part = if i + 1 == components.len() {
                 if !component.ends_with(".ac") {
@@ -568,13 +582,13 @@ impl Project {
                 component.to_string()
             };
             if i > 0 {
-                answer.push('.');
+                name.push('.');
             }
-            answer.push_str(&part);
-            check_valid_module_part(&part, &answer)?;
+            name.push_str(&part);
+            check_valid_module_part(&part, &name)?;
         }
 
-        Ok(answer)
+        Ok(ModuleRef::Name(name))
     }
 
     pub fn path_from_module_name(&self, module_name: &str) -> Result<PathBuf, LoadError> {
