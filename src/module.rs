@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{environment::Environment, token};
 
 // The code in one file is exposed to other Acorn code as a "module".
@@ -27,4 +29,25 @@ pub enum Module {
 
     // The module has been loaded successfully and we have its environment
     Ok(Environment),
+}
+
+// ModuleRef enumerates the different ways a module user can specify a module.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum ModuleRef {
+    // Anything that can't be referred to
+    Anonymous,
+
+    // An import chain like foo.bar.baz
+    // This sort of module can be either loaded by a project, or referred to in code.
+    Name(String),
+
+    // A filename.
+    // This sort of module can be loaded by a project, but not referred to in code.
+    File(PathBuf),
+}
+
+impl ModuleRef {
+    pub fn from_name(name: &str) -> ModuleRef {
+        ModuleRef::Name(name.to_string())
+    }
 }

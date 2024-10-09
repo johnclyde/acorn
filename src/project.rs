@@ -12,30 +12,9 @@ use crate::builder::{BuildEvent, BuildStatus, Builder};
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{Module, ModuleId, FIRST_NORMAL};
+use crate::module::{Module, ModuleId, ModuleRef, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::{self, Token};
-
-// ModuleRef enumerates the different ways a project can refer to a module.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ModuleRef {
-    // Anything that can't be referred to
-    Anonymous,
-
-    // An import chain like foo.bar.baz
-    // This sort of module can be either loaded by a project, or referred to in code.
-    Name(String),
-
-    // A filename.
-    // This sort of module can be loaded by a project, but not referred to in code.
-    File(PathBuf),
-}
-
-impl ModuleRef {
-    pub fn from_name(name: &str) -> ModuleRef {
-        ModuleRef::Name(name.to_string())
-    }
-}
 
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {

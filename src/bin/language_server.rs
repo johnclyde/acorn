@@ -8,8 +8,8 @@ use acorn::interfaces::{
     InfoParams, InfoResponse, ProgressParams, ProgressResponse, SearchParams, SearchResponse,
     SearchStatus,
 };
-use acorn::module::Module;
-use acorn::project::{ModuleRef, Project};
+use acorn::module::{Module, ModuleRef};
+use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
 use acorn::token::Token;
 use chrono;
