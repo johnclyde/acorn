@@ -26,7 +26,7 @@ async fn main() {
 
     let args = Args::parse();
     if let Some(module_name) = args.module {
-        project.add_target(&module_name);
+        project.add_target_by_name(&module_name);
     } else {
         project.add_all_targets();
     }
