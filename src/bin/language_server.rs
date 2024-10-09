@@ -296,11 +296,11 @@ impl Backend {
                     log(&message);
                 }
 
-                if let Some((module_name, diagnostic)) = event.diagnostic {
-                    let path = match project.path_from_module_name(&module_name) {
-                        Ok(path) => path,
-                        Err(_) => {
-                            log(&format!("no path available for {}", module_name));
+                if let Some((module_ref, diagnostic)) = event.diagnostic {
+                    let path = match project.path_from_module_ref(&module_ref) {
+                        Some(path) => path,
+                        None => {
+                            log(&format!("no path available for {:?}", module_ref));
                             return;
                         }
                     };

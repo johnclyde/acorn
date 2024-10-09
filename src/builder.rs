@@ -6,6 +6,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
+use crate::module::ModuleRef;
 use crate::prover::{Outcome, Prover};
 use crate::token::Error;
 
@@ -19,8 +20,9 @@ pub struct BuildEvent {
     // Human-readable
     pub log_message: Option<String>,
 
-    // Whenever we run into a problem, report the module name, plus the diagnostic itself.
-    pub diagnostic: Option<(String, Option<Diagnostic>)>,
+    // Whenever we run into a problem, report the module ref, plus the diagnostic itself.
+    // Returning None for diagnostic indicates that the module has no diagnostics.
+    pub diagnostic: Option<(ModuleRef, Option<Diagnostic>)>,
 }
 
 impl BuildEvent {
@@ -187,7 +189,7 @@ impl<'a> Builder<'a> {
         };
         (self.event_handler)(BuildEvent {
             log_message: Some(format!("fatal error: {}", error)),
-            diagnostic: Some((module.to_string(), Some(diagnostic))),
+            diagnostic: Some((ModuleRef::from_name(module), Some(diagnostic))),
             ..BuildEvent::default()
         });
         self.status = BuildStatus::Error;
@@ -204,7 +206,7 @@ impl<'a> Builder<'a> {
         if self.current_module_good {
             // Send a no-problems diagnostic, so that the IDE knows to clear squiggles.
             (self.event_handler)(BuildEvent {
-                diagnostic: Some((module.to_string(), None)),
+                diagnostic: Some((ModuleRef::from_name(module), None)),
                 ..BuildEvent::default()
             });
         }
@@ -320,7 +322,7 @@ impl<'a> Builder<'a> {
         BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
             log_message: Some(full_message),
-            diagnostic: Some((module, Some(diagnostic))),
+            diagnostic: Some((ModuleRef::from_name(&module), Some(diagnostic))),
         }
     }
 

@@ -592,8 +592,8 @@ impl Project {
         Ok(path)
     }
 
-    pub fn path_from_module(&self, module_id: ModuleId) -> Option<PathBuf> {
-        let name = match &self.modules[module_id as usize].0 {
+    pub fn path_from_module_ref(&self, module_ref: &ModuleRef) -> Option<PathBuf> {
+        let name = match module_ref {
             ModuleRef::Name(name) => name,
             ModuleRef::File(path) => return Some(path.clone()),
             ModuleRef::Anonymous => return None,
@@ -603,6 +603,10 @@ impl Project {
             Ok(path) => Some(path),
             Err(_) => None,
         }
+    }
+
+    pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
+        self.path_from_module_ref(&self.modules[module_id as usize].0)
     }
 
     // Loads a module from cache if possible, or else from the filesystem.
