@@ -21,7 +21,7 @@ async fn main() {
 
     let mut project = Project::new_local().unwrap();
     let module_id = project.load_module(&module_name).unwrap();
-    let env = project.get_env(module_id).unwrap();
+    let env = project.get_env_by_id(module_id).unwrap();
     let path = match env.path_for_line(internal_line_number) {
         Ok(path) => path,
         Err(s) => {

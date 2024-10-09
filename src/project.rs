@@ -487,7 +487,7 @@ impl Project {
             .expect("mock file update failed");
     }
 
-    pub fn get_module(&self, module_id: ModuleId) -> &Module {
+    pub fn get_module_by_id(&self, module_id: ModuleId) -> &Module {
         match self.modules.get(module_id as usize) {
             Some((_, module)) => module,
             None => &Module::None,
@@ -496,7 +496,7 @@ impl Project {
 
     pub fn get_module_by_ref(&self, module_ref: &ModuleRef) -> &Module {
         match self.module_map.get(module_ref) {
-            Some(id) => self.get_module(*id),
+            Some(id) => self.get_module_by_id(*id),
             None => &Module::None,
         }
     }
@@ -506,8 +506,8 @@ impl Project {
         self.get_module_by_ref(&ModuleRef::from_name(module_name))
     }
 
-    pub fn get_env(&self, module_id: ModuleId) -> Option<&Environment> {
-        if let Module::Ok(env) = self.get_module(module_id) {
+    pub fn get_env_by_id(&self, module_id: ModuleId) -> Option<&Environment> {
+        if let Module::Ok(env) = self.get_module_by_id(module_id) {
             Some(env)
         } else {
             None
@@ -516,7 +516,7 @@ impl Project {
 
     pub fn get_env_by_ref(&self, module_ref: &ModuleRef) -> Option<&Environment> {
         if let Some(module_id) = self.module_map.get(&module_ref) {
-            self.get_env(*module_id)
+            self.get_env_by_id(*module_id)
         } else {
             None
         }
@@ -641,7 +641,7 @@ impl Project {
             if *module_id < FIRST_NORMAL {
                 panic!("module {} should not be loadable", module_id);
             }
-            if let Module::Loading = self.get_module(*module_id) {
+            if let Module::Loading = self.get_module_by_id(*module_id) {
                 return Err(LoadError(format!("circular import of {}", module_name)));
             }
             return Ok(*module_id);
@@ -690,7 +690,7 @@ impl Project {
         if !seen.insert(module_id) {
             return false;
         }
-        if let Module::Ok(env) = self.get_module(module_id) {
+        if let Module::Ok(env) = self.get_module_by_id(module_id) {
             for dep in env.bindings.direct_dependencies() {
                 if self.append_dependencies(seen, output, dep) {
                     output.push(dep);
@@ -701,7 +701,7 @@ impl Project {
     }
 
     pub fn get_bindings(&self, module_id: ModuleId) -> Option<&BindingMap> {
-        if let Module::Ok(env) = self.get_module(module_id) {
+        if let Module::Ok(env) = self.get_module_by_id(module_id) {
             Some(&env.bindings)
         } else {
             None
@@ -712,7 +712,7 @@ impl Project {
     pub fn imported_facts(&self, module_id: ModuleId) -> Vec<Fact> {
         let mut facts = vec![];
         for dependency in self.all_dependencies(module_id) {
-            let env = self.get_env(dependency).unwrap();
+            let env = self.get_env_by_id(dependency).unwrap();
             facts.extend(env.exported_facts());
         }
         facts
@@ -722,7 +722,7 @@ impl Project {
     // Only for testing.
     pub fn expect_ok(&mut self, module_name: &str) -> ModuleId {
         let module_id = self.load_module(module_name).expect("load failed");
-        match self.get_module(module_id) {
+        match self.get_module_by_id(module_id) {
             Module::Ok(_) => module_id,
             Module::Error(e) => panic!("error in {}: {}", module_name, e),
             _ => panic!("logic error"),
@@ -739,7 +739,7 @@ impl Project {
     #[cfg(test)]
     fn expect_module_err(&mut self, module_name: &str) {
         let module_id = self.load_module(module_name).expect("load failed");
-        if let Module::Error(_) = self.get_module(module_id) {
+        if let Module::Error(_) = self.get_module_by_id(module_id) {
             // What we expected
         } else {
             panic!("expected error");
@@ -752,7 +752,7 @@ impl Project {
         use crate::expression::Expression;
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
-        let env = self.get_env(module_id).expect("no env");
+        let env = self.get_env_by_id(module_id).expect("no env");
         let value = env
             .bindings
             .evaluate_value(self, &expression, None)

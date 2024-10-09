@@ -306,7 +306,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
         let module = p.expect_ok("main");
-        let env = p.get_env(module).unwrap();
+        let env = p.get_env_by_id(module).unwrap();
         for node in env.iter_goals() {
             node.goal_context().unwrap();
         }
@@ -327,7 +327,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
         let module = p.expect_ok("main");
-        let env = p.get_env(module).unwrap();
+        let env = p.get_env_by_id(module).unwrap();
         for node in env.iter_goals() {
             node.goal_context().unwrap();
         }
