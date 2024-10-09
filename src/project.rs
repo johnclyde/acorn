@@ -757,6 +757,13 @@ impl Project {
     }
 
     #[cfg(test)]
+    fn expect_build_ok(&mut self) {
+        let (status, events) = self.sync_build();
+        assert_eq!(status, BuildStatus::Good);
+        assert!(events.len() > 0);
+    }
+
+    #[cfg(test)]
     fn expect_build_fails(&mut self) {
         let (status, _) = self.sync_build();
         assert_ne!(status, BuildStatus::Good, "expected build to fail");
@@ -939,9 +946,16 @@ mod tests {
         p.load_module("main").expect("loading main failed");
         p.add_target("foo");
         p.add_target("main");
-        let (status, events) = p.sync_build();
-        assert_eq!(status, BuildStatus::Good);
-        assert!(events.len() > 0);
+        p.expect_build_ok();
+    }
+
+    #[test]
+    fn test_target_outside_library() {
+        let mut p = Project::new_mock();
+        let outside_path = "/outside/foo.ac";
+        p.mock(outside_path, FOO_AC);
+        p.add_target_file(&PathBuf::from(outside_path));
+        p.expect_build_ok();
     }
 
     #[test]
