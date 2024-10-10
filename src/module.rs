@@ -32,7 +32,7 @@ pub enum Module {
 }
 
 // ModuleRef enumerates the different ways a module user can specify a module.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub enum ModuleRef {
     // Anything that can't be referred to
     Anonymous,

@@ -181,7 +181,7 @@ impl<'a> Builder<'a> {
     }
 
     // Logs an error during the loading phase, that can be localized to a particular place.
-    pub fn log_loading_error(&mut self, module: &str, error: &Error) {
+    pub fn log_loading_error(&mut self, module_ref: &ModuleRef, error: &Error) {
         let diagnostic = Diagnostic {
             range: error.token.range(),
             severity: Some(DiagnosticSeverity::ERROR),
@@ -190,7 +190,7 @@ impl<'a> Builder<'a> {
         };
         (self.event_handler)(BuildEvent {
             log_message: Some(format!("fatal error: {}", error)),
-            diagnostic: Some((ModuleRef::from_name(module), Some(diagnostic))),
+            diagnostic: Some((module_ref.clone(), Some(diagnostic))),
             ..BuildEvent::default()
         });
         self.status = BuildStatus::Error;

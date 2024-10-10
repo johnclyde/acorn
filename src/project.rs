@@ -42,7 +42,7 @@ pub struct Project {
     module_map: HashMap<ModuleRef, ModuleId>,
 
     // The module names that we want to build.
-    targets: HashSet<String>,
+    targets: HashSet<ModuleRef>,
 
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
@@ -173,16 +173,19 @@ impl Project {
 
     // Returns whether it loaded okay.
     // Either way, it's still added as a target.
-    pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
-        let answer = self.load_module_by_name(module_name).is_ok();
-        self.targets.insert(module_name.to_string());
+    fn add_target_by_ref(&mut self, module_ref: &ModuleRef) -> bool {
+        let answer = self.load_module_by_ref(module_ref).is_ok();
+        self.targets.insert(module_ref.clone());
         answer
     }
 
-    // Returns whether it loaded okay.
+    pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
+        self.add_target_by_ref(&ModuleRef::from_name(module_name))
+    }
+
     fn add_target_by_path(&mut self, path: &Path) -> bool {
-        let module_name = self.module_name_from_path(path).unwrap();
-        self.add_target_by_name(&module_name)
+        let module_ref = self.module_ref_from_path(path).unwrap();
+        self.add_target_by_ref(&module_ref)
     }
 
     // Adds a target for all files in this directory.
@@ -234,9 +237,8 @@ impl Project {
             // No need to do anything
             return Ok(());
         }
-        // TODO: handle files that are opened outside of the project
-        let module_name = self.module_name_from_path(&path)?;
-        let mut reload_modules = vec![module_name];
+        let module_ref = self.module_ref_from_path(&path)?;
+        let mut reload_modules = vec![module_ref];
         if self.open_files.contains_key(&path) {
             // We're changing the value of an existing file. This could invalidate
             // current modules.
@@ -248,8 +250,8 @@ impl Project {
             }
         }
         self.open_files.insert(path, (content.to_string(), version));
-        for module_name in &reload_modules {
-            self.add_target_by_name(module_name);
+        for module_ref in &reload_modules {
+            self.add_target_by_ref(module_ref);
         }
         Ok(())
     }
@@ -260,12 +262,12 @@ impl Project {
             return Ok(());
         }
         self.open_files.remove(&path);
-        let module_name = self.module_name_from_path(&path)?;
+        let module_ref = self.module_ref_from_path(&path)?;
         self.drop_modules();
-        self.targets.remove(&module_name);
+        self.targets.remove(&module_ref);
         let targets = self.targets.clone();
         for target in targets {
-            self.add_target_by_name(&target);
+            self.add_target_by_ref(&target);
         }
         Ok(())
     }
@@ -283,7 +285,7 @@ impl Project {
         // If there are errors, we won't try to do proving.
         let mut envs = vec![];
         for target in &targets {
-            let module = self.get_module_by_name(target);
+            let module = self.get_module_by_ref(target);
             match module {
                 Module::Ok(env) => {
                     builder.module_loaded(&env);
@@ -318,8 +320,7 @@ impl Project {
 
         // The second pass is the "proving phase".
         for (target, env) in targets.into_iter().zip(envs) {
-            let target_ref = ModuleRef::from_name(target);
-            self.verify_target(&target_ref, env, builder);
+            self.verify_target(&target, env, builder);
             if builder.status.is_error() {
                 return;
             }
@@ -539,7 +540,7 @@ impl Project {
                 "path {} is not in the project root {}",
                 path.display(),
                 self.root.display()
-            )))
+            ))),
         }
     }
 
@@ -632,7 +633,12 @@ impl Project {
 
         let path = match self.path_from_module_ref(module_ref) {
             Some(path) => path,
-            None => return Err(LoadError(format!("unloadable module ref: {:?}", module_ref))),
+            None => {
+                return Err(LoadError(format!(
+                    "unloadable module ref: {:?}",
+                    module_ref
+                )))
+            }
         };
         let text = self.read_file(&path)?;
 
@@ -1146,7 +1152,9 @@ mod tests {
             "#,
         );
 
-        let env = p.get_env_by_ref(&ModuleRef::Name("main".to_string())).unwrap();
+        let env = p
+            .get_env_by_ref(&ModuleRef::Name("main".to_string()))
+            .unwrap();
 
         let mut fast_count = 0;
         let mut slow_count = 0;
