@@ -482,11 +482,6 @@ impl Project {
         }
     }
 
-    // TODO: deprecate
-    pub fn get_module_by_name(&self, module_name: &str) -> &Module {
-        self.get_module_by_ref(&ModuleRef::from_name(module_name))
-    }
-
     pub fn get_env_by_id(&self, module_id: ModuleId) -> Option<&Environment> {
         if let Module::Ok(env) = self.get_module_by_id(module_id) {
             Some(env)
@@ -526,20 +521,6 @@ impl Project {
                 "error loading {}: {}",
                 path.display(),
                 e
-            ))),
-        }
-    }
-
-    // Returns a load error if the path doesn't correspond to a module.
-    // TODO: deprecate
-    pub fn module_name_from_path(&self, path: &Path) -> Result<String, LoadError> {
-        let module_ref = self.module_ref_from_path(path)?;
-        match module_ref {
-            ModuleRef::Name(name) => Ok(name),
-            _ => Err(LoadError(format!(
-                "path {} is not in the project root {}",
-                path.display(),
-                self.root.display()
             ))),
         }
     }
