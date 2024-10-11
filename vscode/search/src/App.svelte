@@ -6,7 +6,6 @@
   import { onMount } from "svelte";
   import Goal from "./Goal.svelte";
   import ProofStep from "./ProofStep.svelte";
-  import Rule from "./Rule.svelte";
 
   // These are updated to reflect the last valid responses from the extension.
   let searchResponse: SearchResponse | null = null;

@@ -15,12 +15,11 @@
 {:else if step.clause.id === null}
   An unactivated clause, depth {step.depth}, <Rule {step} {showLocation} />:<br
   />
-  <Clause clause={step.clause} /><br />
+  <Clause clause={step.clause} />
 {:else}
   Clause {step.clause.id}, depth {step.depth},
   <Rule {step} {showLocation} />:<br />
   <Clause clause={step.clause} onClick={clauseClick} />
-  <br />
 {/if}
 {#each step.premises as [desc, clause]}
   {spaces(2)}using
@@ -29,5 +28,4 @@
   {/if}
   {desc}:<br />
   <Clause {clause} onClick={clauseClick} />
-  <br />
 {/each}
