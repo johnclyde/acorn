@@ -124,7 +124,7 @@
 
 <main>
   {#if searchResponse === null || searchResponse.goalName === null}
-    <h1><pre>Select a proposition to see its proof.</pre></h1>
+    <h1><span class="mono">Select a proposition to see its proof.</span></h1>
   {:else}
     <Goal {searchResponse} {showLocation} />
     <hr />
