@@ -15,7 +15,8 @@
   <span class="header">{searchResponse.goalName}</span>
 {:else}
   <span class="header goal-link" on:click={callback}
-        >{searchResponse.goalName}</span>
+    >{searchResponse.goalName}</span
+  >
 {/if}
 
 <style>

@@ -5,12 +5,13 @@
 
 {#if clause.id !== null}
   <span
-      class="indent clause-link"
-      on:click={() => {
-        if (clause.id !== null && onClick !== null) {
-          onClick(clause.id);
-        }
-      }}>{clause.text}</span>
+    class="indent clause-link"
+    on:click={() => {
+      if (clause.id !== null && onClick !== null) {
+        onClick(clause.id);
+      }
+    }}>{clause.text}</span
+  >
 {:else}
   <span class="indent">{clause.text}</span>
 {/if}
