@@ -10,13 +10,12 @@
 </script>
 
 {#if searchResponse.goalName === null}
-  <h1><span class="mono">There is no goal.</span></h1>
+  <span class="header">There is no goal.</span>
 {:else if searchResponse.goalRange === null}
-  <h1><span class="mono">{searchResponse.goalName}</span></h1>
+  <span class="header">{searchResponse.goalName}</span>
 {:else}
-  <h1><span class="mono goal-link" on:click={callback}
+  <span class="header goal-link" on:click={callback}
         >{searchResponse.goalName}</span>
-  </h1>
 {/if}
 
 <style>
