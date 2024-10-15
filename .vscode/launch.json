@@ -9,7 +9,7 @@
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/extension"
       ],
-      "outFiles": ["${workspaceFolder}/vscode/extension/out/**/*.js"],
+      "outFiles": ["${workspaceFolder}/vscode/extension/build/**/*.js"],
       "preLaunchTask": "build all",
       "env": {
         "SERVER_PATH": "${workspaceFolder}/target/release/language_server"
