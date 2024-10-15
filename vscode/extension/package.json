@@ -5,7 +5,13 @@
   "engines": {
     "vscode": "^1.75.0"
   },
-  "main": "./build/extension/extension.js",
+  "files": [
+    "build/**",
+    "language-configuration.json",
+    "syntaxes/**",
+    "images/**"
+  ],
+  "main": "build/extension/extension.js",
   "contributes": {
     "languages": [
       {
@@ -17,14 +23,14 @@
           "Acorn",
           "acorn"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "language-configuration.json"
       }
     ],
     "grammars": [
       {
         "language": "acorn",
         "scopeName": "source.acorn",
-        "path": "./syntaxes/acorn.tmLanguage.json"
+        "path": "syntaxes/acorn.tmLanguage.json"
       }
     ],
     "commands": [
@@ -72,7 +78,7 @@
   },
   "author": "Kevin Lacker",
   "license": "Apache-2.0",
-  "icon": "./images/acorn-green-128.png",
+  "icon": "images/acorn-green-128.png",
   "devDependencies": {
     "@types/node": "^20.6.3",
     "@types/vscode": "^1.82.0",
