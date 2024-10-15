@@ -484,13 +484,9 @@ export async function activate(context: ExtensionContext) {
 
   let traceOutputChannel = window.createOutputChannel("Acorn Language Server");
 
-  let command = process.env.SERVER_PATH;
-  if (!command) {
-    window.showErrorMessage(
-      "The SERVER_PATH environment variable is not defined."
-    );
-    return;
-  }
+  // __dirname is build/extension.
+  // The server is in build/language_server.
+  let command = path.join(__dirname, "..", "language_server");
 
   let exec: Executable = {
     command,
@@ -521,22 +517,20 @@ export async function activate(context: ExtensionContext) {
     traceOutputChannel,
     initializationFailedHandler: (error) => {
       initFailed = true;
-      window.showErrorMessage(
-        "Acorn error: " + error.message
-      );
+      window.showErrorMessage("Acorn error: " + error.message);
       // Prevent automatic restart
       return false;
     },
     errorHandler: {
       error: (error, message, count) => {
-        console.error('Language server error:', error);
+        console.error("Language server error:", error);
         // Do not restart on error
-        return {action: ErrorAction.Shutdown, handled: initFailed};
+        return { action: ErrorAction.Shutdown, handled: initFailed };
       },
       closed: () => {
-        console.warn('Language server process closed.');
-         // Do not restart on process close
-        return {action: CloseAction.DoNotRestart, handled: initFailed};
+        console.warn("Language server process closed.");
+        // Do not restart on process close
+        return { action: CloseAction.DoNotRestart, handled: initFailed };
       },
     },
   };

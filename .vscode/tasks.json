@@ -54,7 +54,7 @@
       "problemMatcher": ["$tsc"]
     },
     {
-      "label": "cargo build",
+      "label": "language server: cargo build",
       "type": "shell",
       "command": "cargo",
       "args": ["build", "--release"],
@@ -69,11 +69,21 @@
       "problemMatcher": []
     },
     {
+      "label": "language server: copy executable",
+      "type": "shell",
+      "command": "cp ./target/release/language_server ./vscode/extension/build/",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "language server: cargo build",
+      "problemMatcher": []
+    },
+    {
       "label": "build all",
       "dependsOn": [
         "extension: npm compile",
         "search: npm build",
-        "cargo build"
+        "language server: copy executable"
       ],
       "dependsOrder": "parallel"
     }
