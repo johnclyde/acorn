@@ -69,21 +69,11 @@
       "problemMatcher": []
     },
     {
-      "label": "language server: copy executable",
-      "type": "shell",
-      "command": "cp ./target/release/language_server ./vscode/extension/build/",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "dependsOn": "language server: cargo build",
-      "problemMatcher": []
-    },
-    {
       "label": "build all",
       "dependsOn": [
         "extension: npm compile",
         "search: npm build",
-        "language server: copy executable"
+        "language server: cargo build"
       ],
       "dependsOrder": "parallel"
     }

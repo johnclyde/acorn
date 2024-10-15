@@ -484,9 +484,14 @@ export async function activate(context: ExtensionContext) {
 
   let traceOutputChannel = window.createOutputChannel("Acorn Language Server");
 
-  // __dirname is build/extension.
-  // The server is in build/language_server.
-  let command = path.join(__dirname, "..", "language_server");
+  let command = process.env.SERVER_PATH;
+  if (!command) {
+    // TODO: download the language server binary at run time
+    window.showErrorMessage(
+      "The SERVER_PATH environment variable is not defined."
+    );
+    return;
+  }
 
   let exec: Executable = {
     command,
