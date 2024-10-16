@@ -47,7 +47,11 @@ Hit F5. This will open up a new VS Code window. Use this window to open `~/acorn
 When we create a new release, we usually need to release both a new language server and a new VSCode extension. If there are only changes to the extension, we don't need to release a new language server. But if there are only changes to the language server, we do need to release a new extension, so that clients
 know to update their language server.
 
-1. Bump the version in `vscode/extension/package.json`.
+1. Bump the version using the `version.py` tool.
+
+```
+~/acorn$ ./python/version.py 0.0.1
+```
 
 2. Make a tag for the new language server release, "v" plus the version.
 
