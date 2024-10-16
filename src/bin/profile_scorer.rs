@@ -14,7 +14,7 @@ fn main() {
     let n = 10000;
     let mut total_seconds = 0.0;
     for i in 1..(m + 1) {
-        let scorer = OrtModel::load(true).unwrap();
+        let scorer = OrtModel::load().unwrap();
 
         let step1 = ProofStep::mock("c0(c3) = c2");
         let step2 = ProofStep::mock("c4(c1, c1) = c4(c2, c2)");

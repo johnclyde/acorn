@@ -12,7 +12,7 @@ pub trait Scorer {
 }
 
 pub fn default_scorer() -> Box<dyn Scorer + Send + Sync> {
-    Box::new(OrtModel::load(cfg!(test)).unwrap())
+    Box::new(OrtModel::load().unwrap())
 }
 
 // Developed before I had any other framework for policies.
