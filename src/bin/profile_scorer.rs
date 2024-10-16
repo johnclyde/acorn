@@ -1,8 +1,8 @@
 // A representative run of the scorer, to use for profiling.
 // To profile using samply:
 //
-//   cargo build --bin=profile_scorer --profile=profiling
-//   samply record target/profiling/profile_scorer
+//   cargo build --bin=profile_scorer --profile=fastdev
+//   samply record target/fastdev/profile_scorer
 
 use acorn::features::Features;
 use acorn::ort_model::OrtModel;

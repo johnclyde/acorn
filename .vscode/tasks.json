@@ -57,7 +57,7 @@
       "label": "language server: cargo build",
       "type": "shell",
       "command": "cargo",
-      "args": ["build", "--release"],
+      "args": ["build", "--bin=acornserver", "--profile=fastdev"],
       "group": {
         "kind": "build",
         "isDefault": true

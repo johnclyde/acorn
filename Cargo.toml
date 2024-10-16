@@ -21,9 +21,6 @@ tokio = { version = "1.32.0", features = ["full"] }
 tower-lsp = "0.20.0"
 walkdir = "2.4.0"
 
-[profile.release]
-debug = true
-
 [[bin]]
 name = "verify"
 test = false
@@ -40,6 +37,7 @@ test = false
 name = "profile_scorer"
 test = false
 
-[profile.profiling]
+# Fast, but including debug info.
+[profile.fastdev]
 inherits = "release"
 debug = true
