@@ -479,7 +479,7 @@ async function showProgressBar() {
 export async function activate(context: ExtensionContext) {
   let timestamp = new Date().toLocaleTimeString();
   console.log("activating acorn language extension at", timestamp);
-  let searchPath = context.asAbsolutePath("../search/dist");
+  let searchPath = context.asAbsolutePath("build/search");
   context.subscriptions.push(new SearchPanel(searchPath));
 
   let traceOutputChannel = window.createOutputChannel("Acorn Language Server");

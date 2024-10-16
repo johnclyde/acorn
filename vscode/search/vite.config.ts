@@ -15,4 +15,7 @@ export default defineConfig({
     }),
   ],
   base: "./",
+  build: {
+    outDir: "../extension/build/search",
+  },
 });
