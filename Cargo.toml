@@ -29,7 +29,7 @@ name = "verify"
 test = false
 
 [[bin]]
-name = "language_server"
+name = "acornserver"
 test = false
 
 [[bin]]
