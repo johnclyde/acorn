@@ -1,3 +1,5 @@
+// The Acorn Language Server. This is typically invoked by a VS Code extension.
+
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -220,12 +222,10 @@ impl Backend {
         let path = root_uri.to_file_path().map_err(|_| {
             jsonrpc::Error::invalid_params(format!("invalid file path in uri: {}", root_uri))
         })?;
-        let project = Project::new_from_directory_search(&path).ok_or_else(|| {
-            jsonrpc::Error {
-                code: 100.into(),
-                message: "could not find acorn-library".into(),
-                data: None,
-            }
+        let project = Project::new_from_directory_search(&path).ok_or_else(|| jsonrpc::Error {
+            code: 100.into(),
+            message: "could not find acorn-library".into(),
+            data: None,
         })?;
         Ok(Backend {
             project: Arc::new(RwLock::new(project)),

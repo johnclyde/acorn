@@ -17,6 +17,7 @@ import {
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import {
   CloseAction,
   ErrorAction,
@@ -478,7 +479,10 @@ async function showProgressBar() {
 
 export async function activate(context: ExtensionContext) {
   let timestamp = new Date().toLocaleTimeString();
-  console.log("activating acorn language extension at", timestamp);
+  console.log(
+    `activating Acorn-${os.platform()}-${os.arch()} extension at`,
+    timestamp
+  );
   let searchPath = context.asAbsolutePath("build/search");
   context.subscriptions.push(new SearchPanel(searchPath));
 
