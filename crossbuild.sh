@@ -4,21 +4,23 @@
 # Exit immediately if any command fails
 set -ex
 
-# Statically link for distribution
-export RUSTFLAGS="-C target-feature=+crt-static"
-
 echo "Building for Linux x64..."
-cargo build --release --bin acornserver --target x86_64-unknown-linux-gnu 
+RUSTFLAGS="-C target-feature=+crt-static" \
+    cargo build --release --bin acornserver --target x86_64-unknown-linux-gnu 
 
-# Double check it's statically linked
+# Check it's statically linked
 ldd target/x86_64-unknown-linux-gnu/release/acornserver 2>&1 | grep "statically linked" \
-    || (echo "error, dynamically linked" && exit 1)
-
-echo "Exiting early."
-exit 0
+    || (echo "linking error" && exit 1)
 
 echo "Building for Windows x64..."
 cargo build --release --bin acornserver --target x86_64-pc-windows-msvc
+
+# Check it's statically linked
+ldd target/x86_64-pc-windows-msvc/release/acornserver.exe 2>&1 | grep "not a dynamic exe" \
+    || (echo "linking error" && exit 1)
+
+echo "Early exit"
+exit 0
 
 echo "Building for macOS ARM..."
 cargo build --release --bin acornserver --target aarch64-apple-darwin

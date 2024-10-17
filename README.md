@@ -42,30 +42,41 @@ of VS Code to make changes to the prover and the extension.
 
 Hit F5. This will open up a new VS Code window. Use this window to open `~/acorn-library`. You'll use this instance of VS Code to test our your local changes.
 
-# Cross-platform builds
+# Dependencies for cross-platform release
 
-You need various build tools to do a cross-platform build.
+To create new releases, you need to build for all supported platforms, which you can do from Linux.
+You will need these dependencies.
+
+All commands are run from `~/acorn`.
 
 ```
-rustup target add <TODO: fill these out once it works>
+rustup target add x86_64-pc-windows-msvc
+cargo install xwin
+xwin --accept-license splat --output ~/.xwin
+
+# A workaround for case insensitivity that xwin for some reason doesn't autofix
+cp ~/.xwin/sdk/lib/um/x86_64/directml.lib ~/.xwin/sdk/lib/um/x86_64/DirectML.lib
+cp ~/.xwin/sdk/lib/um/x86_64/pathcch.lib ~/.xwin/sdk/lib/um/x86_64/PathCch.lib
 ```
 
-Also, install the "Build Tools for Visual Studio" from the web.
+TODO: get this working, then document it.
 
 # Creating new releases
 
 When we create a new release, we release a new language server, and then a new VSCode extension.
 
+All commands are run from `~/acorn`.
+
 1. Bump the version using the `version.py` tool.
 
 ```
-~/acorn$ ./python/version.py 0.0.1
+./python/version.py 0.0.1
 ```
 
 2. Do the cross-platform build.
 
 ```
-~/acorn$ ./crossbuild.sh
+./crossbuild.sh
 ```
 
 3. Make a tag for the new language server release, "v" plus the version.
@@ -75,8 +86,8 @@ First, make sure all your local changes are merged upstream, so that the tag pic
 Then:
 
 ```
-~/acorn$ git tag v0.0.1
-~/acorn$ git push upstream v0.0.1
+git tag v0.0.1
+git push upstream v0.0.1
 ```
 
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).

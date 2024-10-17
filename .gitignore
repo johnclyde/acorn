@@ -2,3 +2,4 @@
 /files
 perf.data*
 profile.json*
+.xwin-cache
