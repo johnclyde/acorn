@@ -42,6 +42,16 @@ of VS Code to make changes to the prover and the extension.
 
 Hit F5. This will open up a new VS Code window. Use this window to open `~/acorn-library`. You'll use this instance of VS Code to test our your local changes.
 
+# Cross-platform builds
+
+You need various build tools to do a cross-platform build.
+
+```
+rustup target add <TODO: fill these out once it works>
+```
+
+Also, install the "Build Tools for Visual Studio" from the web.
+
 # Creating new releases
 
 When we create a new release, we release a new language server, and then a new VSCode extension.
@@ -52,13 +62,23 @@ When we create a new release, we release a new language server, and then a new V
 ~/acorn$ ./python/version.py 0.0.1
 ```
 
-2. Make a tag for the new language server release, "v" plus the version.
+2. Do the cross-platform build.
+
+```
+~/acorn$ ./crossbuild.sh
+```
+
+3. Make a tag for the new language server release, "v" plus the version.
+
+First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
+
+Then:
 
 ```
 ~/acorn$ git tag v0.0.1
 ~/acorn$ git push upstream v0.0.1
 ```
 
-3. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
+4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
-4. TODO
+5. TODO

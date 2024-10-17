@@ -18,7 +18,7 @@ echo "Exiting early."
 exit 0
 
 echo "Building for Windows x64..."
-cargo build --release --bin acornserver --target x86_64-pc-windows
+cargo build --release --bin acornserver --target x86_64-pc-windows-msvc
 
 echo "Building for macOS ARM..."
 cargo build --release --bin acornserver --target aarch64-apple-darwin
