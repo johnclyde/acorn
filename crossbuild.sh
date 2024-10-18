@@ -19,10 +19,9 @@ cargo build --release --bin acornserver --target x86_64-pc-windows-msvc
 ldd target/x86_64-pc-windows-msvc/release/acornserver.exe 2>&1 | grep "not a dynamic exe" \
     || (echo "linking error" && exit 1)
 
-echo "Early exit"
-exit 0
+echo "Building for macOS..."
+SDKROOT=~/macsdk \
+    cargo zigbuild --release --bin acornserver --target aarch64-apple-darwin
+echo "TODO: silence the warning that strip failed"
 
-echo "Building for macOS ARM..."
-cargo build --release --bin acornserver --target aarch64-apple-darwin
-
-echo "All builds completed successfully."
+echo "Crossbuild successful."

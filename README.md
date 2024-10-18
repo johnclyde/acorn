@@ -49,6 +49,8 @@ You will need these dependencies.
 
 All commands are run from `~/acorn`.
 
+Windows support:
+
 ```
 rustup target add x86_64-pc-windows-msvc
 cargo install xwin
@@ -59,7 +61,19 @@ cp ~/.xwin/sdk/lib/um/x86_64/directml.lib ~/.xwin/sdk/lib/um/x86_64/DirectML.lib
 cp ~/.xwin/sdk/lib/um/x86_64/pathcch.lib ~/.xwin/sdk/lib/um/x86_64/PathCch.lib
 ```
 
-TODO: get this working, then document it.
+Mac support:
+
+Download a [Mac OS X SDK](https://github.com/joseluisq/macosx-sdks)
+somewhere, then symlink to it from `~/macsdk`.
+
+```
+rustup target add aarch64-apple-darwin
+snap install zig --classic --beta
+cargo install --locked cargo-zigbuild
+```
+
+It would probably be better to do these builds from a continuous integration service, rather than
+cross-compiling.
 
 # Creating new releases
 
