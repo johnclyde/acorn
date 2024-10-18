@@ -2,6 +2,7 @@ import {
   commands,
   Disposable,
   ExtensionContext,
+  extensions,
   Position,
   ProgressLocation,
   Range,
@@ -477,25 +478,46 @@ async function showProgressBar() {
   }
 }
 
-export async function activate(context: ExtensionContext) {
+// Figures out where the server executable is.
+// Downloads it if necessary.
+async function getServerPath(context: ExtensionContext) {
+  let extension = extensions.getExtension(context.extension.id);
   let timestamp = new Date().toLocaleTimeString();
-  console.log(
-    `activating Acorn-${os.platform()}-${os.arch()} extension at`,
-    timestamp
-  );
+  let version = extension.packageJSON.version;
+  let bin = `acornserver-v${version}-${os.platform()}-${os.arch()}`;
+  console.log(`activating ${bin} at`, timestamp);
+
+  if (process.env.SERVER_PATH) {
+    // Set explicitly in dev mode
+    return process.env.SERVER_PATH;
+  }
+
+  // In production, the extension downloads a binary for the language server.
+  let storageDir = context.globalStorageUri.fsPath;
+  if (!fs.existsSync(storageDir)) {
+    fs.mkdirSync(storageDir, { recursive: true });
+    console.log(`Created global storage directory at ${storageDir}`);
+  }
+
+  let serverPath = Uri.joinPath(context.globalStorageUri, bin).fsPath;
+  if (fs.existsSync(serverPath)) {
+    // We already downloaded it
+    return serverPath;
+  }
+
+  let message = `TODO: download binary into ${serverPath}`;
+  console.log(message);
+  window.showErrorMessage(message);
+  throw new Error(message);
+}
+
+export async function activate(context: ExtensionContext) {
   let searchPath = context.asAbsolutePath("build/search");
   context.subscriptions.push(new SearchPanel(searchPath));
 
   let traceOutputChannel = window.createOutputChannel("Acorn Language Server");
 
-  let command = process.env.SERVER_PATH;
-  if (!command) {
-    // TODO: download the language server binary at run time
-    window.showErrorMessage(
-      "The SERVER_PATH environment variable is not defined."
-    );
-    return;
-  }
+  let command = await getServerPath(context);
 
   let exec: Executable = {
     command,

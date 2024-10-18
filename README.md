@@ -106,8 +106,12 @@ git push upstream v0.0.1
 
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
-5. Publish the language server binaries
+5. Publish the language server binaries to GitHub
 
 ```
 ./publish.sh
 ```
+
+6. Publish the VS Code extension
+
+TODO

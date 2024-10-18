@@ -6,3 +6,4 @@
 --ignore-dir=.venv
 --ignore-file=match:/[.]ipynb$
 --ignore-file=match:profile.json$
+--ignore-dir=vscode/extension/build
