@@ -5,12 +5,6 @@
   "engines": {
     "vscode": "^1.75.0"
   },
-  "files": [
-    "build/**",
-    "language-configuration.json",
-    "syntaxes/**",
-    "images/**"
-  ],
   "main": "build/extension/extension.js",
   "contributes": {
     "languages": [
@@ -76,6 +70,13 @@
     "watch": "tsc -watch -p ./",
     "compile": "tsc -p ./"
   },
+  "files": [
+    "build/**",
+    "language-configuration.json",
+    "syntaxes/**",
+    "images/**",
+    "LICENSE"
+  ],
   "author": "Kevin Lacker",
   "license": "Apache-2.0",
   "icon": "images/acorn-green-128.png",
