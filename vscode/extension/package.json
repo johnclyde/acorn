@@ -68,7 +68,6 @@
     }
   },
   "scripts": {
-    "watch": "tsc -watch -p ./",
     "compile": "tsc -p ./"
   },
   "author": "Kevin Lacker",

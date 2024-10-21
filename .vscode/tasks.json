@@ -19,24 +19,6 @@
       "problemMatcher": ["$tsc"]
     },
     {
-      "label": "extension: npm watch",
-      "type": "npm",
-      "script": "watch",
-      "options": {
-        "cwd": "${workspaceFolder}/vscode/extension"
-      },
-      "isBackground": true,
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "panel": "dedicated",
-        "reveal": "never"
-      },
-      "problemMatcher": ["$tsc-watch"]
-    },
-    {
       "label": "search: npm build",
       "type": "npm",
       "script": "build",
@@ -51,7 +33,7 @@
         "panel": "dedicated",
         "reveal": "silent"
       },
-      "problemMatcher": ["$tsc"]
+      "problemMatcher": []
     },
     {
       "label": "language server: cargo build",
