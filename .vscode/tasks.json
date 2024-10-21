@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "extension: npm compile",
-      "type": "npm",
-      "script": "compile",
+      "label": "extension: npm build",
+      "type": "shell",
+      "command": "npm run build",
       "options": {
         "cwd": "${workspaceFolder}/vscode/extension"
       },
@@ -16,7 +16,7 @@
         "panel": "dedicated",
         "reveal": "silent"
       },
-      "problemMatcher": ["$tsc"]
+      "problemMatcher": []
     },
     {
       "label": "search: npm build",
@@ -53,7 +53,7 @@
     {
       "label": "build all",
       "dependsOn": [
-        "extension: npm compile",
+        "extension: npm build",
         "search: npm build",
         "language server: cargo build"
       ],

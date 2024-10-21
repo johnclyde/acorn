@@ -6,7 +6,7 @@
   "engines": {
     "vscode": "^1.75.0"
   },
-  "main": "build/extension/extension.js",
+  "main": "build/extension/bundle.js",
   "contributes": {
     "languages": [
       {
@@ -68,7 +68,7 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./"
+    "build": "node build.mjs"
   },
   "author": "Kevin Lacker",
   "license": "Apache-2.0",
@@ -76,6 +76,7 @@
   "devDependencies": {
     "@types/node": "^20.6.3",
     "@types/vscode": "^1.75.0",
+    "esbuild": "^0.24.0",
     "prettier": "^3.0.3",
     "typescript": "^5.2.2"
   },
