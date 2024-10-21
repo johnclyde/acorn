@@ -111,6 +111,9 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let timestamp = new Date().toLocaleTimeString();
   let version = extension.packageJSON.version;
   let binName = `acornserver-v${version}-${os.platform()}-${os.arch()}`;
+  if (os.platform() === "win32") {
+    binName += ".exe";
+  }
   console.log(`activating ${binName} at`, timestamp);
 
   if (process.env.SERVER_PATH) {
@@ -122,7 +125,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let binDir = Uri.joinPath(context.globalStorageUri, "bin").fsPath;
   if (!fs.existsSync(binDir)) {
     fs.mkdirSync(binDir, { recursive: true });
-    console.log(`Created binary storage directory at ${binDir}`);
+    console.log(`created binary storage directory at ${binDir}`);
   }
 
   // Join the storage directory with the binary name
@@ -136,16 +139,25 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let oldBins = await fs.promises.readdir(binDir);
   let url = `https://github.com/acornprover/acorn/releases/download/v${version}/${binName}`;
   console.log(`downloading from ${url} to ${serverPath}`);
-  try {
-    await downloadFile(url, serverPath);
-  } catch (e) {
-    // Pop up an error message
-    window.showErrorMessage(
-      `Failed to download Acorn language server: ${e.message}`
-    );
-    console.error(`error downloading {url}:`, e);
-    throw e;
-  }
+  await window.withProgress(
+    {
+      location: ProgressLocation.Notification,
+      title: `Downloading ${binName} from GitHub...`,
+      cancellable: false,
+    },
+    async () => {
+      try {
+        await downloadFile(url, serverPath);
+      } catch (e) {
+        // Pop up an error message
+        window.showErrorMessage(
+          `Failed to download Acorn language server: ${e.message}`
+        );
+        console.error(`error downloading {url}:`, e);
+        throw e;
+      }
+    }
+  );
   // Make the binary executable
   if (os.platform() !== "win32") {
     await fs.promises.chmod(serverPath, 0o755);
