@@ -146,7 +146,10 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
     console.error(`error downloading {url}:`, e);
     throw e;
   }
-  await fs.promises.chmod(serverPath, 0o755);
+  // Make the binary executable
+  if (os.platform() !== "win32") {
+    await fs.promises.chmod(serverPath, 0o755);
+  }
   console.log("download complete");
 
   // Remove old binaries
