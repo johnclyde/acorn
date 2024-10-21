@@ -1,7 +1,8 @@
 {
-  "name": "acorn-extension",
+  "name": "acorn",
+  "displayName": "Acorn",
   "version": "0.0.1",
-  "description": "A VSCode extension for the Acorn language.",
+  "description": "Acorn language support, including an interactive theorem prover.",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -70,13 +71,6 @@
     "watch": "tsc -watch -p ./",
     "compile": "tsc -p ./"
   },
-  "files": [
-    "build/**",
-    "language-configuration.json",
-    "syntaxes/**",
-    "images/**",
-    "LICENSE"
-  ],
   "author": "Kevin Lacker",
   "license": "Apache-2.0",
   "icon": "images/acorn-green-128.png",
