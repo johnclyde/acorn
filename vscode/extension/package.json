@@ -86,6 +86,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "axios": "^1.7.7",
     "vscode-languageclient": "^9.0.0"
   }
 }

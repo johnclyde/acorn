@@ -1,3 +1,8 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import axios from "axios";
 import {
   ExtensionContext,
   extensions,
@@ -7,8 +12,6 @@ import {
   window,
   workspace,
 } from "vscode";
-import * as fs from "fs";
-import * as os from "os";
 import {
   CloseAction,
   ErrorAction,
@@ -17,9 +20,30 @@ import {
   LanguageClientOptions,
   ServerOptions,
 } from "vscode-languageclient/node";
+
 import { SearchPanel } from "./search-panel";
 
 let client: LanguageClient;
+
+/**
+ * Downloads a file from the given URL and saves it to the specified path.
+ * @param url - The URL to download from.
+ * @param filePath - The full path where the file will be saved.
+ */
+async function downloadFile(url: string, filePath: string): Promise<void> {
+  let response = await axios.get(url, { responseType: "stream" });
+
+  let fileStream = fs.createWriteStream(filePath);
+
+  return new Promise((resolve, reject) => {
+    response.data.pipe(fileStream);
+
+    fileStream.on("finish", resolve); // Resolve on success
+    fileStream.on("error", (err) => {
+      fs.unlink(filePath, () => reject(err)); // Clean up on error
+    });
+  });
+}
 
 async function getProgress() {
   try {
@@ -82,12 +106,12 @@ async function showProgressBar() {
 
 // Figures out where the server executable is.
 // Downloads it if necessary.
-async function getServerPath(context: ExtensionContext) {
+async function getServerPath(context: ExtensionContext): Promise<string> {
   let extension = extensions.getExtension(context.extension.id);
   let timestamp = new Date().toLocaleTimeString();
   let version = extension.packageJSON.version;
-  let bin = `acornserver-v${version}-${os.platform()}-${os.arch()}`;
-  console.log(`activating ${bin} at`, timestamp);
+  let binName = `acornserver-v${version}-${os.platform()}-${os.arch()}`;
+  console.log(`activating ${binName} at`, timestamp);
 
   if (process.env.SERVER_PATH) {
     // Set explicitly in dev mode
@@ -95,22 +119,48 @@ async function getServerPath(context: ExtensionContext) {
   }
 
   // In production, the extension downloads a binary for the language server.
-  let storageDir = context.globalStorageUri.fsPath;
-  if (!fs.existsSync(storageDir)) {
-    fs.mkdirSync(storageDir, { recursive: true });
-    console.log(`Created global storage directory at ${storageDir}`);
+  let binDir = Uri.joinPath(context.globalStorageUri, "bin").fsPath;
+  if (!fs.existsSync(binDir)) {
+    fs.mkdirSync(binDir, { recursive: true });
+    console.log(`Created binary storage directory at ${binDir}`);
   }
 
-  let serverPath = Uri.joinPath(context.globalStorageUri, bin).fsPath;
+  // Join the storage directory with the binary name
+  let serverPath = path.join(binDir, binName);
   if (fs.existsSync(serverPath)) {
     // We already downloaded it
     return serverPath;
   }
 
-  let message = `TODO: download binary into ${serverPath}`;
-  console.log(message);
-  window.showErrorMessage(message);
-  throw new Error(message);
+  // Download the new binary from GitHub
+  let oldBins = await fs.promises.readdir(binDir);
+  let url = `https://github.com/acornprover/acorn/releases/download/v${version}/${binName}`;
+  console.log(`downloading from ${url} to ${serverPath}`);
+  try {
+    await downloadFile(url, serverPath);
+  } catch (e) {
+    // Pop up an error message
+    window.showErrorMessage(
+      `Failed to download Acorn language server: ${e.message}`
+    );
+    console.error(`error downloading {url}:`, e);
+    throw e;
+  }
+  await fs.promises.chmod(serverPath, 0o755);
+  console.log("download complete");
+
+  // Remove old binaries
+  for (let oldBin of oldBins) {
+    if (oldBin === binName) {
+      // This shouldn't happen
+      throw new Error("unexpected redownload");
+    }
+    let oldBinPath = path.join(binDir, oldBin);
+    console.log(`removing old binary ${oldBinPath}`);
+    fs.unlinkSync(oldBinPath);
+  }
+
+  return serverPath;
 }
 
 export async function activate(context: ExtensionContext) {
