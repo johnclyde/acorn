@@ -556,6 +556,28 @@ impl BindingMap {
         Ok((names, types))
     }
 
+    // Adds names and types to the stack. Checks to be sure the numbers match.
+    // Returns the list of strings that is the names.
+    fn bind_names(
+        &self,
+        stack: &mut Stack,
+        names: &Expression,
+        types: &Vec<AcornType>,
+    ) -> token::Result<Vec<String>> {
+        let name_exps = names.flatten_list(false)?;
+        if name_exps.len() != types.len() {
+            return Err(Error::new(
+                names.token(),
+                &format!(
+                    "expected {} arguments but got {}",
+                    types.len(),
+                    name_exps.len()
+                ),
+            ));
+        }
+        todo!("bind_names");
+    }
+
     // This function evaluates numbers when we already know what type they are.
     // token is the token to report errors with.
     // s is the string to parse.
@@ -1219,9 +1241,9 @@ impl BindingMap {
                 let scrutinee =
                     self.evaluate_value_with_stack(stack, project, scrutinee_exp, None)?;
                 let scrutinee_type = scrutinee.get_type();
-                // XXX let cases = vec![];
+                let mut cases = vec![];
                 for (pattern_exp, result_exp) in case_exps {
-                    let (fn_exp, arg_exps) = match pattern_exp {
+                    let (fn_exp, args) = match pattern_exp {
                         Expression::Apply(function, args) => (function, args),
                         _ => return Err(Error::new(pattern_exp.token(), "invalid match pattern")),
                     };
@@ -1239,9 +1261,15 @@ impl BindingMap {
                         }
                         _ => return Err(Error::new(fn_exp.token(), "expected a function")),
                     };
-                    todo!("extract the names");
+                    let arg_names = self.bind_names(stack, args, &arg_types)?;
+                    let pattern =
+                        self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
+                    let result =
+                        self.evaluate_value_with_stack(stack, project, result_exp, None)?;
+                    cases.push((arg_types, pattern, result));
+                    stack.remove_all(&arg_names);
                 }
-                todo!("evaluate match expressions");
+                Ok(AcornValue::Match(Box::new(scrutinee), cases))
             }
         }
     }
