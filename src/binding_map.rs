@@ -1215,7 +1215,32 @@ impl BindingMap {
                     Box::new(else_value),
                 ))
             }
-            Expression::Match(..) => {
+            Expression::Match(_, scrutinee_exp, case_exps, _) => {
+                let scrutinee =
+                    self.evaluate_value_with_stack(stack, project, scrutinee_exp, None)?;
+                let scrutinee_type = scrutinee.get_type();
+                // XXX let cases = vec![];
+                for (pattern_exp, result_exp) in case_exps {
+                    let (fn_exp, arg_exps) = match pattern_exp {
+                        Expression::Apply(function, args) => (function, args),
+                        _ => return Err(Error::new(pattern_exp.token(), "invalid match pattern")),
+                    };
+                    let fn_value = self.evaluate_value_with_stack(stack, project, fn_exp, None)?;
+                    let fn_type = fn_value.get_type();
+                    let arg_types = match fn_type {
+                        AcornType::Function(f) => {
+                            if *f.return_type != scrutinee_type {
+                                return Err(Error::new(
+                                    pattern_exp.token(),
+                                    "pattern type does not match scrutinee",
+                                ));
+                            }
+                            f.arg_types
+                        }
+                        _ => return Err(Error::new(fn_exp.token(), "expected a function")),
+                    };
+                    todo!("extract the names");
+                }
                 todo!("evaluate match expressions");
             }
         }
