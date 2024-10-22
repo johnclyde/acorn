@@ -1202,4 +1202,28 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_match_based_definition() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Foo {
+                bar(Bool)
+                baz(Bool)
+            }
+
+            define foo(f: Foo) -> Bool {
+                match f {
+                    bar(b) {
+                        b
+                    }
+                    baz(b) {
+                        not b
+                    }
+                }
+            }
+        "#,
+        );
+    }
 }

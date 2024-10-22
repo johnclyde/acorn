@@ -763,6 +763,7 @@ impl TokenIter {
         Ok(name_token)
     }
 
+    // Advance past any newlines.
     pub fn skip_newlines(&mut self) {
         while let Some(token) = self.peek() {
             if token.token_type == TokenType::NewLine {

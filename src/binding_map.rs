@@ -453,6 +453,10 @@ impl BindingMap {
             Expression::Binder(token, _, _, _) | Expression::IfThenElse(token, _, _, _, _) => {
                 Err(Error::new(token, "unexpected token in type expression"))
             }
+            Expression::Match(token, _, _, _) => Err(Error::new(
+                token,
+                "unexpected match token in type expression",
+            )),
         }
     }
 
@@ -1210,6 +1214,9 @@ impl BindingMap {
                     Box::new(if_value),
                     Box::new(else_value),
                 ))
+            }
+            Expression::Match(..) => {
+                todo!("evaluate match expressions");
             }
         }
     }
