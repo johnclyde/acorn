@@ -403,6 +403,8 @@ export class SearchPanel implements Disposable {
     for (let subscription of this.disposables) {
       subscription.dispose();
     }
-    this.panel.dispose();
+    if (this.panel) {
+      this.panel.dispose();
+    }
   }
 }
