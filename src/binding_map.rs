@@ -1369,6 +1369,13 @@ impl BindingMap {
                 self.find_unknown_local_constants(then_value, answer);
                 self.find_unknown_local_constants(else_value, answer);
             }
+            AcornValue::Match(scrutinee, cases) => {
+                self.find_unknown_local_constants(scrutinee, answer);
+                for (_, pattern, result) in cases {
+                    self.find_unknown_local_constants(pattern, answer);
+                    self.find_unknown_local_constants(result, answer);
+                }
+            }
             AcornValue::Not(value) => {
                 self.find_unknown_local_constants(value, answer);
             }
@@ -1669,6 +1676,9 @@ impl BindingMap {
                     Box::new(else_value),
                     TokenType::RightBrace.generate(),
                 ))
+            }
+            AcornValue::Match(_scrutinee, _cases) => {
+                todo!("codegen match expressions");
             }
         }
     }
