@@ -583,6 +583,7 @@ impl Token {
                             "not" => TokenType::Not,
                             "self" => TokenType::SelfToken,
                             "inductive" => TokenType::Inductive,
+                            "match" => TokenType::Match,
                             _ => TokenType::Identifier,
                         }
                     }

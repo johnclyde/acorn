@@ -658,6 +658,10 @@ fn parse_partial_expressions(
                 partials.push_back(PartialExpression::Expression(exp));
             }
 
+            TokenType::Match => {
+                todo!("handle match expressions");
+            }
+
             TokenType::NewLine => {
                 // Ignore newlines. The case where the newline is a terminator, we already caught.
             }
@@ -998,5 +1002,10 @@ mod tests {
 
         // A block should not be okay where we expect an expression
         check_not_value("{ x = x }");
+    }
+
+    #[test]
+    fn test_match_expressions() {
+        check_value("match a { Foo.bar(b) { b } Foo.qux(b) { b } }");
     }
 }
