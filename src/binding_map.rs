@@ -556,9 +556,10 @@ impl BindingMap {
         Ok((names, types))
     }
 
-    // Adds names and types to the stack. Checks to be sure the numbers match.
-    // Returns the list of strings that is the names.
-    fn bind_names(
+    // Adds a group of name expressions to the stack, when their types are already known.
+    // Checks to be sure the lengths match.
+    // Returns the list of names in string form.
+    fn bind_group(
         &self,
         stack: &mut Stack,
         names: &Expression,
@@ -575,7 +576,27 @@ impl BindingMap {
                 ),
             ));
         }
-        todo!("bind_names");
+        let mut names = vec![];
+        for (name_exp, acorn_type) in name_exps.iter().zip(types.iter()) {
+            let name = match name_exp {
+                Expression::Singleton(token) => token.text().to_string(),
+                _ => {
+                    return Err(Error::new(
+                        name_exp.token(),
+                        "expected a simple name in argument list",
+                    ))
+                }
+            };
+            if self.name_in_use(&name) {
+                return Err(Error::new(
+                    name_exp.token(),
+                    &format!("name {} already bound", name),
+                ));
+            }
+            stack.insert(name.clone(), acorn_type.clone());
+            names.push(name);
+        }
+        Ok(names)
     }
 
     // This function evaluates numbers when we already know what type they are.
@@ -1261,7 +1282,7 @@ impl BindingMap {
                         }
                         _ => return Err(Error::new(fn_exp.token(), "expected a function")),
                     };
-                    let arg_names = self.bind_names(stack, args, &arg_types)?;
+                    let arg_names = self.bind_group(stack, args, &arg_types)?;
                     let pattern =
                         self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
                     let result =
