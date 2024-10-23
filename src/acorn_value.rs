@@ -1040,8 +1040,10 @@ impl AcornValue {
         AcornValue::new_and(a_imp_b, not_a_imp_c)
     }
 
-    // Replaces all "if" nodes by extracting them into boolean values and then replacing them.
+    // Replaces "if" nodes by extracting them into boolean values and then replacing them.
     // This should only be called on boolean values.
+    // It handles the case where the if branches are boolean themselves, as well as the cases where
+    // the "if" is in a function argument, or on one side of a binary.
     pub fn replace_if(self) -> AcornValue {
         assert_eq!(self.get_type(), AcornType::Bool);
 
@@ -1070,6 +1072,27 @@ impl AcornValue {
             }
             AcornValue::Lambda(args, value) => {
                 AcornValue::Lambda(args, Box::new(value.replace_if()))
+            }
+            _ => self,
+        }
+    }
+
+    // Replaces "match" nodes by replacing them with a disjunction of all their cases.
+    // This should only be called on boolean values.
+    // It only handles the case where the match is directly below a binary operator, because
+    // that lets you define constants and functions using match.
+    pub fn replace_match(self) -> AcornValue {
+        assert_eq!(self.get_type(), AcornType::Bool);
+
+        match &self {
+            AcornValue::Binary(_op, left, right) => {
+                if let AcornValue::Match(_, _) = **left {
+                    todo!();
+                }
+                if let AcornValue::Match(_, _) = **right {
+                    todo!();
+                }
+                self
             }
             _ => self,
         }
