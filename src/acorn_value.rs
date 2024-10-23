@@ -1088,6 +1088,7 @@ impl AcornValue {
         match self {
             AcornValue::Binary(op, left, right) => {
                 if let AcornValue::Match(_scrutinee, _cases) = *right {
+                    // let mut conjuncts = vec![];
                     todo!("replace a right-match");
                 }
                 AcornValue::Binary(op, left, right)

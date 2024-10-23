@@ -1066,7 +1066,7 @@ impl Environment {
                 // of the constructors.
                 // It seems like this is implied by induction but let's just stick it in.
                 // x0 is going to be the "generic item of this type".
-                let mut disjunction_parts = vec![];
+                let mut disjuncts = vec![];
                 for (i, constructor_fn) in constructor_fns.iter().enumerate() {
                     let (_, arg_types) = &constructors[i];
                     let args = arg_types
@@ -1078,9 +1078,9 @@ impl Environment {
                     let var = AcornValue::Variable(0, inductive_type.clone());
                     let equality = AcornValue::new_equals(var, app);
                     let exists = AcornValue::new_exists(arg_types.clone(), equality);
-                    disjunction_parts.push(exists);
+                    disjuncts.push(exists);
                 }
-                let disjunction = AcornValue::reduce(BinaryOp::Or, disjunction_parts);
+                let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
                 let claim = AcornValue::new_forall(vec![inductive_type.clone()], disjunction);
                 self.add_node(
                     project,
@@ -1116,15 +1116,15 @@ impl Environment {
                     let equality = AcornValue::new_equals(lhs, rhs);
 
                     // Then construct the implication, that the corresponding args are equal.
-                    let mut conjunction_parts = vec![];
+                    let mut conjuncts = vec![];
                     for (i, arg_type) in arg_types.iter().enumerate() {
                         let left = AcornValue::Variable(i as AtomId, arg_type.clone());
                         let right =
                             AcornValue::Variable((i + arg_types.len()) as AtomId, arg_type.clone());
                         let arg_equality = AcornValue::new_equals(left, right);
-                        conjunction_parts.push(arg_equality);
+                        conjuncts.push(arg_equality);
                     }
-                    let conjunction = AcornValue::reduce(BinaryOp::And, conjunction_parts);
+                    let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
                     let mut forall_types = arg_types.clone();
                     forall_types.extend_from_slice(&arg_types);
                     let claim = AcornValue::new_forall(
@@ -1147,7 +1147,7 @@ impl Environment {
                 // Think of the inductive principle as (conjunction) -> (conclusion).
                 // The conjunction is a case for each constructor.
                 // The conclusion is that x0 holds for all items of the type.
-                let mut conjunction_parts = vec![];
+                let mut conjuncts = vec![];
                 for (i, constructor_fn) in constructor_fns.iter().enumerate() {
                     let (_, arg_types) = &constructors[i];
                     let mut args = vec![];
@@ -1185,9 +1185,9 @@ impl Environment {
                         )
                     };
                     let conjunction_part = AcornValue::new_forall(arg_types.clone(), unbound);
-                    conjunction_parts.push(conjunction_part);
+                    conjuncts.push(conjunction_part);
                 }
-                let conjunction = AcornValue::reduce(BinaryOp::And, conjunction_parts);
+                let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
                 let conclusion = AcornValue::new_forall(
                     vec![inductive_type.clone()],
                     AcornValue::new_apply(
