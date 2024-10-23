@@ -1087,9 +1087,20 @@ impl AcornValue {
 
         match self {
             AcornValue::Binary(op, left, right) => {
-                if let AcornValue::Match(_scrutinee, _cases) = *right {
-                    // let mut conjuncts = vec![];
-                    todo!("replace a right-match");
+                if let AcornValue::Match(scrutinee, cases) = *right {
+                    let mut conjuncts = vec![];
+                    for (vars, pattern, result) in cases {
+                        // The meaning of the branch is:
+                        //   scrutinee = pattern implies op(left, result)
+                        let equality = AcornValue::new_equals(*scrutinee.clone(), pattern);
+                        let implication = AcornValue::new_implies(
+                            equality,
+                            AcornValue::Binary(op, left.clone(), Box::new(result)),
+                        );
+                        let conjunct = AcornValue::new_forall(vars, implication);
+                        conjuncts.push(conjunct);
+                    }
+                    return AcornValue::reduce(BinaryOp::And, conjuncts);
                 }
                 AcornValue::Binary(op, left, right)
             }
