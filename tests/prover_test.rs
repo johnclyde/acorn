@@ -14,7 +14,9 @@ mod prover_test {
         module_name: &str,
         goal_name: &str,
     ) -> (Outcome, Result<Vec<String>, CodeGenError>) {
-        let module_id = project.load_module_by_name(module_name).expect("load failed");
+        let module_id = project
+            .load_module_by_name(module_name)
+            .expect("load failed");
         let env = project.get_env_by_id(module_id).unwrap();
         let node = env.get_node_by_name(goal_name);
         let facts = node.usable_facts(project);
@@ -68,6 +70,9 @@ mod prover_test {
             prover.set_goal(&goal_context);
             prover.verbose = true;
             let outcome = prover.quick_verification_search();
+            if outcome == Outcome::Error {
+                println!("prover error: {}", prover.error.unwrap());
+            }
             if outcome != Outcome::Success {
                 return outcome;
             }
@@ -1354,5 +1359,29 @@ mod prover_test {
         );
         let (outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
+    }
+
+    #[test]
+    fn test_prove_with_match() {
+        let text = r#"
+        inductive Foo {
+            bar
+            baz
+        }
+        define foo(f: Foo) -> Bool {
+            match f {
+                Foo.bar {
+                    true
+                }
+                Foo.baz {
+                    true
+                }
+            }
+        }
+        theorem goal(f: Foo) {
+            foo(f)
+        }
+        "#;
+        verify_succeeds(text);
     }
 }
