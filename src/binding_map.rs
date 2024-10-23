@@ -569,6 +569,7 @@ impl BindingMap {
     }
 
     // Adds a group of name expressions to the stack, when their types are already known.
+    // No duplicate names.
     // Checks to be sure the lengths match.
     // Returns the list of names in string form.
     fn bind_group(
@@ -603,6 +604,12 @@ impl BindingMap {
                 return Err(Error::new(
                     name_exp.token(),
                     &format!("name {} already bound", name),
+                ));
+            }
+            if names.contains(&name) {
+                return Err(Error::new(
+                    name_exp.token(),
+                    "cannot use a name twice in one pattern",
                 ));
             }
             stack.insert(name.clone(), acorn_type.clone());
