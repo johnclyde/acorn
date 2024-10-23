@@ -611,6 +611,38 @@ impl BindingMap {
         Ok(names)
     }
 
+    // Uses a pattern match to bind variables to the stack. Infers their types from the pattern.
+    // Returns an error if the pattern is not a constructor of the expected type.
+    // Returns the list of bound names and a parallel list of their types.
+    fn bind_pattern(
+        &self,
+        stack: &mut Stack,
+        project: &Project,
+        expected_type: &AcornType,
+        pattern: &Expression,
+    ) -> token::Result<(Vec<String>, Vec<AcornType>)> {
+        let (fn_exp, args) = match pattern {
+            Expression::Apply(function, args) => (function, args),
+            _ => return Err(Error::new(pattern.token(), "invalid match pattern")),
+        };
+        let fn_value = self.evaluate_value_with_stack(stack, project, fn_exp, None)?;
+        let fn_type = fn_value.get_type();
+        let arg_types = match fn_type {
+            AcornType::Function(f) => {
+                if &*f.return_type != expected_type {
+                    return Err(Error::new(
+                        pattern.token(),
+                        "pattern type does not match scrutinee",
+                    ));
+                }
+                f.arg_types
+            }
+            _ => return Err(Error::new(fn_exp.token(), "expected a function")),
+        };
+        let arg_names = self.bind_group(stack, args, &arg_types)?;
+        Ok((arg_names, arg_types))
+    }
+
     // This function evaluates numbers when we already know what type they are.
     // token is the token to report errors with.
     // s is the string to parse.
@@ -1283,25 +1315,8 @@ impl BindingMap {
                 let scrutinee_type = scrutinee.get_type();
                 let mut cases = vec![];
                 for (pattern_exp, result_exp) in case_exps {
-                    let (fn_exp, args) = match pattern_exp {
-                        Expression::Apply(function, args) => (function, args),
-                        _ => return Err(Error::new(pattern_exp.token(), "invalid match pattern")),
-                    };
-                    let fn_value = self.evaluate_value_with_stack(stack, project, fn_exp, None)?;
-                    let fn_type = fn_value.get_type();
-                    let arg_types = match fn_type {
-                        AcornType::Function(f) => {
-                            if *f.return_type != scrutinee_type {
-                                return Err(Error::new(
-                                    pattern_exp.token(),
-                                    "pattern type does not match scrutinee",
-                                ));
-                            }
-                            f.arg_types
-                        }
-                        _ => return Err(Error::new(fn_exp.token(), "expected a function")),
-                    };
-                    let arg_names = self.bind_group(stack, args, &arg_types)?;
+                    let (arg_names, arg_types) =
+                        self.bind_pattern(stack, project, &scrutinee_type, pattern_exp)?;
                     let pattern =
                         self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
                     let result =
