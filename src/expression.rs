@@ -713,6 +713,9 @@ fn parse_partial_expressions(
                         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
                     cases.push((pattern, exp));
                 };
+                if cases.is_empty() {
+                    return Err(tokens.error("expected at least one case"));
+                }
                 let exp = Expression::Match(token, Box::new(scrutinee), cases, right_brace);
                 partials.push_back(PartialExpression::Expression(exp));
             }
@@ -1062,5 +1065,6 @@ mod tests {
     #[test]
     fn test_match_expressions() {
         check_value("match a { Foo.bar(b) { b } Foo.qux(b) { b } }");
+        check_not_value("match a { }");
     }
 }
