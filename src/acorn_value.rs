@@ -1079,20 +1079,30 @@ impl AcornValue {
 
     // Replaces "match" nodes by replacing them with a disjunction of all their cases.
     // This should only be called on boolean values.
-    // It only handles the case where the match is directly below a binary operator, because
-    // that lets you define constants and functions using match.
+    // It only handles the case where the match is directly below the right of a binary operator,
+    // because that lets you define constants and functions using match.
+    // We could easily implement left-match. But is it even possible to hit that code?
     pub fn replace_match(self) -> AcornValue {
         assert_eq!(self.get_type(), AcornType::Bool);
 
-        match &self {
-            AcornValue::Binary(_op, left, right) => {
-                if let AcornValue::Match(_, _) = **left {
-                    todo!();
+        match self {
+            AcornValue::Binary(op, left, right) => {
+                if let AcornValue::Match(_scrutinee, _cases) = *right {
+                    todo!("replace a right-match");
                 }
-                if let AcornValue::Match(_, _) = **right {
-                    todo!();
-                }
-                self
+                AcornValue::Binary(op, left, right)
+            }
+
+            // The cases where we recurse
+            AcornValue::Not(value) => AcornValue::Not(Box::new(value.replace_match())),
+            AcornValue::ForAll(quants, value) => {
+                AcornValue::ForAll(quants, Box::new(value.replace_match()))
+            }
+            AcornValue::Exists(quants, value) => {
+                AcornValue::Exists(quants, Box::new(value.replace_match()))
+            }
+            AcornValue::Lambda(args, value) => {
+                AcornValue::Lambda(args, Box::new(value.replace_match()))
             }
             _ => self,
         }
