@@ -365,7 +365,10 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        if self.bindings.add_constant(&name, vec![], acorn_type, value) {
+        if self
+            .bindings
+            .add_constant(&name, vec![], acorn_type, value, None)
+        {
             // This is a new constant, so we should track where it's defined
             self.definition_ranges.insert(name.clone(), range);
             self.add_identity_props(project, &name);
@@ -434,12 +437,17 @@ impl Environment {
         if let Some(v) = unbound_value {
             let fn_value = AcornValue::new_lambda(arg_types, v);
             // Add the function value to the environment
-            self.bindings
-                .add_constant(&name, param_names, fn_value.get_type(), Some(fn_value));
+            self.bindings.add_constant(
+                &name,
+                param_names,
+                fn_value.get_type(),
+                Some(fn_value),
+                None,
+            );
         } else {
             let new_axiom_type = AcornType::new_functional(arg_types, value_type);
             self.bindings
-                .add_constant(&name, param_names, new_axiom_type, None);
+                .add_constant(&name, param_names, new_axiom_type, None, None);
         };
 
         self.definition_ranges.insert(name.clone(), range);
@@ -556,6 +564,7 @@ impl Environment {
                     type_params.clone(),
                     theorem_type.clone(),
                     Some(lambda_claim.clone()),
+                    None,
                 );
 
                 let already_proven = ts.axiomatic || is_citation;
@@ -710,7 +719,7 @@ impl Environment {
                 // Define the quantifiers as constants
                 for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
                     self.bindings
-                        .add_constant(quant_name, vec![], quant_type.clone(), None);
+                        .add_constant(quant_name, vec![], quant_type.clone(), None, None);
                 }
 
                 // We can then assume the specific existence claim with the named constants
@@ -801,7 +810,7 @@ impl Environment {
                 // We define this function not with an equality, but via the condition.
                 let function_type = AcornType::new_functional(arg_types.clone(), return_type);
                 self.bindings
-                    .add_constant(&fss.name, vec![], function_type.clone(), None);
+                    .add_constant(&fss.name, vec![], function_type.clone(), None, None);
                 let function_constant =
                     AcornValue::Constant(self.module_id, fss.name.clone(), function_type, vec![]);
                 let function_term = AcornValue::new_apply(
@@ -864,7 +873,7 @@ impl Environment {
                     let member_fn_type =
                         AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
                     self.bindings
-                        .add_constant(&member_fn_name, vec![], member_fn_type, None);
+                        .add_constant(&member_fn_name, vec![], member_fn_type, None, None);
                     member_fns.push(self.bindings.get_constant_value(&member_fn_name).unwrap());
                 }
 
@@ -872,8 +881,13 @@ impl Environment {
                 let new_fn_name = format!("{}.new", ss.name);
                 let new_fn_type =
                     AcornType::new_functional(field_types.clone(), struct_type.clone());
-                self.bindings
-                    .add_constant(&new_fn_name, vec![], new_fn_type, None);
+                self.bindings.add_constant(
+                    &new_fn_name,
+                    vec![],
+                    new_fn_type,
+                    None,
+                    Some((struct_type.clone(), 0, 1)),
+                );
                 let new_fn = self.bindings.get_constant_value(&new_fn_name).unwrap();
 
                 // A struct can be recreated by new'ing from its members. Ie:
@@ -994,11 +1008,17 @@ impl Environment {
 
                 // Define the constructors.
                 let mut constructor_fns = vec![];
-                for (constructor_name, type_list) in &constructors {
+                let total = constructors.len();
+                for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
                     let constructor_type =
                         AcornType::new_functional(type_list.clone(), inductive_type.clone());
-                    self.bindings
-                        .add_constant(constructor_name, vec![], constructor_type, None);
+                    self.bindings.add_constant(
+                        constructor_name,
+                        vec![],
+                        constructor_type,
+                        None,
+                        Some((inductive_type.clone(), i, total)),
+                    );
                     constructor_fns
                         .push(self.bindings.get_constant_value(constructor_name).unwrap());
                 }
@@ -1186,6 +1206,7 @@ impl Environment {
                     vec![],
                     lambda_claim.get_type(),
                     Some(lambda_claim),
+                    None,
                 );
                 self.bindings.mark_as_theorem(&name);
 

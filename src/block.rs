@@ -62,7 +62,7 @@ impl Block {
             let specific_arg_type = generic_arg_type.specialize(&param_pairs);
             subenv
                 .bindings
-                .add_constant(&arg_name, vec![], specific_arg_type, None);
+                .add_constant(&arg_name, vec![], specific_arg_type, None, None);
         }
 
         let goal = match params {
