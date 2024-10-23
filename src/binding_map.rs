@@ -1358,6 +1358,7 @@ impl BindingMap {
                 ))
             }
             Expression::Match(_, scrutinee_exp, case_exps, _) => {
+                let mut expected_type: Option<AcornType> = expected_type.cloned();
                 let scrutinee =
                     self.evaluate_value_with_stack(stack, project, scrutinee_exp, None)?;
                 let scrutinee_type = scrutinee.get_type();
@@ -1379,8 +1380,15 @@ impl BindingMap {
                     }
                     let pattern =
                         self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
-                    let result =
-                        self.evaluate_value_with_stack(stack, project, result_exp, None)?;
+                    let result = self.evaluate_value_with_stack(
+                        stack,
+                        project,
+                        result_exp,
+                        expected_type.as_ref(),
+                    )?;
+                    if expected_type.is_none() {
+                        expected_type = Some(result.get_type());
+                    }
                     cases.push((arg_types, pattern, result));
                     stack.remove_all(&arg_names);
                 }
