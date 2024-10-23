@@ -1355,15 +1355,33 @@ impl BindingMap {
                     self.evaluate_value_with_stack(stack, project, scrutinee_exp, None)?;
                 let scrutinee_type = scrutinee.get_type();
                 let mut cases = vec![];
+                let mut indices = vec![];
+                let mut all_cases = false;
                 for (pattern_exp, result_exp) in case_exps {
-                    let (arg_names, arg_types, _, _) =
+                    let (arg_names, arg_types, i, total) =
                         self.bind_pattern(stack, project, &scrutinee_type, pattern_exp)?;
+                    if indices.contains(&i) {
+                        return Err(Error::new(
+                            pattern_exp.token(),
+                            "cannot have multiple cases for the same constructor",
+                        ));
+                    }
+                    indices.push(i);
+                    if total == indices.len() {
+                        all_cases = true;
+                    }
                     let pattern =
                         self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
                     let result =
                         self.evaluate_value_with_stack(stack, project, result_exp, None)?;
                     cases.push((arg_types, pattern, result));
                     stack.remove_all(&arg_names);
+                }
+                if !all_cases {
+                    return Err(Error::new(
+                        expression.token(),
+                        "not all constructors are covered in this match",
+                    ));
                 }
                 Ok(AcornValue::Match(Box::new(scrutinee), cases))
             }
