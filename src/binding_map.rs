@@ -657,7 +657,13 @@ impl BindingMap {
         let token = pattern.token();
         let (fn_exp, args) = match pattern {
             Expression::Apply(function, args) => (function, args),
-            _ => return Err(Error::new(token, "invalid match pattern")),
+            _ => {
+                // This could be a no-argument constructor.
+                let pattern_val = self.evaluate_value_with_stack(stack, project, pattern, None)?;
+                let (i, total) =
+                    self.expect_constructor(project, expected_type, &pattern_val, token)?;
+                return Ok((vec![], vec![], i, total));
+            }
         };
         let fn_value = self.evaluate_value_with_stack(stack, project, fn_exp, None)?;
         let (i, total) = self.expect_constructor(project, expected_type, &fn_value, token)?;
