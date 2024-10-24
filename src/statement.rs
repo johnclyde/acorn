@@ -814,6 +814,7 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
         };
         cases.push((pattern, body));
     }
+    tokens.expect_type(TokenType::RightBrace)?;
     let last_token = match cases.last() {
         Some((_, body)) => body.right_brace.clone(),
         None => return Err(Error::new(&keyword, "match must have cases")),
