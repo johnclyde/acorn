@@ -26,6 +26,8 @@ pub struct Block {
     type_params: Vec<String>,
 
     // The arguments to this block.
+    // They can either be "forall" arguments, or the arguments to a theorem.
+    // This does not include pattern-matched variables because those have additional constraints.
     // Internally to the block, the arguments are constants.
     // Externally, these arguments are variables.
     args: Vec<(String, AcornType)>,
@@ -63,8 +65,8 @@ pub enum BlockParams<'a> {
     FunctionSatisfy(AcornValue, AcornType, Range),
 
     // MatchCase represents a single case within a match statement.
-    // The scrutinee, the constructor, and the range of the pattern.
-    MatchCase(AcornValue, AcornValue, Range),
+    // The scrutinee, the constructor, the pattern arguments, and the range of the pattern.
+    MatchCase(AcornValue, AcornValue, Vec<(String, AcornType)>, Range),
 
     // No special params needed
     ForAll,
@@ -155,8 +157,25 @@ impl Block {
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
                 Some(Goal::Prove(prop))
             }
-            BlockParams::MatchCase(..) => {
-                todo!("construct MatchCase blocks");
+            BlockParams::MatchCase(scrutinee, constructor, pattern_args, range) => {
+                // Inside the block, the pattern arguments are constants.
+                let mut arg_values = vec![];
+                for (arg_name, arg_type) in pattern_args {
+                    subenv
+                        .bindings
+                        .add_constant(&arg_name, vec![], arg_type, None, None);
+                    arg_values.push(subenv.bindings.get_constant_value(&arg_name).unwrap());
+                }
+                // Inside the block, we can assume the pattern matches.
+                let applied = AcornValue::new_apply(constructor, arg_values);
+                let equality = AcornValue::new_equals(scrutinee, applied);
+                subenv.add_node(
+                    project,
+                    true,
+                    Proposition::premise(equality, env.module_id, range),
+                    None,
+                );
+                None
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
             BlockParams::ForAll | BlockParams::Problem => None,

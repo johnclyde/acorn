@@ -1422,21 +1422,25 @@ impl Environment {
                         all_cases = true;
                     }
 
-                    let params =
-                        BlockParams::MatchCase(scrutinee.clone(), constructor, pattern.range());
+                    let params = BlockParams::MatchCase(
+                        scrutinee.clone(),
+                        constructor,
+                        args,
+                        pattern.range(),
+                    );
 
                     let block = Block::new(
                         project,
                         &self,
                         vec![],
-                        args,
+                        vec![],
                         params,
                         body.left_brace.line_number,
                         body.right_brace.line_number,
                         Some(body),
                     )?;
 
-                    // TODO: add_node, add_line_types
+                    // XXX: add_node, add_line_types
                 }
                 if !all_cases {
                     return Err(Error::new(
