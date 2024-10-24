@@ -1004,14 +1004,13 @@ impl Statement {
             }
 
             StatementInfo::Match(ms) => {
-                let single_indentation = add_indent(indentation);
-                let double_indentation = add_indent(&single_indentation);
-                write!(f, "match {} {{\n", ms.scrutinee)?;
+                let new_indentation = add_indent(indentation);
+                write!(f, "match {} {{", ms.scrutinee)?;
                 for (pattern, body) in &ms.cases {
-                    write!(f, "{}{} ", single_indentation, pattern)?;
-                    write_block(f, &body.statements, &double_indentation)?;
+                    write!(f, "\n{}{}", new_indentation, pattern)?;
+                    write_block(f, &body.statements, &new_indentation)?;
                 }
-                write!(f, "{}}}", indentation)
+                write!(f, "\n{}}}", indentation)
             }
         }
     }
