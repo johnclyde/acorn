@@ -1407,8 +1407,8 @@ impl Environment {
                 let scrutinee_type = scrutinee.get_type();
                 let mut indices = vec![];
                 let mut all_cases = false;
-                for (pattern, _body) in &ms.cases {
-                    let (_constructor, _args, i, total) =
+                for (pattern, body) in &ms.cases {
+                    let (constructor, args, i, total) =
                         self.bindings
                             .evaluate_pattern(project, &scrutinee_type, pattern)?;
                     if indices.contains(&i) {
@@ -1422,7 +1422,21 @@ impl Environment {
                         all_cases = true;
                     }
 
-                    // TODO: actually add blocks
+                    let params =
+                        BlockParams::MatchCase(scrutinee.clone(), constructor, pattern.range());
+
+                    let block = Block::new(
+                        project,
+                        &self,
+                        vec![],
+                        args,
+                        params,
+                        body.left_brace.line_number,
+                        body.right_brace.line_number,
+                        Some(body),
+                    )?;
+
+                    // TODO: add_node, add_line_types
                 }
                 if !all_cases {
                     return Err(Error::new(
