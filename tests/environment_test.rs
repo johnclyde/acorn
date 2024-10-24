@@ -1355,6 +1355,39 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_match_value_statement_must_be_constructor() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Foo {
+                bar(Bool)
+                baz
+            }
+            
+            class Foo {
+                define qux(self, b: Bool) -> Foo {
+                    Foo.baz
+                }
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            forall (f: Foo) {
+                match f {
+                    Foo.bar(b) {
+                        b
+                    }
+                    Foo.qux {
+                        false
+                    }
+                }
+            }
+            "#,
+        );
+    }
+
+    #[test]
     fn test_match_value_against_new() {
         let mut env = Environment::new_test();
         env.add(
