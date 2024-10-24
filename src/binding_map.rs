@@ -568,56 +568,6 @@ impl BindingMap {
         Ok((names, types))
     }
 
-    // Adds a group of name expressions to the stack, when their types are already known.
-    // No duplicate names.
-    // Checks to be sure the lengths match.
-    // Returns the list of names in string form.
-    fn bind_group(
-        &self,
-        stack: &mut Stack,
-        names: &Expression,
-        types: &Vec<AcornType>,
-    ) -> token::Result<Vec<String>> {
-        let name_exps = names.flatten_list(false)?;
-        if name_exps.len() != types.len() {
-            return Err(Error::new(
-                names.token(),
-                &format!(
-                    "expected {} arguments but got {}",
-                    types.len(),
-                    name_exps.len()
-                ),
-            ));
-        }
-        let mut names = vec![];
-        for (name_exp, acorn_type) in name_exps.iter().zip(types.iter()) {
-            let name = match name_exp {
-                Expression::Singleton(token) => token.text().to_string(),
-                _ => {
-                    return Err(Error::new(
-                        name_exp.token(),
-                        "expected a simple name in argument list",
-                    ))
-                }
-            };
-            if self.name_in_use(&name) {
-                return Err(Error::new(
-                    name_exp.token(),
-                    &format!("name {} already bound", name),
-                ));
-            }
-            if names.contains(&name) {
-                return Err(Error::new(
-                    name_exp.token(),
-                    "cannot use a name twice in one pattern",
-                ));
-            }
-            stack.insert(name.clone(), acorn_type.clone());
-            names.push(name);
-        }
-        Ok(names)
-    }
-
     // Errors if the value is not a constructor of the expected type.
     // Returns the index of which constructor this is, and the total number of constructors.
     fn expect_constructor(
@@ -723,50 +673,6 @@ impl BindingMap {
             names.push(name);
         }
         Ok((names, arg_types, i, total))
-    }
-
-    // Uses a pattern match to bind variables to the stack. Infers their types from the pattern.
-    // Returns an error if the pattern is not a constructor of the expected type.
-    // Returns:
-    //   the list of bound names
-    //   a parallel list of their types
-    //   the index of which constructor this is
-    //   the total number of constructors
-    fn bind_pattern(
-        &self,
-        stack: &mut Stack,
-        project: &Project,
-        expected_type: &AcornType,
-        pattern: &Expression,
-    ) -> token::Result<(Vec<String>, Vec<AcornType>, usize, usize)> {
-        let token = pattern.token();
-        let (fn_exp, args) = match pattern {
-            Expression::Apply(function, args) => (function, args),
-            _ => {
-                // This could be a no-argument constructor.
-                let pattern_val = self.evaluate_value_with_stack(stack, project, pattern, None)?;
-                let (i, total) =
-                    self.expect_constructor(project, expected_type, &pattern_val, token)?;
-                return Ok((vec![], vec![], i, total));
-            }
-        };
-        let fn_value = self.evaluate_value_with_stack(stack, project, fn_exp, None)?;
-        let (i, total) = self.expect_constructor(project, expected_type, &fn_value, token)?;
-        let fn_type = fn_value.get_type();
-        let arg_types = match fn_type {
-            AcornType::Function(f) => {
-                if &*f.return_type != expected_type {
-                    return Err(Error::new(
-                        pattern.token(),
-                        "pattern type does not match scrutinee",
-                    ));
-                }
-                f.arg_types
-            }
-            _ => return Err(Error::new(fn_exp.token(), "expected a function")),
-        };
-        let arg_names = self.bind_group(stack, args, &arg_types)?;
-        Ok((arg_names, arg_types, i, total))
     }
 
     // This function evaluates numbers when we already know what type they are.
@@ -1445,7 +1351,10 @@ impl BindingMap {
                 let mut all_cases = false;
                 for (pattern_exp, result_exp) in case_exps {
                     let (arg_names, arg_types, i, total) =
-                        self.bind_pattern(stack, project, &scrutinee_type, pattern_exp)?;
+                        self.evaluate_pattern(project, &scrutinee_type, pattern_exp)?;
+                    for (name, arg_type) in arg_names.iter().zip(arg_types.iter()) {
+                        stack.insert(name.clone(), arg_type.clone());
+                    }
                     if indices.contains(&i) {
                         return Err(Error::new(
                             pattern_exp.token(),
