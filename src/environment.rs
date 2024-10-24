@@ -1403,10 +1403,32 @@ impl Environment {
             }
 
             StatementInfo::Match(ms) => {
-                let _scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+                let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+                let scrutinee_type = scrutinee.get_type();
+                let mut indices = vec![];
+                let mut all_cases = false;
+                for (pattern, _body) in &ms.cases {
+                    let (_args, i, total) =
+                        self.bindings
+                            .evaluate_pattern(project, &scrutinee_type, pattern)?;
+                    if indices.contains(&i) {
+                        return Err(Error::new(
+                            &pattern.token(),
+                            "duplicate pattern in match statement",
+                        ));
+                    }
+                    indices.push(i);
+                    if total == indices.len() {
+                        all_cases = true;
+                    }
 
-                for (_pattern, _body) in &ms.cases {
-                    todo!("add match statements");
+                    // TODO: actually add blocks
+                }
+                if !all_cases {
+                    return Err(Error::new(
+                        &ms.scrutinee.token(),
+                        "not all cases are covered in match statement",
+                    ));
                 }
                 Ok(())
             }

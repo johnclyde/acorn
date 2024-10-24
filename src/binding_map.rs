@@ -603,7 +603,7 @@ impl BindingMap {
     //   a list of (name, type) pairs
     //   the index of which constructor this is
     //   the total number of constructors
-    fn evaluate_pattern(
+    pub fn evaluate_pattern(
         &self,
         project: &Project,
         expected_type: &AcornType,
