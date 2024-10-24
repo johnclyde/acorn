@@ -647,6 +647,84 @@ impl BindingMap {
         }
     }
 
+    // Evalutes a pattern match. Infers their types from the pattern.
+    // Returns an error if the pattern is not a constructor of the expected type.
+    // Returns:
+    //   the list of names
+    //   a parallel list of their types
+    //   the index of which constructor this is
+    //   the total number of constructors
+    fn evaluate_pattern(
+        &self,
+        project: &Project,
+        expected_type: &AcornType,
+        pattern: &Expression,
+    ) -> token::Result<(Vec<String>, Vec<AcornType>, usize, usize)> {
+        let token = pattern.token();
+        let (fn_exp, args) = match pattern {
+            Expression::Apply(function, args) => (function, args),
+            _ => {
+                // This could be a no-argument constructor.
+                let pattern_val = self.evaluate_value(project, pattern, None)?;
+                let (i, total) =
+                    self.expect_constructor(project, expected_type, &pattern_val, token)?;
+                return Ok((vec![], vec![], i, total));
+            }
+        };
+        let fn_value = self.evaluate_value(project, fn_exp, None)?;
+        let (i, total) = self.expect_constructor(project, expected_type, &fn_value, token)?;
+        let fn_type = fn_value.get_type();
+        let arg_types = match fn_type {
+            AcornType::Function(f) => {
+                if &*f.return_type != expected_type {
+                    return Err(Error::new(
+                        pattern.token(),
+                        "pattern type does not match scrutinee",
+                    ));
+                }
+                f.arg_types
+            }
+            _ => return Err(Error::new(fn_exp.token(), "expected a function")),
+        };
+        let name_exps = args.flatten_list(false)?;
+        if name_exps.len() != arg_types.len() {
+            return Err(Error::new(
+                token,
+                &format!(
+                    "expected {} arguments but got {}",
+                    arg_types.len(),
+                    name_exps.len()
+                ),
+            ));
+        }
+        let mut names = vec![];
+        for name_exp in name_exps {
+            let name = match name_exp {
+                Expression::Singleton(token) => token.text().to_string(),
+                _ => {
+                    return Err(Error::new(
+                        name_exp.token(),
+                        "expected a simple name in pattern",
+                    ))
+                }
+            };
+            if self.name_in_use(&name) {
+                return Err(Error::new(
+                    name_exp.token(),
+                    &format!("name {} already bound", name),
+                ));
+            }
+            if names.contains(&name) {
+                return Err(Error::new(
+                    name_exp.token(),
+                    "cannot use a name twice in one pattern",
+                ));
+            }
+            names.push(name);
+        }
+        Ok((names, arg_types, i, total))
+    }
+
     // Uses a pattern match to bind variables to the stack. Infers their types from the pattern.
     // Returns an error if the pattern is not a constructor of the expected type.
     // Returns:
