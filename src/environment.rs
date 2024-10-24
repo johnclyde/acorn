@@ -1401,6 +1401,10 @@ impl Environment {
                 self.add_prop_lines(index, statement);
                 Ok(())
             }
+
+            StatementInfo::Match(_) => {
+                todo!("add match statements");
+            }
         }
     }
 

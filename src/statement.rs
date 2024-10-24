@@ -172,6 +172,14 @@ pub struct SolveStatement {
     pub body: Body,
 }
 
+pub struct MatchStatement {
+    // The thing we are matching patterns against.
+    pub scrutinee: Expression,
+
+    // (pattern, body) pairs.
+    pub cases: Vec<(Expression, Body)>,
+}
+
 // Acorn is a statement-based language. There are several types.
 // Each type has its own struct.
 pub struct Statement {
@@ -198,6 +206,7 @@ pub enum StatementInfo {
     Numerals(NumeralsStatement),
     Solve(SolveStatement),
     Problem(Body),
+    Match(MatchStatement),
 }
 
 const ONE_INDENT: &str = "    ";
@@ -955,6 +964,17 @@ impl Statement {
             StatementInfo::Problem(body) => {
                 write!(f, "problem")?;
                 write_block(f, &body.statements, indentation)
+            }
+
+            StatementInfo::Match(ms) => {
+                let single_indentation = add_indent(indentation);
+                let double_indentation = add_indent(&single_indentation);
+                write!(f, "match {} {{\n", ms.scrutinee)?;
+                for (pattern, body) in &ms.cases {
+                    write!(f, "{}{} ", single_indentation, pattern)?;
+                    write_block(f, &body.statements, &double_indentation)?;
+                }
+                write!(f, "{}}}", indentation)
             }
         }
     }
