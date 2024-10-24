@@ -1406,7 +1406,7 @@ impl Environment {
                 let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
                 let scrutinee_type = scrutinee.get_type();
                 let mut indices = vec![];
-                let mut all_cases = false;
+                let mut disjuncts = vec![];
                 for (pattern, body) in &ms.cases {
                     let (constructor, args, i, total) =
                         self.bindings
@@ -1418,9 +1418,6 @@ impl Environment {
                         ));
                     }
                     indices.push(i);
-                    if total == indices.len() {
-                        all_cases = true;
-                    }
 
                     let params = BlockParams::MatchCase(
                         scrutinee.clone(),
@@ -1440,15 +1437,31 @@ impl Environment {
                         Some(body),
                     )?;
 
-                    // XXX: add_node, add_line_types
+                    let (disjunct, _) = block.export_last_claim(self, &body.right_brace)?;
+                    disjuncts.push(disjunct);
+
+                    if total == indices.len() {
+                        let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
+                        let prop =
+                            Proposition::anonymous(disjunction, self.module_id, statement.range());
+                        let index = self.add_node(project, false, prop, Some(block));
+                        self.add_prop_lines(index, statement);
+                        return Ok(());
+                    }
+
+                    // This is a vacuous proposition because we only put an exported
+                    // proposition on the last block.
+                    let vacuous_prop = Proposition::anonymous(
+                        AcornValue::Bool(true),
+                        self.module_id,
+                        statement.range(),
+                    );
+                    self.add_node(project, false, vacuous_prop, Some(block));
                 }
-                if !all_cases {
-                    return Err(Error::new(
-                        &ms.scrutinee.token(),
-                        "not all cases are covered in match statement",
-                    ));
-                }
-                Ok(())
+                Err(Error::new(
+                    &ms.scrutinee.token(),
+                    "not all cases are covered in match statement",
+                ))
             }
         }
     }
