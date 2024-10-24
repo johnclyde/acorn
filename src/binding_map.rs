@@ -600,8 +600,7 @@ impl BindingMap {
     // Evalutes a pattern match. Infers their types from the pattern.
     // Returns an error if the pattern is not a constructor of the expected type.
     // Returns:
-    //   the list of names
-    //   a parallel list of their types
+    //   a list of (name, type) pairs
     //   the index of which constructor this is
     //   the total number of constructors
     fn evaluate_pattern(
@@ -609,7 +608,7 @@ impl BindingMap {
         project: &Project,
         expected_type: &AcornType,
         pattern: &Expression,
-    ) -> token::Result<(Vec<String>, Vec<AcornType>, usize, usize)> {
+    ) -> token::Result<(Vec<(String, AcornType)>, usize, usize)> {
         let token = pattern.token();
         let (fn_exp, args) = match pattern {
             Expression::Apply(function, args) => (function, args),
@@ -618,7 +617,7 @@ impl BindingMap {
                 let pattern_val = self.evaluate_value(project, pattern, None)?;
                 let (i, total) =
                     self.expect_constructor(project, expected_type, &pattern_val, token)?;
-                return Ok((vec![], vec![], i, total));
+                return Ok((vec![], i, total));
             }
         };
         let fn_value = self.evaluate_value(project, fn_exp, None)?;
@@ -647,8 +646,8 @@ impl BindingMap {
                 ),
             ));
         }
-        let mut names = vec![];
-        for name_exp in name_exps {
+        let mut args = vec![];
+        for (name_exp, arg_type) in name_exps.into_iter().zip(arg_types.into_iter()) {
             let name = match name_exp {
                 Expression::Singleton(token) => token.text().to_string(),
                 _ => {
@@ -664,15 +663,16 @@ impl BindingMap {
                     &format!("name {} already bound", name),
                 ));
             }
-            if names.contains(&name) {
+            // Check if we already saw this name
+            if args.iter().any(|(n, _)| n == &name) {
                 return Err(Error::new(
                     name_exp.token(),
                     "cannot use a name twice in one pattern",
                 ));
             }
-            names.push(name);
+            args.push((name, arg_type))
         }
-        Ok((names, arg_types, i, total))
+        Ok((args, i, total))
     }
 
     // This function evaluates numbers when we already know what type they are.
@@ -1350,9 +1350,9 @@ impl BindingMap {
                 let mut indices = vec![];
                 let mut all_cases = false;
                 for (pattern_exp, result_exp) in case_exps {
-                    let (arg_names, arg_types, i, total) =
+                    let (args, i, total) =
                         self.evaluate_pattern(project, &scrutinee_type, pattern_exp)?;
-                    for (name, arg_type) in arg_names.iter().zip(arg_types.iter()) {
+                    for (name, arg_type) in &args {
                         stack.insert(name.clone(), arg_type.clone());
                     }
                     if indices.contains(&i) {
@@ -1376,8 +1376,12 @@ impl BindingMap {
                     if expected_type.is_none() {
                         expected_type = Some(result.get_type());
                     }
+                    let mut arg_types = vec![];
+                    for (name, arg_type) in args {
+                        stack.remove(&name);
+                        arg_types.push(arg_type);
+                    }
                     cases.push((arg_types, pattern, result));
-                    stack.remove_all(&arg_names);
                 }
                 if !all_cases {
                     return Err(Error::new(

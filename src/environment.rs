@@ -1403,9 +1403,12 @@ impl Environment {
             }
 
             StatementInfo::Match(ms) => {
-                let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+                let _scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
 
-                todo!("add match statements");
+                for (_pattern, _body) in &ms.cases {
+                    todo!("add match statements");
+                }
+                Ok(())
             }
         }
     }
