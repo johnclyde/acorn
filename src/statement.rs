@@ -789,6 +789,43 @@ fn parse_solve_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     Ok(s)
 }
 
+fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+    let (scrutinee, _) = Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
+    let mut cases = vec![];
+    loop {
+        let next_type = match tokens.peek() {
+            Some(token) => token.token_type,
+            None => return Err(Error::new(&keyword, "unterminated match statement")),
+        };
+        if next_type == TokenType::NewLine {
+            tokens.next();
+            continue;
+        }
+        if next_type == TokenType::RightBrace {
+            break;
+        }
+        let (pattern, left_brace) =
+            Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
+        let (statements, right_brace) = parse_block(tokens)?;
+        let body = Body {
+            left_brace,
+            statements,
+            right_brace,
+        };
+        cases.push((pattern, body));
+    }
+    let last_token = match cases.last() {
+        Some((_, body)) => body.right_brace.clone(),
+        None => return Err(Error::new(&keyword, "match must have cases")),
+    };
+    let ms = MatchStatement { scrutinee, cases };
+    Ok(Statement {
+        first_token: keyword,
+        last_token,
+        statement: StatementInfo::Match(ms),
+    })
+}
+
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
@@ -1096,6 +1133,11 @@ impl Statement {
                             last_token: right_brace,
                             statement: StatementInfo::Problem(body),
                         };
+                        return Ok((Some(s), None));
+                    }
+                    TokenType::Match => {
+                        let keyword = tokens.next().unwrap();
+                        let s = parse_match_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     _ => {
