@@ -38,6 +38,39 @@ pub struct Block {
     pub env: Environment,
 }
 
+// The different ways to construct a block
+pub enum BlockParams<'a> {
+    // (theorem name, premise, goal)
+    //
+    // The premise and goal are unbound, to be proved based on the args of the theorem.
+    //
+    // The theorem should already be defined by this name in the external environment.
+    // It is either a bool, or a function from something -> bool.
+    // The meaning of the theorem is that it is true for all args.
+    //
+    // The premise is optional.
+    Theorem(&'a str, Option<(AcornValue, Range)>, AcornValue),
+
+    // The assumption to be used by the block, and the range of this assumption.
+    Conditional(&'a AcornValue, Range),
+
+    // The expression to solve for, and the range of the "solve <target>" component.
+    Solve(AcornValue, Range),
+
+    // (unbound goal, function return type, range of condition)
+    // This goal has one more unbound variable than the block args account for.
+    // The last one, we are trying to prove there exists a variable that satisfies the goal.
+    FunctionSatisfy(AcornValue, AcornType, Range),
+
+    // MatchCase represents a single case within a match statement.
+    // The scrutinee, the constructor, and the range of the pattern.
+    MatchCase(AcornValue, AcornValue, Range),
+
+    // No special params needed
+    ForAll,
+    Problem,
+}
+
 impl Block {
     pub fn new(
         project: &mut Project,
@@ -121,6 +154,9 @@ impl Block {
                 let bound_goal = AcornValue::new_exists(vec![return_type], partial_goal);
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
                 Some(Goal::Prove(prop))
+            }
+            BlockParams::MatchCase(..) => {
+                todo!("construct MatchCase blocks");
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
             BlockParams::ForAll | BlockParams::Problem => None,
@@ -242,35 +278,6 @@ impl Block {
             _ => None,
         }
     }
-}
-
-// The different ways to construct a block
-pub enum BlockParams<'a> {
-    // (theorem name, premise, goal)
-    //
-    // The premise and goal are unbound, to be proved based on the args of the theorem.
-    //
-    // The theorem should already be defined by this name in the external environment.
-    // It is either a bool, or a function from something -> bool.
-    // The meaning of the theorem is that it is true for all args.
-    //
-    // The premise is optional.
-    Theorem(&'a str, Option<(AcornValue, Range)>, AcornValue),
-
-    // The assumption to be used by the block, and the range of this assumption.
-    Conditional(&'a AcornValue, Range),
-
-    // The expression to solve for, and the range of the "solve <target>" component.
-    Solve(AcornValue, Range),
-
-    // (unbound goal, function return type, range of condition)
-    // This goal has one more unbound variable than the block args account for.
-    // The last one, we are trying to prove there exists a variable that satisfies the goal.
-    FunctionSatisfy(AcornValue, AcornType, Range),
-
-    // No special params needed
-    ForAll,
-    Problem,
 }
 
 // Logically, the Environment is arranged like a tree structure.

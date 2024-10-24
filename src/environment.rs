@@ -1402,7 +1402,9 @@ impl Environment {
                 Ok(())
             }
 
-            StatementInfo::Match(_) => {
+            StatementInfo::Match(ms) => {
+                let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+
                 todo!("add match statements");
             }
         }
