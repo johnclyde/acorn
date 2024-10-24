@@ -1362,7 +1362,7 @@ mod prover_test {
     }
 
     #[test]
-    fn test_prove_with_match() {
+    fn test_prove_with_match_in_define() {
         let text = r#"
         inductive Foo {
             bar
@@ -1380,6 +1380,28 @@ mod prover_test {
         }
         theorem goal(f: Foo) {
             foo(f)
+        }
+        "#;
+        verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_prove_with_match_in_let() {
+        let text = r#"
+        inductive Foo {
+            bar
+            baz
+        }
+        let foo: Bool = match Foo.bar {
+            Foo.bar {
+                true
+            }
+            Foo.baz {
+                false
+            }
+        }
+        theorem goal {
+            foo
         }
         "#;
         verify_succeeds(text);
