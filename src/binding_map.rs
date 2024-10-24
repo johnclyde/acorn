@@ -600,6 +600,7 @@ impl BindingMap {
     // Evalutes a pattern match. Infers their types from the pattern.
     // Returns an error if the pattern is not a constructor of the expected type.
     // Returns:
+    //   a value for the constructor function
     //   a list of (name, type) pairs
     //   the index of which constructor this is
     //   the total number of constructors
@@ -608,22 +609,21 @@ impl BindingMap {
         project: &Project,
         expected_type: &AcornType,
         pattern: &Expression,
-    ) -> token::Result<(Vec<(String, AcornType)>, usize, usize)> {
+    ) -> token::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
         let token = pattern.token();
         let (fn_exp, args) = match pattern {
             Expression::Apply(function, args) => (function, args),
             _ => {
                 // This could be a no-argument constructor.
-                let pattern_val = self.evaluate_value(project, pattern, None)?;
+                let constructor = self.evaluate_value(project, pattern, None)?;
                 let (i, total) =
-                    self.expect_constructor(project, expected_type, &pattern_val, token)?;
-                return Ok((vec![], i, total));
+                    self.expect_constructor(project, expected_type, &constructor, token)?;
+                return Ok((constructor, vec![], i, total));
             }
         };
-        let fn_value = self.evaluate_value(project, fn_exp, None)?;
-        let (i, total) = self.expect_constructor(project, expected_type, &fn_value, token)?;
-        let fn_type = fn_value.get_type();
-        let arg_types = match fn_type {
+        let constructor = self.evaluate_value(project, fn_exp, None)?;
+        let (i, total) = self.expect_constructor(project, expected_type, &constructor, token)?;
+        let arg_types = match constructor.get_type() {
             AcornType::Function(f) => {
                 if &*f.return_type != expected_type {
                     return Err(Error::new(
@@ -672,7 +672,7 @@ impl BindingMap {
             }
             args.push((name, arg_type))
         }
-        Ok((args, i, total))
+        Ok((constructor, args, i, total))
     }
 
     // This function evaluates numbers when we already know what type they are.
@@ -1350,7 +1350,7 @@ impl BindingMap {
                 let mut indices = vec![];
                 let mut all_cases = false;
                 for (pattern_exp, result_exp) in case_exps {
-                    let (args, i, total) =
+                    let (_, args, i, total) =
                         self.evaluate_pattern(project, &scrutinee_type, pattern_exp)?;
                     for (name, arg_type) in &args {
                         stack.insert(name.clone(), arg_type.clone());

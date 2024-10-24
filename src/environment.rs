@@ -1408,7 +1408,7 @@ impl Environment {
                 let mut indices = vec![];
                 let mut all_cases = false;
                 for (pattern, _body) in &ms.cases {
-                    let (_args, i, total) =
+                    let (_constructor, _args, i, total) =
                         self.bindings
                             .evaluate_pattern(project, &scrutinee_type, pattern)?;
                     if indices.contains(&i) {
