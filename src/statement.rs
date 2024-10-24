@@ -1568,4 +1568,17 @@ mod tests {
             "unexpected token",
         );
     }
+
+    #[test]
+    fn test_match_statement() {
+        ok(indoc! {"
+        match x {
+            Foo.bar {
+                baz
+            }
+            Foo.qux {
+                zip
+            }
+        }"});
+    }
 }
