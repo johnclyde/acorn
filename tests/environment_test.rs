@@ -1299,6 +1299,29 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_match_statement_missing_cases() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Foo {
+                bar(Bool)
+                baz
+            }"#,
+        );
+        env.bad(
+            r#"
+            forall (f: Foo) {
+                match f {
+                    Foo.bar(b) {
+                        b
+                    }
+                }
+            }
+        "#,
+        );
+    }
+
+    #[test]
     fn test_match_value_pattern_must_be_constructor() {
         let mut env = Environment::new_test();
         env.add(
