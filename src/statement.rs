@@ -1631,7 +1631,7 @@ mod tests {
     }
 
     #[test]
-    fn test_match_statement() {
+    fn test_parsing_match_statement() {
         ok(indoc! {"
         match x {
             Foo.bar {

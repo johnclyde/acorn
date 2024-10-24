@@ -1228,7 +1228,31 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_pattern_with_no_args() {
+    fn test_match_subenv() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Foo {
+                bar(Bool)
+                baz
+            }
+
+            forall(f: Foo) {
+                match f {
+                    Foo.bar(b) {
+                        b or not b
+                    }
+                    Foo.baz {
+                        true
+                    }
+                }
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_match_value_pattern_with_no_args() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1252,7 +1276,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_missing_cases() {
+    fn test_match_value_missing_cases() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1275,7 +1299,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_pattern_must_be_constructor() {
+    fn test_match_value_pattern_must_be_constructor() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1308,7 +1332,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_against_new() {
+    fn test_match_value_against_new() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1328,7 +1352,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_no_repeating_variables() {
+    fn test_match_value_no_repeating_variables() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1351,7 +1375,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_no_repeating_cases() {
+    fn test_match_value_no_repeating_cases() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1380,7 +1404,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_results_check_type() {
+    fn test_match_value_results_check_type() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1402,7 +1426,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_match_with_let() {
+    fn test_match_value_with_let() {
         let mut env = Environment::new_test();
         env.add(
             r#"
