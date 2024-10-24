@@ -1441,6 +1441,11 @@ impl Environment {
                     disjuncts.push(disjunct);
 
                     if total == indices.len() {
+                        if ms.cases.len() > total {
+                            // The next iteration will report an error
+                            continue;
+                        }
+
                         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
                         let prop =
                             Proposition::anonymous(disjunction, self.module_id, statement.range());
