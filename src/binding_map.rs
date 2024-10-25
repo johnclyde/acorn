@@ -362,6 +362,28 @@ impl BindingMap {
         true
     }
 
+    // Adds a local alias for an already-existing constant.
+    pub fn add_alias(
+        &mut self,
+        name: &str,
+        canonical_module: ModuleId,
+        canonical_name: String,
+        acorn_type: AcornType,
+    ) {
+        if self.name_in_use(name) {
+            panic!("cannot alias name {} because it is already bound", name);
+        }
+        self.identifier_types.insert(name.to_string(), acorn_type);
+        let canonical = (canonical_module, canonical_name);
+        if canonical_module != self.module {
+            // Prefer this alias locally to using the qualified, canonical name
+            self.canonical_to_alias
+                .entry(canonical.clone())
+                .or_insert(name.to_string());
+        }
+        self.alias_to_canonical.insert(name.to_string(), canonical);
+    }
+
     pub fn is_constant(&self, name: &str) -> bool {
         self.constants.contains_key(name)
     }

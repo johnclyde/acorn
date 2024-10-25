@@ -362,14 +362,18 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        if self
-            .bindings
-            .add_constant(&name, vec![], acorn_type, value, None)
-        {
-            // This is a new constant, so we should track where it's defined
-            self.definition_ranges.insert(name.clone(), range);
-            self.add_identity_props(project, &name);
+        if let Some(AcornValue::Constant(canonical_module, canonical_name, acorn_type, _)) = value {
+            // 'let x = y' creates an alias for y, not a new constant.
+            self.bindings
+                .add_alias(&name, canonical_module, canonical_name, acorn_type);
+            return Ok(());
         }
+
+        assert!(self
+            .bindings
+            .add_constant(&name, vec![], acorn_type, value, None));
+        self.definition_ranges.insert(name.clone(), range);
+        self.add_identity_props(project, &name);
         Ok(())
     }
 
