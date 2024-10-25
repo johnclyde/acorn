@@ -369,9 +369,8 @@ impl Environment {
             return Ok(());
         }
 
-        assert!(self
-            .bindings
-            .add_constant(&name, vec![], acorn_type, value, None));
+        self.bindings
+            .add_constant(&name, vec![], acorn_type, value, None);
         self.definition_ranges.insert(name.clone(), range);
         self.add_identity_props(project, &name);
         Ok(())

@@ -322,7 +322,6 @@ impl BindingMap {
     }
 
     // Adds a constant.
-    // Returns whether this is a new constant - if it's just an alias, returns false.
     // This can also add members, by providing a name like "Foo.bar".
     pub fn add_constant(
         &mut self,
@@ -331,35 +330,19 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<(AcornType, usize, usize)>,
-    ) -> bool {
+    ) {
         if self.name_in_use(name) {
             panic!("constant name {} already bound", name);
         }
         self.identifier_types
             .insert(name.to_string(), constant_type);
 
-        // Check if we are aliasing some other constant.
-        if let Some(AcornValue::Constant(module, external_name, _, _)) = &definition {
-            assert!(constructor.is_none());
-            let canonical = (*module, external_name.clone());
-            if *module != self.module {
-                // Prefer this alias locally to using the qualified, canonical name
-                self.canonical_to_alias
-                    .entry(canonical.clone())
-                    .or_insert(name.to_string());
-            }
-            self.alias_to_canonical.insert(name.to_string(), canonical);
-            return false;
-        }
-
-        // We're defining a new constant.
         let info = ConstantInfo {
             params,
             definition,
             constructor,
         };
         self.constants.insert(name.to_string(), info);
-        true
     }
 
     // Adds a local alias for an already-existing constant.
