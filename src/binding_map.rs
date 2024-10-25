@@ -1047,14 +1047,14 @@ impl BindingMap {
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
-                if self.add_constant(
-                    &name_token.text(),
-                    vec![],
-                    value.get_type(),
-                    Some(value),
-                    None,
-                ) {
-                    return Err(Error::new(name_token, "alias failed mysteriously"));
+                match value {
+                    AcornValue::Constant(ext_module, ext_name, acorn_type, _) => {
+                        self.add_alias(&name_token.text(), ext_module, ext_name, acorn_type);
+                    }
+                    _ => {
+                        // I don't see how this branch can be reached.
+                        return Err(Error::new(name_token, "cannot import non-constant values"));
+                    }
                 }
                 Ok(())
             }
