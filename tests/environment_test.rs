@@ -1605,7 +1605,19 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_no_recursive_infinite_loops() {
+    fn test_no_recursive_simple_infinite_loops() {
+        let mut env = Environment::new_test();
+        env.bad(
+            r#"
+            define loop(a: Bool) -> Bool {
+                not loop(a)
+            }
+            "#,
+        )
+    }
+
+    #[test]
+    fn test_no_recursive_complicated_infinite_loops() {
         let mut env = Environment::new_test();
         env.add(
             r#"
