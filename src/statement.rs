@@ -11,6 +11,15 @@ pub struct Body {
     pub right_brace: Token,
 }
 
+impl Body {
+    pub fn range(&self) -> Range {
+        Range {
+            start: self.left_brace.start_pos(),
+            end: self.right_brace.end_pos(),
+        }
+    }
+}
+
 // Let statements introduce new named constants. For example:
 //   let a: int = x + 2
 // The name token can either be an identifier or a number.

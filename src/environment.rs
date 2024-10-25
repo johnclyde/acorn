@@ -136,12 +136,9 @@ impl Environment {
         );
     }
 
-    fn add_prop_lines(&mut self, index: usize, statement: &Statement) {
-        self.add_line_types(
-            LineType::Node(index),
-            statement.first_line(),
-            statement.last_line(),
-        );
+    // Associate the provided node and range.
+    fn add_node_lines(&mut self, index: usize, range: &Range) {
+        self.add_line_types(LineType::Node(index), range.start.line, range.end.line);
     }
 
     fn get_line_type(&self, line: u32) -> Option<LineType> {
@@ -596,7 +593,7 @@ impl Environment {
                     ),
                     block,
                 );
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
                 self.bindings.mark_as_theorem(&ts.name);
 
                 Ok(())
@@ -626,7 +623,7 @@ impl Environment {
                         Proposition::anonymous(claim, self.module_id, statement.range()),
                         None,
                     );
-                    self.add_prop_lines(index, statement);
+                    self.add_node_lines(index, &statement.range());
                 }
                 Ok(())
             }
@@ -662,7 +659,7 @@ impl Environment {
                     Proposition::anonymous(outer_claim, self.module_id, range),
                     Some(block),
                 );
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
                 Ok(())
             }
 
@@ -714,7 +711,7 @@ impl Environment {
                     Proposition::anonymous(general_claim, self.module_id, statement.range()),
                     None,
                 );
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
 
                 // Define the quantifiers as constants
                 for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
@@ -833,7 +830,7 @@ impl Environment {
                 );
 
                 let index = self.add_node(project, false, prop, Some(block));
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
                 Ok(())
             }
 
@@ -1374,7 +1371,7 @@ impl Environment {
                 };
 
                 let index = self.add_node(project, false, prop, Some(block));
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
                 Ok(())
             }
 
@@ -1398,7 +1395,7 @@ impl Environment {
                 );
 
                 let index = self.add_node(project, false, vacuous_prop, Some(block));
-                self.add_prop_lines(index, statement);
+                self.add_node_lines(index, &statement.range());
                 Ok(())
             }
 
@@ -1450,7 +1447,7 @@ impl Environment {
                         let prop =
                             Proposition::anonymous(disjunction, self.module_id, statement.range());
                         let index = self.add_node(project, false, prop, Some(block));
-                        self.add_prop_lines(index, statement);
+                        self.add_node_lines(index, &body.range());
                         return Ok(());
                     }
 
@@ -1461,7 +1458,8 @@ impl Environment {
                         self.module_id,
                         statement.range(),
                     );
-                    self.add_node(project, false, vacuous_prop, Some(block));
+                    let index = self.add_node(project, false, vacuous_prop, Some(block));
+                    self.add_node_lines(index, &body.range());
                 }
                 Err(Error::new(
                     &ms.scrutinee.token(),
