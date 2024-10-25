@@ -1559,7 +1559,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_recursive_definition() {
+    fn test_left_recursive_definition() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -1574,6 +1574,56 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                     }
                     Nat.suc(pred) {
                         add(pred, b).suc
+                    }
+                }
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_right_recursive_definition() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Nat {
+                zero
+                suc(Nat)
+            }
+            define add(a: Nat, b: Nat) -> Nat {
+                match b {
+                    Nat.zero {
+                        a
+                    }
+                    Nat.suc(pred) {
+                        add(a, pred).suc
+                    }
+                }
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_no_recursive_infinite_loops() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Nat {
+                zero
+                suc(Nat)
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            define add(a: Nat, b: Nat) -> Nat {
+                match a {
+                    Nat.zero {
+                        b
+                    }
+                    Nat.suc(pred) {
+                        add(a, b)
                     }
                 }
             }
