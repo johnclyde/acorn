@@ -1406,4 +1406,55 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_prove_with_match_statement() {
+        // An example found when migrating pre-match code.
+        let text = r#"
+        type Nat: axiom
+        class Nat {
+            define suc(self) -> Nat { axiom }
+        }
+
+        inductive Int {
+            from_nat(Nat)
+            neg_suc(Nat)
+        }
+        
+        define abs_case_1(a: Int, n: Nat) -> Bool {
+            a = Int.from_nat(n)
+        }
+        
+        define abs_case_2(a: Int, n: Nat) -> Bool {
+            exists(k: Nat) {
+                a = Int.neg_suc(k) and n = k.suc
+            }
+        }
+        
+        define abs(a: Int) -> Nat {
+            match a {
+                Int.from_nat(n) {
+                    n
+                }
+                Int.neg_suc(k) {
+                    k.suc
+                }
+            }
+        }
+        
+        theorem goal(a: Int) {
+            abs_case_1(a, abs(a)) or abs_case_2(a, abs(a))
+        } by {
+            match a {
+                Int.from_nat(n) {
+                    abs_case_1(a, abs(a))
+                }
+                Int.neg_suc(k) {
+                    abs_case_2(a, abs(a))
+                }
+            }
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }
