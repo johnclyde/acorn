@@ -13,12 +13,17 @@ use crate::token::{self, Error, Token, TokenIter, TokenType};
 pub struct Stack {
     // Maps the name of the variable to their depth and their type.
     vars: HashMap<String, (AtomId, AcornType)>,
+
+    // When var1 is defined using match as a substructure of var2, and they are both
+    // stack variables, we store superstructure[var1] = var2 here.
+    superstructure: HashMap<AtomId, AtomId>,
 }
 
 impl Stack {
     pub fn new() -> Self {
         Stack {
             vars: HashMap::new(),
+            superstructure: HashMap::new(),
         }
     }
 
@@ -30,14 +35,24 @@ impl Stack {
         answer
     }
 
-    fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
+    fn insert(
+        &mut self,
+        name: String,
+        acorn_type: AcornType,
+        superstructure: Option<AtomId>,
+    ) -> AtomId {
         let i = self.vars.len() as AtomId;
+        if let Some(superstructure) = superstructure {
+            self.superstructure.insert(i, superstructure);
+        }
         self.vars.insert(name, (i, acorn_type));
         i
     }
 
     fn remove(&mut self, name: &str) {
-        self.vars.remove(name);
+        if let Some((i, _)) = self.vars.remove(name) {
+            self.superstructure.remove(&i);
+        }
     }
 
     pub fn remove_all(&mut self, names: &[String]) {
@@ -563,7 +578,7 @@ impl BindingMap {
             types.push(acorn_type);
         }
         for (name, acorn_type) in names.iter().zip(types.iter()) {
-            stack.insert(name.to_string(), acorn_type.clone());
+            stack.insert(name.to_string(), acorn_type.clone(), None);
         }
         Ok((names, types))
     }
@@ -1345,6 +1360,10 @@ impl BindingMap {
                 let mut expected_type: Option<AcornType> = expected_type.cloned();
                 let scrutinee =
                     self.evaluate_value_with_stack(stack, project, scrutinee_exp, None)?;
+                let superstructure = match scrutinee {
+                    AcornValue::Variable(i, _) => Some(i),
+                    _ => None,
+                };
                 let scrutinee_type = scrutinee.get_type();
                 let mut cases = vec![];
                 let mut indices = vec![];
@@ -1353,7 +1372,7 @@ impl BindingMap {
                     let (_, args, i, total) =
                         self.evaluate_pattern(project, &scrutinee_type, pattern_exp)?;
                     for (name, arg_type) in &args {
-                        stack.insert(name.clone(), arg_type.clone());
+                        stack.insert(name.clone(), arg_type.clone(), superstructure);
                     }
                     if indices.contains(&i) {
                         return Err(Error::new(
