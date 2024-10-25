@@ -134,16 +134,16 @@
       <pre>Local assumptions are inconsistent.</pre>
       <pre>If this is a proof by contradiction, put a `false` at the end of this block.</pre>
       <pre>If there shouldn't be a contradiction, please report a bug!</pre>
-    {:else if !searchResponse.status.needsSimplification}
-      <pre>The proposition follows trivially.</pre>
+    {:else if searchResponse.status.steps === null}
+      <pre>We could not find a proof.</pre>
     {:else if searchResponse.status.code === null}
       <pre>Error during code generation:</pre>
       <pre>    {searchResponse.status.codeError}</pre>
+    {:else if !searchResponse.status.needsSimplification}
+      <pre>The proposition follows trivially.</pre>
     {:else if searchResponse.status.code.length === 0}
       <pre>We found a proof, but it needs to be simplified, and we couldn't
            decide how to simplify it. Sorry!</pre>
-    {:else if searchResponse.status.steps === null}
-      <pre>We could not find a proof.</pre>
     {:else}
       <pre>{["The proof needs to be simplified. Try this:\n"]
           .concat(searchResponse.status.code)
