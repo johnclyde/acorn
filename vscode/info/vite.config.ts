@@ -16,6 +16,6 @@ export default defineConfig({
   ],
   base: "./",
   build: {
-    outDir: "../extension/build/search",
+    outDir: "../extension/build/info",
   },
 });

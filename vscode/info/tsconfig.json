@@ -16,10 +16,10 @@
     "isolatedModules": true
   },
   "include": [
-    "src/**/*.d.ts",
-    "src/**/*.ts",
-    "src/**/*.js",
-    "src/**/*.svelte",
+    "../info/src/**/*.d.ts",
+    "../info/src/**/*.ts",
+    "../info/src/**/*.js",
+    "../info/src/**/*.svelte",
     "../interfaces.d.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]

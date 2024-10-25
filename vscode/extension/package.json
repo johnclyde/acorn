@@ -31,27 +31,27 @@
     "commands": [
       {
         "category": "Acorn",
-        "command": "acorn.displaySearchPanel",
-        "title": "Search Panel: Display",
-        "description": "Show the search panel.",
+        "command": "acorn.displayInfoView",
+        "title": "Info View: Display",
+        "description": "Show the info view.",
         "icon": "$(squirrel)"
       },
       {
         "category": "Acorn",
-        "command": "acorn.toggleSearchPanel",
-        "title": "Search Panel: Toggle",
-        "description": "Toggle whether the search panel is displayed."
+        "command": "acorn.toggleInfoView",
+        "title": "Info View: Toggle",
+        "description": "Toggle whether the info view is displayed."
       }
     ],
     "keybindings": [
       {
-        "command": "acorn.toggleSearchPanel",
+        "command": "acorn.toggleInfoView",
         "key": "ctrl+shift+enter",
         "mac": "cmd+shift+enter",
         "when": "editorTextFocus && editorLangId == acorn"
       },
       {
-        "command": "acorn.toggleSearchPanel",
+        "command": "acorn.toggleInfoView",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
         "when": "editorTextFocus && editorLangId == acorn"
@@ -60,7 +60,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "acorn.displaySearchPanel",
+          "command": "acorn.displayInfoView",
           "group": "navigation",
           "when": "editorLangId == acorn"
         }

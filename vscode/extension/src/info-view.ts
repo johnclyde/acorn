@@ -20,7 +20,7 @@ const showLocationDecoration = window.createTextEditorDecorationType({
   backgroundColor: "rgba(246, 185, 77, 0.3)",
 });
 
-export class SearchPanel implements Disposable {
+export class InfoView implements Disposable {
   client: LanguageClient;
   currentParams: SearchParams;
   currentSearchId: number;
@@ -35,11 +35,11 @@ export class SearchPanel implements Disposable {
     this.distPath = distPath;
     this.currentSearchId = 0;
     this.disposables = [
-      commands.registerTextEditorCommand("acorn.displaySearchPanel", (editor) =>
+      commands.registerTextEditorCommand("acorn.displayInfoView", (editor) =>
         this.display(editor)
       ),
 
-      commands.registerTextEditorCommand("acorn.toggleSearchPanel", (editor) =>
+      commands.registerTextEditorCommand("acorn.toggleInfoView", (editor) =>
         this.toggle(editor)
       ),
       window.onDidChangeTextEditorSelection(async (e) => {
@@ -349,7 +349,7 @@ export class SearchPanel implements Disposable {
       return;
     }
     this.panel = window.createWebviewPanel(
-      "acornSearchPanel",
+      "acornInfoView",
       "Proof Search",
       { viewColumn: column, preserveFocus: true },
       {

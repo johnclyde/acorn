@@ -21,7 +21,7 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
-import { SearchPanel } from "./search-panel";
+import { InfoView } from "./info-view";
 
 let client: LanguageClient;
 
@@ -246,8 +246,8 @@ export async function activate(context: ExtensionContext) {
     return;
   }
 
-  let searchPath = context.asAbsolutePath("build/search");
-  context.subscriptions.push(new SearchPanel(client, searchPath));
+  let infoViewPath = context.asAbsolutePath("build/info");
+  context.subscriptions.push(new InfoView(client, infoViewPath));
 
   let onDocumentChange = async (document: TextDocument) => {
     if (document.languageId !== "acorn") {
