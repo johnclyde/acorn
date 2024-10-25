@@ -1615,15 +1615,28 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
             "#,
         );
+
+        // This would infinite loop because it hits a different branch each time.
         env.bad(
             r#"
-            define add(a: Nat, b: Nat) -> Nat {
-                match a {
-                    Nat.zero {
-                        b
+            define loop(a: Nat, b: Nat, c: Bool) -> Bool {
+                if c {
+                    match a {
+                        Nat.zero {
+                            false
+                        }
+                        Nat.suc(pred) {
+                            not loop(pred, b.suc, false)
+                        }
                     }
-                    Nat.suc(pred) {
-                        add(a, b)
+                } else {
+                    match b {
+                        Nat.zero {
+                            false
+                        }
+                        Nat.suc(pred) {
+                            loop(a.suc, pred, true)
+                        }
                     }
                 }
             }
