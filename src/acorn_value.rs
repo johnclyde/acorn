@@ -26,6 +26,35 @@ impl FunctionApplication {
         fmt_values(&self.args, f, stack_size)?;
         write!(f, ")")
     }
+
+    fn typecheck(&self) -> Result<(), String> {
+        let function_type = self.function.get_type();
+        if let AcornType::Function(ftype) = function_type {
+            if ftype.arg_types.len() < self.args.len() {
+                return Err(format!(
+                    "Function application has {} arguments, but expected {}",
+                    self.args.len(),
+                    ftype.arg_types.len()
+                ));
+            }
+            for (i, (arg, arg_type)) in self.args.iter().zip(ftype.arg_types.iter()).enumerate() {
+                if arg.get_type() != *arg_type {
+                    return Err(format!(
+                        "Argument {} has type {}, but expected {}",
+                        i,
+                        arg.get_type(),
+                        arg_type
+                    ));
+                }
+            }
+            Ok(())
+        } else {
+            Err(format!(
+                "Function application has function of type {}",
+                function_type
+            ))
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -1317,6 +1346,7 @@ impl AcornValue {
 
     // Returns an error string if this is not a valid top-level value.
     // The types of variables should match the type of the quantifier they correspond to.
+    // The types of function arguments should match the functions.
     pub fn validate(&self) -> Result<(), String> {
         let mut stack: Vec<AcornType> = vec![];
         self.validate_against_stack(&mut stack)
@@ -1345,6 +1375,7 @@ impl AcornValue {
                 None => Err(format!("variable {} is not in scope", i)),
             },
             AcornValue::Application(app) => {
+                app.typecheck()?;
                 app.function.validate_against_stack(stack)?;
                 for arg in &app.args {
                     arg.validate_against_stack(stack)?;
@@ -1456,15 +1487,22 @@ impl AcornValue {
     // parametrize should only be called on concrete types.
     // It replaces every data type with the given module and name with a type parameter.
     pub fn parametrize(&self, module: ModuleId, type_names: &[String]) -> AcornValue {
-        match self {
+        let output = match self {
             AcornValue::Variable(i, var_type) => {
                 AcornValue::Variable(*i, var_type.parametrize(module, type_names))
             }
-            AcornValue::Constant(_, _, _, params) => {
+            AcornValue::Constant(cmod, cname, ctype, params) => {
                 if !params.is_empty() {
                     panic!("we should only be genericizing concrete values");
                 }
-                self.clone()
+                // We need to parametrize constants because recursive functions are
+                // represented as constants and need to have their types parametrized.
+                AcornValue::Constant(
+                    *cmod,
+                    cname.to_string(),
+                    ctype.parametrize(module, type_names),
+                    vec![],
+                )
             }
             AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
                 function: Box::new(app.function.parametrize(module, type_names)),
@@ -1508,7 +1546,10 @@ impl AcornValue {
                     .iter()
                     .map(|(new_vars, pattern, result)| {
                         (
-                            new_vars.clone(),
+                            new_vars
+                                .iter()
+                                .map(|t| t.parametrize(module, type_names))
+                                .collect(),
                             pattern.parametrize(module, type_names),
                             result.parametrize(module, type_names),
                         )
@@ -1526,7 +1567,8 @@ impl AcornValue {
                 AcornValue::Specialized(*c_module, c_name.clone(), c_type.clone(), out_params)
             }
             AcornValue::Bool(_) => self.clone(),
-        }
+        };
+        output
     }
 
     // Whether anything in this value has unbound type parameters.
