@@ -1476,7 +1476,7 @@ mod prover_test {
             }
         }
         theorem goal(n: Nat) {
-            repeat(n, Nat.suc, Nat.zero) = n
+            repeat(Nat.zero, Nat.suc, n) = n
         }
         "#;
         verify_succeeds(text);
