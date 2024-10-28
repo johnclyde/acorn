@@ -1655,4 +1655,27 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_templated_recursive_function() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Nat {
+                zero
+                suc(Nat)
+            }
+            define repeat<T>(n: Nat, f: T -> T, a: T) -> T {
+                match n {
+                    Nat.zero {
+                        a
+                    }
+                    Nat.suc(pred) {
+                        repeat(pred, f, f(a))
+                    }
+                }
+            }
+            "#,
+        );
+    }
 }
