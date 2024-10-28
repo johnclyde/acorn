@@ -7,6 +7,7 @@ use crate::code_gen_error::CodeGenError;
 use crate::expression::{Declaration, Expression, Terminator};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
+use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Error, Token, TokenIter, TokenType};
 
 // A representation of the variables on the stack.
@@ -1511,6 +1512,21 @@ impl BindingMap {
                 value_expr,
                 Some(&specific_value_type),
             )?;
+
+            if let Some(function_name) = function_name {
+                let mut checker = TerminationChecker::new(
+                    self.module,
+                    function_name.to_string(),
+                    specific_arg_types.len(),
+                );
+                if !checker.check(&specific_value) {
+                    return Err(Error::new(
+                        value_expr.token(),
+                        "The termination checker could not prove that this terminates.",
+                    ));
+                }
+            }
+
             let generic_value = specific_value.parametrize(self.module, &type_param_names);
             Some(generic_value)
         };
