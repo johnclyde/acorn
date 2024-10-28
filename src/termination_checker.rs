@@ -34,11 +34,16 @@ impl TerminationChecker {
     // Traverse the value, updating substructure_map and always_sub.
     fn traverse(&mut self, value: &AcornValue) {
         match value {
-            AcornValue::Variable(..)
-            | AcornValue::Constant(..)
-            | AcornValue::Specialized(..)
-            | AcornValue::Bool(..) => {
+            AcornValue::Variable(..) | AcornValue::Bool(..) => {
                 // These values can't contain function calls within them, so they don't matter.
+            }
+            AcornValue::Constant(module, name, _, _)
+            | AcornValue::Specialized(module, name, _, _) => {
+                if module == &self.module && name == &self.function_name {
+                    // We are using the recursive function without calling it, so we can't
+                    // really say that any of its arguments are always strict any more.
+                    self.always_strict_sub = vec![false; self.always_strict_sub.len()];
+                }
             }
             AcornValue::Lambda(arg_types, value)
             | AcornValue::ForAll(arg_types, value)
@@ -67,7 +72,16 @@ impl TerminationChecker {
                 if let Some((module, name)) = app.function.as_name() {
                     if module == self.module && name == self.function_name {
                         // This is a recursive call. Check the arguments for substructures.
-                        for (i, arg) in app.args.iter().enumerate() {
+                        for i in 0..self.always_strict_sub.len() {
+                            if i > app.args.len() {
+                                // This corresponds to partially binding the function arguments.
+                                // I think this is okay as long as some bound argument adheres to
+                                // the substructure argument.
+                                self.always_strict_sub[i] = false;
+                                continue;
+                            }
+
+                            let arg = &app.args[i];
                             let strict_sub = if let AcornValue::Variable(j, _) = arg {
                                 let j = *j as usize;
                                 i != j && self.substructure_map[j] == Some(i as AtomId)
@@ -77,8 +91,9 @@ impl TerminationChecker {
                             self.always_strict_sub[i] &= strict_sub;
                         }
                     }
+                } else {
+                    self.traverse(app.function.as_ref());
                 }
-                self.traverse(app.function.as_ref());
                 for arg in &app.args {
                     self.traverse(arg);
                 }
