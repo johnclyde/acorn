@@ -1457,4 +1457,28 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_prove_with_recursive_function() {
+        let text = r#"
+        inductive Nat {
+            zero
+            suc(Nat)
+        }
+        define repeat<T>(n: Nat, f: T -> T, a: T) -> T {
+            match n {
+                Nat.zero {
+                    a
+                }
+                Nat.suc(pred) {
+                    repeat(pred, f, f(a))
+                }
+            }
+        }
+        theorem goal(n: Nat) {
+            repeat(n, Nat.suc, Nat.zero) = n
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }
