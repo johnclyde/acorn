@@ -101,7 +101,8 @@ pub enum AcornValue {
     // If-then-else requires all parts: condition, if-value, else-value.
     IfThenElse(Box<AcornValue>, Box<AcornValue>, Box<AcornValue>),
 
-    // The first value is the one being matched. It needs to be evaluated in the outside context.
+    // The first value is the one being matched (the scrutinee).
+    // The scrutinee needs to be evaluated in the outside context.
     // Each triple represents a case. The types express which variables are getting bound,
     // the first value is the pattern, and the final value is the result.
     Match(
@@ -1759,13 +1760,17 @@ impl AcornValue {
         }
     }
 
+    pub fn as_name(&self) -> Option<(ModuleId, &str)> {
+        match &self {
+            AcornValue::Constant(module, name, _, _) => Some((*module, name)),
+            AcornValue::Specialized(module, name, _, _) => Some((*module, name)),
+            _ => None,
+        }
+    }
+
     pub fn is_named_function_call(&self) -> Option<(ModuleId, &str)> {
         match self {
-            AcornValue::Application(fa) => match &*fa.function {
-                AcornValue::Constant(module, name, _, _) => Some((*module, name)),
-                AcornValue::Specialized(module, name, _, _) => Some((*module, name)),
-                _ => None,
-            },
+            AcornValue::Application(fa) => fa.function.as_name(),
             _ => None,
         }
     }

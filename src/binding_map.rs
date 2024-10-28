@@ -345,6 +345,15 @@ impl BindingMap {
         self.constants.insert(name.to_string(), info);
     }
 
+    // Be really careful about this, it seems likely to break things.
+    fn remove_constant(&mut self, name: &str) {
+        if !self.name_in_use(name) {
+            panic!("removing constant {} which is already not present", name);
+        }
+        self.identifier_types.remove(name);
+        self.constants.remove(name);
+    }
+
     // Adds a local alias for an already-existing constant.
     pub fn add_alias(
         &mut self,
@@ -1406,6 +1415,7 @@ impl BindingMap {
     // value_type_expr is an optional expression for the type of the value.
     //   (None means expect a boolean value.)
     // value_expr is the expression for the value itself.
+    // function_name, when it is provided, can be used recursively.
     //
     // This function mutates the binding map but sets it back to its original state when finished.
     //
@@ -1421,7 +1431,8 @@ impl BindingMap {
     // class_name should be provided if this is the definition of a member function.
     //
     // The return value is "unbound" in the sense that it has variable atoms that are not
-    // bound within any lambda, exists, or forall value.
+    // bound within any lambda, exists, or forall value. It also may have references to a
+    // recursive function that is not yet defined.
     pub fn evaluate_subvalue(
         &mut self,
         project: &Project,
@@ -1430,6 +1441,7 @@ impl BindingMap {
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_name: Option<&str>,
+        function_name: Option<&str>,
     ) -> token::Result<(
         Vec<String>,
         Vec<String>,
@@ -1474,11 +1486,22 @@ impl BindingMap {
             }
         }
 
-        // Evaluate the inner value using our modified bindings
+        // Figure out specific types.
+        // Recursion can only happen with the specific types remaining fixed - it's just too
+        // weird to define a recursive function that's going to make calls across types.
+        // This means that the recursive function name is bound to a specific type when
+        // we're evaluating its value.
         let specific_value_type = match value_type_expr {
             Some(e) => self.evaluate_type(project, e)?,
             None => AcornType::Bool,
         };
+        if let Some(function_name) = function_name {
+            let specific_fn_type =
+                AcornType::new_functional(specific_arg_types.clone(), specific_value_type.clone());
+            self.add_constant(function_name, vec![], specific_fn_type, None, None);
+        }
+
+        // Evaluate the inner value using our modified bindings
         let generic_value = if value_expr.token().token_type == TokenType::Axiom {
             None
         } else {
@@ -1502,6 +1525,9 @@ impl BindingMap {
         // Reset the bindings
         for name in type_param_names.iter().rev() {
             self.remove_data_type(&name);
+        }
+        if let Some(function_name) = function_name {
+            self.remove_constant(&function_name);
         }
 
         Ok((
