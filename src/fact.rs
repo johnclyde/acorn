@@ -28,6 +28,8 @@ impl Fact {
     pub fn specialize(&self, params: &[(String, AcornType)]) -> Fact {
         let value = self.value.specialize(params);
         if value.is_parametric() {
+            // println!("XXX polymorph: {:#?}\n", self.value);
+            // println!("XXX monomorph: {:#?}\n", value);
             panic!("monomorph {} is still parametric", value);
         }
         let source = match &self.source.source_type {

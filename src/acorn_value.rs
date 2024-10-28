@@ -94,10 +94,10 @@ pub enum AcornValue {
 
     // A constant, defined in a particular module.
     // (module, constant name, type, type parameters)
-    // The type parameters can be empty.
-    //
     // The name can have a dot in it, indicating this value is <typename>.<constantname>.
     //
+    // The type parameters can be empty.
+    // TODO: what exactly do the type parameters mean?
     // When the type parameters are not empty, this indicates a polymorphic constant
     // whose type can still be inferred.
     // This sort of pre-type-inference value should only exist during parsing.
@@ -1462,9 +1462,9 @@ impl AcornValue {
                 let new_scrutinee = scrutinee.specialize(params);
                 let new_cases = cases
                     .iter()
-                    .map(|(new_vars, pattern, result)| {
+                    .map(|(vars, pattern, result)| {
                         (
-                            new_vars.clone(),
+                            vars.iter().map(|t| t.specialize(params)).collect(),
                             pattern.specialize(params),
                             result.specialize(params),
                         )
@@ -1493,7 +1493,7 @@ impl AcornValue {
             }
             AcornValue::Constant(cmod, cname, ctype, params) => {
                 if !params.is_empty() {
-                    panic!("we should only be genericizing concrete values");
+                    panic!("we should only be parametrizing concrete values");
                 }
                 // We need to parametrize constants because recursive functions are
                 // represented as constants and need to have their types parametrized.
