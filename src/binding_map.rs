@@ -1487,19 +1487,26 @@ impl BindingMap {
             }
         }
 
-        // Figure out specific types.
-        // Recursion can only happen with the specific types remaining fixed - it's just too
-        // weird to define a recursive function that's going to make calls across types.
-        // This means that the recursive function name is bound to a specific type when
-        // we're evaluating its value.
+        // Figure out types.
         let specific_value_type = match value_type_expr {
             Some(e) => self.evaluate_type(project, e)?,
             None => AcornType::Bool,
         };
+        let generic_value_type = specific_value_type.parametrize(self.module, &type_param_names);
+        let generic_arg_types: Vec<AcornType> = specific_arg_types
+            .iter()
+            .map(|t| t.parametrize(self.module, &type_param_names))
+            .collect();
         if let Some(function_name) = function_name {
-            let specific_fn_type =
-                AcornType::new_functional(specific_arg_types.clone(), specific_value_type.clone());
-            self.add_constant(function_name, vec![], specific_fn_type, None, None);
+            let generic_fn_type =
+                AcornType::new_functional(generic_arg_types.clone(), generic_value_type.clone());
+            self.add_constant(
+                function_name,
+                type_param_names.clone(),
+                generic_fn_type,
+                None,
+                None,
+            );
         }
 
         // Evaluate the inner value using our modified bindings
@@ -1530,13 +1537,6 @@ impl BindingMap {
             let generic_value = specific_value.parametrize(self.module, &type_param_names);
             Some(generic_value)
         };
-
-        // Parametrize everything before returning it
-        let generic_value_type = specific_value_type.parametrize(self.module, &type_param_names);
-        let generic_arg_types = specific_arg_types
-            .into_iter()
-            .map(|t| t.parametrize(self.module, &type_param_names))
-            .collect();
 
         // Reset the bindings
         for name in type_param_names.iter().rev() {

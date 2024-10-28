@@ -96,11 +96,9 @@ pub enum AcornValue {
     // (module, constant name, type, type parameters)
     // The name can have a dot in it, indicating this value is <typename>.<constantname>.
     //
-    // The type parameters can be empty.
-    // TODO: what exactly do the type parameters mean?
-    // When the type parameters are not empty, this indicates a polymorphic constant
-    // whose type can still be inferred.
-    // This sort of pre-type-inference value should only exist during parsing.
+    // The type parameters are a list of all the parameters used in the definition of this constant,
+    // in their canonical order. Each of these type parameters should be referenced in the type of
+    // the constant itself. Otherwise we would not be able to infer them.
     Constant(ModuleId, String, AcornType, Vec<String>),
 
     Application(FunctionApplication),
@@ -121,6 +119,7 @@ pub enum AcornValue {
     // (module, constant name, type, (type parameter, type) mapping)
     // The type is the polymorphic type of the constant.
     // The vector parameter maps parameter names to types they were replaced with.
+    // This map should be parallel to the type parameters of the corresponding constant.
     // The parameters cannot be empty - that should just be a Constant.
     Specialized(ModuleId, String, AcornType, Vec<(String, AcornType)>),
 
