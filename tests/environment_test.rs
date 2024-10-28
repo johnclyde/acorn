@@ -1678,4 +1678,27 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_termination_checker_catches_functional_cheating() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            inductive Nat {
+                zero
+                suc(Nat)
+            }
+            define apply(f: Nat -> Bool, n: Nat) -> Bool {
+                f(n)
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            define cheat(n: Nat) -> Bool {
+                not apply(cheat, n)
+            }
+            "#,
+        );
+    }
 }
