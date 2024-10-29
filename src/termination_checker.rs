@@ -73,7 +73,7 @@ impl TerminationChecker {
                     if module == self.module && name == self.function_name {
                         // This is a recursive call. Check the arguments for substructures.
                         for i in 0..self.always_strict_sub.len() {
-                            if i > app.args.len() {
+                            if i >= app.args.len() {
                                 // This corresponds to partially binding the function arguments.
                                 // I think this is okay as long as some bound argument adheres to
                                 // the substructure argument.
