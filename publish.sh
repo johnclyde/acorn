@@ -8,8 +8,18 @@ current_dir="$(pwd)"
 # Exit immediately if any command fails
 set -ex
 
-# Uncomment to clobber a previous publication
-# CLOBBER="--clobber"
+
+# Default value: empty
+CLOBBER=""
+
+# Parse CLI arguments
+for arg in "$@"; do
+  if [ "$arg" == "--clobber" ]; then
+    echo "clobbering."
+    CLOBBER="--clobber"
+    break
+  fi
+done
 
 VERSION=`cat VERSION`
 [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version"; exit 1; }

@@ -112,6 +112,15 @@ git push upstream v0.0.1
 ./publish.sh
 ```
 
+If you've already published the binaries for a tag and want to update them, run
+
+```
+./publish.sh --clobber
+```
+
 6. Publish the VS Code extension
 
-TODO
+```
+~/acorn$ cd vscode/extension
+~/acorn/vscore/extension$ vsce package
+```
