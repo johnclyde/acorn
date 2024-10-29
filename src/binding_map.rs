@@ -1529,7 +1529,7 @@ impl BindingMap {
                 if !checker.check(&specific_value) {
                     return Err(Error::new(
                         value_expr.token(),
-                        "The termination checker could not prove that this terminates.",
+                        "the termination checker could not prove that this terminates",
                     ));
                 }
             }
