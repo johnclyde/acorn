@@ -69,6 +69,16 @@ impl TerminationChecker {
                 self.traverse(c);
             }
             AcornValue::Application(app) => {
+                if let AcornValue::Application(subapp) = &*app.function {
+                    // This is a curried function call.
+                    // Let's just uncurry it. There's an extraneous clone but it's probably fine.
+                    let combined_args =
+                        subapp.args.iter().chain(app.args.iter()).cloned().collect();
+                    let uncurried = AcornValue::new_apply(*subapp.function.clone(), combined_args);
+                    self.traverse(&uncurried);
+                    return;
+                }
+
                 if let Some((module, name)) = app.function.as_name() {
                     if module == self.module && name == self.function_name {
                         // This is a recursive call. Check the arguments for substructures.

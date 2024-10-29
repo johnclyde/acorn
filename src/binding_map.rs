@@ -1526,6 +1526,7 @@ impl BindingMap {
                     function_name.to_string(),
                     specific_arg_types.len(),
                 );
+                println!("checking value: {:#?}", specific_value);
                 if !checker.check(&specific_value) {
                     return Err(Error::new(
                         value_expr.token(),
