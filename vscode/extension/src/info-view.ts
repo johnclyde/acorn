@@ -350,7 +350,7 @@ export class InfoView implements Disposable {
     }
     this.panel = window.createWebviewPanel(
       "acornInfoView",
-      "Proof Search",
+      "Info View",
       { viewColumn: column, preserveFocus: true },
       {
         enableFindWidget: true,
