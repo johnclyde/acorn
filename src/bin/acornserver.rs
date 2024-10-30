@@ -278,7 +278,6 @@ impl Backend {
         tokio::spawn(async move {
             // Clear any diagnostics from the previous build
             let mut diagnostic_map = diagnostic_map.write().await;
-            log("building...");
             for url in diagnostic_map.keys() {
                 client.publish_diagnostics(url.clone(), vec![], None).await;
             }
@@ -315,7 +314,6 @@ impl Backend {
                         .await;
                 }
             }
-            log("build complete");
         });
     }
 
