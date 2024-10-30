@@ -1,5 +1,5 @@
 #!/bin/bash
-# Publish the language server binaries to GitHub.
+# Publish the language server binaries and extension to GitHub.
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 current_dir="$(pwd)"
@@ -50,3 +50,7 @@ for key in "${!MAP[@]}"; do
     gh release upload $TAG files/release/$remote_name $CLOBBER
 done
 
+# Put the vsix on github releases as well
+cd vscode/extension
+vsce package
+gh release upload $TAG acorn-$VERSION.vsix $CLOBBER
