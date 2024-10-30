@@ -263,7 +263,7 @@ impl Backend {
                 let duration = chrono::Local::now() - start_time;
                 let seconds = duration.num_milliseconds() as f64 / 1000.0;
                 log(&format!(
-                    "build {} after {:.2}s",
+                    "verification {} after {:.2}s",
                     builder.status.verb(),
                     seconds
                 ));

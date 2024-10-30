@@ -279,7 +279,14 @@ impl Project {
         let mut targets = self.targets.iter().collect::<Vec<_>>();
         targets.sort();
 
-        builder.log_info(format!("building targets: {:?}", targets));
+        builder.log_info(format!(
+            "verifying modules: {}",
+            targets
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
 
         // The first phase is the "loading phase". We load modules and look for errors.
         // If there are errors, we won't try to do proving.
