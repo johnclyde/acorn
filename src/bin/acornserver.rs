@@ -21,7 +21,8 @@ use tower_lsp::jsonrpc;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-// During development, this will show up in the "Output" tab in the extension development host.
+// These messages will show up in the "Acorn Language Server" channel in the output tab.
+// User-visible, if the user looks for them.
 fn log(message: &str) {
     let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");
     let stamped = format!("[{}] {}", timestamp, message);

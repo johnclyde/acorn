@@ -179,8 +179,6 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
 }
 
 export async function activate(context: ExtensionContext) {
-  let traceOutputChannel = window.createOutputChannel("Acorn Language Server");
-
   let command = await getServerPath(context);
 
   let exec: Executable = {
@@ -209,7 +207,6 @@ export async function activate(context: ExtensionContext) {
       // Notify the server about file changes to '.clientrc files contained in the workspace
       fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
     },
-    traceOutputChannel,
     initializationFailedHandler: (error) => {
       initFailed = true;
       window.showErrorMessage("Acorn error: " + error.message);
@@ -232,8 +229,8 @@ export async function activate(context: ExtensionContext) {
 
   // Create the language client and start the client.
   client = new LanguageClient(
-    "acornClient",
-    "Acorn Client",
+    "acornLanguageServer",
+    "Acorn Language Server",
     serverOptions,
     clientOptions
   );
