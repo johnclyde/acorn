@@ -29,7 +29,7 @@ class SimpleNN(nn.Module):
         """
         Saves the model to a file chosen by timestamp.
         """
-        timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         path = f"../files/models/model-{timestamp}.onnx"
 
         # The dummy input has just a single feature vector

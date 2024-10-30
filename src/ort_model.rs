@@ -16,7 +16,7 @@ pub struct OrtModel {
 
 static ORT_INIT: Once = Once::new();
 
-const MODEL_BYTES: &[u8] = include_bytes!("../files/models/model-2024-09-25-15:33:10.onnx");
+const MODEL_BYTES: &[u8] = include_bytes!("../files/models/model-2024-09-25-15-33-10.onnx");
 
 impl OrtModel {
     // Loads a model from a specific file.
