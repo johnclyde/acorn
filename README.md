@@ -70,46 +70,46 @@ All commands are run from `~/acorn`.
 
 1. Bump the version using the `version.py` tool.
 
-```bash
-./python/version.py 0.0.1
-```
+   ```bash
+   ./python/version.py 0.0.1
+   ```
 
 2. Do the cross-platform build.
 
-```bash
-./crossbuild.sh
-```
+   ```bash
+   ./crossbuild.sh
+   ```
 
 3. Make a tag for the new language server release, "v" plus the version.
 
-First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
+   First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
 
-Then:
+   Then:
 
-```bash
-git tag v0.0.1
-git push upstream v0.0.1
-```
+   ```bash
+   git tag v0.0.1
+   git push upstream v0.0.1
+   ```
 
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
 5. Publish the language server binaries to GitHub
 
-```bash
-./publish.sh
-```
+   ```bash
+   ./publish.sh
+   ```
 
-If you've already published the binaries for a tag and want to update them, run
+   If you've already published the binaries for a tag and want to update them, run
 
-```bash
-./publish.sh --clobber
-```
+   ```bash
+   ./publish.sh --clobber
+   ```
 
 6. Publish the VS Code extension
 
-```bash
-~/acorn$ cd vscode/extension
-~/acorn/vscore/extension$ vsce package
-```
+   ```bash
+   ~/acorn$ cd vscode/extension
+   ~/acorn/vscore/extension$ vsce package
+   ```
 
-(This doesn't publish the extension, it just creates it.)
+   (This doesn't publish the extension, it just creates it.)
