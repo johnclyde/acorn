@@ -8,6 +8,8 @@ current_dir="$(pwd)"
 # Exit immediately if any command fails
 set -ex
 
+# We always want an up-to-date build, and it's cached so it won't slow us down to redo this.
+./crossbuild.sh
 
 # Default value: empty
 CLOBBER=""
@@ -28,7 +30,6 @@ TAG="v$VERSION"
 # Map between the Node and Rust ways of describing platforms
 declare -A MAP=(
   ["linux-x64"]="x86_64-unknown-linux-gnu"
-  ["win32-x64"]="x86_64-pc-windows-msvc"
   ["darwin-arm64"]="aarch64-apple-darwin"
 )
 
@@ -50,8 +51,14 @@ for key in "${!MAP[@]}"; do
     gh release upload $TAG files/release/$remote_name $CLOBBER
 done
 
-# Put the vsix on github releases as well
-# TODO: make sure we actually rebuild this.
+# Be sure to rebuild the info view
+cd vscode/info
+npm run build
+cd ../..
+
+# Rebuild the extension and release the vsix
 cd vscode/extension
+npm run build
 vsce package
 gh release upload $TAG acorn-$VERSION.vsix $CLOBBER
+cd ../..
