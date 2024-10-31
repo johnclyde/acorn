@@ -110,7 +110,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let extension = extensions.getExtension(context.extension.id);
   let timestamp = new Date().toLocaleTimeString();
   let version = extension.packageJSON.version;
-  let binName = `acornserver-v${version}-${os.platform()}-${os.arch()}`;
+  let binName = `acornserver-${version}-${os.platform()}-${os.arch()}`;
   if (os.platform() === "win32") {
     binName += ".exe";
   }
