@@ -7,7 +7,7 @@ export default defineConfig({
     svelte({
       onwarn: (warning, handler) => {
         // Ignore a11y warnings
-        if (warning.code === "a11y") return;
+        if (warning.code.indexOf("a11y") >= 0) return;
 
         // Handle all other warnings normally
         handler(warning);
