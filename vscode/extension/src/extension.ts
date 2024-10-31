@@ -161,7 +161,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
       } catch (e) {
         // Pop up an error message
         window.showErrorMessage(
-          `Failed to download Acorn language server: ${e.message}`
+          `failed to download Acorn language server: ${e.message}`
         );
         log(`error downloading {url}: {e.message}`);
         throw e;

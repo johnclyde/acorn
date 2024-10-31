@@ -51,6 +51,7 @@ for key in "${!MAP[@]}"; do
 done
 
 # Put the vsix on github releases as well
+# TODO: make sure we actually rebuild this.
 cd vscode/extension
 vsce package
 gh release upload $TAG acorn-$VERSION.vsix $CLOBBER
