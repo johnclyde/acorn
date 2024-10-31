@@ -6,6 +6,7 @@ import axios from "axios";
 import {
   ExtensionContext,
   extensions,
+  OutputChannel,
   ProgressLocation,
   TextDocument,
   Uri,
@@ -24,6 +25,15 @@ import {
 import { InfoView } from "./info-view";
 
 let client: LanguageClient;
+
+let outputChannel: OutputChannel | undefined;
+
+function log(message: string) {
+  if (outputChannel === undefined) {
+    outputChannel = window.createOutputChannel("Acorn Extension");
+  }
+  outputChannel.appendLine(message);
+}
 
 /**
  * Downloads a file from the given URL and saves it to the specified path.
@@ -125,7 +135,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let binDir = Uri.joinPath(context.globalStorageUri, "bin").fsPath;
   if (!fs.existsSync(binDir)) {
     fs.mkdirSync(binDir, { recursive: true });
-    console.log(`created binary storage directory at ${binDir}`);
+    log(`created binary storage directory at ${binDir}`);
   }
 
   // Join the storage directory with the binary name
@@ -138,7 +148,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   // Download the new binary from GitHub
   let oldBins = await fs.promises.readdir(binDir);
   let url = `https://github.com/acornprover/acorn/releases/download/v${version}/${binName}`;
-  console.log(`downloading from ${url} to ${serverPath}`);
+  log(`downloading from ${url} to ${serverPath}`);
   await window.withProgress(
     {
       location: ProgressLocation.Notification,
@@ -153,7 +163,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
         window.showErrorMessage(
           `Failed to download Acorn language server: ${e.message}`
         );
-        console.error(`error downloading {url}:`, e);
+        log(`error downloading {url}: {e.message}`);
         throw e;
       }
     }
@@ -162,7 +172,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   if (os.platform() !== "win32") {
     await fs.promises.chmod(serverPath, 0o755);
   }
-  console.log("download complete");
+  log("download complete");
 
   // Remove old binaries
   for (let oldBin of oldBins) {
@@ -171,7 +181,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
       throw new Error("unexpected redownload");
     }
     let oldBinPath = path.join(binDir, oldBin);
-    console.log(`removing old binary ${oldBinPath}`);
+    log(`removing old binary ${oldBinPath}`);
     fs.unlinkSync(oldBinPath);
   }
 
