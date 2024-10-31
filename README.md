@@ -4,10 +4,14 @@ The core implementation of the Acorn language.
 
 ## Who should use this repository?
 
-The primary way to use Acorn is through the VS Code extension. For that, you don't need to use this repository.
+There are several ways to use Acorn.
 
-If you are making changes to the theorem prover itself, or to the UI of the VS Code extension, you
-do need to use this repository.
+If you are using Acorn for your own project, all you need is the Acorn extension for VS Code. You don't need this repository.
+
+If you are contributing mathematics to the Acorn Library, you only need the
+[acorn-library repository](https://github.com://acornprover/acorn-library). You don't need this repository.
+
+If you are making changes to the Acorn language, its theorem prover, or to the UI of the VS Code extension, then keep reading.
 
 ## Installing acorn from source
 
@@ -37,95 +41,24 @@ npm install
 
 ## Running the prover
 
-Open up this repository in VS Code. You can open this exact file, if you like. You'll use this instance
-of VS Code to make changes to the prover and the extension.
+Open up this repository in VS Code. You can open this exact file, if you like, and keep reading from within VS Code. You'll use this instance of VS Code to make changes to the prover or the extension.
 
-Hit F5. This will open up a new VS Code window. Use this window to open `~/acorn-library`. You'll use this instance of VS Code to test our your local changes.
+Hit F5. This will open up a new VS Code window. This new window is called the "extension development host". Use it to open `~/acorn-library`. This is where you'll test out your local changes.
 
-## Linux/Mac release builds
+## Code Overview
 
-You can build for both Linux and Mac from Linux.
-You will need these dependencies.
+The guts of Acorn are written in Rust. Those files are [here](./src).
 
-All commands are run from `~/acorn`.
+If you'd like to add something new to the language, the best way to start might be to make sure it parses, by adding a new [environment test](./src/tests/environment_test.rs). Then run the tests with `cargo test -q`, you'll see where it fails, and you can proceed from there. The next step is to make sure it behaves like you want, by adding a new [prover test](./src/tests/prover_test.rs).
 
-Mac support:
+Other interesting parts of the code:
 
-Download a [Mac OS X SDK](https://github.com/joseluisq/macosx-sdks)
-somewhere, then symlink to it from `~/macsdk`.
+- The [language server](./src/bin/acornserver.rs) is the entry point to Rust logic within VS Code.
 
-```bash
-rustup target add aarch64-apple-darwin
-snap install zig --classic --beta
-cargo install --locked cargo-zigbuild
-```
+- The [VS Code extension](./vscode/extension) runs within VS Code, and handles communication between the user and the language server.
 
-## Windows release builds
+- The [Info View](./vscode/info) is a small webapp that runs as its own virtual document within VS Code.
 
-For releases we need to statically link the Acorn language server.
+- The [model training process](./python) uses PyTorch and outputs an ONNX model that the Rust code can import to use at runtime.
 
-Download `onnxruntime` to your home directory, then build it from the `onnxruntime` directory with:
-
-```powershell
-./build.bat --config Release --parallel --skip_tests --enable_msvc_static_runtime --cmake_generator "Visual Studio 17 2022"
-```
-
-Then do the release build from the `acorn` directory with:
-
-```powershell
-./winbuild.bat
-```
-
-## Creating new releases
-
-When we create a new release, we release a new language server, and then a new VSCode extension.
-
-All commands are run from `~/acorn`.
-
-1. Bump the version using the `version.py` tool.
-
-   ```bash
-   ./python/version.py 0.0.1
-   ```
-
-2. Do the cross-platform build.
-
-   ```bash
-   ./crossbuild.sh
-   ```
-
-3. Make a tag for the new language server release, "v" plus the version.
-
-   First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
-
-   Then:
-
-   ```bash
-   git tag v0.0.1
-   git push upstream v0.0.1
-   ```
-
-4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
-
-5. Publish the language server binaries to GitHub
-
-   ```bash
-   ./publish.sh
-   ```
-
-   If you've already published the binaries for a tag and want to update them, run
-
-   ```bash
-   ./publish.sh --clobber
-   ```
-
-   TODO: explain how to publish the Windows binary.
-
-6. Publish the VS Code extension
-
-   ```bash
-   ~/acorn$ cd vscode/extension
-   ~/acorn/vscore/extension$ vsce package
-   ```
-
-   (This doesn't publish the extension, it just creates it.)
+- The [release process document](./RELEASE.md) explains how to release a new version of all this.
