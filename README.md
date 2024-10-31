@@ -42,7 +42,7 @@ of VS Code to make changes to the prover and the extension.
 
 Hit F5. This will open up a new VS Code window. Use this window to open `~/acorn-library`. You'll use this instance of VS Code to test our your local changes.
 
-## Dependencies for cross-platform release
+## Linux/Mac release builds
 
 You can build for both Linux and Mac from Linux.
 You will need these dependencies.
@@ -60,7 +60,21 @@ snap install zig --classic --beta
 cargo install --locked cargo-zigbuild
 ```
 
-TODO: explain how Windows works
+## Windows release builds
+
+For releases we need to statically link the Acorn language server.
+
+Download `onnxruntime` to your home directory, then build it from the `onnxruntime` directory with:
+
+```powershell
+./build.bat --config Release --parallel --skip_tests --enable_msvc_static_runtime --cmake_generator "Visual Studio 17 2022"
+```
+
+Then do the release build from the `acorn` directory with:
+
+```powershell
+./winbuild.bat
+```
 
 ## Creating new releases
 
@@ -104,6 +118,8 @@ All commands are run from `~/acorn`.
    ```bash
    ./publish.sh --clobber
    ```
+
+   TODO: explain how to publish the Windows binary.
 
 6. Publish the VS Code extension
 
