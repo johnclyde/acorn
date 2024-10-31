@@ -13,7 +13,7 @@
 
   function stepsContain(
     steps: Array<ProofStepInfo>,
-    step: ProofStepInfo
+    step: ProofStepInfo,
   ): boolean {
     for (let s of steps) {
       if (
@@ -153,11 +153,11 @@
     {/if}
 
     {#if searchResponse.status.steps !== null}
-      <div class="mono">
+      <div class="block">
         <br />
         The full proof has {pluralize(
           searchResponse.status.steps.length,
-          "step"
+          "step",
         )}:
         <br />
         {#each searchResponse.status.steps as step}
@@ -168,7 +168,7 @@
     {/if}
     <br />
     <hr />
-    <div class="mono">
+    <div class="block">
       <br />
       <button
         on:click={() => {
@@ -204,5 +204,6 @@
         {/if}
       {/if}
     </div>
+    <br />
   {/if}
 </main>

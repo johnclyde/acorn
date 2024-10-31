@@ -1,15 +1,18 @@
 body {
-  font-size: 14px;
-  line-height: 1.25;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  line-height: var(--vscode-editor-line-height, 1.4);
 }
 
-.mono {
-  font-family: monospace;
+pre {
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.block {
   display: block;
 }
 
 .header {
-  font-family: monospace;
   display: block;
   font-size: 1.5em;
   font-weight: 550;
@@ -26,7 +29,6 @@ body {
 
 /* Indents four characters, plus two extra on wrap */
 .indent {
-  font-family: monospace;
   display: block;
 
   /* Indents two extra characters on wrap */
