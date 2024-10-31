@@ -47,9 +47,9 @@ Hit F5. This will open up a new VS Code window. This new window is called the "e
 
 ## Code Overview
 
-The guts of Acorn are written in Rust. Those files are [here](./src).
+The guts of Acorn are written in Rust. Those files are mostly [here](./src).
 
-If you'd like to add something new to the language, the best way to start might be to make sure it parses, by adding a new [environment test](./src/tests/environment_test.rs). Then run the tests with `cargo test -q`, you'll see where it fails, and you can proceed from there. The next step is to make sure it behaves like you want, by adding a new [prover test](./src/tests/prover_test.rs).
+If you'd like to add something new to the language, the best way to start might be to make sure it parses, by adding a new [environment test](./tests/environment_test.rs). Then run the tests with `cargo test -q`, you'll see where it fails, and you can proceed from there. The next step is to make sure it behaves like you want, by adding a new [prover test](./tests/prover_test.rs).
 
 Other interesting parts of the code:
 
