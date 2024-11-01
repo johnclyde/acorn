@@ -18,9 +18,11 @@ use crate::token::{self, Token};
 
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {
-    // The root directory of the project
+    // The root directory of the library.
+    // This is used to resolve all imports.
+    // Note that it may be different from the editor root, which is where the user is working.
     // Set to "/mock" for mock projects.
-    root: PathBuf,
+    library_root: PathBuf,
 
     // Whether we permit loading files from the filesystem
     use_filesystem: bool,
@@ -95,9 +97,9 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
 }
 
 impl Project {
-    pub fn new(root: PathBuf) -> Project {
+    pub fn new(library_root: PathBuf) -> Project {
         Project {
-            root,
+            library_root,
             use_filesystem: true,
             open_files: HashMap::new(),
             modules: new_modules(),
@@ -126,8 +128,8 @@ impl Project {
     // Returns None if we can't find an acorn library.
     pub fn new_local() -> Option<Project> {
         let current_dir = std::env::current_dir().ok()?;
-        let root = Project::find_local_acorn_library(&current_dir)?;
-        Some(Project::new(root))
+        let library_root = Project::find_local_acorn_library(&current_dir)?;
+        Some(Project::new(library_root))
     }
 
     // A Project where nothing can be imported.
@@ -187,7 +189,10 @@ impl Project {
         if !self.use_filesystem {
             panic!("cannot add all targets without filesystem access")
         }
-        for entry in WalkDir::new(&self.root).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.library_root)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
                 let path = entry.path();
 
@@ -528,7 +533,7 @@ impl Project {
 
     // Returns a load error if this isn't a valid path for an acorn file.
     pub fn module_ref_from_path(&self, path: &Path) -> Result<ModuleRef, LoadError> {
-        let relative = match path.strip_prefix(&self.root) {
+        let relative = match path.strip_prefix(&self.library_root) {
             Ok(relative) => relative,
             Err(_) => return Ok(ModuleRef::File(path.to_path_buf())),
         };
@@ -560,7 +565,7 @@ impl Project {
     }
 
     pub fn path_from_module_name(&self, module_name: &str) -> Result<PathBuf, LoadError> {
-        let mut path = self.root.clone();
+        let mut path = self.library_root.clone();
         let parts: Vec<&str> = module_name.split('.').collect();
 
         for (i, part) in parts.iter().enumerate() {
