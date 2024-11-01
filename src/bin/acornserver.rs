@@ -219,12 +219,12 @@ struct Backend {
     diagnostic_map: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
 }
 
-// Finds the acorn library to use, given the root folder opened in the editor.
+// Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
 // Returns an error if we can't find either.
-fn find_acorn_library(editor_root: Option<Url>) -> jsonrpc::Result<PathBuf> {
+fn find_acorn_library(workspace_root: Option<Url>) -> jsonrpc::Result<PathBuf> {
     // Check for a local library, near the code
-    if let Some(root_uri) = editor_root {
+    if let Some(root_uri) = workspace_root {
         let root_path = root_uri.to_file_path().map_err(|_| {
             jsonrpc::Error::invalid_params(format!("invalid file path: {}", root_uri))
         })?;
@@ -244,11 +244,11 @@ fn find_acorn_library(editor_root: Option<Url>) -> jsonrpc::Result<PathBuf> {
 
 impl Backend {
     // Creates a new backend.
-    // Determines which library to use based on the root folder opened in the editor.
+    // Determines which library to use based on the root of the current workspace.
     // If we can't find one in a logical location based on the editor, we use
     // the library bundled with the extension.
-    fn new(client: Client, editor_root: Option<Url>) -> jsonrpc::Result<Backend> {
-        let library_root = find_acorn_library(editor_root)?;
+    fn new(client: Client, workspace_root: Option<Url>) -> jsonrpc::Result<Backend> {
+        let library_root = find_acorn_library(workspace_root)?;
         let project = Project::new(library_root);
         Ok(Backend {
             project: Arc::new(RwLock::new(project)),
