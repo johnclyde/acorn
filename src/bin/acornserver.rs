@@ -231,22 +231,18 @@ struct Backend {
 // Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
 // Returns an error if we can't find either.
-fn find_acorn_library(workspace_root: Option<String>) -> jsonrpc::Result<PathBuf> {
+fn find_acorn_library(workspace_root: Option<String>) -> Option<PathBuf> {
     // Check for a local library, near the code
     if let Some(workspace_root) = workspace_root {
         let workspace_root = PathBuf::from(workspace_root);
         if let Some(path) = Project::find_local_acorn_library(&workspace_root) {
-            return Ok(path);
+            return Some(path);
         }
     }
 
-    // TODO: Use the bundled library, if we have it.
+    // TODO: Use the bundled library.
 
-    Err(jsonrpc::Error {
-        code: 100.into(),
-        message: "could not find acorn-library".into(),
-        data: None,
-    })
+    None
 }
 
 impl Backend {
@@ -254,15 +250,18 @@ impl Backend {
     // Determines which library to use based on the root of the current workspace.
     // If we can't find one in a logical location based on the editor, we use
     // the library bundled with the extension.
-    fn new(client: Client) -> jsonrpc::Result<Backend> {
+    fn new(client: Client) -> Backend {
         let args = Args::parse();
-        let library_root = find_acorn_library(args.workspace_root)?;
+        let library_root = find_acorn_library(args.workspace_root)
+            .expect("packaging error: could not find acorn library");
+
         log(&format!(
             "using acorn library at {}",
             library_root.display()
         ));
+
         let project = Project::new(library_root);
-        Ok(Backend {
+        Backend {
             project: Arc::new(RwLock::new(project)),
             client,
             progress: Arc::new(Mutex::new(ProgressResponse::default())),
@@ -270,7 +269,7 @@ impl Backend {
             versions: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
             diagnostic_map: Arc::new(RwLock::new(HashMap::new())),
-        })
+        }
     }
 
     // Run a build in a background thread, proving the goals in all open documents.
@@ -643,6 +642,28 @@ impl Backend {
             result,
         })
     }
+}
+
+#[tower_lsp::async_trait]
+impl LanguageServer for Backend {
+    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+        let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
+            open_close: Some(true),
+            change: Some(TextDocumentSyncKind::INCREMENTAL),
+            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                include_text: Some(true),
+            })),
+            ..TextDocumentSyncOptions::default()
+        });
+
+        Ok(InitializeResult {
+            server_info: None,
+            capabilities: ServerCapabilities {
+                text_document_sync: Some(sync_options),
+                ..ServerCapabilities::default()
+            },
+        })
+    }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
@@ -685,11 +706,6 @@ impl Backend {
             Ok(()) => {}
             Err(e) => log(&format!("close failed: {:?}", e)),
         }
-    }
-
-    async fn shutdown(&self) -> jsonrpc::Result<()> {
-        log("shutdown");
-        Ok(())
     }
 
     async fn semantic_tokens_full(
@@ -743,117 +759,10 @@ impl Backend {
         });
         Ok(Some(result))
     }
-}
-
-// A LazyBackend initializes a Backend once it gets an initialize call.
-struct LazyBackend {
-    client: Client,
-    backend: Arc<RwLock<Option<Backend>>>,
-}
-
-impl LazyBackend {
-    fn new(client: Client) -> Self {
-        LazyBackend {
-            client,
-            backend: Arc::new(RwLock::new(None)),
-        }
-    }
-
-    async fn handle_info_request(&self, params: InfoParams) -> jsonrpc::Result<InfoResponse> {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.handle_info_request(params).await
-        } else {
-            Err(jsonrpc::Error::invalid_params("backend not initialized"))
-        }
-    }
-
-    async fn handle_progress_request(
-        &self,
-        params: ProgressParams,
-    ) -> jsonrpc::Result<ProgressResponse> {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.handle_progress_request(params).await
-        } else {
-            Err(jsonrpc::Error::invalid_params("backend not initialized"))
-        }
-    }
-
-    async fn handle_search_request(&self, params: SearchParams) -> jsonrpc::Result<SearchResponse> {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.handle_search_request(params).await
-        } else {
-            Err(jsonrpc::Error::invalid_params("backend not initialized"))
-        }
-    }
-}
-
-#[tower_lsp::async_trait]
-impl LanguageServer for LazyBackend {
-    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        // Create a Backend
-        let backend = Backend::new(self.client.clone())?;
-        let mut locked_backend = self.backend.write().await;
-        *locked_backend = Some(backend);
-
-        let sync_options = TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
-            open_close: Some(true),
-            change: Some(TextDocumentSyncKind::INCREMENTAL),
-            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                include_text: Some(true),
-            })),
-            ..TextDocumentSyncOptions::default()
-        });
-
-        Ok(InitializeResult {
-            server_info: None,
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(sync_options),
-                ..ServerCapabilities::default()
-            },
-        })
-    }
-
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.did_save(params).await;
-        }
-    }
-
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.did_open(params).await;
-        }
-    }
-
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.did_change(params).await;
-        }
-    }
-
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.did_close(params).await;
-        }
-    }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.shutdown().await
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn semantic_tokens_full(
-        &self,
-        params: SemanticTokensParams,
-    ) -> jsonrpc::Result<Option<SemanticTokensResult>> {
-        if let Some(backend) = self.backend.read().await.as_ref() {
-            backend.semantic_tokens_full(params).await
-        } else {
-            Ok(None)
-        }
+        log("shutdown");
+        Ok(())
     }
 }
 
@@ -862,10 +771,10 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::build(LazyBackend::new)
-        .custom_method("acorn/info", LazyBackend::handle_info_request)
-        .custom_method("acorn/progress", LazyBackend::handle_progress_request)
-        .custom_method("acorn/search", LazyBackend::handle_search_request)
+    let (service, socket) = LspService::build(Backend::new)
+        .custom_method("acorn/info", Backend::handle_info_request)
+        .custom_method("acorn/progress", Backend::handle_progress_request)
+        .custom_method("acorn/search", Backend::handle_search_request)
         .finish();
 
     Server::new(stdin, stdout, socket).serve(service).await;
