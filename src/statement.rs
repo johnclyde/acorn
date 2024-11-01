@@ -1652,4 +1652,20 @@ mod tests {
             }
         }"});
     }
+
+    #[test]
+    fn test_anonymous_theorem() {
+        ok(indoc! {"
+        theorem {
+            true
+        }"});
+    }
+
+    #[test]
+    fn test_anonymous_theorem_with_arguments() {
+        ok(indoc! {"
+        theorem(a: Bool, b: Bool) {
+            a = b or a or b
+        }"});
+    }
 }
