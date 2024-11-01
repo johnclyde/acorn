@@ -1,3 +1,0 @@
-[submodule "vscode/extension/build/acorn-library"]
-	path = vscode/extension/build/acorn-library
-	url = https://github.com/acornprover/acorn-library.git
