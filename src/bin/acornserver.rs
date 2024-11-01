@@ -26,9 +26,13 @@ use acorn::token::Token;
 
 #[derive(Parser)]
 struct Args {
-    /// Optional path to the workspace root
+    // The root folder the user has open
     #[clap(long)]
     workspace_root: Option<String>,
+
+    // The root folder of the extension
+    #[clap(long)]
+    extension_root: String,
 }
 
 // These messages will show up in the "Acorn Language Server" channel in the output tab.
@@ -230,19 +234,25 @@ struct Backend {
 
 // Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
-// Returns an error if we can't find either.
-fn find_acorn_library(workspace_root: Option<String>) -> Option<PathBuf> {
+// Panics if we can't find either.
+fn find_acorn_library(args: &Args) -> PathBuf {
     // Check for a local library, near the code
-    if let Some(workspace_root) = workspace_root {
-        let workspace_root = PathBuf::from(workspace_root);
-        if let Some(path) = Project::find_local_acorn_library(&workspace_root) {
-            return Some(path);
+    if let Some(workspace_root) = &args.workspace_root {
+        let path = PathBuf::from(&workspace_root);
+        if let Some(library_root) = Project::find_local_acorn_library(&path) {
+            return library_root;
         }
     }
 
-    // TODO: Use the bundled library.
-
-    None
+    // Use the bundled library.
+    let library_root = PathBuf::from(&args.extension_root).join("acorn-library");
+    if !library_root.exists() {
+        panic!(
+            "packaging error: no acorn library at {}",
+            library_root.display()
+        );
+    }
+    library_root
 }
 
 impl Backend {
@@ -252,8 +262,7 @@ impl Backend {
     // the library bundled with the extension.
     fn new(client: Client) -> Backend {
         let args = Args::parse();
-        let library_root = find_acorn_library(args.workspace_root)
-            .expect("packaging error: could not find acorn library");
+        let library_root = find_acorn_library(&args);
 
         log(&format!(
             "using acorn library at {}",

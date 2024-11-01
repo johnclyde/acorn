@@ -192,7 +192,7 @@ export async function activate(context: ExtensionContext) {
   let command = await getServerPath(context);
 
   // Add workspace root argument if available
-  let args = [];
+  let args = ["--extension-root", context.extensionPath];
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
     let workspaceRoot = workspace.workspaceFolders[0].uri.fsPath;
     args.push("--workspace-root", workspaceRoot);
@@ -209,8 +209,7 @@ export async function activate(context: ExtensionContext) {
     },
   };
 
-  // If the extension is launched in debug mode then the debug server options are used
-  // Otherwise the run options are used
+  // Currently we don't do anything differently in debug mode.
   let serverOptions: ServerOptions = {
     run: exec,
     debug: exec,
