@@ -57,7 +57,7 @@ pub struct DefineStatement {
 // axiomatic would be "true", the name is "foo", the args are p, q, and the claim is "p -> (q -> p)".
 pub struct TheoremStatement {
     pub axiomatic: bool,
-    pub name: String,
+    pub name: Option<String>,
     pub type_params: Vec<Token>,
     pub args: Vec<Declaration>,
     pub claim: Expression,
@@ -352,7 +352,10 @@ fn parse_theorem_statement(
     tokens: &mut TokenIter,
     axiomatic: bool,
 ) -> Result<Statement> {
-    let name_token = tokens.expect_variable_name(false)?;
+    let name = match tokens.peek_type() {
+        Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => None,
+        _ => Some(tokens.expect_variable_name(false)?.text().to_string()),
+    };
     let (type_params, args, _) = parse_args(tokens, TokenType::LeftBrace)?;
     if type_params.len() > 1 {
         return Err(Error::new(
@@ -367,7 +370,7 @@ fn parse_theorem_statement(
 
     let ts = TheoremStatement {
         axiomatic,
-        name: name_token.text().to_string(),
+        name,
         type_params,
         args,
         claim,
@@ -893,7 +896,9 @@ impl Statement {
                 } else {
                     write!(f, "theorem")?;
                 }
-                write!(f, " {}", ts.name)?;
+                if let Some(name) = &ts.name {
+                    write!(f, " {}", name)?;
+                }
                 write_type_params(f, &ts.type_params)?;
                 write_args(f, &ts.args)?;
                 write!(f, " {{\n{}{}\n{}}}", new_indentation, ts.claim, indentation)?;

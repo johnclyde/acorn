@@ -709,6 +709,10 @@ impl TokenIter {
         self.inner.peek()
     }
 
+    pub fn peek_type(&mut self) -> Option<TokenType> {
+        self.peek().map(|t| t.token_type)
+    }
+
     pub fn next(&mut self) -> Option<Token> {
         self.inner.next()
     }
