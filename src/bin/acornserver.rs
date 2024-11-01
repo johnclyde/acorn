@@ -1,6 +1,7 @@
 // The Acorn Language Server. This is typically invoked by a VS Code extension.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -218,16 +219,37 @@ struct Backend {
     diagnostic_map: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
 }
 
+// Finds the acorn library to use, given the root folder opened in the editor.
+// Falls back to the library bundled with the extension.
+// Returns an error if we can't find either.
+fn find_acorn_library(editor_root: Option<Url>) -> jsonrpc::Result<PathBuf> {
+    // Check for a local library, near the code
+    if let Some(root_uri) = editor_root {
+        let root_path = root_uri.to_file_path().map_err(|_| {
+            jsonrpc::Error::invalid_params(format!("invalid file path: {}", root_uri))
+        })?;
+        if let Some(path) = Project::find_local_acorn_library(&root_path) {
+            return Ok(path);
+        }
+    }
+
+    // TODO: Use the bundled library, if we have it.
+
+    Err(jsonrpc::Error {
+        code: 100.into(),
+        message: "could not find acorn-library".into(),
+        data: None,
+    })
+}
+
 impl Backend {
-    fn new(client: Client, root_uri: Url) -> jsonrpc::Result<Backend> {
-        let path = root_uri.to_file_path().map_err(|_| {
-            jsonrpc::Error::invalid_params(format!("invalid file path in uri: {}", root_uri))
-        })?;
-        let project = Project::new_from_directory_search(&path).ok_or_else(|| jsonrpc::Error {
-            code: 100.into(),
-            message: "could not find acorn-library".into(),
-            data: None,
-        })?;
+    // Creates a new backend.
+    // Determines which library to use based on the root folder opened in the editor.
+    // If we can't find one in a logical location based on the editor, we use
+    // the library bundled with the extension.
+    fn new(client: Client, editor_root: Option<Url>) -> jsonrpc::Result<Backend> {
+        let library_root = find_acorn_library(editor_root)?;
+        let project = Project::new(library_root);
         Ok(Backend {
             project: Arc::new(RwLock::new(project)),
             client,
@@ -756,18 +778,8 @@ impl LazyBackend {
 #[tower_lsp::async_trait]
 impl LanguageServer for LazyBackend {
     async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
-        let root_uri = match params.root_uri {
-            Some(uri) => uri,
-            None => {
-                return Err(jsonrpc::Error::invalid_params(
-                    "initialize requires a root uri in the params",
-                ))
-            }
-        };
-        log(&format!("initializing with root {}", root_uri));
-
         // Create a Backend
-        let backend = Backend::new(self.client.clone(), root_uri)?;
+        let backend = Backend::new(self.client.clone(), params.root_uri)?;
         let mut locked_backend = self.backend.write().await;
         *locked_backend = Some(backend);
 

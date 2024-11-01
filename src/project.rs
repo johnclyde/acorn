@@ -94,23 +94,8 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
     Ok(())
 }
 
-// Finds a directory named acorn-library.
-fn find_acorn_library(start: &Path) -> Option<PathBuf> {
-    let mut current = Some(start.to_path_buf());
-
-    while let Some(path) = current {
-        let library_path = path.join("acorn-library");
-        if library_path.is_dir() {
-            return Some(library_path);
-        }
-        current = path.parent().map(|p| p.to_path_buf());
-    }
-
-    None
-}
-
 impl Project {
-    fn new(root: PathBuf) -> Project {
+    pub fn new(root: PathBuf) -> Project {
         Project {
             root,
             use_filesystem: true,
@@ -122,18 +107,27 @@ impl Project {
         }
     }
 
-    // A Project where files are imported from an acorn-library directory.
-    // Searches for a library root based on the given path.
-    // Returns None if it can't find it.
-    pub fn new_from_directory_search(start: &Path) -> Option<Project> {
-        let root = find_acorn_library(start)?;
-        Some(Project::new(root))
+    // Finds a directory named acorn-library, based on the provided path and looking nearby.
+    pub fn find_local_acorn_library(start: &Path) -> Option<PathBuf> {
+        let mut current = Some(start.to_path_buf());
+
+        while let Some(path) = current {
+            let library_path = path.join("acorn-library");
+            if library_path.is_dir() {
+                return Some(library_path);
+            }
+            current = path.parent().map(|p| p.to_path_buf());
+        }
+
+        None
     }
 
     // A Project based on the current working directory.
+    // Returns None if we can't find an acorn library.
     pub fn new_local() -> Option<Project> {
         let current_dir = std::env::current_dir().ok()?;
-        Project::new_from_directory_search(&current_dir)
+        let root = Project::find_local_acorn_library(&current_dir)?;
+        Some(Project::new(root))
     }
 
     // A Project where nothing can be imported.
