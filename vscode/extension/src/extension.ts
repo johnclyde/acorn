@@ -191,8 +191,16 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
 export async function activate(context: ExtensionContext) {
   let command = await getServerPath(context);
 
+  // Add workspace root argument if available
+  let args = [];
+  if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+    let workspaceRoot = workspace.workspaceFolders[0].uri.fsPath;
+    args.push("--workspace-root", workspaceRoot);
+  }
+
   let exec: Executable = {
     command,
+    args,
     options: {
       env: {
         RUST_BACKTRACE: "1",

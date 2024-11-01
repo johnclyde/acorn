@@ -5,6 +5,14 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use chrono;
+use clap::Parser;
+use dashmap::DashMap;
+use tokio::sync::{mpsc, Mutex, RwLock, RwLockWriteGuard};
+use tower_lsp::jsonrpc;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer, LspService, Server};
+
 use acorn::block::NodeCursor;
 use acorn::builder::Builder;
 use acorn::interfaces::{
@@ -15,12 +23,13 @@ use acorn::module::{Module, ModuleRef};
 use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
 use acorn::token::Token;
-use chrono;
-use dashmap::DashMap;
-use tokio::sync::{mpsc, Mutex, RwLock, RwLockWriteGuard};
-use tower_lsp::jsonrpc;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+
+#[derive(Parser)]
+struct Args {
+    /// Optional path to the workspace root
+    #[clap(long)]
+    workspace_root: Option<String>,
+}
 
 // These messages will show up in the "Acorn Language Server" channel in the output tab.
 // User-visible, if the user looks for them.
@@ -222,13 +231,11 @@ struct Backend {
 // Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
 // Returns an error if we can't find either.
-fn find_acorn_library(workspace_root: Option<Url>) -> jsonrpc::Result<PathBuf> {
+fn find_acorn_library(workspace_root: Option<String>) -> jsonrpc::Result<PathBuf> {
     // Check for a local library, near the code
-    if let Some(root_uri) = workspace_root {
-        let root_path = root_uri.to_file_path().map_err(|_| {
-            jsonrpc::Error::invalid_params(format!("invalid file path: {}", root_uri))
-        })?;
-        if let Some(path) = Project::find_local_acorn_library(&root_path) {
+    if let Some(workspace_root) = workspace_root {
+        let workspace_root = PathBuf::from(workspace_root);
+        if let Some(path) = Project::find_local_acorn_library(&workspace_root) {
             return Ok(path);
         }
     }
@@ -247,8 +254,13 @@ impl Backend {
     // Determines which library to use based on the root of the current workspace.
     // If we can't find one in a logical location based on the editor, we use
     // the library bundled with the extension.
-    fn new(client: Client, workspace_root: Option<Url>) -> jsonrpc::Result<Backend> {
-        let library_root = find_acorn_library(workspace_root)?;
+    fn new(client: Client) -> jsonrpc::Result<Backend> {
+        let args = Args::parse();
+        let library_root = find_acorn_library(args.workspace_root)?;
+        log(&format!(
+            "using acorn library at {}",
+            library_root.display()
+        ));
         let project = Project::new(library_root);
         Ok(Backend {
             project: Arc::new(RwLock::new(project)),
@@ -777,9 +789,9 @@ impl LazyBackend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for LazyBackend {
-    async fn initialize(&self, params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
+    async fn initialize(&self, _params: InitializeParams) -> jsonrpc::Result<InitializeResult> {
         // Create a Backend
-        let backend = Backend::new(self.client.clone(), params.root_uri)?;
+        let backend = Backend::new(self.client.clone())?;
         let mut locked_backend = self.backend.write().await;
         *locked_backend = Some(backend);
 
@@ -791,8 +803,6 @@ impl LanguageServer for LazyBackend {
             })),
             ..TextDocumentSyncOptions::default()
         });
-
-        log("initialization ok");
 
         Ok(InitializeResult {
             server_info: None,
