@@ -1659,7 +1659,7 @@ mod tests {
     }
 
     #[test]
-    fn test_anonymous_theorem() {
+    fn test_anonymous_theorem_statement() {
         ok(indoc! {"
         theorem {
             true
@@ -1667,7 +1667,7 @@ mod tests {
     }
 
     #[test]
-    fn test_anonymous_theorem_with_arguments() {
+    fn test_anonymous_theorem_statement_with_arguments() {
         ok(indoc! {"
         theorem(a: Bool, b: Bool) {
             a = b or a or b
