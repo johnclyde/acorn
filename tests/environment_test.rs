@@ -1777,4 +1777,28 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_anonymous_axiom_env() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            axiom {
+                not false
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_anonymous_axiom_env_with_arg() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            axiom(a: Bool) {
+                a or not a
+            }
+        "#,
+        );
+    }
 }
