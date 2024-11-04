@@ -109,22 +109,22 @@ impl Project {
         }
     }
 
-    // Finds a directory named acorn-library, based on the provided path.
+    // Finds a directory named acornlib, based on the provided path.
     // It can be either:
     //   a parent directory of the provided path
-    //   a directory named "acorn-library" parallel to one named "acorn"
+    //   a directory named "acornlib" next to one named "acorn"
     pub fn find_local_acorn_library(start: &Path) -> Option<PathBuf> {
         let mut current = Some(start);
 
         while let Some(path) = current {
-            // Check if path is an acorn-library
-            if path.ends_with("acorn-library") {
+            // Check if path is an acornlib
+            if path.ends_with("acornlib") {
                 return Some(path.to_path_buf());
             }
 
-            // Check if path has a sibling named acorn-library
+            // Check if path has a sibling named acornlib
             if path.ends_with("acorn") {
-                let library_path = path.with_file_name("acorn-library");
+                let library_path = path.with_file_name("acornlib");
                 if library_path.is_dir() {
                     return Some(library_path);
                 }

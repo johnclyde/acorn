@@ -245,7 +245,7 @@ fn find_acorn_library(args: &Args) -> PathBuf {
     }
 
     // Use the bundled library.
-    let library_root = PathBuf::from(&args.extension_root).join("acorn-library");
+    let library_root = PathBuf::from(&args.extension_root).join("acornlib");
     if !library_root.exists() {
         panic!(
             "packaging error: no acorn library at {}",

@@ -9,16 +9,16 @@ There are several ways to use Acorn.
 If you are using Acorn for your own project, all you need is the Acorn extension for VS Code. You don't need this repository.
 
 If you are contributing mathematics to the Acorn Library, you only need the
-[acorn-library repository](https://github.com://acornprover/acorn-library). You don't need this repository.
+[acornlib repository](https://github.com://acornprover/acornlib). You don't need this repository.
 
 If you are making changes to the Acorn language, its theorem prover, or to the UI of the VS Code extension, then keep reading.
 
 ## Installing acorn from source
 
-Fork this and `acorn-library`, then clone them to your development machine.
+Fork this and `acornlib`, then clone them to your development machine.
 
 These instructions will assume you have this repository cloned in `~/acorn` and the library cloned
-in `~/acorn-library`.
+in `~/acornlib`.
 
 Fork this repository, then clone the fork to your local machine. Install rust and node, then verify tests
 pass locally:
@@ -43,7 +43,7 @@ npm install
 
 Open up this repository in VS Code. You can open this exact file, if you like, and keep reading from within VS Code. You'll use this instance of VS Code to make changes to the prover or the extension.
 
-Hit F5. This will open up a new VS Code window. This new window is called the "extension development host". Use it to open `~/acorn-library`. This is where you'll test out your local changes.
+Hit F5. This will open up a new VS Code window. This new window is called the "extension development host". Use it to open `~/acornlib`. This is where you'll test out your local changes.
 
 ## Code Overview
 
