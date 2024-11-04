@@ -1481,4 +1481,18 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_prove_with_anonymous_axiom() {
+        let text = r#"
+        let b: Bool = axiom
+        axiom foo {
+            b
+        }
+        theorem goal {
+            b
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }
