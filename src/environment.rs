@@ -495,14 +495,6 @@ impl Environment {
             }
 
             StatementInfo::Theorem(ts) => {
-                let name = ts.name.as_ref().expect("TODO: handle anonymous theorems");
-                if self.bindings.name_in_use(&name) {
-                    return Err(Error::new(
-                        &statement.first_token,
-                        &format!("theorem name '{}' already defined in this scope", name),
-                    ));
-                }
-
                 // Figure out the range for this theorem definition.
                 // It's smaller than the whole theorem statement because it doesn't
                 // include the proof block.
@@ -510,8 +502,18 @@ impl Environment {
                     start: statement.first_token.start_pos(),
                     end: ts.claim_right_brace.end_pos(),
                 };
-                self.definition_ranges
-                    .insert(name.to_string(), range.clone());
+
+                if let Some(name) = &ts.name {
+                    if self.bindings.name_in_use(&name) {
+                        return Err(Error::new(
+                            &statement.first_token,
+                            &format!("theorem name '{}' already defined in this scope", name),
+                        ));
+                    }
+
+                    self.definition_ranges
+                        .insert(name.to_string(), range.clone());
+                }
 
                 let (type_params, arg_names, arg_types, value, _) =
                     self.bindings.evaluate_subvalue(
@@ -565,13 +567,15 @@ impl Environment {
                 // theorem is usable by name in this environment.
                 let lambda_claim = AcornValue::new_lambda(arg_types, unbound_claim);
                 let theorem_type = lambda_claim.get_type();
-                self.bindings.add_constant(
-                    &name,
-                    type_params.clone(),
-                    theorem_type.clone(),
-                    Some(lambda_claim.clone()),
-                    None,
-                );
+                if let Some(name) = &ts.name {
+                    self.bindings.add_constant(
+                        &name,
+                        type_params.clone(),
+                        theorem_type.clone(),
+                        Some(lambda_claim.clone()),
+                        None,
+                    );
+                }
 
                 let already_proven = ts.axiomatic || is_citation;
 
@@ -583,7 +587,7 @@ impl Environment {
                         &self,
                         type_params,
                         block_args,
-                        BlockParams::Theorem(&name, range, premise, goal),
+                        BlockParams::Theorem(ts.name.as_deref(), range, premise, goal),
                         statement.first_line(),
                         statement.last_line(),
                         ts.body.as_ref(),
@@ -598,12 +602,14 @@ impl Environment {
                         external_claim,
                         self.module_id,
                         range,
-                        name.to_string(),
+                        ts.name.clone(),
                     ),
                     block,
                 );
                 self.add_node_lines(index, &statement.range());
-                self.bindings.mark_as_theorem(&name);
+                if let Some(name) = &ts.name {
+                    self.bindings.mark_as_theorem(name);
+                }
 
                 Ok(())
             }
@@ -1217,12 +1223,13 @@ impl Environment {
                 );
                 self.bindings.mark_as_theorem(&name);
 
-                // The forall form is the anonymous truth of induction. We add that as a proposition.
+                // The forall form is the anonymous truth of induction.
+                // We add that as a proposition.
                 let forall_claim = AcornValue::new_forall(vec![hyp_type], unbound_claim);
                 self.add_node(
                     project,
                     true,
-                    Proposition::theorem(true, forall_claim, self.module_id, range, name),
+                    Proposition::theorem(true, forall_claim, self.module_id, range, Some(name)),
                     None,
                 );
 

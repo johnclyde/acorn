@@ -51,7 +51,12 @@ pub enum BlockParams<'a> {
     // The meaning of the theorem is that it is true for all args.
     //
     // The premise is optional.
-    Theorem(&'a str, Range, Option<(AcornValue, Range)>, AcornValue),
+    Theorem(
+        Option<&'a str>,
+        Range,
+        Option<(AcornValue, Range)>,
+        AcornValue,
+    ),
 
     // The assumption to be used by the block, and the range of this assumption.
     Conditional(&'a AcornValue, Range),
@@ -116,10 +121,12 @@ impl Block {
                     .map(|(name, _)| subenv.bindings.get_constant_value(name).unwrap())
                     .collect::<Vec<_>>();
 
-                // Within the theorem block, the theorem is treated like a function,
-                // with propositions to define its identity.
-                // This makes it less annoying to define inductive hypotheses.
-                subenv.add_identity_props(project, theorem_name);
+                if let Some(name) = theorem_name {
+                    // Within the theorem block, the theorem is treated like a function,
+                    // with propositions to define its identity.
+                    // This makes it less annoying to define inductive hypotheses.
+                    subenv.add_identity_props(project, name);
+                }
 
                 if let Some((unbound_premise, premise_range)) = premise {
                     // Add the premise to the environment, when proving the theorem.
@@ -141,7 +148,7 @@ impl Block {
                     bound_goal,
                     env.module_id,
                     theorem_range,
-                    theorem_name.to_string(),
+                    theorem_name.map(|s| s.to_string()),
                 )))
             }
             BlockParams::FunctionSatisfy(unbound_goal, return_type, range) => {

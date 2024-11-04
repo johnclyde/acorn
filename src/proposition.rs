@@ -6,11 +6,11 @@ use crate::module::ModuleId;
 // The different reasons that can lead us to create a proposition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourceType {
-    // A named axiom
-    Axiom(String),
+    // An axiom, which may have a name.
+    Axiom(Option<String>),
 
-    // A named theorem that is not an axiom.
-    Theorem(String),
+    // A theorem which may have a name.
+    Theorem(Option<String>),
 
     // An anonymous proposition that has previously been proved
     Anonymous,
@@ -57,8 +57,14 @@ impl Source {
 
     pub fn description(&self) -> String {
         match &self.source_type {
-            SourceType::Axiom(name) => format!("the '{}' axiom", name),
-            SourceType::Theorem(name) => format!("the '{}' theorem", name),
+            SourceType::Axiom(name) => match name {
+                Some(name) => format!("the '{}' axiom", name),
+                None => "an anonymous axiom".to_string(),
+            },
+            SourceType::Theorem(name) => match name {
+                Some(name) => format!("the '{}' theorem", name),
+                None => "an anonymous theorem".to_string(),
+            },
             SourceType::Anonymous => format!("line {}", self.user_visible_line()),
             SourceType::TypeDefinition(name) => format!("the '{}' definition", name),
             SourceType::ConstantDefinition(value) => format!("the '{}' definition", value),
@@ -86,33 +92,17 @@ pub struct Proposition {
 }
 
 impl Proposition {
-    pub fn axiom(
-        value: AcornValue,
-        module: ModuleId,
-        range: Range,
-        axiom_name: String,
-    ) -> Proposition {
-        Proposition {
-            value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::Axiom(axiom_name),
-            },
-        }
-    }
-
     pub fn theorem(
         axiomatic: bool,
         value: AcornValue,
         module: ModuleId,
         range: Range,
-        theorem_name: String,
+        name: Option<String>,
     ) -> Proposition {
         let source_type = if axiomatic {
-            SourceType::Axiom(theorem_name)
+            SourceType::Axiom(name)
         } else {
-            SourceType::Theorem(theorem_name)
+            SourceType::Theorem(name)
         };
         Proposition {
             value,
@@ -197,11 +187,10 @@ impl Proposition {
         }
     }
 
-    // Theorems and axioms have names
+    // Theorems and axioms can have names
     pub fn name(&self) -> Option<&str> {
         match &self.source.source_type {
-            SourceType::Axiom(name) => Some(name),
-            SourceType::Theorem(name) => Some(name),
+            SourceType::Axiom(name) | SourceType::Theorem(name) => name.as_deref(),
             _ => None,
         }
     }
