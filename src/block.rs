@@ -42,7 +42,7 @@ pub struct Block {
 
 // The different ways to construct a block
 pub enum BlockParams<'a> {
-    // (theorem name, premise, goal)
+    // (theorem name, theorem range, premise, goal)
     //
     // The premise and goal are unbound, to be proved based on the args of the theorem.
     //
@@ -51,7 +51,7 @@ pub enum BlockParams<'a> {
     // The meaning of the theorem is that it is true for all args.
     //
     // The premise is optional.
-    Theorem(&'a str, Option<(AcornValue, Range)>, AcornValue),
+    Theorem(&'a str, Range, Option<(AcornValue, Range)>, AcornValue),
 
     // The assumption to be used by the block, and the range of this assumption.
     Conditional(&'a AcornValue, Range),
@@ -110,7 +110,7 @@ impl Block {
                 );
                 None
             }
-            BlockParams::Theorem(theorem_name, premise, unbound_goal) => {
+            BlockParams::Theorem(theorem_name, theorem_range, premise, unbound_goal) => {
                 let arg_values = args
                     .iter()
                     .map(|(name, _)| subenv.bindings.get_constant_value(name).unwrap())
@@ -140,7 +140,7 @@ impl Block {
                     false,
                     bound_goal,
                     env.module_id,
-                    env.theorem_range(theorem_name).unwrap(),
+                    theorem_range,
                     theorem_name.to_string(),
                 )))
             }

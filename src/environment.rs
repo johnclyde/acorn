@@ -113,10 +113,6 @@ impl Environment {
         self.next_line() - 1
     }
 
-    pub fn theorem_range(&self, name: &str) -> Option<Range> {
-        self.definition_ranges.get(name).cloned()
-    }
-
     // Add line types for the given range, inserting empties as needed.
     // If the line already has a type, do nothing.
     pub fn add_line_types(&mut self, line_type: LineType, first: u32, last: u32) {
@@ -514,7 +510,8 @@ impl Environment {
                     start: statement.first_token.start_pos(),
                     end: ts.claim_right_brace.end_pos(),
                 };
-                self.definition_ranges.insert(name.to_string(), range);
+                self.definition_ranges
+                    .insert(name.to_string(), range.clone());
 
                 let (type_params, arg_names, arg_types, value, _) =
                     self.bindings.evaluate_subvalue(
@@ -586,7 +583,7 @@ impl Environment {
                         &self,
                         type_params,
                         block_args,
-                        BlockParams::Theorem(&name, premise, goal),
+                        BlockParams::Theorem(&name, range, premise, goal),
                         statement.first_line(),
                         statement.last_line(),
                         ts.body.as_ref(),
