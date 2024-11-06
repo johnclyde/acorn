@@ -18,7 +18,11 @@
           "Acorn",
           "acorn"
         ],
-        "configuration": "language-configuration.json"
+        "configuration": "language-configuration.json",
+        "icon": {
+          "light": "images/acorn-dull.svg",
+          "dark": "images/acorn-dull.svg"
+        }
       }
     ],
     "grammars": [
@@ -40,8 +44,8 @@
         "title": "Info View: Display",
         "description": "Show the info view.",
         "icon": {
-          "light": "images/achy-pixel-black.png",
-          "dark": "images/achy-pixel-white.png"
+          "light": "images/achy-pixel-color.png",
+          "dark": "images/achy-pixel-color.png"
         }
       },
       {
