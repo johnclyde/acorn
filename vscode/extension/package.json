@@ -39,7 +39,10 @@
         "command": "acorn.displayInfoView",
         "title": "Info View: Display",
         "description": "Show the info view.",
-        "icon": "$(squirrel)"
+        "icon": {
+          "light": "images/achy-pixel-black.png",
+          "dark": "images/achy-pixel-white.png"
+        }
       },
       {
         "category": "Acorn",
