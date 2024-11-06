@@ -188,7 +188,7 @@ impl Project {
     }
 
     pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
-        self.add_target_by_ref(&ModuleRef::from_name(module_name))
+        self.add_target_by_ref(&ModuleRef::Name(module_name.to_string()))
     }
 
     fn add_target_by_path(&mut self, path: &Path) -> bool {
@@ -659,7 +659,7 @@ impl Project {
     }
 
     pub fn load_module_by_name(&mut self, module_name: &str) -> Result<ModuleId, LoadError> {
-        let module_ref = ModuleRef::from_name(module_name);
+        let module_ref = ModuleRef::Name(module_name.to_string());
         self.load_module_by_ref(&module_ref)
     }
 

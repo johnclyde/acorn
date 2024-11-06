@@ -55,9 +55,3 @@ impl fmt::Display for ModuleRef {
         }
     }
 }
-
-impl ModuleRef {
-    pub fn from_name(name: &str) -> ModuleRef {
-        ModuleRef::Name(name.to_string())
-    }
-}

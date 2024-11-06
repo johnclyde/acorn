@@ -309,7 +309,6 @@ impl<'a> Builder<'a> {
         message: &str,
         sev: DiagnosticSeverity,
     ) -> BuildEvent {
-        let module = self.module().to_string();
         let mut full_message = format!("{} {}", goal_context.name, message);
         if let Some(e) = &prover.error {
             full_message.push_str(&format!(": {}", e));
@@ -323,7 +322,7 @@ impl<'a> Builder<'a> {
         BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
             log_message: Some(full_message),
-            diagnostic: Some((ModuleRef::from_name(&module), Some(diagnostic))),
+            diagnostic: Some((self.module().clone(), Some(diagnostic))),
         }
     }
 
