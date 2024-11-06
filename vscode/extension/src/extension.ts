@@ -3,16 +3,7 @@ import * as os from "os";
 import * as path from "path";
 
 import axios from "axios";
-import {
-  ExtensionContext,
-  extensions,
-  OutputChannel,
-  ProgressLocation,
-  TextDocument,
-  Uri,
-  window,
-  workspace,
-} from "vscode";
+import * as vscode from "vscode";
 import {
   CloseAction,
   ErrorAction,
@@ -26,11 +17,11 @@ import { InfoView } from "./info-view";
 
 let client: LanguageClient;
 
-let outputChannel: OutputChannel | undefined;
+let outputChannel: vscode.OutputChannel | undefined;
 
 function log(message: string) {
   if (outputChannel === undefined) {
-    outputChannel = window.createOutputChannel("Acorn Extension");
+    outputChannel = vscode.window.createOutputChannel("Acorn Extension");
   }
   outputChannel.appendLine(message);
 }
@@ -86,9 +77,9 @@ async function showProgressBar() {
     }
 
     let previousPercent = 0;
-    window.withProgress(
+    vscode.window.withProgress(
       {
-        location: ProgressLocation.Notification,
+        location: vscode.ProgressLocation.Notification,
         title: "Acorn Validation",
         cancellable: true,
       },
@@ -116,8 +107,10 @@ async function showProgressBar() {
 
 // Figures out where the server executable is.
 // Downloads it if necessary.
-async function getServerPath(context: ExtensionContext): Promise<string> {
-  let extension = extensions.getExtension(context.extension.id);
+async function getServerPath(
+  context: vscode.ExtensionContext
+): Promise<string> {
+  let extension = vscode.extensions.getExtension(context.extension.id);
   let timestamp = new Date().toLocaleTimeString();
   let version = extension.packageJSON.version;
   let binName = `acornserver-${version}-${os.platform()}-${os.arch()}`;
@@ -132,7 +125,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   }
 
   // In production, the extension downloads a binary for the language server.
-  let binDir = Uri.joinPath(context.globalStorageUri, "bin").fsPath;
+  let binDir = vscode.Uri.joinPath(context.globalStorageUri, "bin").fsPath;
   if (!fs.existsSync(binDir)) {
     fs.mkdirSync(binDir, { recursive: true });
     log(`created binary storage directory at ${binDir}`);
@@ -149,9 +142,9 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   let oldBins = await fs.promises.readdir(binDir);
   let url = `https://github.com/acornprover/acorn/releases/download/v${version}/${binName}`;
   log(`downloading from ${url} to ${serverPath}`);
-  await window.withProgress(
+  await vscode.window.withProgress(
     {
-      location: ProgressLocation.Notification,
+      location: vscode.ProgressLocation.Notification,
       title: `Downloading ${binName} from GitHub...`,
       cancellable: false,
     },
@@ -160,7 +153,7 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
         await downloadFile(url, serverPath);
       } catch (e) {
         // Pop up an error message
-        window.showErrorMessage(
+        vscode.window.showErrorMessage(
           `failed to download Acorn language server: ${e.message}`
         );
         log(`error downloading {url}: {e.message}`);
@@ -188,13 +181,29 @@ async function getServerPath(context: ExtensionContext): Promise<string> {
   return serverPath;
 }
 
-export async function activate(context: ExtensionContext) {
+async function registerCommands(context: vscode.ExtensionContext) {
+  let disposable = vscode.commands.registerCommand(
+    "acorn.newFile",
+    async () => {
+      let document = await vscode.workspace.openTextDocument({
+        language: "acorn",
+      });
+      await vscode.window.showTextDocument(document);
+    }
+  );
+  context.subscriptions.push(disposable);
+}
+
+export async function activate(context: vscode.ExtensionContext) {
   let command = await getServerPath(context);
 
   // Add workspace root argument if available
   let args = ["--extension-root", context.extensionPath];
-  if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-    let workspaceRoot = workspace.workspaceFolders[0].uri.fsPath;
+  if (
+    vscode.workspace.workspaceFolders &&
+    vscode.workspace.workspaceFolders.length > 0
+  ) {
+    let workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
     args.push("--workspace-root", workspaceRoot);
   }
 
@@ -222,11 +231,11 @@ export async function activate(context: ExtensionContext) {
     documentSelector: [{ scheme: "file", language: "acorn" }],
     synchronize: {
       // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
+      fileEvents: vscode.workspace.createFileSystemWatcher("**/.clientrc"),
     },
     initializationFailedHandler: (error) => {
       initFailed = true;
-      window.showErrorMessage("Acorn error: " + error.message);
+      vscode.window.showErrorMessage("Acorn error: " + error.message);
       // Prevent automatic restart
       return false;
     },
@@ -263,7 +272,7 @@ export async function activate(context: ExtensionContext) {
   let infoViewPath = context.asAbsolutePath("build/info");
   context.subscriptions.push(new InfoView(client, infoViewPath));
 
-  let onDocumentChange = async (document: TextDocument) => {
+  let onDocumentChange = async (document: vscode.TextDocument) => {
     if (document.languageId !== "acorn") {
       return;
     }
@@ -271,7 +280,7 @@ export async function activate(context: ExtensionContext) {
   };
 
   let hasAcornDocs = false;
-  for (let doc of workspace.textDocuments) {
+  for (let doc of vscode.workspace.textDocuments) {
     if (doc.languageId === "acorn") {
       hasAcornDocs = true;
       break;
@@ -282,8 +291,13 @@ export async function activate(context: ExtensionContext) {
     showProgressBar();
   }
 
-  context.subscriptions.push(workspace.onDidSaveTextDocument(onDocumentChange));
-  context.subscriptions.push(workspace.onDidOpenTextDocument(onDocumentChange));
+  await registerCommands(context);
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(onDocumentChange)
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidOpenTextDocument(onDocumentChange)
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

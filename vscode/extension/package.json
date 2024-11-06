@@ -31,6 +31,11 @@
     "commands": [
       {
         "category": "Acorn",
+        "command": "acorn.newFile",
+        "title": "New Acorn File"
+      },
+      {
+        "category": "Acorn",
         "command": "acorn.displayInfoView",
         "title": "Info View: Display",
         "description": "Show the info view.",
