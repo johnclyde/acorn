@@ -505,6 +505,7 @@ impl Expression {
         termination: Terminator,
     ) -> Result<(Expression, Token)> {
         let (partials, terminator) = parse_partial_expressions(tokens, expected_type, termination)?;
+        check_partial_expressions(&partials)?;
         let expression = combine_partial_expressions(partials, expected_type, tokens)?;
         Ok((expression, terminator))
     }
@@ -779,6 +780,33 @@ fn find_last_operator(
         }
         None => Ok(None),
     }
+}
+
+// Checks to see if the partial expressions are valid.
+// This is not necessary for correctness. But we can generate a nicer error message here than
+// in the depths of a recursion.
+fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<()> {
+    if partials.len() > 1 {
+        // Iterate over all pairs
+        for i in 0..(partials.len() - 1) {
+            let left = &partials[i];
+            let right = &partials[i + 1];
+            match (left, right) {
+                (PartialExpression::Binary(a), PartialExpression::Binary(b))
+                | (PartialExpression::Unary(a), PartialExpression::Binary(b)) => {
+                    return Err(Error::new(
+                        left.token(),
+                        &format!(
+                            "the '{}' operator cannot be followed by the '{}' operator",
+                            a, b
+                        ),
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 // Combines partial expressions into a single expression.
