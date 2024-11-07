@@ -281,16 +281,12 @@ export async function activate(context: vscode.ExtensionContext) {
     await showProgressBar();
   };
 
-  let hasAcornDocs = false;
   for (let doc of vscode.workspace.textDocuments) {
     if (doc.languageId === "acorn") {
-      hasAcornDocs = true;
+      showProgressBar();
+      assistant.autoDisplay(doc);
       break;
     }
-  }
-
-  if (hasAcornDocs) {
-    showProgressBar();
   }
 
   await registerCommands(context);
