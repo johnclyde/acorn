@@ -13,7 +13,7 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
-import { Assistant as Assistant } from "./assistant";
+import { Assistant } from "./assistant";
 
 let client: LanguageClient;
 
