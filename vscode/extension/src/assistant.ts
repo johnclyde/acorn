@@ -3,6 +3,7 @@ import {
   Disposable,
   Position,
   Range,
+  TextDocument,
   TextEditor,
   TextEditorRevealType,
   TextEditorSelectionChangeKind,
@@ -29,11 +30,13 @@ export class Assistant implements Disposable {
   listener: Disposable;
   panel: WebviewPanel;
   requestViewColumn: number;
+  wasDisplayed: boolean;
 
   constructor(client: LanguageClient, distPath: string) {
     this.client = client;
     this.distPath = distPath;
     this.currentSearchId = 0;
+    this.wasDisplayed = false;
     this.disposables = [
       commands.registerTextEditorCommand("acorn.displayAssistant", (editor) =>
         this.display(editor)
@@ -337,8 +340,23 @@ export class Assistant implements Disposable {
     editor.revealRange(range, TextEditorRevealType.InCenterIfOutsideViewport);
   }
 
+  // Display the assistant if it hasn't been displayed for this workspace before.
+  // Triggered by interacting with an Acorn document for the first time.
+  autoDisplay(document: TextDocument) {
+    if (this.wasDisplayed) {
+      return;
+    }
+    for (let editor of window.visibleTextEditors) {
+      if (editor.document === document) {
+        this.display(editor);
+        return;
+      }
+    }
+  }
+
   // Show the search panel itself.
   display(editor: TextEditor) {
+    this.wasDisplayed = true;
     let column =
       editor && editor.viewColumn ? editor.viewColumn + 1 : ViewColumn.Two;
     if (column === 4) {

@@ -270,12 +270,14 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   let assistantPath = context.asAbsolutePath("build/assistant");
-  context.subscriptions.push(new Assistant(client, assistantPath));
+  let assistant = new Assistant(client, assistantPath);
+  context.subscriptions.push(assistant);
 
   let onDocumentChange = async (document: vscode.TextDocument) => {
     if (document.languageId !== "acorn") {
       return;
     }
+    assistant.autoDisplay(document);
     await showProgressBar();
   };
 
