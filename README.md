@@ -35,7 +35,7 @@ Then, install dependencies for the VS Code extension.
 ```bash
 cd ~/acorn/vscode/extension
 npm install
-cd ~/acorn/vscode/info
+cd ~/acorn/vscode/assistant
 npm install
 ```
 
@@ -57,7 +57,7 @@ Other interesting parts of the code:
 
 - The [VS Code extension](./vscode/extension) runs within VS Code, and handles communication between the user and the language server.
 
-- The [Info View](./vscode/info) is a small webapp that runs as its own virtual document within VS Code.
+- The [Acorn Assistant](./vscode/assistant) is a small webapp that runs as its own virtual document within VS Code.
 
 - The [model training process](./python) uses PyTorch and outputs an ONNX model that the Rust code can import to use at runtime.
 

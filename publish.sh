@@ -51,8 +51,8 @@ for key in "${!MAP[@]}"; do
     gh release upload $TAG files/release/$remote_name $CLOBBER
 done
 
-# Be sure to rebuild the info view
-cd vscode/info
+# Be sure to rebuild the assistant
+cd vscode/assistant
 npm run build
 cd ../..
 

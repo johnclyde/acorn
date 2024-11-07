@@ -19,11 +19,11 @@
       "problemMatcher": []
     },
     {
-      "label": "info view: npm build",
+      "label": "assistant: npm build",
       "type": "npm",
       "script": "build",
       "options": {
-        "cwd": "${workspaceFolder}/vscode/info"
+        "cwd": "${workspaceFolder}/vscode/assistant"
       },
       "group": {
         "kind": "build",
@@ -54,7 +54,7 @@
       "label": "build all",
       "dependsOn": [
         "extension: npm build",
-        "info view: npm build",
+        "assistant: npm build",
         "language server: cargo build"
       ],
       "dependsOrder": "parallel"

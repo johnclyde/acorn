@@ -40,9 +40,9 @@
       },
       {
         "category": "Acorn",
-        "command": "acorn.displayInfoView",
-        "title": "Info View: Display",
-        "description": "Show the info view.",
+        "command": "acorn.displayAssistant",
+        "title": "Assistant: Display",
+        "description": "Show the Acorn Assistant.",
         "icon": {
           "light": "images/achy-pixel-color.png",
           "dark": "images/achy-pixel-color.png"
@@ -50,20 +50,20 @@
       },
       {
         "category": "Acorn",
-        "command": "acorn.toggleInfoView",
-        "title": "Info View: Toggle",
-        "description": "Toggle whether the info view is displayed."
+        "command": "acorn.toggleAssistant",
+        "title": "Assistant: Toggle",
+        "description": "Toggle whether the Acorn Assistant is displayed."
       }
     ],
     "keybindings": [
       {
-        "command": "acorn.toggleInfoView",
+        "command": "acorn.toggleAssistant",
         "key": "ctrl+shift+enter",
         "mac": "cmd+shift+enter",
         "when": "editorTextFocus && editorLangId == acorn"
       },
       {
-        "command": "acorn.toggleInfoView",
+        "command": "acorn.toggleAssistant",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
         "when": "editorTextFocus && editorLangId == acorn"
@@ -72,7 +72,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "acorn.displayInfoView",
+          "command": "acorn.displayAssistant",
           "group": "navigation",
           "when": "editorLangId == acorn"
         }
