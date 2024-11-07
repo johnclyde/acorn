@@ -113,7 +113,7 @@ struct SearchTask {
     // The search id set by the extenson for the original search that created this task.
     // The extension may send new searches with essentially the same parameters, that we
     // discard. This is inevitable because the extension doesn't have enough information to
-    // disambiguoute searches. Only the language server does.
+    // disambiguate searches. Only the language server does.
     // Thus, when we get redundant searches, we keep using the original id downstream.
     id: i32,
 }
@@ -209,7 +209,7 @@ struct Backend {
     // Search tasks update it as they go.
     progress: Arc<Mutex<ProgressResponse>>,
 
-    // Maps uri to the most recent version of a document we have
+    // Maps uri to the most recent version of a document that has been saved.
     documents: DashMap<Url, Arc<Document>>,
 
     // Maps uri to the most recent version of a document the user has.
