@@ -49,19 +49,11 @@ struct Document {
     url: Url,
     text: String,
     version: i32,
-
-    // superseded is set to true when there is a newer version of the document.
-    superseded: Arc<AtomicBool>,
 }
 
 impl Document {
     fn new(url: Url, text: String, version: i32) -> Document {
-        Document {
-            url,
-            text,
-            version,
-            superseded: Arc::new(AtomicBool::new(false)),
-        }
+        Document { url, text, version }
     }
 
     fn log(&self, message: &str) {
@@ -403,10 +395,7 @@ impl Backend {
                 old_doc.log("unchanged");
                 return false;
             }
-            old_doc.log(&format!("superseded by v{}", version));
-            old_doc
-                .superseded
-                .store(true, std::sync::atomic::Ordering::Relaxed);
+            old_doc.log(&format!("replaced with v{}", version));
         } else {
             new_doc.log(event);
         }
@@ -708,9 +697,6 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
             old_doc.log("closed");
-            old_doc
-                .superseded
-                .store(true, std::sync::atomic::Ordering::Relaxed);
         }
         self.documents.remove(&uri);
         let mut project = self.stop_build_and_get_project().await;
