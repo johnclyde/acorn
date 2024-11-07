@@ -13,7 +13,7 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
-import { InfoView } from "./info-view";
+import { Assistant as Assistant } from "./assistant";
 
 let client: LanguageClient;
 
@@ -269,8 +269,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  let infoViewPath = context.asAbsolutePath("build/info");
-  context.subscriptions.push(new InfoView(client, infoViewPath));
+  let assistantPath = context.asAbsolutePath("build/assistant");
+  context.subscriptions.push(new Assistant(client, assistantPath));
 
   let onDocumentChange = async (document: vscode.TextDocument) => {
     if (document.languageId !== "acorn") {

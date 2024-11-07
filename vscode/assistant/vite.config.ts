@@ -16,7 +16,7 @@ export default defineConfig({
   ],
   base: "./",
   build: {
-    outDir: "../extension/build/info",
+    outDir: "../extension/build/assistant",
     emptyOutDir: true,
   },
 });

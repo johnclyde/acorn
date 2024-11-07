@@ -20,7 +20,7 @@ const showLocationDecoration = window.createTextEditorDecorationType({
   backgroundColor: "rgba(246, 185, 77, 0.3)",
 });
 
-export class InfoView implements Disposable {
+export class Assistant implements Disposable {
   client: LanguageClient;
   currentParams: SearchParams;
   currentSearchId: number;
@@ -35,11 +35,11 @@ export class InfoView implements Disposable {
     this.distPath = distPath;
     this.currentSearchId = 0;
     this.disposables = [
-      commands.registerTextEditorCommand("acorn.displayInfoView", (editor) =>
+      commands.registerTextEditorCommand("acorn.displayAssistant", (editor) =>
         this.display(editor)
       ),
 
-      commands.registerTextEditorCommand("acorn.toggleInfoView", (editor) =>
+      commands.registerTextEditorCommand("acorn.toggleAssistant", (editor) =>
         this.toggle(editor)
       ),
       window.onDidChangeTextEditorSelection(async (e) => {
@@ -349,8 +349,8 @@ export class InfoView implements Disposable {
       return;
     }
     this.panel = window.createWebviewPanel(
-      "acornInfoView",
-      "Info View",
+      "acornAssistant",
+      "Acorn Assistant",
       { viewColumn: column, preserveFocus: true },
       {
         enableFindWidget: true,
