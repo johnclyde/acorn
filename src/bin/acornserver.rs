@@ -22,7 +22,6 @@ use acorn::interfaces::{
 use acorn::module::{Module, ModuleRef};
 use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
-use acorn::token::Token;
 
 #[derive(Parser)]
 struct Args {
@@ -43,24 +42,23 @@ fn log(message: &str) {
     eprintln!("{}", stamped);
 }
 
+fn log_with_doc(url: &Url, version: i32, message: &str) {
+    // Extract the last component of the url
+    let filename = url.path_segments().unwrap().last().unwrap();
+    let versioned = format!("{} v{}: {}", filename, version, message);
+    log(&versioned);
+}
+
 // A structure representing a particular version of a document.
 #[derive(Clone)]
 struct Document {
-    url: Url,
     text: String,
     version: i32,
 }
 
 impl Document {
-    fn new(url: Url, text: String, version: i32) -> Document {
-        Document { url, text, version }
-    }
-
-    fn log(&self, message: &str) {
-        // Extract the last component of the url
-        let filename = self.url.path_segments().unwrap().last().unwrap();
-        let versioned = format!("{} v{}: {}", filename, self.version, message);
-        log(&versioned);
+    fn new(text: String, version: i32) -> Document {
+        Document { text, version }
     }
 }
 
@@ -390,15 +388,19 @@ impl Backend {
     // The backend tracks every single change; the project only gets them when we want it to use them.
     // This means that typing a little bit doesn't necessarily cancel an ongoing build.
     fn update_doc_in_backend(&self, url: Url, text: String, version: i32, event: &str) -> bool {
-        let new_doc = Document::new(url.clone(), text, version);
+        let new_doc = Document::new(text, version);
         if let Some(old_doc) = self.documents.get(&url) {
             if old_doc.version == version {
-                old_doc.log("unchanged");
+                log_with_doc(&url, version, "unchanged");
                 return false;
             }
-            old_doc.log(&format!("replaced with v{}", version));
+            log_with_doc(
+                &url,
+                old_doc.version,
+                &format!("replaced with v{}", version),
+            );
         } else {
-            new_doc.log(event);
+            log_with_doc(&url, version, event);
         }
         self.documents.insert(url.clone(), Arc::new(new_doc));
         true
@@ -499,7 +501,7 @@ impl Backend {
         }
 
         let project = self.project.read().await;
-        let path = match doc.url.to_file_path() {
+        let path = match params.uri.to_file_path() {
             Ok(path) => path,
             Err(_) => {
                 // There should be a path available, because we don't run this task without one.
@@ -579,7 +581,7 @@ impl Backend {
         // Create a new search task
         let new_task = SearchTask {
             project: self.project.clone(),
-            url: doc.url.clone(),
+            url: params.uri.clone(),
             version: doc.version,
             prover: Arc::new(RwLock::new(prover)),
             module_ref,
@@ -698,7 +700,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
-            old_doc.log("closed");
+            log_with_doc(&uri, old_doc.version, "closed");
         }
         self.documents.remove(&uri);
         let mut project = self.stop_build_and_get_project().await;
@@ -706,58 +708,6 @@ impl LanguageServer for Backend {
             Ok(()) => {}
             Err(e) => log(&format!("close failed: {:?}", e)),
         }
-    }
-
-    async fn semantic_tokens_full(
-        &self,
-        params: SemanticTokensParams,
-    ) -> jsonrpc::Result<Option<SemanticTokensResult>> {
-        let uri = params.text_document.uri;
-        let doc = match self.documents.get(&uri) {
-            Some(doc) => doc,
-            None => {
-                log("no text available for semantic_tokens_full");
-                return Ok(None);
-            }
-        };
-        doc.log("semantic_tokens_full");
-        let tokens = Token::scan(&doc.text);
-
-        // Convert tokens to LSP semantic tokens
-        let mut semantic_tokens: Vec<SemanticToken> = vec![];
-        let mut prev_line = 0;
-        let mut prev_start = 0;
-        for token in tokens {
-            let line = token.line_number as u32;
-            let start = token.start as u32;
-            let length = token.len as u32;
-            let token_type = match token.lsp_type_u32() {
-                Some(t) => t,
-                None => continue,
-            };
-            let token_modifiers_bitset = 0;
-            let delta_line = line - prev_line;
-            let delta_start = if delta_line == 0 {
-                start - prev_start
-            } else {
-                start
-            };
-            semantic_tokens.push(SemanticToken {
-                delta_line,
-                delta_start,
-                length,
-                token_type,
-                token_modifiers_bitset,
-            });
-            prev_line = line;
-            prev_start = start;
-        }
-
-        let result = SemanticTokensResult::Tokens(SemanticTokens {
-            result_id: None,
-            data: semantic_tokens,
-        });
-        Ok(Some(result))
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {

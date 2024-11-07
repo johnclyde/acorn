@@ -19,6 +19,7 @@ pub mod fingerprint;
 pub mod goal;
 pub mod interfaces;
 pub mod literal;
+pub mod live_document;
 pub mod module;
 pub mod monomorphizer;
 pub mod normalizer;
