@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::sync::Arc;
 use std::vec::IntoIter;
@@ -62,10 +62,10 @@ pub enum TokenType {
 }
 
 // Add a new token here if there's an alphabetical name for it.
-pub fn keyword_map() -> &'static HashMap<&'static str, TokenType> {
-    static KEYWORD_MAP: OnceLock<HashMap<&'static str, TokenType>> = OnceLock::new();
+pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
+    static KEYWORD_MAP: OnceLock<BTreeMap<&'static str, TokenType>> = OnceLock::new();
     KEYWORD_MAP.get_or_init(|| {
-        HashMap::from([
+        BTreeMap::from([
             ("let", TokenType::Let),
             ("axiom", TokenType::Axiom),
             ("define", TokenType::Define),
