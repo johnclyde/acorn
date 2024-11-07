@@ -74,7 +74,8 @@ impl Document {
 #[derive(Clone)]
 struct SearchTask {
     project: Arc<RwLock<Project>>,
-    document: Arc<Document>,
+    url: Url,
+    version: i32,
 
     // While we are proving, most of the time the thread running the 'run' method
     // will hold a write lock on the prover.
@@ -123,8 +124,8 @@ impl SearchTask {
     async fn response(&self) -> SearchResponse {
         let status = self.status.read().await.clone();
         SearchResponse {
-            uri: self.document.url.clone(),
-            version: self.document.version,
+            uri: self.url.clone(),
+            version: self.version,
             failure: None,
             loading: false,
             goal_name: Some(self.goal_name.clone()),
@@ -489,8 +490,8 @@ impl Backend {
         // This is less general than checking the full path, but we don't have the
         // full path until we acquire a lock on the project.
         if let Some(current_task) = self.search_task.read().await.as_ref() {
-            if current_task.document.url == params.uri
-                && current_task.document.version == params.version
+            if current_task.url == params.uri
+                && current_task.version == params.version
                 && current_task.selected_line == params.selected_line
             {
                 return Ok(current_task.response().await);
@@ -554,8 +555,8 @@ impl Backend {
         // This is slower (because we had to acquire the project lock first)
         // but catches more situations than just checking the selected line.
         if let Some(current_task) = self.search_task.read().await.as_ref() {
-            if current_task.document.url == params.uri
-                && current_task.document.version == params.version
+            if current_task.url == params.uri
+                && current_task.version == params.version
                 && current_task.path == path
             {
                 return Ok(current_task.response().await);
@@ -578,7 +579,8 @@ impl Backend {
         // Create a new search task
         let new_task = SearchTask {
             project: self.project.clone(),
-            document: doc.clone(),
+            url: doc.url.clone(),
+            version: doc.version,
             prover: Arc::new(RwLock::new(prover)),
             module_ref,
             selected_line: params.selected_line,
