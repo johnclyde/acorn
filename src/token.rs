@@ -1,8 +1,8 @@
-use std::fmt;
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::sync::Arc;
 use std::vec::IntoIter;
-
+use std::{fmt, sync::OnceLock};
 use tower_lsp::lsp_types::{Position, Range, SemanticTokenType};
 
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -59,6 +59,43 @@ pub enum TokenType {
     Inductive,
     Match,
     Todo,
+}
+
+// Add a new token here if there's an alphabetical name for it.
+pub fn keyword_map() -> &'static HashMap<&'static str, TokenType> {
+    static KEYWORD_MAP: OnceLock<HashMap<&'static str, TokenType>> = OnceLock::new();
+    KEYWORD_MAP.get_or_init(|| {
+        HashMap::from([
+            ("let", TokenType::Let),
+            ("axiom", TokenType::Axiom),
+            ("define", TokenType::Define),
+            ("theorem", TokenType::Theorem),
+            ("type", TokenType::Type),
+            ("forall", TokenType::ForAll),
+            ("exists", TokenType::Exists),
+            ("if", TokenType::If),
+            ("by", TokenType::By),
+            ("function", TokenType::Function),
+            ("structure", TokenType::Structure),
+            ("import", TokenType::Import),
+            ("true", TokenType::True),
+            ("false", TokenType::False),
+            ("else", TokenType::Else),
+            ("class", TokenType::Class),
+            ("numerals", TokenType::Numerals),
+            ("from", TokenType::From),
+            ("solve", TokenType::Solve),
+            ("problem", TokenType::Problem),
+            ("satisfy", TokenType::Satisfy),
+            ("and", TokenType::And),
+            ("or", TokenType::Or),
+            ("not", TokenType::Not),
+            ("self", TokenType::SelfToken),
+            ("inductive", TokenType::Inductive),
+            ("match", TokenType::Match),
+            ("todo", TokenType::Todo),
+        ])
+    })
 }
 
 // The token types that we export via the language server protocol
@@ -559,36 +596,9 @@ impl Token {
                             }
                         };
                         let identifier = &line[char_index..end];
-                        match identifier {
-                            "let" => TokenType::Let,
-                            "axiom" => TokenType::Axiom,
-                            "define" => TokenType::Define,
-                            "theorem" => TokenType::Theorem,
-                            "type" => TokenType::Type,
-                            "forall" => TokenType::ForAll,
-                            "exists" => TokenType::Exists,
-                            "if" => TokenType::If,
-                            "by" => TokenType::By,
-                            "function" => TokenType::Function,
-                            "structure" => TokenType::Structure,
-                            "import" => TokenType::Import,
-                            "true" => TokenType::True,
-                            "false" => TokenType::False,
-                            "else" => TokenType::Else,
-                            "class" => TokenType::Class,
-                            "numerals" => TokenType::Numerals,
-                            "from" => TokenType::From,
-                            "solve" => TokenType::Solve,
-                            "problem" => TokenType::Problem,
-                            "satisfy" => TokenType::Satisfy,
-                            "and" => TokenType::And,
-                            "or" => TokenType::Or,
-                            "not" => TokenType::Not,
-                            "self" => TokenType::SelfToken,
-                            "inductive" => TokenType::Inductive,
-                            "match" => TokenType::Match,
-                            "todo" => TokenType::Todo,
-                            _ => TokenType::Identifier,
+                        match keyword_map().get(identifier) {
+                            Some(token_type) => *token_type,
+                            None => TokenType::Identifier,
                         }
                     }
                     _ => TokenType::Invalid,
