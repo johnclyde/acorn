@@ -728,7 +728,7 @@ fn parse_partial_expressions(
             _ => {
                 return Err(Error::new(
                     &token,
-                    &format!("expected an expression ending in {}", termination),
+                    &format!("expected an expression terminated by {}", termination),
                 ));
             }
         }
