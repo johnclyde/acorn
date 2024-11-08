@@ -342,42 +342,37 @@ impl Backend {
     }
 
     // Update the full text of the document.
-    // For an open, we get the document version. For a save, we don't, because the version we're saving
-    // is the same as the version of the last change we received.
+    // For an open, we get the document version.
+    // For a save, we don't, but we can find the version, because the version we're saving is the same
+    // as the version of the last change we received.
     // After this call both the live version and the saved version should be the same.
     async fn set_full_text(&self, url: Url, text: String, version: Option<i32>) {
-        if let Some(version) = version {
-            self.live_versions.insert(url.clone(), version);
-        }
-        let live_version = match self.live_versions.get(&url) {
-            Some(v) => *v,
-            None => 0,
+        // Update the live document in the document map
+        let version = match version {
+            Some(version) => {
+                // This is an "open".
+                // This document might have been open before. Just create a new one.
+                log_with_doc(&url, version, "new document");
+                let doc = LiveDocument::new(text.clone(), version);
+                self.documents
+                    .insert(url.clone(), Arc::new(RwLock::new(doc)));
+                version
+            }
+            None => {
+                // This is a "save".
+                // We should have a document already, so mutate it.
+                let doc = match self.documents.get(&url) {
+                    Some(doc) => doc,
+                    None => {
+                        log(&format!("no document available for {}", url));
+                        return;
+                    }
+                };
+                let mut doc = doc.write().await;
+                doc.save(text.clone())
+            }
         };
 
-        if let Some(old_doc) = self.documents.get(&url) {
-            let saved_version = old_doc.read().await.saved_version();
-            if saved_version == live_version {
-                log_with_doc(&url, live_version, "unchanged");
-                return;
-            }
-            log_with_doc(
-                &url,
-                saved_version,
-                &format!("replaced with v{}", live_version),
-            );
-        } else {
-            log_with_doc(&url, live_version, "new document");
-        }
-        let new_doc = LiveDocument::new(text, live_version);
-        self.documents
-            .insert(url.clone(), Arc::new(RwLock::new(new_doc)));
-        let document = match self.documents.get(&url) {
-            Some(doc) => doc,
-            None => {
-                log("TODO: I dont think this can happen");
-                return;
-            }
-        };
         let path = match url.to_file_path() {
             Ok(path) => path,
             Err(_) => {
@@ -385,23 +380,24 @@ impl Backend {
                 return;
             }
         };
-        let document = document.read().await;
+
         {
             // Check if the project already has this document state.
             // If the update is a no-op, there's no need to stop the build.
-            // TODO: didn't we already catch this case above?
+            // This can happen if we are opening a document that the project is already using.
             let project = self.project.read().await;
-            if project.has_version(&path, document.saved_version()) {
+            if project.has_version(&path, version) {
                 return;
             }
         }
+
         let mut project = self.stop_build_and_get_project().await;
         log(&format!(
             "updating {} with {} bytes",
             path.display(),
-            document.text().len()
+            text.len()
         ));
-        match project.update_file(path, &document.text(), document.saved_version()) {
+        match project.update_file(path, &text, version) {
             Ok(()) => {}
             Err(e) => log(&format!("update failed: {:?}", e)),
         }

@@ -27,9 +27,11 @@ impl LiveDocument {
     }
 
     // Changes the document to have the provided text, to save the current live version.
-    pub fn save(&mut self, text: String) {
+    // Returns the version (which is both saved and live).
+    pub fn save(&mut self, text: String) -> i32 {
         self.text = text;
         self.saved_version = self.live_version;
+        self.saved_version
     }
 
     pub fn text(&self) -> &str {
