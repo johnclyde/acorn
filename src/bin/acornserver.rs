@@ -341,10 +341,11 @@ impl Backend {
         });
     }
 
-    fn update_version(&self, url: Url, version: i32) {
+    fn update_live_version(&self, url: Url, version: i32) {
         self.live_versions.insert(url, version);
     }
 
+    // Update the full text of the document.
     async fn update_text(&self, url: Url, text: String, event: &str) {
         let version = match self.live_versions.get(&url) {
             Some(v) => *v,
@@ -674,7 +675,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        self.update_version(uri.clone(), version);
+        self.update_live_version(uri.clone(), version);
         self.update_text(uri, text, "open").await;
     }
 
@@ -682,7 +683,7 @@ impl LanguageServer for Backend {
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
-        self.update_version(uri, version);
+        self.update_live_version(uri, version);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
