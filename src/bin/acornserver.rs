@@ -197,7 +197,7 @@ struct Backend {
     progress: Arc<Mutex<ProgressResponse>>,
 
     // Maps uri to the most recent version of a document that has been saved.
-    documents: DashMap<Url, Arc<LiveDocument>>,
+    documents: DashMap<Url, Arc<RwLock<LiveDocument>>>,
 
     // Maps uri to the most recent version of a document the user has.
     // This can be ahead of the version in documents, because we don't necessarily get the
@@ -352,7 +352,10 @@ impl Backend {
             None => 0,
         };
 
-        if self.update_doc_in_backend(url.clone(), text, version, event) {
+        if self
+            .update_doc_in_backend(url.clone(), text, version, event)
+            .await
+        {
             self.update_doc_in_project(&url).await;
             self.spawn_build();
         }
@@ -373,29 +376,35 @@ impl Backend {
     }
 
     // This updates a document in the backend, but not in the project.
+    // This is a document change that's not a save.
     // Returns whether this is actually an update, or if we already had this.
     // The backend tracks every single change; the project only gets them when we want it to use them.
     // This means that typing a little bit doesn't necessarily cancel an ongoing build.
-    fn update_doc_in_backend(&self, url: Url, text: String, version: i32, event: &str) -> bool {
-        let new_doc = LiveDocument::new(text, version);
+    async fn update_doc_in_backend(
+        &self,
+        url: Url,
+        text: String,
+        version: i32,
+        event: &str,
+    ) -> bool {
         if let Some(old_doc) = self.documents.get(&url) {
-            if old_doc.saved_version() == version {
+            let saved_version = old_doc.read().await.saved_version();
+            if saved_version == version {
                 log_with_doc(&url, version, "unchanged");
                 return false;
             }
-            log_with_doc(
-                &url,
-                old_doc.saved_version(),
-                &format!("replaced with v{}", version),
-            );
+            log_with_doc(&url, saved_version, &format!("replaced with v{}", version));
         } else {
             log_with_doc(&url, version, event);
         }
-        self.documents.insert(url.clone(), Arc::new(new_doc));
+        let new_doc = LiveDocument::new(text, version);
+        self.documents
+            .insert(url.clone(), Arc::new(RwLock::new(new_doc)));
         true
     }
 
     // This updates a document in the project, based on the state in the backend.
+    // This is a save or a file open.
     async fn update_doc_in_project(&self, url: &Url) {
         let document = match self.documents.get(url) {
             Some(doc) => doc,
@@ -411,6 +420,7 @@ impl Backend {
                 return;
             }
         };
+        let document = document.read().await;
         {
             // Check if the project already has this document state.
             // If the update is a no-op, there's no need to stop the build.
@@ -476,6 +486,7 @@ impl Backend {
                 return self.search_fail(params, "no text available");
             }
         };
+        let doc = doc.read().await;
 
         // Check if this request matches our current task, based on the selected line.
         // This is less general than checking the full path, but we don't have the
@@ -689,7 +700,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
-            log_with_doc(&uri, old_doc.saved_version(), "closed");
+            log_with_doc(&uri, old_doc.read().await.saved_version(), "closed");
         }
         self.documents.remove(&uri);
         let mut project = self.stop_build_and_get_project().await;
