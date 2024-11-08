@@ -342,23 +342,34 @@ impl Backend {
     }
 
     // Update the full text of the document.
-    async fn update_text(&self, url: Url, text: String, event: &str) {
-        let version = match self.live_versions.get(&url) {
+    // This is either a "save" or an "open", provided in the tag for logging purposes.
+    // For an open, we get the document version. For a save, we don't, because the version we're saving
+    // is the same as the version of the last change we received.
+    // After this call both the live version and the saved version should be the same.
+    async fn set_full_text(&self, url: Url, text: String, version: Option<i32>, tag: &str) {
+        if let Some(version) = version {
+            self.live_versions.insert(url.clone(), version);
+        }
+        let live_version = match self.live_versions.get(&url) {
             Some(v) => *v,
             None => 0,
         };
 
         if let Some(old_doc) = self.documents.get(&url) {
             let saved_version = old_doc.read().await.saved_version();
-            if saved_version == version {
-                log_with_doc(&url, version, "unchanged");
+            if saved_version == live_version {
+                log_with_doc(&url, live_version, "unchanged");
                 return;
             }
-            log_with_doc(&url, saved_version, &format!("replaced with v{}", version));
+            log_with_doc(
+                &url,
+                saved_version,
+                &format!("replaced with v{}", live_version),
+            );
         } else {
-            log_with_doc(&url, version, event);
+            log_with_doc(&url, live_version, tag);
         }
-        let new_doc = LiveDocument::new(text, version);
+        let new_doc = LiveDocument::new(text, live_version);
         self.documents
             .insert(url.clone(), Arc::new(RwLock::new(new_doc)));
         self.update_doc_in_project(&url).await;
@@ -655,15 +666,14 @@ impl LanguageServer for Backend {
                 return;
             }
         };
-        self.update_text(uri, text, "save").await;
+        self.set_full_text(uri, text, None, "save").await;
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let url = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        self.live_versions.insert(url.clone(), version);
-        self.update_text(url, text, "open").await;
+        self.set_full_text(url, text, Some(version), "open").await;
     }
 
     // Just updates the current version, doesn't rebuild anything
