@@ -202,7 +202,7 @@ struct Backend {
     // Maps uri to the most recent version of a document the user has.
     // This can be ahead of the version in documents, because we don't necessarily get the
     // most up-to-date version while the user is typing.
-    versions: DashMap<Url, i32>,
+    live_versions: DashMap<Url, i32>,
 
     // The current search task, if any
     search_task: Arc<RwLock<Option<SearchTask>>>,
@@ -254,7 +254,7 @@ impl Backend {
             client,
             progress: Arc::new(Mutex::new(ProgressResponse::default())),
             documents: DashMap::new(),
-            versions: DashMap::new(),
+            live_versions: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
             diagnostic_map: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -342,11 +342,11 @@ impl Backend {
     }
 
     fn update_version(&self, url: Url, version: i32) {
-        self.versions.insert(url, version);
+        self.live_versions.insert(url, version);
     }
 
     async fn update_text(&self, url: Url, text: String, event: &str) {
-        let version = match self.versions.get(&url) {
+        let version = match self.live_versions.get(&url) {
             Some(v) => *v,
             None => 0,
         };
@@ -378,13 +378,13 @@ impl Backend {
     fn update_doc_in_backend(&self, url: Url, text: String, version: i32, event: &str) -> bool {
         let new_doc = LiveDocument::new(text, version);
         if let Some(old_doc) = self.documents.get(&url) {
-            if old_doc.version() == version {
+            if old_doc.saved_version() == version {
                 log_with_doc(&url, version, "unchanged");
                 return false;
             }
             log_with_doc(
                 &url,
-                old_doc.version(),
+                old_doc.saved_version(),
                 &format!("replaced with v{}", version),
             );
         } else {
@@ -414,7 +414,7 @@ impl Backend {
             // Check if the project already has this document state.
             // If the update is a no-op, there's no need to stop the build.
             let project = self.project.read().await;
-            if project.has_version(&path, document.version()) {
+            if project.has_version(&path, document.saved_version()) {
                 return;
             }
         }
@@ -424,7 +424,7 @@ impl Backend {
             path.display(),
             document.text().len()
         ));
-        match project.update_file(path, &document.text(), document.version()) {
+        match project.update_file(path, &document.text(), document.saved_version()) {
             Ok(()) => {}
             Err(e) => log(&format!("update failed: {:?}", e)),
         }
@@ -570,7 +570,7 @@ impl Backend {
         let new_task = SearchTask {
             project: self.project.clone(),
             url: params.uri.clone(),
-            version: doc.version(),
+            version: doc.saved_version(),
             prover: Arc::new(RwLock::new(prover)),
             module_ref,
             selected_line: params.selected_line,
@@ -688,7 +688,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
-            log_with_doc(&uri, old_doc.version(), "closed");
+            log_with_doc(&uri, old_doc.saved_version(), "closed");
         }
         self.documents.remove(&uri);
         let mut project = self.stop_build_and_get_project().await;
