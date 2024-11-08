@@ -21,11 +21,13 @@ impl LiveDocument {
         }
     }
 
-    pub fn handle_change(&mut self, new_live_version: i32) {
+    // Changes the document to have a new live version.
+    pub fn change(&mut self, new_live_version: i32) {
         self.live_version = new_live_version;
     }
 
-    pub fn handle_save(&mut self, text: String) {
+    // Changes the document to have the provided text, to save the current live version.
+    pub fn save(&mut self, text: String) {
         self.text = text;
         self.saved_version = self.live_version;
     }

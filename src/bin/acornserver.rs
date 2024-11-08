@@ -675,6 +675,10 @@ impl LanguageServer for Backend {
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let url = params.text_document.uri;
         let version = params.text_document.version;
+        if let Some(doc) = self.documents.get(&url) {
+            let mut doc = doc.write().await;
+            doc.change(version);
+        }
         self.live_versions.insert(url, version);
     }
 
