@@ -16,7 +16,8 @@ pub struct LiveDocument {
 // Each line in a LiveDocument has a LiveLine.
 #[derive(Clone)]
 struct LiveLine {
-    // The current text of the line
+    // The current text of the line.
+    // These do not include \n's.
     text: String,
 
     // The index of this line the last time the document was saved.
