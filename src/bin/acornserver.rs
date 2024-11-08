@@ -347,7 +347,7 @@ impl Backend {
                 // This is an "open".
                 // This document might have been open before. Just create a new one.
                 log_with_doc(&url, version, "new document");
-                let doc = LiveDocument::new(text.clone(), version);
+                let doc = LiveDocument::new(&text, version);
                 self.documents
                     .insert(url.clone(), Arc::new(RwLock::new(doc)));
                 version
@@ -363,7 +363,7 @@ impl Backend {
                     }
                 };
                 let mut doc = doc.write().await;
-                doc.save(text.clone())
+                doc.save(&text)
             }
         };
 

@@ -13,9 +13,9 @@ pub struct LiveDocument {
 
 impl LiveDocument {
     // Called when a file is opened, so we don't have any history before this version.
-    pub fn new(text: String, version: i32) -> LiveDocument {
+    pub fn new(text: &str, version: i32) -> LiveDocument {
         LiveDocument {
-            text,
+            text: text.to_string(),
             live_version: version,
             saved_version: version,
         }
@@ -28,14 +28,10 @@ impl LiveDocument {
 
     // Changes the document to have the provided text, to save the current live version.
     // Returns the version (which is both saved and live).
-    pub fn save(&mut self, text: String) -> i32 {
-        self.text = text;
+    pub fn save(&mut self, text: &str) -> i32 {
+        self.text = text.to_string();
         self.saved_version = self.live_version;
         self.saved_version
-    }
-
-    pub fn text(&self) -> &str {
-        &self.text
     }
 
     pub fn saved_version(&self) -> i32 {
