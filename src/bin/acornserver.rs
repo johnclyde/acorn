@@ -348,13 +348,21 @@ impl Backend {
             None => 0,
         };
 
-        if self
-            .update_doc_in_backend(url.clone(), text, version, event)
-            .await
-        {
-            self.update_doc_in_project(&url).await;
-            self.spawn_build();
+        if let Some(old_doc) = self.documents.get(&url) {
+            let saved_version = old_doc.read().await.saved_version();
+            if saved_version == version {
+                log_with_doc(&url, version, "unchanged");
+                return;
+            }
+            log_with_doc(&url, saved_version, &format!("replaced with v{}", version));
+        } else {
+            log_with_doc(&url, version, event);
         }
+        let new_doc = LiveDocument::new(text, version);
+        self.documents
+            .insert(url.clone(), Arc::new(RwLock::new(new_doc)));
+        self.update_doc_in_project(&url).await;
+        self.spawn_build();
     }
 
     // If there is a build happening, stops it.
@@ -369,34 +377,6 @@ impl Backend {
         let mut project = self.project.write().await;
         project.allow_build();
         project
-    }
-
-    // This updates a document in the backend, but not in the project.
-    // This is a document change that's not a save.
-    // Returns whether this is actually an update, or if we already had this.
-    // The backend tracks every single change; the project only gets them when we want it to use them.
-    // This means that typing a little bit doesn't necessarily cancel an ongoing build.
-    async fn update_doc_in_backend(
-        &self,
-        url: Url,
-        text: String,
-        version: i32,
-        event: &str,
-    ) -> bool {
-        if let Some(old_doc) = self.documents.get(&url) {
-            let saved_version = old_doc.read().await.saved_version();
-            if saved_version == version {
-                log_with_doc(&url, version, "unchanged");
-                return false;
-            }
-            log_with_doc(&url, saved_version, &format!("replaced with v{}", version));
-        } else {
-            log_with_doc(&url, version, event);
-        }
-        let new_doc = LiveDocument::new(text, version);
-        self.documents
-            .insert(url.clone(), Arc::new(RwLock::new(new_doc)));
-        true
     }
 
     // This updates a document in the project, based on the state in the backend.

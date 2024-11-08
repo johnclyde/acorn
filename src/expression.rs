@@ -795,7 +795,7 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
                 (PartialExpression::Binary(a), PartialExpression::Binary(b))
                 | (PartialExpression::Unary(a), PartialExpression::Binary(b)) => {
                     return Err(Error::new(
-                        left.token(),
+                        right.token(),
                         &format!(
                             "the '{}' operator cannot be followed by the '{}' operator",
                             a, b
