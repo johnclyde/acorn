@@ -342,11 +342,10 @@ impl Backend {
     }
 
     // Update the full text of the document.
-    // This is either a "save" or an "open", provided in the tag for logging purposes.
     // For an open, we get the document version. For a save, we don't, because the version we're saving
     // is the same as the version of the last change we received.
     // After this call both the live version and the saved version should be the same.
-    async fn set_full_text(&self, url: Url, text: String, version: Option<i32>, tag: &str) {
+    async fn set_full_text(&self, url: Url, text: String, version: Option<i32>) {
         if let Some(version) = version {
             self.live_versions.insert(url.clone(), version);
         }
@@ -367,7 +366,7 @@ impl Backend {
                 &format!("replaced with v{}", live_version),
             );
         } else {
-            log_with_doc(&url, live_version, tag);
+            log_with_doc(&url, live_version, "new document");
         }
         let new_doc = LiveDocument::new(text, live_version);
         self.documents
@@ -661,14 +660,14 @@ impl LanguageServer for Backend {
                 return;
             }
         };
-        self.set_full_text(uri, text, None, "save").await;
+        self.set_full_text(uri, text, None).await;
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let url = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        self.set_full_text(url, text, Some(version), "open").await;
+        self.set_full_text(url, text, Some(version)).await;
     }
 
     // Just updates the current version, doesn't rebuild anything
