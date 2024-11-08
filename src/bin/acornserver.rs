@@ -196,13 +196,8 @@ struct Backend {
     // Search tasks update it as they go.
     progress: Arc<Mutex<ProgressResponse>>,
 
-    // Maps uri to the most recent version of a document that has been saved.
+    // Maps uri to its document. The LiveDocument tracks changes.
     documents: DashMap<Url, Arc<RwLock<LiveDocument>>>,
-
-    // Maps uri to the most recent version of a document the user has.
-    // This can be ahead of the version in documents, because we don't necessarily get the
-    // most up-to-date version while the user is typing.
-    live_versions: DashMap<Url, i32>,
 
     // The current search task, if any
     search_task: Arc<RwLock<Option<SearchTask>>>,
@@ -254,7 +249,6 @@ impl Backend {
             client,
             progress: Arc::new(Mutex::new(ProgressResponse::default())),
             documents: DashMap::new(),
-            live_versions: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
             diagnostic_map: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -674,7 +668,6 @@ impl LanguageServer for Backend {
             let mut doc = doc.write().await;
             doc.change(version);
         }
-        self.live_versions.insert(url, version);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
