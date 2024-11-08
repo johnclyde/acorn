@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use acorn::live_document::LiveDocument;
 use chrono;
 use clap::Parser;
 use dashmap::DashMap;
@@ -47,19 +48,6 @@ fn log_with_doc(url: &Url, version: i32, message: &str) {
     let filename = url.path_segments().unwrap().last().unwrap();
     let versioned = format!("{} v{}: {}", filename, version, message);
     log(&versioned);
-}
-
-// A structure representing a particular version of a document.
-#[derive(Clone)]
-struct Document {
-    text: String,
-    version: i32,
-}
-
-impl Document {
-    fn new(text: String, version: i32) -> Document {
-        Document { text, version }
-    }
 }
 
 // A search task is a long-running task that searches for a proof.
@@ -209,7 +197,7 @@ struct Backend {
     progress: Arc<Mutex<ProgressResponse>>,
 
     // Maps uri to the most recent version of a document that has been saved.
-    documents: DashMap<Url, Arc<Document>>,
+    documents: DashMap<Url, Arc<LiveDocument>>,
 
     // Maps uri to the most recent version of a document the user has.
     // This can be ahead of the version in documents, because we don't necessarily get the
@@ -388,15 +376,15 @@ impl Backend {
     // The backend tracks every single change; the project only gets them when we want it to use them.
     // This means that typing a little bit doesn't necessarily cancel an ongoing build.
     fn update_doc_in_backend(&self, url: Url, text: String, version: i32, event: &str) -> bool {
-        let new_doc = Document::new(text, version);
+        let new_doc = LiveDocument::new(text, version);
         if let Some(old_doc) = self.documents.get(&url) {
-            if old_doc.version == version {
+            if old_doc.version() == version {
                 log_with_doc(&url, version, "unchanged");
                 return false;
             }
             log_with_doc(
                 &url,
-                old_doc.version,
+                old_doc.version(),
                 &format!("replaced with v{}", version),
             );
         } else {
@@ -426,7 +414,7 @@ impl Backend {
             // Check if the project already has this document state.
             // If the update is a no-op, there's no need to stop the build.
             let project = self.project.read().await;
-            if project.has_version(&path, document.version) {
+            if project.has_version(&path, document.version()) {
                 return;
             }
         }
@@ -434,9 +422,9 @@ impl Backend {
         log(&format!(
             "updating {} with {} bytes",
             path.display(),
-            document.text.len()
+            document.text().len()
         ));
-        match project.update_file(path, &document.text, document.version) {
+        match project.update_file(path, &document.text(), document.version()) {
             Ok(()) => {}
             Err(e) => log(&format!("update failed: {:?}", e)),
         }
@@ -582,7 +570,7 @@ impl Backend {
         let new_task = SearchTask {
             project: self.project.clone(),
             url: params.uri.clone(),
-            version: doc.version,
+            version: doc.version(),
             prover: Arc::new(RwLock::new(prover)),
             module_ref,
             selected_line: params.selected_line,
@@ -700,7 +688,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
-            log_with_doc(&uri, old_doc.version, "closed");
+            log_with_doc(&uri, old_doc.version(), "closed");
         }
         self.documents.remove(&uri);
         let mut project = self.stop_build_and_get_project().await;
