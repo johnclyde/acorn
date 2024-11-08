@@ -341,10 +341,6 @@ impl Backend {
         });
     }
 
-    fn update_live_version(&self, url: Url, version: i32) {
-        self.live_versions.insert(url, version);
-    }
-
     // Update the full text of the document.
     async fn update_text(&self, url: Url, text: String, event: &str) {
         let version = match self.live_versions.get(&url) {
@@ -683,18 +679,18 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let uri = params.text_document.uri;
+        let url = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        self.update_live_version(uri.clone(), version);
-        self.update_text(uri, text, "open").await;
+        self.live_versions.insert(url.clone(), version);
+        self.update_text(url, text, "open").await;
     }
 
     // Just updates the current version, doesn't rebuild anything
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
+        let url = params.text_document.uri;
         let version = params.text_document.version;
-        self.update_live_version(uri, version);
+        self.live_versions.insert(url, version);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {

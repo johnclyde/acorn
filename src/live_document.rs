@@ -5,19 +5,29 @@ pub struct LiveDocument {
     text: String,
 
     // The most recent version we have.
-    // TODO: add this
-    // live_version: i32,
+    live_version: i32,
 
     // The version number the document had the last time it was saved.
     saved_version: i32,
 }
 
 impl LiveDocument {
+    // Called when a file is opened, so we don't have any history before this version.
     pub fn new(text: String, version: i32) -> LiveDocument {
         LiveDocument {
             text,
+            live_version: version,
             saved_version: version,
         }
+    }
+
+    pub fn handle_change(&mut self, new_live_version: i32) {
+        self.live_version = new_live_version;
+    }
+
+    pub fn handle_save(&mut self, text: String) {
+        self.text = text;
+        self.saved_version = self.live_version;
     }
 
     pub fn text(&self) -> &str {
