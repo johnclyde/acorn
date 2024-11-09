@@ -666,7 +666,9 @@ impl LanguageServer for Backend {
         let version = params.text_document.version;
         if let Some(doc) = self.documents.get(&url) {
             let mut doc = doc.write().await;
-            doc.change(version);
+            for change in params.content_changes {
+                doc.change(change.range, &change.text, version);
+            }
         }
     }
 

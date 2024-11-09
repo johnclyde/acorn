@@ -1,4 +1,5 @@
 use im::Vector;
+use tower_lsp::lsp_types::Range;
 
 // A live document is in the process of being edited.
 // It has a version number that is incremented each time the document is edited.
@@ -22,16 +23,25 @@ struct LiveLine {
 
     // The index of this line the last time the document was saved.
     // If this line has been modified since the last save, this will be None.
-    saved_index: Option<i32>,
+    saved_index: Option<u32>,
 }
 
-fn make_lines(text: &str) -> Vector<LiveLine> {
+fn numbered_lines(text: &str) -> Vector<LiveLine> {
     text.lines()
         .into_iter()
         .enumerate()
         .map(|(index, line)| LiveLine {
             text: line.to_string(),
-            saved_index: Some(index as i32),
+            saved_index: Some(index as u32),
+        })
+        .collect()
+}
+
+fn nonnumbered_lines(text: &str) -> Vector<LiveLine> {
+    text.lines()
+        .map(|line| LiveLine {
+            text: line.to_string(),
+            saved_index: None,
         })
         .collect()
 }
@@ -40,26 +50,74 @@ impl LiveDocument {
     // Called when a file is opened, so we don't have any history before this version.
     pub fn new(text: &str, version: i32) -> LiveDocument {
         LiveDocument {
-            lines: make_lines(text),
+            lines: numbered_lines(text),
             live_version: version,
             saved_version: version,
         }
     }
 
     // Changes the document to have a new live version.
-    pub fn change(&mut self, new_live_version: i32) {
+    // range is the range in the initial document that was removed.
+    // If there is no range, that means the entire document was replaced.
+    // text is the text that was inserted at that range.
+    pub fn change(&mut self, range: Option<Range>, text: &str, new_live_version: i32) {
         self.live_version = new_live_version;
+        let range = match range {
+            Some(range) => range,
+            None => {
+                // Replace the whole document. No line is the same as it was.
+                self.lines = nonnumbered_lines(text);
+                return;
+            }
+        };
+        let start_line = range.start.line as usize;
+        let end_line = range.end.line as usize;
+
+        // We are going to replace part of the start line and end line, but maybe not the whole thing.
+        // Find the prefix and suffix that we are keeping.
+        let prefix: String = if let Some(line) = self.lines.get(start_line) {
+            let start_character = range.start.character as usize;
+            line.text.chars().take(start_character).collect()
+        } else {
+            "".to_string()
+        };
+        let suffix: String = if let Some(line) = self.lines.get(end_line) {
+            let end_character = range.end.character as usize;
+            line.text.chars().skip(end_character).collect()
+        } else {
+            "".to_string()
+        };
+        let combined = format!("{}{}{}", prefix, text, suffix);
+        let new_lines = nonnumbered_lines(&combined);
+        let keep_right = self.lines.split_off(end_line + 1);
+        let _discard = self.lines.split_off(start_line);
+        self.lines.append(new_lines);
+        self.lines.append(keep_right);
     }
 
     // Changes the document to have the provided text, to save the current live version.
     // Returns the version (which is both saved and live).
     pub fn save(&mut self, text: &str) -> i32 {
-        self.lines = make_lines(text);
+        self.lines = numbered_lines(text);
         self.saved_version = self.live_version;
         self.saved_version
     }
 
     pub fn saved_version(&self) -> i32 {
         self.saved_version
+    }
+
+    // Returns a display string.
+    // It has each line with a "." in front if it's unchanged, a "*" if it's changed.
+    pub fn display(&self) -> String {
+        let mut result = vec![];
+        for line in self.lines.iter() {
+            let prefix = match line.saved_index {
+                Some(_) => ".",
+                None => "*",
+            };
+            result.push(format!("{} {}", prefix, line.text));
+        }
+        result.join("\n")
     }
 }
