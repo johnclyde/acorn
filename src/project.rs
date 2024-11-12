@@ -728,7 +728,7 @@ impl Project {
                 Some(env) => env,
                 None => return None,
             };
-            let completions = env.bindings.get_completions(partial);
+            let completions = env.bindings.get_completions(partial, true);
             return Some(completions);
         }
 

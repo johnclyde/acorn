@@ -438,15 +438,33 @@ impl BindingMap {
     }
 
     // The prefix is just of a single identifier.
-    pub fn get_completions(&self, prefix: &str) -> Vec<CompletionItem> {
+    // If importing is true, we are looking for names to import. This means that we don't
+    // want to suggest names unless this is the canonical location for them.
+    pub fn get_completions(&self, prefix: &str, importing: bool) -> Vec<CompletionItem> {
         let first_char = match prefix.chars().next() {
             Some(c) => c,
             None => return vec![],
         };
         let mut answer = vec![];
+
         if first_char.is_lowercase() {
-            // Looks like a constant
+            // Keywords
+            if !importing {
+                for key in token::keywords_with_prefix(prefix) {
+                    let completion = CompletionItem {
+                        label: key.to_string(),
+                        kind: Some(CompletionItemKind::KEYWORD),
+                        ..Default::default()
+                    };
+                    answer.push(completion);
+                }
+            }
+            // Constants
             for key in keys_with_prefix(&self.constants, prefix) {
+                if importing && self.alias_to_canonical.contains_key(key) {
+                    // Don't suggest aliases when importing
+                    continue;
+                }
                 let completion = CompletionItem {
                     label: key.clone(),
                     kind: Some(CompletionItemKind::CONSTANT),
@@ -455,8 +473,19 @@ impl BindingMap {
                 answer.push(completion);
             }
         } else if first_char.is_uppercase() {
-            // Looks like a type
+            // Types
             for key in keys_with_prefix(&self.type_names, prefix) {
+                if importing {
+                    let data_type = self.type_names.get(key).unwrap();
+                    match data_type {
+                        AcornType::Data(module, name) => {
+                            if module != &self.module || name != key {
+                                continue;
+                            }
+                        }
+                        _ => continue,
+                    }
+                }
                 let completion = CompletionItem {
                     label: key.clone(),
                     kind: Some(CompletionItemKind::CLASS),

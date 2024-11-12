@@ -98,6 +98,14 @@ pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
     })
 }
 
+// This doesn't handle "Bool".
+pub fn keywords_with_prefix(prefix: &str) -> impl Iterator<Item = &str> {
+    keyword_map()
+        .range(prefix..)
+        .take_while(move |(key, _)| key.starts_with(prefix))
+        .map(|(key, _)| *key)
+}
+
 // The token types that we export via the language server protocol
 pub const LSP_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::VARIABLE,
