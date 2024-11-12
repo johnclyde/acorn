@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use tower_lsp::lsp_types::CompletionItem;
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
@@ -66,7 +66,7 @@ pub struct BindingMap {
     module: ModuleId,
 
     // Maps the name of a type to the type object.
-    type_names: HashMap<String, AcornType>,
+    type_names: BTreeMap<String, AcornType>,
 
     // Maps the type object to the name of a type.
     reverse_type_names: HashMap<AcornType, String>,
@@ -80,7 +80,7 @@ pub struct BindingMap {
     // entirety of this environment.
     // Doesn't handle aliases.
     // Includes "<datatype>.<constant>" for members.
-    constants: HashMap<String, ConstantInfo>,
+    constants: BTreeMap<String, ConstantInfo>,
 
     // The canonical identifier of a constant is the first place it is defined.
     // There may be other names in this environment that refer to the same thing.
@@ -147,6 +147,15 @@ pub fn check_type<'a>(
     Ok(())
 }
 
+fn keys_with_prefix<'a, T>(
+    map: &'a BTreeMap<String, T>,
+    prefix: &'a str,
+) -> impl Iterator<Item = &'a String> {
+    map.range(prefix.to_string()..)
+        .take_while(move |(key, _)| key.starts_with(prefix))
+        .map(|(key, _)| key)
+}
+
 // A name can refer to any of these things.
 enum NamedEntity {
     Value(AcornValue),
@@ -196,10 +205,10 @@ impl BindingMap {
         assert!(module >= FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
-            type_names: HashMap::new(),
+            type_names: BTreeMap::new(),
             reverse_type_names: HashMap::new(),
             identifier_types: HashMap::new(),
-            constants: HashMap::new(),
+            constants: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
             canonical_to_alias: HashMap::new(),
             modules: BTreeMap::new(),
@@ -428,9 +437,36 @@ impl BindingMap {
         }
     }
 
-    pub fn get_completions(&self, _prefix: &str) -> Vec<CompletionItem> {
-        // TODO: return more stuff
-        return vec![];
+    // The prefix is just of a single identifier.
+    pub fn get_completions(&self, prefix: &str) -> Vec<CompletionItem> {
+        let first_char = match prefix.chars().next() {
+            Some(c) => c,
+            None => return vec![],
+        };
+        let mut answer = vec![];
+        if first_char.is_lowercase() {
+            // Looks like a constant
+            for key in keys_with_prefix(&self.constants, prefix) {
+                let completion = CompletionItem {
+                    label: key.clone(),
+                    kind: Some(CompletionItemKind::CONSTANT),
+                    ..Default::default()
+                };
+                answer.push(completion);
+            }
+        } else if first_char.is_uppercase() {
+            // Looks like a type
+            for key in keys_with_prefix(&self.type_names, prefix) {
+                let completion = CompletionItem {
+                    label: key.clone(),
+                    kind: Some(CompletionItemKind::CLASS),
+                    ..Default::default()
+                };
+                answer.push(completion);
+            }
+        }
+
+        return answer;
     }
 
     ////////////////////////////////////////////////////////////////////////////////
