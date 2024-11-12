@@ -439,7 +439,8 @@ impl BindingMap {
 
     // The prefix is just of a single identifier.
     // If importing is true, we are looking for names to import. This means that we don't
-    // want to suggest names unless this is the canonical location for them.
+    // want to suggest names unless this is the canonical location for them, and we don't
+    // want to suggest theorems.
     pub fn get_completions(&self, prefix: &str, importing: bool) -> Vec<CompletionItem> {
         let first_char = match prefix.chars().next() {
             Some(c) => c,
@@ -461,9 +462,15 @@ impl BindingMap {
             }
             // Constants
             for key in keys_with_prefix(&self.constants, prefix) {
-                if importing && self.alias_to_canonical.contains_key(key) {
-                    // Don't suggest aliases when importing
-                    continue;
+                if importing {
+                    if self.alias_to_canonical.contains_key(key) {
+                        // Don't suggest aliases when importing
+                        continue;
+                    }
+                    if self.theorems.contains(key) {
+                        // Don't suggest theorems when importing
+                        continue;
+                    }
                 }
                 let completion = CompletionItem {
                     label: key.clone(),

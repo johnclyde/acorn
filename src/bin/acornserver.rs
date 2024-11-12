@@ -711,7 +711,13 @@ impl LanguageServer for Backend {
         let prefix = doc.read().await.get_prefix(pos.line, pos.character);
         let project = self.project.read().await;
         match project.get_completions(&path, &prefix) {
-            Some(completions) => Ok(Some(CompletionResponse::Array(completions))),
+            Some(items) => {
+                let response = CompletionResponse::List(CompletionList {
+                    is_incomplete: false,
+                    items,
+                });
+                Ok(Some(response))
+            }
             None => Ok(None),
         }
     }

@@ -716,7 +716,8 @@ impl Project {
     }
 
     // Line is zero-based.
-    // Returns a list of completions, or None if we can't determine what the completions should be.
+    // Returns a list of completions.
+    // None indicates that we should fall back to word-based completions.
     pub fn get_completions(&self, _path: &PathBuf, prefix: &str) -> Option<Vec<CompletionItem>> {
         let parts = prefix.split_whitespace().collect::<Vec<&str>>();
         if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
@@ -726,7 +727,18 @@ impl Project {
             let module_ref = ModuleRef::Name(name.to_string());
             let env = match self.get_env_by_ref(&module_ref) {
                 Some(env) => env,
-                None => return None,
+                None => {
+                    // The module isn't loaded, so we don't know what names it has.
+                    if name == "nat" && "Nat".starts_with(partial) {
+                        // Cheat to optimize the tutorial
+                        return Some(vec![CompletionItem {
+                            label: "Nat".to_string(),
+                            kind: Some(tower_lsp::lsp_types::CompletionItemKind::CLASS),
+                            ..Default::default()
+                        }]);
+                    }
+                    return None;
+                }
             };
             let completions = env.bindings.get_completions(partial, true);
             return Some(completions);
