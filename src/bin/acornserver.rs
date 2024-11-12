@@ -636,6 +636,7 @@ impl LanguageServer for Backend {
             server_info: None,
             capabilities: ServerCapabilities {
                 text_document_sync: Some(sync_options),
+                completion_provider: Some(CompletionOptions::default()),
                 ..ServerCapabilities::default()
             },
         })
@@ -685,6 +686,15 @@ impl LanguageServer for Backend {
             Ok(()) => {}
             Err(e) => log(&format!("close failed: {:?}", e)),
         }
+    }
+
+    async fn completion(
+        &self,
+        _params: CompletionParams,
+    ) -> jsonrpc::Result<Option<CompletionResponse>> {
+        // Return None, indicating no completions
+        log("XXX completion");
+        Ok(None)
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
