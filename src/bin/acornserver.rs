@@ -693,6 +693,13 @@ impl LanguageServer for Backend {
         params: CompletionParams,
     ) -> jsonrpc::Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => {
+                log(&format!("cannot convert uri to path: {}", uri));
+                return Ok(None);
+            }
+        };
         let pos = params.text_document_position.position;
         let doc = match self.documents.get(&uri) {
             Some(doc) => doc,
@@ -702,26 +709,11 @@ impl LanguageServer for Backend {
             }
         };
         let prefix = doc.read().await.get_prefix(pos.line, pos.character);
-        let parts = prefix.split_whitespace().collect::<Vec<&str>>();
-        if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
-            // We are in a "from X import Y" statement.
-            let name = parts[1];
-            let partial = parts[3];
-            let project = self.project.read().await;
-            let module_ref = ModuleRef::Name(name.to_string());
-            let env = match project.get_env_by_ref(&module_ref) {
-                Some(env) => env,
-                None => {
-                    log(&format!("no environment for {:?}", parts[1]));
-                    return Ok(None);
-                }
-            };
-            let completions = env.get_completions(partial);
-            return Ok(Some(CompletionResponse::Array(completions)));
+        let project = self.project.read().await;
+        match project.get_completions(&path, &prefix) {
+            Some(completions) => Ok(Some(CompletionResponse::Array(completions))),
+            None => Ok(None),
         }
-
-        // Return None, indicating no completions
-        Ok(None)
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {

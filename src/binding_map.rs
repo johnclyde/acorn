@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use tower_lsp::lsp_types::CompletionItem;
+
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
@@ -424,6 +426,11 @@ impl BindingMap {
             }
             None => false,
         }
+    }
+
+    pub fn get_completions(&self, _prefix: &str) -> Vec<CompletionItem> {
+        // TODO: return more stuff
+        return vec![];
     }
 
     ////////////////////////////////////////////////////////////////////////////////

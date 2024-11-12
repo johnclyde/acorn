@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tower_lsp::lsp_types::{CompletionItem, Range};
+use tower_lsp::lsp_types::Range;
 
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
@@ -238,11 +238,6 @@ impl Environment {
             }
         }
         None
-    }
-
-    pub fn get_completions(&self, _prefix: &str) -> Vec<CompletionItem> {
-        // TODO: return more stuff
-        return vec![];
     }
 
     // Adds a conditional block to the environment.

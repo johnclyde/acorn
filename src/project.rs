@@ -4,6 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::{fmt, io};
 
+use tower_lsp::lsp_types::CompletionItem;
 use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
@@ -712,6 +713,27 @@ impl Project {
             facts.extend(env.exported_facts());
         }
         facts
+    }
+
+    // Line is zero-based.
+    // Returns a list of completions, or None if we can't determine what the completions should be.
+    pub fn get_completions(&self, _path: &PathBuf, prefix: &str) -> Option<Vec<CompletionItem>> {
+        let parts = prefix.split_whitespace().collect::<Vec<&str>>();
+        if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
+            // We are in a "from X import Y" statement.
+            let name = parts[1];
+            let partial = parts[3];
+            let module_ref = ModuleRef::Name(name.to_string());
+            let env = match self.get_env_by_ref(&module_ref) {
+                Some(env) => env,
+                None => return None,
+            };
+            let completions = env.bindings.get_completions(partial);
+            return Some(completions);
+        }
+
+        // TODO: handle completions for regular statements
+        None
     }
 
     // Expects the module to load successfully and for there to be no errors in the loaded module.
