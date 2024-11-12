@@ -690,10 +690,21 @@ impl LanguageServer for Backend {
 
     async fn completion(
         &self,
-        _params: CompletionParams,
+        params: CompletionParams,
     ) -> jsonrpc::Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        let pos = params.text_document_position.position;
+        let doc = match self.documents.get(&uri) {
+            Some(doc) => doc,
+            None => {
+                log("no document available for completion");
+                return Ok(None);
+            }
+        };
+        let prefix = doc.read().await.get_prefix(pos.line, pos.character);
+        log(&format!("XXX completion of prefix: {:?}", prefix));
+
         // Return None, indicating no completions
-        log("XXX completion");
         Ok(None)
     }
 

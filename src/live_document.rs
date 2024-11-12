@@ -157,4 +157,13 @@ impl LiveDocument {
         }
         result.join("\n")
     }
+
+    // The prefix of the line up to the provided point.
+    pub fn get_prefix(&self, line: u32, character: u32) -> String {
+        if let Some(line) = self.lines.get(line as usize) {
+            line.text.chars().take(character as usize).collect()
+        } else {
+            "".to_string()
+        }
+    }
 }
