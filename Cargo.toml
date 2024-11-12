@@ -17,6 +17,7 @@ nohash-hasher = "0.2.0"
 ordered-float = "4.2.2"
 ort = "=2.0.0-rc.7"
 qp-trie = "0.8.2"
+regex = "1.11.1"
 serde = "1.0.188"
 tokio = { version = "1.32.0", features = ["full"] }
 tower-lsp = "0.20.0"

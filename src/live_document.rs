@@ -1,5 +1,16 @@
+use std::sync::OnceLock;
+
 use im::Vector;
+use regex::Regex;
 use tower_lsp::lsp_types::Range;
+
+static LINE_SPLIT_REGEX: OnceLock<Regex> = OnceLock::new();
+
+// Respects either Windows or non-Windows line endings.
+fn split_lines(text: &str) -> impl Iterator<Item = &str> {
+    let re = LINE_SPLIT_REGEX.get_or_init(|| Regex::new(r"\r\n|\n").unwrap());
+    re.split(text)
+}
 
 // A live document is in the process of being edited.
 // It has a version number that is incremented each time the document is edited.
@@ -26,9 +37,9 @@ struct LiveLine {
     saved_index: Option<u32>,
 }
 
+// The empty string gives one empty line, numbered 0.
 fn numbered_lines(text: &str) -> Vector<LiveLine> {
-    text.lines()
-        .into_iter()
+    split_lines(text)
         .enumerate()
         .map(|(index, line)| LiveLine {
             text: line.to_string(),
@@ -37,8 +48,9 @@ fn numbered_lines(text: &str) -> Vector<LiveLine> {
         .collect()
 }
 
+// The empty string gives one empty line.
 fn nonnumbered_lines(text: &str) -> Vector<LiveLine> {
-    text.lines()
+    split_lines(text)
         .map(|line| LiveLine {
             text: line.to_string(),
             saved_index: None,
@@ -60,18 +72,38 @@ impl LiveDocument {
     // range is the range in the initial document that was removed.
     // If there is no range, that means the entire document was replaced.
     // text is the text that was inserted at that range.
-    pub fn change(&mut self, range: Option<Range>, text: &str, new_live_version: i32) {
+    pub fn change(
+        &mut self,
+        range: Option<Range>,
+        text: &str,
+        new_live_version: i32,
+    ) -> Result<(), String> {
         self.live_version = new_live_version;
         let range = match range {
             Some(range) => range,
             None => {
                 // Replace the whole document. No line is the same as it was.
                 self.lines = nonnumbered_lines(text);
-                return;
+                return Ok(());
             }
         };
         let start_line = range.start.line as usize;
         let end_line = range.end.line as usize;
+
+        if end_line < start_line {
+            return Err(format!(
+                "end line {} is before start line {}",
+                end_line, start_line
+            ));
+        }
+        if end_line >= self.lines.len() {
+            // Something is going wrong, but we have no way to handle errors.
+            return Err(format!(
+                "end line is {} but we only have {} lines",
+                end_line,
+                self.lines.len()
+            ));
+        }
 
         // We are going to replace part of the start line and end line, but maybe not the whole thing.
         // Find the prefix and suffix that we are keeping.
@@ -89,10 +121,15 @@ impl LiveDocument {
         };
         let combined = format!("{}{}{}", prefix, text, suffix);
         let new_lines = nonnumbered_lines(&combined);
-        let keep_right = self.lines.split_off(end_line + 1);
+        let keep_right = if end_line < self.lines.len() {
+            self.lines.split_off(end_line + 1)
+        } else {
+            Vector::new()
+        };
         let _discard = self.lines.split_off(start_line);
         self.lines.append(new_lines);
         self.lines.append(keep_right);
+        Ok(())
     }
 
     // Changes the document to have the provided text, to save the current live version.

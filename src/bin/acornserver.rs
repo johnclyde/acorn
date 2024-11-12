@@ -667,7 +667,9 @@ impl LanguageServer for Backend {
         if let Some(doc) = self.documents.get(&url) {
             let mut doc = doc.write().await;
             for change in params.content_changes {
-                doc.change(change.range, &change.text, version);
+                if let Err(e) = doc.change(change.range, &change.text, version) {
+                    log(&format!("change failed: {}", e));
+                }
             }
         }
     }
