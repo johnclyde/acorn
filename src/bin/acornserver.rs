@@ -702,7 +702,23 @@ impl LanguageServer for Backend {
             }
         };
         let prefix = doc.read().await.get_prefix(pos.line, pos.character);
-        log(&format!("XXX completion of prefix: {:?}", prefix));
+        let parts = prefix.split_whitespace().collect::<Vec<&str>>();
+        if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
+            // We are in a "from X import Y" statement.
+            let name = parts[1];
+            let partial = parts[3];
+            let project = self.project.read().await;
+            let module_ref = ModuleRef::Name(name.to_string());
+            let env = match project.get_env_by_ref(&module_ref) {
+                Some(env) => env,
+                None => {
+                    log(&format!("no environment for {:?}", parts[1]));
+                    return Ok(None);
+                }
+            };
+            let completions = env.get_completions(partial);
+            return Ok(Some(CompletionResponse::Array(completions)));
+        }
 
         // Return None, indicating no completions
         Ok(None)
