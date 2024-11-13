@@ -1305,5 +1305,7 @@ mod tests {
         check("nat.N", 7, &["Nat"]);
         check("(ba", 7, &["bar"]);
         check("nat.u", 7, &[]);
+        check("nat.", 7, &["Nat"]);
+        check("foo.", 7, &["0", "induction", "suc"]);
     }
 }

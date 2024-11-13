@@ -499,10 +499,10 @@ impl BindingMap {
             }
         }
 
-        let first_char = prefix.chars().next()?;
+        let first_char = prefix.chars().next();
         let mut answer = vec![];
 
-        if first_char.is_lowercase() {
+        if first_char.map(|c| c.is_lowercase()).unwrap_or(true) {
             // Keywords
             if !importing {
                 for key in token::keywords_with_prefix(prefix) {
@@ -516,6 +516,9 @@ impl BindingMap {
             }
             // Constants
             for key in keys_with_prefix(&self.constants, prefix) {
+                if key.contains('.') {
+                    continue;
+                }
                 if importing {
                     if self.alias_to_canonical.contains_key(key) {
                         // Don't suggest aliases when importing
@@ -533,7 +536,9 @@ impl BindingMap {
                 };
                 answer.push(completion);
             }
-        } else if first_char.is_uppercase() {
+        }
+
+        if first_char.map(|c| c.is_uppercase()).unwrap_or(true) {
             // Types
             for key in keys_with_prefix(&self.type_names, prefix) {
                 if importing {
