@@ -1243,8 +1243,9 @@ mod tests {
             }
             "#,
         );
+        let main = PathBuf::from("/mock/main.ac");
         p.mock(
-            "/mock/main.ac",
+            main.to_str().unwrap(),
             r#"
             from nat import Nat
             let foo: Nat = axiom
@@ -1271,5 +1272,14 @@ mod tests {
         assert_eq!(env.get_line_type(7), Some(LineType::Node(0)));
         assert_eq!(env.get_line_type(8), Some(LineType::Node(0)));
         assert_eq!(env.get_line_type(9), None);
+
+        let check = |prefix: &str, line: u32, expected: &[&str]| {
+            let completions = p.get_completions(main.clone(), line, prefix).unwrap();
+            let labels: Vec<_> = completions.iter().map(|c| &c.label).collect();
+            assert_eq!(labels, expected);
+        };
+
+        // Test completions
+        check("from nat import N", 0, &["Nat"]);
     }
 }
