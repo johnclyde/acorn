@@ -1247,10 +1247,10 @@ mod tests {
             "/mock/main.ac",
             r#"
             from nat import Nat
-            let x: Nat = axiom
-            let y: Nat = axiom
-            theorem goal(a: Nat) {
-                a != x or a != y or x = y
+            let foo: Nat = axiom
+            let bar: Nat = axiom
+            theorem goal(bop: Nat) {
+                bop != foo or bop != bar or foo = bar
             } by {
                 // This should be line 7. Let's test completions here.
             }
