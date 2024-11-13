@@ -18,6 +18,11 @@ use crate::prover::{Outcome, Prover};
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressResponse {
+    // Which build we are tracking progress for.
+    // The build id is never 0, so here zero represents an uninitialized state.
+    pub build_id: u32,
+
+    // Statistics about the progress of the build.
     pub done: i32,
     pub total: i32,
 
@@ -28,6 +33,7 @@ pub struct ProgressResponse {
 impl ProgressResponse {
     pub fn default() -> ProgressResponse {
         ProgressResponse {
+            build_id: 0,
             done: 0,
             total: 0,
             verified: HashMap::new(),
