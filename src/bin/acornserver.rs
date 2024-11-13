@@ -302,9 +302,25 @@ impl Backend {
             while let Some(event) = rx.recv().await {
                 if let Some((done, total)) = event.progress {
                     if total > 0 {
-                        let mut locked_progress = progress.lock().await;
-                        locked_progress.done = done;
-                        locked_progress.total = total;
+                        let mut progress = progress.lock().await;
+                        progress.done = done;
+                        progress.total = total;
+                        if event.build_id != progress.build_id {
+                            // Make a new verified map.
+                            progress.build_id = event.build_id;
+                            progress.verified = HashMap::new();
+                        }
+                        if let Some((module_ref, range)) = event.verified {
+                            if let Some(path) = project.path_from_module_ref(&module_ref) {
+                                let url = Url::from_file_path(path).unwrap();
+                                let verified_line = range.start.line;
+                                progress
+                                    .verified
+                                    .entry(url)
+                                    .or_insert_with(Vec::new)
+                                    .push(verified_line);
+                            }
+                        }
                     }
                 }
 
