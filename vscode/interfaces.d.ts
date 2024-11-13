@@ -2,8 +2,10 @@
 // This should be kept parallel to interfaces.rs.
 
 interface ProgressResponse {
+  buildId: number;
   done: number;
   total: number;
+  verified: { [url: string]: number[] };
 }
 
 interface SearchParams {
