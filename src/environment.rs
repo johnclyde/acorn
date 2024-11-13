@@ -1644,6 +1644,25 @@ impl Environment {
         }
         true
     }
+
+    // Finds the narrowest environment that covers the given line.
+    pub fn env_for_line(&self, line: u32) -> &Environment {
+        loop {
+            match self.get_line_type(line) {
+                Some(LineType::Node(i)) => {
+                    if let Some(block) = &self.nodes[i].block {
+                        return block.env.env_for_line(line);
+                    }
+                    return self;
+                }
+                Some(LineType::Opening)
+                | Some(LineType::Closing)
+                | Some(LineType::Other)
+                | Some(LineType::Empty)
+                | None => return self,
+            }
+        }
+    }
 }
 
 // Methods used for integration testing.

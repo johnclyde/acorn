@@ -442,7 +442,7 @@ impl Token {
         }
     }
 
-    fn identifierish(ch: char) -> bool {
+    pub fn identifierish(ch: char) -> bool {
         ch.is_alphanumeric() || ch == '_'
     }
 

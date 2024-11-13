@@ -166,4 +166,17 @@ impl LiveDocument {
             "".to_string()
         }
     }
+
+    // When we want to do lookups based on a position in a modified file, we have the problem that
+    // we don't have an evaluated environment for the modified file. So we find a nearby point
+    // in the last environment we evaluated, and use that environment.
+    pub fn get_env_line(&self, current_line: u32) -> u32 {
+        for line in self.lines.take(current_line as usize + 1).iter().rev() {
+            if let Some(saved_index) = line.saved_index {
+                // This line is unchanged from the saved version.
+                return saved_index;
+            }
+        }
+        0
+    }
 }

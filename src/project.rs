@@ -715,10 +715,16 @@ impl Project {
         facts
     }
 
-    // Line is zero-based.
-    // Returns a list of completions.
-    // None indicates that we should fall back to word-based completions.
-    pub fn get_completions(&self, _path: &PathBuf, prefix: &str) -> Option<Vec<CompletionItem>> {
+    // path is the file we're in.
+    // env_line is zero-based. It's the closest unchanged line, to use for finding the environment.
+    // prefix is the entire line they've typed so far. Generally different from env_line.
+    // Returns a list of completions, or None if we don't have any.
+    pub fn get_completions(
+        &self,
+        path: PathBuf,
+        env_line: u32,
+        prefix: &str,
+    ) -> Option<Vec<CompletionItem>> {
         let parts = prefix.split_whitespace().collect::<Vec<&str>>();
         if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
             // We are in a "from X import Y" statement.
@@ -730,7 +736,8 @@ impl Project {
                 None => {
                     // The module isn't loaded, so we don't know what names it has.
                     if name == "nat" && "Nat".starts_with(partial) {
-                        // Cheat to optimize the tutorial
+                        // Cheat to optimize the tutorial.
+                        // If we always loaded nat, we wouldn't need this.
                         return Some(vec![CompletionItem {
                             label: "Nat".to_string(),
                             kind: Some(tower_lsp::lsp_types::CompletionItemKind::CLASS),
@@ -744,8 +751,25 @@ impl Project {
             return Some(completions);
         }
 
-        // TODO: handle completions for regular statements
-        None
+        // Check if we have a completable word
+        let word = match parts.last() {
+            Some(word) => *word,
+            None => return None,
+        };
+        if !word.chars().all(|c| Token::identifierish(c)) {
+            return None;
+        }
+
+        // Find the right environment
+        let module_ref = ModuleRef::File(path);
+        let env = match self.get_env_by_ref(&module_ref) {
+            Some(env) => env,
+            None => return None,
+        };
+        let env = env.env_for_line(env_line);
+
+        let completions = env.bindings.get_completions(word, false);
+        Some(completions)
     }
 
     // Expects the module to load successfully and for there to be no errors in the loaded module.
