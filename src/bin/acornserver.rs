@@ -712,7 +712,7 @@ impl LanguageServer for Backend {
         let env_line = doc.get_env_line(pos.line);
         let prefix = doc.get_prefix(pos.line, pos.character);
         let project = self.project.read().await;
-        match project.get_completions(path, env_line, &prefix) {
+        match project.get_completions(&path, env_line, &prefix) {
             Some(items) => {
                 let response = CompletionResponse::List(CompletionList {
                     is_incomplete: false,
