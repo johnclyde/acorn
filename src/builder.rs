@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Range};
 
 use crate::dataset::Dataset;
 use crate::environment::Environment;
@@ -23,6 +23,9 @@ pub struct BuildEvent {
     // Whenever we run into a problem, report the module ref, plus the diagnostic itself.
     // Returning None for diagnostic indicates that the module has no diagnostics.
     pub diagnostic: Option<(ModuleRef, Option<Diagnostic>)>,
+
+    // Whenever we verify a goal, report the module ref, plus the range of the goal.
+    pub verified: Option<(ModuleRef, Range)>,
 }
 
 impl BuildEvent {
@@ -31,6 +34,7 @@ impl BuildEvent {
             progress: None,
             log_message: None,
             diagnostic: None,
+            verified: None,
         }
     }
 }
@@ -254,7 +258,7 @@ impl<'a> Builder<'a> {
                                 &format!("took {}", elapsed_str),
                             );
                         } else {
-                            self.log_proving_success();
+                            self.log_proving_success(&goal_context);
                         }
                     }
 
@@ -294,11 +298,13 @@ impl<'a> Builder<'a> {
     }
 
     // Logs a successful proof.
-    fn log_proving_success(&mut self) {
-        (self.event_handler)(BuildEvent {
+    fn log_proving_success(&mut self, goal_context: &GoalContext) {
+        let event = BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
+            verified: Some((self.module().clone(), goal_context.goal.range())),
             ..BuildEvent::default()
-        });
+        };
+        (self.event_handler)(event);
     }
 
     // Create a build event for a proof that was other than successful.
@@ -323,6 +329,7 @@ impl<'a> Builder<'a> {
             progress: Some((self.goals_done, self.goals_total)),
             log_message: Some(full_message),
             diagnostic: Some((self.module().clone(), Some(diagnostic))),
+            ..BuildEvent::default()
         }
     }
 

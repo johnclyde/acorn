@@ -303,7 +303,8 @@ impl Backend {
                 if let Some((done, total)) = event.progress {
                     if total > 0 {
                         let mut locked_progress = progress.lock().await;
-                        *locked_progress = ProgressResponse { done, total };
+                        locked_progress.done = done;
+                        locked_progress.total = total;
                     }
                 }
 
