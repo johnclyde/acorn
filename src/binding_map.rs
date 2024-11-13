@@ -487,7 +487,7 @@ impl BindingMap {
             match namespace {
                 NamedEntity::Module(module) => {
                     let bindings = project.get_bindings(module)?;
-                    return bindings.get_completions(project, partial, importing);
+                    return bindings.get_completions(project, partial, true);
                 }
                 NamedEntity::Type(t) => {
                     return self.get_member_completions(project, &t, partial);

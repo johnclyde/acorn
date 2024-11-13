@@ -4,6 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::{fmt, io};
 
+use regex::Regex;
 use tower_lsp::lsp_types::CompletionItem;
 use walkdir::WalkDir;
 
@@ -728,7 +729,8 @@ impl Project {
         env_line: u32,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
-        let parts = prefix.split_whitespace().collect::<Vec<&str>>();
+        let re = Regex::new(r"[a-zA-Z0-9._]+").unwrap();
+        let parts: Vec<&str> = re.find_iter(prefix).map(|mat| mat.as_str()).collect();
         if parts.len() == 4 && parts[0] == "from" && parts[2] == "import" {
             // We are in a "from X import Y" statement.
             let name = parts[1];
@@ -758,7 +760,8 @@ impl Project {
             Some(word) => *word,
             None => return None,
         };
-        if !word.chars().all(|c| Token::identifierish(c)) {
+
+        if !word.chars().all(|c| Token::identifierish(c) || c == '.') {
             return None;
         }
 
@@ -1244,6 +1247,10 @@ mod tests {
                 0
                 suc(Nat)
             }
+
+            theorem ugly {
+                true = true
+            }
             "#,
         );
         let main = PathBuf::from("/mock/main.ac");
@@ -1289,7 +1296,14 @@ mod tests {
         };
 
         // Test completions
-        // check("from nat import N", 0, &["Nat"]);
+        check("from nat import N", 0, &["Nat"]);
         check("ba", 7, &["bar"]);
+        check("fo", 7, &["forall", "foo"]);
+        check("b", 7, &["by", "bar", "bop"]);
+        check("Nat.s", 7, &["suc"]);
+        check("foo.s", 7, &["suc"]);
+        check("nat.N", 7, &["Nat"]);
+        check("(ba", 7, &["bar"]);
+        check("nat.u", 7, &[]);
     }
 }
