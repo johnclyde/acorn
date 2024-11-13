@@ -437,15 +437,69 @@ impl BindingMap {
         }
     }
 
+    // Gets completions when we are typing a member name.
+    fn get_member_completions(
+        &self,
+        project: &Project,
+        t: &AcornType,
+        prefix: &str,
+    ) -> Option<Vec<CompletionItem>> {
+        let mut answer = vec![];
+        if let AcornType::Data(module, type_name) = t {
+            let bindings = if *module == self.module {
+                &self
+            } else {
+                project.get_bindings(*module).unwrap()
+            };
+            let full_prefix = format!("{}.{}", type_name, prefix);
+            for key in keys_with_prefix(&bindings.constants, &full_prefix) {
+                let completion = CompletionItem {
+                    label: key.split('.').last()?.to_string(),
+                    kind: Some(CompletionItemKind::FIELD),
+                    ..Default::default()
+                };
+                answer.push(completion);
+            }
+            Some(answer)
+        } else {
+            None
+        }
+    }
+
     // The prefix is just of a single identifier.
     // If importing is true, we are looking for names to import. This means that we don't
     // want to suggest names unless this is the canonical location for them, and we don't
     // want to suggest theorems.
-    pub fn get_completions(&self, prefix: &str, importing: bool) -> Vec<CompletionItem> {
-        let first_char = match prefix.chars().next() {
-            Some(c) => c,
-            None => return vec![],
-        };
+    pub fn get_completions(
+        &self,
+        project: &Project,
+        prefix: &str,
+        importing: bool,
+    ) -> Option<Vec<CompletionItem>> {
+        if prefix.contains('.') {
+            if importing {
+                // Syntactically invalid
+                return None;
+            }
+            let mut name_chain = prefix.split('.').collect::<Vec<&str>>();
+            let partial = name_chain.pop()?;
+            let namespace = self.evaluate_name_chain(project, &name_chain)?;
+            match namespace {
+                NamedEntity::Module(module) => {
+                    let bindings = project.get_bindings(module)?;
+                    return bindings.get_completions(project, partial, importing);
+                }
+                NamedEntity::Type(t) => {
+                    return self.get_member_completions(project, &t, partial);
+                }
+                NamedEntity::Value(v) => {
+                    let t = v.get_type();
+                    return self.get_member_completions(project, &t, partial);
+                }
+            }
+        }
+
+        let first_char = prefix.chars().next()?;
         let mut answer = vec![];
 
         if first_char.is_lowercase() {
@@ -483,7 +537,7 @@ impl BindingMap {
             // Types
             for key in keys_with_prefix(&self.type_names, prefix) {
                 if importing {
-                    let data_type = self.type_names.get(key).unwrap();
+                    let data_type = self.type_names.get(key)?;
                     match data_type {
                         AcornType::Data(module, name) => {
                             if module != &self.module || name != key {
@@ -502,7 +556,7 @@ impl BindingMap {
             }
         }
 
-        return answer;
+        Some(answer)
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -1013,6 +1067,21 @@ impl BindingMap {
         let left_entity = self.evaluate_entity(stack, project, left)?;
 
         self.evaluate_name(right_token, project, stack, Some(left_entity))
+    }
+
+    // Evaluate a string of names separated by dots.
+    // Creates fake tokens to be used for error reporting.
+    // Chain must not be empty.
+    fn evaluate_name_chain(&self, project: &Project, chain: &[&str]) -> Option<NamedEntity> {
+        let mut answer: Option<NamedEntity> = None;
+        for name in chain {
+            let token = TokenType::Identifier.new_token(name);
+            answer = Some(
+                self.evaluate_name(&token, project, &Stack::new(), answer)
+                    .ok()?,
+            );
+        }
+        answer
     }
 
     // Evaluates an expression that could represent any sort of named entity.

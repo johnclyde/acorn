@@ -137,7 +137,7 @@ impl Environment {
         self.add_line_types(LineType::Node(index), range.start.line, range.end.line);
     }
 
-    fn get_line_type(&self, line: u32) -> Option<LineType> {
+    pub fn get_line_type(&self, line: u32) -> Option<LineType> {
         if line < self.first_line {
             return None;
         }

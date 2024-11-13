@@ -747,8 +747,7 @@ impl Project {
                     return None;
                 }
             };
-            let completions = env.bindings.get_completions(partial, true);
-            return Some(completions);
+            return env.bindings.get_completions(&self, partial, true);
         }
 
         // Check if we have a completable word
@@ -768,8 +767,7 @@ impl Project {
         };
         let env = env.env_for_line(env_line);
 
-        let completions = env.bindings.get_completions(word, false);
-        Some(completions)
+        env.bindings.get_completions(&self, word, false)
     }
 
     // Expects the module to load successfully and for there to be no errors in the loaded module.
@@ -845,6 +843,8 @@ impl Project {
 
 #[cfg(test)]
 mod tests {
+    use crate::environment::LineType;
+
     use super::*;
 
     const FOO_AC: &str = r#"
@@ -1229,5 +1229,47 @@ mod tests {
         assert_eq!(fast_count, slow_count);
 
         // I could test more here. But do I need to?
+    }
+
+    #[test]
+    fn test_completions() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/nat.ac",
+            r#"
+            inductive Nat {
+                0
+                suc(Nat)
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from nat import Nat
+            let x: Nat = axiom
+            let y: Nat = axiom
+            theorem goal(a: Nat) {
+                a != x or a != y or x = y
+            } by {
+                // This should be line 7. Let's test completions here.
+            }
+            "#,
+        );
+        let env = p
+            .get_env_by_ref(&ModuleRef::Name("main".to_string()))
+            .unwrap();
+
+        // Make sure the indexes are what we expect
+        assert_eq!(env.get_line_type(0), Some(LineType::Empty));
+        assert_eq!(env.get_line_type(1), Some(LineType::Other));
+        assert_eq!(env.get_line_type(2), Some(LineType::Other));
+        assert_eq!(env.get_line_type(3), Some(LineType::Other));
+        assert_eq!(env.get_line_type(4), Some(LineType::Node(0)));
+        assert_eq!(env.get_line_type(5), Some(LineType::Node(0)));
+        assert_eq!(env.get_line_type(6), Some(LineType::Node(0)));
+        assert_eq!(env.get_line_type(7), Some(LineType::Node(0)));
+        assert_eq!(env.get_line_type(8), Some(LineType::Node(0)));
+        assert_eq!(env.get_line_type(9), None);
     }
 }
