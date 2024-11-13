@@ -1274,12 +1274,19 @@ mod tests {
         assert_eq!(env.get_line_type(9), None);
 
         let check = |prefix: &str, line: u32, expected: &[&str]| {
-            let completions = p.get_completions(main.clone(), line, prefix).unwrap();
+            let completions = match p.get_completions(main.clone(), line, prefix) {
+                Some(c) => c,
+                None => {
+                    assert!(expected.is_empty(), "no completions found for '{}'", prefix);
+                    return;
+                }
+            };
             let labels: Vec<_> = completions.iter().map(|c| &c.label).collect();
-            assert_eq!(labels, expected);
+            assert_eq!(labels, expected, "completions for '{}'", prefix);
         };
 
         // Test completions
         check("from nat import N", 0, &["Nat"]);
+        check("ba", 7, &["bar"]);
     }
 }
