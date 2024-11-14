@@ -258,8 +258,7 @@ impl BuildInfo {
             self.total = total;
         }
         if let Some((module_ref, range)) = &event.verified {
-            if let Some(path) = project.path_from_module_ref(&module_ref) {
-                let url = Url::from_file_path(path).unwrap();
+            if let Some(url) = project.url_from_module_ref(&module_ref) {
                 let doc = self
                     .docs
                     .entry(url.clone())
@@ -275,8 +274,7 @@ impl BuildInfo {
             log(message);
         }
         if let Some((module_ref, diagnostic)) = &event.diagnostic {
-            if let Some(path) = project.path_from_module_ref(&module_ref) {
-                let url = Url::from_file_path(path).unwrap();
+            if let Some(url) = project.url_from_module_ref(&module_ref) {
                 let doc = self
                     .docs
                     .entry(url.clone())

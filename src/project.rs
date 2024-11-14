@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use regex::Regex;
-use tower_lsp::lsp_types::CompletionItem;
+use tower_lsp::lsp_types::{CompletionItem, Url};
 use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
@@ -609,6 +609,11 @@ impl Project {
             Ok(path) => Some(path),
             Err(_) => None,
         }
+    }
+
+    pub fn url_from_module_ref(&self, module_ref: &ModuleRef) -> Option<Url> {
+        let path = self.path_from_module_ref(module_ref)?;
+        Url::from_file_path(path).ok()
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
