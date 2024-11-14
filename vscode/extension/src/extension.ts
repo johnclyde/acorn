@@ -56,11 +56,12 @@ async function getProgress() {
 }
 
 class ProgressTracker {
-  // Whether there is a build in progress.
-  tracking: boolean;
+  // The time we started expecting a build.
+  // Also acts as a flag for whether we are tracking.
+  startTime: number | null;
 
   constructor() {
-    this.tracking = false;
+    this.startTime = null;
   }
 
   // Call this function when we expect a build soon.
@@ -68,22 +69,21 @@ class ProgressTracker {
   // Calling it multiple times is fine; subsequent simultaneous calls just return.
   // It returns when there is no longer an active build.
   async track() {
-    if (this.tracking) {
+    if (this.startTime !== null) {
       return;
     }
-    this.tracking = true;
+    this.startTime = Date.now();
     try {
       await this.trackHelper();
     } catch (e) {
       console.error("error in progress tracker:", e);
     }
-    this.tracking = false;
+    this.startTime = null;
   }
 
   // Helper for track that does the actual work.
   // Doesn't finish until the active build completes.
   async trackHelper() {
-    let startTime = Date.now();
     let response: any = await getProgress();
 
     while (response.done === response.total) {
@@ -92,7 +92,7 @@ class ProgressTracker {
       await new Promise((resolve) => setTimeout(resolve, 100));
       response = await getProgress();
 
-      let elapsed = Date.now() - startTime;
+      let elapsed = Date.now() - this.startTime;
       if (elapsed > 2000) {
         // It's been a while. Let's give up.
         console.log("giving up on progress bar");
