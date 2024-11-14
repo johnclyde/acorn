@@ -55,11 +55,35 @@ async function getProgress() {
   }
 }
 
-// Automatically hides it when we are done.
-async function showProgressBar() {
-  let startTime = Date.now();
+class ProgressTracker {
+  // Whether there is a build in progress.
+  tracking: boolean;
 
-  try {
+  constructor() {
+    this.tracking = false;
+  }
+
+  // Call this function when we expect a build soon.
+  // It polls the language server for build progress and updates the UI.
+  // Calling it multiple times is fine; subsequent simultaneous calls just return.
+  // It returns when there is no longer an active build.
+  async track() {
+    if (this.tracking) {
+      return;
+    }
+    this.tracking = true;
+    try {
+      await this.trackHelper();
+    } catch (e) {
+      console.error("error in progress tracker:", e);
+    }
+    this.tracking = false;
+  }
+
+  // Helper for track that does the actual work.
+  // Doesn't finish until the active build completes.
+  async trackHelper() {
+    let startTime = Date.now();
     let response: any = await getProgress();
 
     while (response.done === response.total) {
@@ -77,15 +101,15 @@ async function showProgressBar() {
     }
 
     let previousPercent = 0;
-    vscode.window.withProgress(
+    await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Acorn Validation",
+        title: "Acorn Verification",
         cancellable: true,
       },
       async (progress, token) => {
         token.onCancellationRequested(() => {
-          console.log("acorn validation progress bar canceled");
+          console.log("acorn verification progress bar canceled");
         });
 
         while (response.total !== response.done) {
@@ -100,10 +124,10 @@ async function showProgressBar() {
         }
       }
     );
-  } catch (e) {
-    console.error("error showing progress bar:", e);
   }
 }
+
+let tracker = new ProgressTracker();
 
 // Figures out where the server executable is.
 // Downloads it if necessary.
@@ -273,28 +297,29 @@ export async function activate(context: vscode.ExtensionContext) {
   let assistant = new Assistant(client, assistantPath);
   context.subscriptions.push(assistant);
 
-  let onDocumentChange = async (document: vscode.TextDocument) => {
+  let onSaveOrOpen = async (document: vscode.TextDocument) => {
     if (document.languageId !== "acorn") {
       return;
     }
     assistant.autoDisplay(document);
-    await showProgressBar();
+    await tracker.track();
   };
 
   for (let doc of vscode.workspace.textDocuments) {
     if (doc.languageId === "acorn") {
-      showProgressBar();
       assistant.autoDisplay(doc);
+      // No await, because we don't want to block the UI thread.
+      tracker.track();
       break;
     }
   }
 
   await registerCommands(context);
   context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument(onDocumentChange)
+    vscode.workspace.onDidSaveTextDocument(onSaveOrOpen)
   );
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(onDocumentChange)
+    vscode.workspace.onDidOpenTextDocument(onSaveOrOpen)
   );
 }
 
