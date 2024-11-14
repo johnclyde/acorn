@@ -253,10 +253,9 @@ impl BuildInfo {
 
     // Clears everything in preparation for a new build.
     async fn clear(&mut self, client: &Client) {
-        for (url, doc) in &self.docs {
-            client
-                .publish_diagnostics(url.clone(), vec![], doc.version)
-                .await;
+        for url in self.docs.keys() {
+            // We clear the diagnostics for the current document, not a particular version.
+            client.publish_diagnostics(url.clone(), vec![], None).await;
         }
         *self = BuildInfo::none();
     }
@@ -273,6 +272,9 @@ impl BuildInfo {
             self.done = done;
             self.total = total;
         }
+        if let Some(message) = &event.log_message {
+            log(message);
+        }
         if let Some((module_ref, range)) = &event.verified {
             if let Some(url) = project.url_from_module_ref(&module_ref) {
                 self.with_doc(url, |doc| {
@@ -280,15 +282,10 @@ impl BuildInfo {
                 });
             }
         }
-        if let Some(message) = &event.log_message {
-            log(message);
-        }
         if let Some((module_ref, diagnostic)) = &event.diagnostic {
             if let Some(url) = project.url_from_module_ref(&module_ref) {
                 let doc = self.with_doc(url.clone(), |doc| {
-                    if let Some(diagnostic) = diagnostic {
-                        doc.diagnostics.push(diagnostic.clone());
-                    }
+                    doc.diagnostics.push(diagnostic.clone());
                 });
                 client
                     .publish_diagnostics(url, doc.diagnostics.clone(), doc.version)

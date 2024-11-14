@@ -28,8 +28,7 @@ pub struct BuildEvent {
     pub log_message: Option<String>,
 
     // Whenever we run into a problem, report the module ref, plus the diagnostic itself.
-    // Returning None for diagnostic indicates that the module has no diagnostics.
-    pub diagnostic: Option<(ModuleRef, Option<Diagnostic>)>,
+    pub diagnostic: Option<(ModuleRef, Diagnostic)>,
 
     // Whenever we verify a goal, report the module ref, plus the range of the goal.
     pub verified: Option<(ModuleRef, Range)>,
@@ -206,7 +205,7 @@ impl<'a> Builder<'a> {
         };
         let event = BuildEvent {
             log_message: Some(format!("fatal error: {}", error)),
-            diagnostic: Some((module_ref.clone(), Some(diagnostic))),
+            diagnostic: Some((module_ref.clone(), diagnostic)),
             ..self.default_event()
         };
         (self.event_handler)(event);
@@ -221,14 +220,6 @@ impl<'a> Builder<'a> {
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {
         assert_eq!(self.module(), module);
-        if self.current_module_good {
-            // Send a no-problems diagnostic, so that the IDE knows to clear squiggles.
-            let event = BuildEvent {
-                diagnostic: Some((module.clone(), None)),
-                ..self.default_event()
-            };
-            (self.event_handler)(event);
-        }
         self.current_module = None;
     }
 
@@ -342,7 +333,7 @@ impl<'a> Builder<'a> {
         BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
             log_message: Some(full_message),
-            diagnostic: Some((self.module().clone(), Some(diagnostic))),
+            diagnostic: Some((self.module().clone(), diagnostic)),
             ..self.default_event()
         }
     }

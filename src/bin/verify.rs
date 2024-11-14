@@ -35,16 +35,12 @@ async fn main() {
     let mut builder = Builder::new(|event| {
         if let Some(m) = event.log_message {
             if let Some((target, diagnostic)) = event.diagnostic {
-                if let Some(diagnostic) = diagnostic {
-                    println!(
-                        "{}, line {}: {}",
-                        target,
-                        diagnostic.range.start.line + 1,
-                        m
-                    );
-                } else {
-                    println!("{}: {}", target, m);
-                }
+                println!(
+                    "{}, line {}: {}",
+                    target,
+                    diagnostic.range.start.line + 1,
+                    m
+                );
             } else {
                 println!("{}", m);
             }
