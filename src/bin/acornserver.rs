@@ -185,7 +185,7 @@ impl SearchTask {
 }
 
 // Information about the most recent build.
-struct Build {
+struct BuildInfo {
     // An id for the build, unique per run of the language server.
     // If this is zero, we do not intend to be showing information for any build.
     id: u32,
@@ -195,11 +195,11 @@ struct Build {
     total: i32,
 
     // Per-document information
-    docs: HashMap<Url, DocumentBuild>,
+    docs: HashMap<Url, DocumentBuildInfo>,
 }
 
 // The part of the Build that is relevant to a single document.
-struct DocumentBuild {
+struct DocumentBuildInfo {
     // The version of the document that we built with
     version: i32,
 
@@ -210,10 +210,10 @@ struct DocumentBuild {
     diagnostics: Vec<Diagnostic>,
 }
 
-impl Build {
+impl BuildInfo {
     // A placeholder representing no build.
-    fn none() -> Build {
-        Build {
+    fn none() -> BuildInfo {
+        BuildInfo {
             id: 0,
             done: 0,
             total: 0,
@@ -242,7 +242,7 @@ impl Build {
                 .publish_diagnostics(url.clone(), vec![], Some(doc.version))
                 .await;
         }
-        *self = Build::none();
+        *self = BuildInfo::none();
     }
 
     async fn handle_event(&mut self, project: &Project, client: &Client, event: &BuildEvent) {
@@ -263,7 +263,7 @@ impl Build {
                 let doc = self
                     .docs
                     .entry(url.clone())
-                    .or_insert_with(|| DocumentBuild {
+                    .or_insert_with(|| DocumentBuildInfo {
                         version: 0,
                         verified: Vec::new(),
                         diagnostics: Vec::new(),
@@ -280,7 +280,7 @@ impl Build {
                 let doc = self
                     .docs
                     .entry(url.clone())
-                    .or_insert_with(|| DocumentBuild {
+                    .or_insert_with(|| DocumentBuildInfo {
                         version: 0,
                         verified: Vec::new(),
                         diagnostics: Vec::new(),
@@ -306,7 +306,7 @@ struct Backend {
     project: Arc<RwLock<Project>>,
 
     // Information about the most recent build to run.
-    build: Arc<RwLock<Build>>,
+    build: Arc<RwLock<BuildInfo>>,
 
     // Maps uri to its document. The LiveDocument tracks changes.
     documents: DashMap<Url, Arc<RwLock<LiveDocument>>>,
@@ -356,7 +356,7 @@ impl Backend {
         Backend {
             project: Arc::new(RwLock::new(project)),
             client,
-            build: Arc::new(RwLock::new(Build::none())),
+            build: Arc::new(RwLock::new(BuildInfo::none())),
             documents: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
         }
