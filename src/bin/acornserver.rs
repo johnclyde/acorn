@@ -259,12 +259,31 @@ impl BuildInfo {
     }
 
     // Clears everything in preparation for a new build.
-    async fn clear(&mut self, client: &Client) {
+    // Then sets docs for the open documents.
+    async fn reset(&mut self, project: &Project, client: &Client) {
+        // Clear the diagnostics for all the open documents.
+        let mut new_docs = HashMap::new();
+        for (url, version) in project.open_urls() {
+            client
+                .publish_diagnostics(url.clone(), vec![], Some(version))
+                .await;
+            new_docs.insert(
+                url,
+                DocumentBuildInfo {
+                    version: Some(version),
+                    verified: Vec::new(),
+                    diagnostics: Vec::new(),
+                },
+            );
+        }
+        // Clear the diagnostics for any closed documents.
         for url in self.docs.keys() {
-            // We clear the diagnostics for the current document, not a particular version.
-            client.publish_diagnostics(url.clone(), vec![], None).await;
+            if !new_docs.contains_key(url) {
+                client.publish_diagnostics(url.clone(), vec![], None).await;
+            }
         }
         *self = BuildInfo::none();
+        self.docs = new_docs;
     }
 
     async fn handle_event(&mut self, project: &Project, client: &Client, event: &BuildEvent) {
@@ -403,7 +422,7 @@ impl Backend {
         let client = self.client.clone();
         tokio::spawn(async move {
             let project = project.read().await;
-            build.write().await.clear(&client).await;
+            build.write().await.reset(&project, &client).await;
 
             while let Some(event) = rx.recv().await {
                 build
