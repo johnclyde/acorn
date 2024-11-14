@@ -5,11 +5,12 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use acorn::builder::BuildEvent;
 use acorn::live_document::LiveDocument;
 use chrono;
 use clap::Parser;
 use dashmap::DashMap;
-use tokio::sync::{mpsc, Mutex, RwLock, RwLockWriteGuard};
+use tokio::sync::{mpsc, RwLock, RwLockWriteGuard};
 use tower_lsp::jsonrpc;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -183,6 +184,118 @@ impl SearchTask {
     }
 }
 
+// Information about the most recent build.
+struct Build {
+    // An id for the build, unique per run of the language server.
+    // If this is zero, we do not intend to be showing information for any build.
+    id: u32,
+
+    // How many goals have been verified.
+    done: i32,
+    total: i32,
+
+    // Per-document information
+    docs: HashMap<Url, DocumentBuild>,
+}
+
+// The part of the Build that is relevant to a single document.
+struct DocumentBuild {
+    // The version of the document that we built with
+    version: i32,
+
+    // The lines with goals that have been verified
+    verified: Vec<u32>,
+
+    // Errors and warnings that have been generated for this document.
+    diagnostics: Vec<Diagnostic>,
+}
+
+impl Build {
+    // A placeholder representing no build.
+    fn none() -> Build {
+        Build {
+            id: 0,
+            done: 0,
+            total: 0,
+            docs: HashMap::new(),
+        }
+    }
+
+    // Turn the known build information into a progress response.
+    fn progress(&self) -> ProgressResponse {
+        let mut verified = HashMap::new();
+        for (url, doc) in &self.docs {
+            verified.insert(url.clone(), doc.verified.clone());
+        }
+        ProgressResponse {
+            build_id: self.id,
+            done: self.done,
+            total: self.total,
+            verified,
+        }
+    }
+
+    // Clears everything in preparation for a new build.
+    async fn clear(&mut self, client: &Client) {
+        for (url, doc) in &self.docs {
+            client
+                .publish_diagnostics(url.clone(), vec![], Some(doc.version))
+                .await;
+        }
+        *self = Build::none();
+    }
+
+    async fn handle_event(&mut self, project: &Project, client: &Client, event: &BuildEvent) {
+        if event.build_id != self.id {
+            if self.id != 0 {
+                log("warning: a new build started without clearing the old one");
+                return;
+            }
+            self.id = event.build_id;
+        }
+        if let Some((done, total)) = event.progress {
+            self.done = done;
+            self.total = total;
+        }
+        if let Some((module_ref, range)) = &event.verified {
+            if let Some(path) = project.path_from_module_ref(&module_ref) {
+                let url = Url::from_file_path(path).unwrap();
+                let doc = self
+                    .docs
+                    .entry(url.clone())
+                    .or_insert_with(|| DocumentBuild {
+                        version: 0,
+                        verified: Vec::new(),
+                        diagnostics: Vec::new(),
+                    });
+                doc.verified.push(range.start.line);
+            }
+        }
+        if let Some(message) = &event.log_message {
+            log(message);
+        }
+        if let Some((module_ref, diagnostic)) = &event.diagnostic {
+            if let Some(path) = project.path_from_module_ref(&module_ref) {
+                let url = Url::from_file_path(path).unwrap();
+                let doc = self
+                    .docs
+                    .entry(url.clone())
+                    .or_insert_with(|| DocumentBuild {
+                        version: 0,
+                        verified: Vec::new(),
+                        diagnostics: Vec::new(),
+                    });
+                if let Some(diagnostic) = diagnostic {
+                    doc.diagnostics.push(diagnostic.clone());
+                }
+                client
+                    .publish_diagnostics(url, doc.diagnostics.clone(), Some(doc.version))
+                    .await;
+            }
+        }
+    }
+}
+
 // One Backend per root folder.
 // The Backend implements a similar API to the LanguageServer API, but it doesn't implement
 // "initialize" because that's used by the LazyBackend to create the Backend.
@@ -192,18 +305,14 @@ struct Backend {
     // The project we're working on
     project: Arc<RwLock<Project>>,
 
-    // Progress requests share this value with the client.
-    // Search tasks update it as they go.
-    progress: Arc<Mutex<ProgressResponse>>,
+    // Information about the most recent build to run.
+    build: Arc<RwLock<Build>>,
 
     // Maps uri to its document. The LiveDocument tracks changes.
     documents: DashMap<Url, Arc<RwLock<LiveDocument>>>,
 
     // The current search task, if any
     search_task: Arc<RwLock<Option<SearchTask>>>,
-
-    // All the diagnostics that are currently published for the project.
-    diagnostic_map: Arc<RwLock<HashMap<Url, Vec<Diagnostic>>>>,
 }
 
 // Finds the acorn library to use, given the root folder for the current workspace.
@@ -247,16 +356,16 @@ impl Backend {
         Backend {
             project: Arc::new(RwLock::new(project)),
             client,
-            progress: Arc::new(Mutex::new(ProgressResponse::default())),
+            build: Arc::new(RwLock::new(Build::none())),
             documents: DashMap::new(),
             search_task: Arc::new(RwLock::new(None)),
-            diagnostic_map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     // Run a build in a background thread, proving the goals in all open documents.
     // Both spawned threads hold a read lock on the project while doing their work.
     // This ensures that the project doesn't change for the duration of the build.
+    // The caller is responsible for stopping the previous build.
     fn spawn_build(&self) {
         let start_time = chrono::Local::now();
 
@@ -264,7 +373,6 @@ impl Backend {
         let (tx, mut rx) = mpsc::unbounded_channel();
 
         // Spawn a thread to run the build.
-
         let project = self.project.clone();
         tokio::spawn(async move {
             let project = project.read().await;
@@ -287,67 +395,18 @@ impl Backend {
 
         // Spawn a thread to process the build events.
         let project = self.project.clone();
-        let progress = self.progress.clone();
+        let build = self.build.clone();
         let client = self.client.clone();
-        let diagnostic_map = self.diagnostic_map.clone();
         tokio::spawn(async move {
-            // Clear any diagnostics from the previous build
-            let mut diagnostic_map = diagnostic_map.write().await;
-            for url in diagnostic_map.keys() {
-                client.publish_diagnostics(url.clone(), vec![], None).await;
-            }
-            diagnostic_map.clear();
-
             let project = project.read().await;
+            build.write().await.clear(&client).await;
+
             while let Some(event) = rx.recv().await {
-                if let Some((done, total)) = event.progress {
-                    if total > 0 {
-                        let mut progress = progress.lock().await;
-                        progress.done = done;
-                        progress.total = total;
-                        if event.build_id != progress.build_id {
-                            // Make a new verified map.
-                            progress.build_id = event.build_id;
-                            progress.verified = HashMap::new();
-                        }
-                        if let Some((module_ref, range)) = event.verified {
-                            if let Some(path) = project.path_from_module_ref(&module_ref) {
-                                let url = Url::from_file_path(path).unwrap();
-                                let verified_line = range.start.line;
-                                progress
-                                    .verified
-                                    .entry(url)
-                                    .or_insert_with(Vec::new)
-                                    .push(verified_line);
-                            }
-                        }
-                    }
-                }
-
-                if let Some(message) = event.log_message {
-                    log(&message);
-                }
-
-                if let Some((module_ref, diagnostic)) = event.diagnostic {
-                    let path = match project.path_from_module_ref(&module_ref) {
-                        Some(path) => path,
-                        None => {
-                            log(&format!(
-                                "cannot publish diagnostic; no path available for {:?}",
-                                module_ref
-                            ));
-                            return;
-                        }
-                    };
-                    let url = Url::from_file_path(path).unwrap();
-                    let diagnostics = diagnostic_map.entry(url.clone()).or_default();
-                    if let Some(d) = diagnostic {
-                        diagnostics.push(d);
-                    }
-                    client
-                        .publish_diagnostics(url, diagnostics.clone(), None)
-                        .await;
-                }
+                build
+                    .write()
+                    .await
+                    .handle_event(&project, &client, &event)
+                    .await;
             }
         });
     }
@@ -441,8 +500,8 @@ impl Backend {
         &self,
         _params: ProgressParams,
     ) -> jsonrpc::Result<ProgressResponse> {
-        let locked_progress = self.progress.lock().await;
-        Ok(locked_progress.clone())
+        let progress = self.build.read().await.progress();
+        Ok(progress)
     }
 
     // Cancels any current search task.
