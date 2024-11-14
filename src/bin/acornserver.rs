@@ -200,8 +200,9 @@ struct BuildInfo {
 
 // The part of the Build that is relevant to a single document.
 struct DocumentBuildInfo {
-    // The version of the document that we built with
-    version: i32,
+    // The version of the document that we built with.
+    // If we got it from the filesystem, there is no version.
+    version: Option<i32>,
 
     // The lines with goals that have been verified
     verified: Vec<u32>,
@@ -225,6 +226,10 @@ impl BuildInfo {
     fn progress(&self) -> ProgressResponse {
         let mut verified = HashMap::new();
         for (url, doc) in &self.docs {
+            if doc.version.is_none() {
+                // No need to report verified lines for files that aren't open.
+                continue;
+            }
             verified.insert(url.clone(), doc.verified.clone());
         }
         ProgressResponse {
@@ -239,7 +244,7 @@ impl BuildInfo {
     async fn clear(&mut self, client: &Client) {
         for (url, doc) in &self.docs {
             client
-                .publish_diagnostics(url.clone(), vec![], Some(doc.version))
+                .publish_diagnostics(url.clone(), vec![], doc.version)
                 .await;
         }
         *self = BuildInfo::none();
@@ -263,7 +268,7 @@ impl BuildInfo {
                     .docs
                     .entry(url.clone())
                     .or_insert_with(|| DocumentBuildInfo {
-                        version: 0,
+                        version: None,
                         verified: Vec::new(),
                         diagnostics: Vec::new(),
                     });
@@ -279,7 +284,7 @@ impl BuildInfo {
                     .docs
                     .entry(url.clone())
                     .or_insert_with(|| DocumentBuildInfo {
-                        version: 0,
+                        version: None,
                         verified: Vec::new(),
                         diagnostics: Vec::new(),
                     });
@@ -287,7 +292,7 @@ impl BuildInfo {
                     doc.diagnostics.push(diagnostic.clone());
                 }
                 client
-                    .publish_diagnostics(url, doc.diagnostics.clone(), Some(doc.version))
+                    .publish_diagnostics(url, doc.diagnostics.clone(), doc.version)
                     .await;
             }
         }
