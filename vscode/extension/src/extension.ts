@@ -46,15 +46,6 @@ async function downloadFile(url: string, filePath: string): Promise<void> {
   });
 }
 
-async function getProgress() {
-  try {
-    return await client.sendRequest("acorn/progress", {});
-  } catch (e) {
-    console.error("error in getProgress:", e);
-    throw e;
-  }
-}
-
 class ProgressTracker {
   // The time we started expecting a build.
   // Also acts as a flag for whether we are tracking.
@@ -62,6 +53,16 @@ class ProgressTracker {
 
   constructor() {
     this.startTime = null;
+  }
+
+  // Fetches the current build progress from the language server.
+  // TODO: handle gutter decorations here.
+  async getProgress(): Promise<ProgressResponse> {
+    let response = (await client.sendRequest(
+      "acorn/progress",
+      {}
+    )) as ProgressResponse;
+    return response;
   }
 
   // Call this function when we expect a build soon.
@@ -81,16 +82,18 @@ class ProgressTracker {
     this.startTime = null;
   }
 
-  // Helper for track that does the actual work.
+  // Helper for track.
+  // 'track' just handles error handling and preventing double-running.
+  // trackHelper handles the progress bar.
   // Doesn't finish until the active build completes.
   async trackHelper() {
-    let response: any = await getProgress();
+    let response: ProgressResponse = await this.getProgress();
 
     while (response.done === response.total) {
       // Maybe progress just hasn't started yet.
       // Let's wait a bit and try again.
       await new Promise((resolve) => setTimeout(resolve, 100));
-      response = await getProgress();
+      response = await this.getProgress();
 
       let elapsed = Date.now() - this.startTime;
       if (elapsed > 2000) {
@@ -120,7 +123,7 @@ class ProgressTracker {
 
           // We have something to show, so we can wait a bit before updating.
           await new Promise((resolve) => setTimeout(resolve, 100));
-          response = await getProgress();
+          response = await this.getProgress();
         }
       }
     );
