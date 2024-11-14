@@ -241,12 +241,19 @@ impl BuildInfo {
     }
 
     // Take a function that modifies a DocumentBuildInfo and apply it to the document
-    fn with_doc(&mut self, url: Url, f: impl FnOnce(&mut DocumentBuildInfo)) -> &DocumentBuildInfo {
-        let doc = self.docs.entry(url).or_insert_with(|| DocumentBuildInfo {
-            version: None,
-            verified: Vec::new(),
-            diagnostics: Vec::new(),
-        });
+    fn with_doc(
+        &mut self,
+        url: &Url,
+        f: impl FnOnce(&mut DocumentBuildInfo),
+    ) -> &DocumentBuildInfo {
+        let doc = self
+            .docs
+            .entry(url.clone())
+            .or_insert_with(|| DocumentBuildInfo {
+                version: None,
+                verified: Vec::new(),
+                diagnostics: Vec::new(),
+            });
         f(doc);
         doc
     }
@@ -275,16 +282,14 @@ impl BuildInfo {
         if let Some(message) = &event.log_message {
             log(message);
         }
-        if let Some((module_ref, range)) = &event.verified {
-            if let Some(url) = project.url_from_module_ref(&module_ref) {
-                self.with_doc(url, |doc| {
+        if let Some(url) = project.url_from_module_ref(&event.module) {
+            if let Some(range) = &event.verified {
+                self.with_doc(&url, |doc| {
                     doc.verified.push(range.start.line);
                 });
             }
-        }
-        if let Some((module_ref, diagnostic)) = &event.diagnostic {
-            if let Some(url) = project.url_from_module_ref(&module_ref) {
-                let doc = self.with_doc(url.clone(), |doc| {
+            if let Some(diagnostic) = &event.diagnostic {
+                let doc = self.with_doc(&url, |doc| {
                     doc.diagnostics.push(diagnostic.clone());
                 });
                 client
