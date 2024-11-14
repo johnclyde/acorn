@@ -36,7 +36,7 @@ pub struct Project {
     // Maps filename -> (contents, version number).
     // The version number can mean whatever the caller wants it to mean.
     // From vscode, it'll be the vscode version number.
-    pub open_files: HashMap<PathBuf, (String, i32)>,
+    open_files: HashMap<PathBuf, (String, i32)>,
 
     // modules[module_id] is the (ref, Module) for the given module id.
     // Built-in modules have no name.
@@ -779,6 +779,15 @@ impl Project {
         let env = env.env_for_line(env_line);
 
         env.bindings.get_completions(&self, word, false)
+    }
+
+    // Yields (url, version) for all open files.
+    pub fn open_urls(&self) -> impl Iterator<Item = (Url, i32)> + '_ {
+        self.open_files.iter().filter_map(|(path, (_, version))| {
+            Url::from_file_path(path.clone())
+                .ok()
+                .map(|url| (url, *version))
+        })
     }
 
     // Expects the module to load successfully and for there to be no errors in the loaded module.

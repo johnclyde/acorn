@@ -240,6 +240,17 @@ impl BuildInfo {
         }
     }
 
+    // Take a function that modifies a DocumentBuildInfo and apply it to the document
+    fn with_doc(&mut self, url: Url, f: impl FnOnce(&mut DocumentBuildInfo)) -> &DocumentBuildInfo {
+        let doc = self.docs.entry(url).or_insert_with(|| DocumentBuildInfo {
+            version: None,
+            verified: Vec::new(),
+            diagnostics: Vec::new(),
+        });
+        f(doc);
+        doc
+    }
+
     // Clears everything in preparation for a new build.
     async fn clear(&mut self, client: &Client) {
         for (url, doc) in &self.docs {
@@ -264,15 +275,9 @@ impl BuildInfo {
         }
         if let Some((module_ref, range)) = &event.verified {
             if let Some(url) = project.url_from_module_ref(&module_ref) {
-                let doc = self
-                    .docs
-                    .entry(url.clone())
-                    .or_insert_with(|| DocumentBuildInfo {
-                        version: None,
-                        verified: Vec::new(),
-                        diagnostics: Vec::new(),
-                    });
-                doc.verified.push(range.start.line);
+                self.with_doc(url, |doc| {
+                    doc.verified.push(range.start.line);
+                });
             }
         }
         if let Some(message) = &event.log_message {
@@ -280,17 +285,11 @@ impl BuildInfo {
         }
         if let Some((module_ref, diagnostic)) = &event.diagnostic {
             if let Some(url) = project.url_from_module_ref(&module_ref) {
-                let doc = self
-                    .docs
-                    .entry(url.clone())
-                    .or_insert_with(|| DocumentBuildInfo {
-                        version: None,
-                        verified: Vec::new(),
-                        diagnostics: Vec::new(),
-                    });
-                if let Some(diagnostic) = diagnostic {
-                    doc.diagnostics.push(diagnostic.clone());
-                }
+                let doc = self.with_doc(url.clone(), |doc| {
+                    if let Some(diagnostic) = diagnostic {
+                        doc.diagnostics.push(diagnostic.clone());
+                    }
+                });
                 client
                     .publish_diagnostics(url, doc.diagnostics.clone(), doc.version)
                     .await;
