@@ -11,6 +11,17 @@ use tower_lsp::lsp_types::{Range, Url};
 
 use crate::prover::{Outcome, Prover};
 
+// Verification progress for a single document.
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentProgress {
+    // We only report document progress for versioned documents.
+    pub version: i32,
+
+    // The lines that have been verified.
+    pub verified: Vec<u32>,
+}
+
 // The language server stores one progress struct, and returns it at any time.
 // 0/0 only occurs at initialization. It means "there have never been any progress bars".
 // Once we ever show a progress bar, we leave it at the previous finished state.
@@ -26,8 +37,8 @@ pub struct ProgressResponse {
     pub done: i32,
     pub total: i32,
 
-    // For each file, the lines that have been verified.
-    pub verified: HashMap<Url, Vec<u32>>,
+    // Per-document progress information.
+    pub docs: HashMap<Url, DocumentProgress>,
 }
 
 impl ProgressResponse {
@@ -36,7 +47,7 @@ impl ProgressResponse {
             build_id: 0,
             done: 0,
             total: 0,
-            verified: HashMap::new(),
+            docs: HashMap::new(),
         }
     }
 }

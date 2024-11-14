@@ -18,8 +18,8 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use acorn::block::NodeCursor;
 use acorn::builder::Builder;
 use acorn::interfaces::{
-    InfoParams, InfoResponse, ProgressParams, ProgressResponse, SearchParams, SearchResponse,
-    SearchStatus,
+    DocumentProgress, InfoParams, InfoResponse, ProgressParams, ProgressResponse, SearchParams,
+    SearchResponse, SearchStatus,
 };
 use acorn::module::{Module, ModuleRef};
 use acorn::project::Project;
@@ -224,19 +224,24 @@ impl BuildInfo {
 
     // Turn the known build information into a progress response.
     fn progress(&self) -> ProgressResponse {
-        let mut verified = HashMap::new();
+        let mut docs = HashMap::new();
         for (url, doc) in &self.docs {
-            if doc.version.is_none() {
-                // No need to report verified lines for files that aren't open.
-                continue;
+            // No need to report verified lines for files that aren't open.
+            if let Some(version) = doc.version {
+                docs.insert(
+                    url.clone(),
+                    DocumentProgress {
+                        version,
+                        verified: doc.verified.clone(),
+                    },
+                );
             }
-            verified.insert(url.clone(), doc.verified.clone());
         }
         ProgressResponse {
             build_id: self.id,
             done: self.done,
             total: self.total,
-            verified,
+            docs,
         }
     }
 

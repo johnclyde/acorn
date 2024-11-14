@@ -1,11 +1,16 @@
 // Interfaces with the language server.
 // This should be kept parallel to interfaces.rs.
 
+interface DocumentProgress {
+  version: number;
+  verified: number[];
+}
+
 interface ProgressResponse {
   buildId: number;
   done: number;
   total: number;
-  verified: { [url: string]: number[] };
+  docs: { [url: string]: DocumentProgress };
 }
 
 interface SearchParams {
