@@ -307,9 +307,9 @@ impl BuildInfo {
             log(message);
         }
         if let Some(url) = project.url_from_module_ref(&event.module) {
-            if let Some(range) = &event.verified {
+            if let Some((first_line, _)) = &event.verified {
                 self.with_doc(&url, |doc| {
-                    doc.verified.push(range.start.line);
+                    doc.verified.push(*first_line);
                 });
             }
             if let Some(diagnostic) = &event.diagnostic {
