@@ -184,6 +184,29 @@ impl SearchTask {
     }
 }
 
+// The part of the Build that is relevant to a single document.
+struct DocumentBuildInfo {
+    // The version of the document that we built with.
+    // If we got it from the filesystem, there is no version.
+    version: Option<i32>,
+
+    // The lines with goals that have been verified
+    verified: Vec<u32>,
+
+    // Errors and warnings that have been generated for this document.
+    diagnostics: Vec<Diagnostic>,
+}
+
+impl DocumentBuildInfo {
+    fn new(version: Option<i32>) -> DocumentBuildInfo {
+        DocumentBuildInfo {
+            version,
+            verified: vec![],
+            diagnostics: vec![],
+        }
+    }
+}
+
 // Information about the most recent build.
 struct BuildInfo {
     // An id for the build, unique per run of the language server.
@@ -196,19 +219,6 @@ struct BuildInfo {
 
     // Per-document information
     docs: HashMap<Url, DocumentBuildInfo>,
-}
-
-// The part of the Build that is relevant to a single document.
-struct DocumentBuildInfo {
-    // The version of the document that we built with.
-    // If we got it from the filesystem, there is no version.
-    version: Option<i32>,
-
-    // The lines with goals that have been verified
-    verified: Vec<u32>,
-
-    // Errors and warnings that have been generated for this document.
-    diagnostics: Vec<Diagnostic>,
 }
 
 impl BuildInfo {
@@ -254,11 +264,7 @@ impl BuildInfo {
         let doc = self
             .docs
             .entry(url.clone())
-            .or_insert_with(|| DocumentBuildInfo {
-                version: None,
-                verified: Vec::new(),
-                diagnostics: Vec::new(),
-            });
+            .or_insert_with(|| DocumentBuildInfo::new(None));
         f(doc);
         doc
     }
@@ -272,14 +278,7 @@ impl BuildInfo {
             client
                 .publish_diagnostics(url.clone(), vec![], Some(version))
                 .await;
-            new_docs.insert(
-                url,
-                DocumentBuildInfo {
-                    version: Some(version),
-                    verified: Vec::new(),
-                    diagnostics: Vec::new(),
-                },
-            );
+            new_docs.insert(url, DocumentBuildInfo::new(Some(version)));
         }
         // Clear the diagnostics for any closed documents.
         for url in self.docs.keys() {
