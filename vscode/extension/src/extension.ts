@@ -46,6 +46,27 @@ async function downloadFile(url: string, filePath: string): Promise<void> {
   });
 }
 
+function makeCheck(color: string): vscode.Uri {
+  let svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+    <path d="M3,7 L6,11 L13,4" fill="none" stroke="${color}" stroke-width="1"/>
+  </svg>
+`;
+  return vscode.Uri.parse(
+    "data:image/svg+xml;base64," + Buffer.from(svg).toString("base64")
+  );
+}
+
+const verificationDecoration = vscode.window.createTextEditorDecorationType({
+  gutterIconSize: "contain",
+  light: {
+    gutterIconPath: makeCheck("#6e6e6e"),
+  },
+  dark: {
+    gutterIconPath: makeCheck("#858585"),
+  },
+});
+
 class ProgressTracker {
   // The time we started expecting a build.
   // Also acts as a flag for whether we are tracking.
@@ -54,7 +75,7 @@ class ProgressTracker {
   // The id for the build that we are currently displaying in the UI.
   buildId: number | null;
 
-  // Progress verifying each document
+  // Progress verifying each document.
   docs: { [url: string]: DocumentProgress };
 
   constructor() {
@@ -64,7 +85,7 @@ class ProgressTracker {
   }
 
   // Fetches the current build progress from the language server.
-  // TODO: handle gutter decorations here.
+  // Updates decorations accordingly.
   async getProgress(): Promise<ProgressResponse> {
     let response = (await client.sendRequest(
       "acorn/progress",
@@ -72,6 +93,24 @@ class ProgressTracker {
     )) as ProgressResponse;
 
     this.buildId = response.buildId;
+
+    // Update decorations for each visible editor.
+    for (let editor of vscode.window.visibleTextEditors) {
+      let doc = response.docs[editor.document.uri.toString()];
+      if (doc === undefined) {
+        // Clear the decorations
+        editor.setDecorations(verificationDecoration, []);
+      } else {
+        let decorations: vscode.DecorationOptions[] = [];
+        for (let line of doc.verified) {
+          let range = new vscode.Range(line, 0, line, 0);
+          decorations.push({ range });
+        }
+        editor.setDecorations(verificationDecoration, decorations);
+      }
+    }
+
+    this.docs = response.docs;
     return response;
   }
 
