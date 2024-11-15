@@ -54,9 +54,13 @@ class ProgressTracker {
   // The id for the build that we are currently displaying in the UI.
   buildId: number | null;
 
+  // Progress verifying each document
+  docs: { [url: string]: DocumentProgress };
+
   constructor() {
     this.startTime = null;
     this.buildId = null;
+    this.docs = {};
   }
 
   // Fetches the current build progress from the language server.
