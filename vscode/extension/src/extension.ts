@@ -52,11 +52,11 @@ class ProgressTracker {
   startTime: number | null;
 
   // The id for the build that we are currently displaying in the UI.
-  // There could be another build going on, but we haven't gotten information for it yet.
   buildId: number | null;
 
   constructor() {
     this.startTime = null;
+    this.buildId = null;
   }
 
   // Fetches the current build progress from the language server.
@@ -71,9 +71,10 @@ class ProgressTracker {
     return response;
   }
 
-  // Call this function when we expect a build soon.
+  // Call this function when we think there might be a build soon.
   // It polls the language server for build progress and updates the UI.
   // Calling it multiple times is fine; subsequent simultaneous calls just return.
+  // Note that a single call to 'track' can persist across many builds.
   // It returns when there is no longer an active build.
   async track() {
     if (this.startTime !== null) {
@@ -93,10 +94,12 @@ class ProgressTracker {
   // trackHelper handles the progress bar.
   // Doesn't finish until the active build completes.
   async trackHelper() {
+    let initialBuildId = this.buildId;
+
     let response: ProgressResponse = await this.getProgress();
 
-    while (response.done === response.total) {
-      // Maybe progress just hasn't started yet.
+    while (response.buildId === initialBuildId) {
+      // Maybe the next build just hasn't started yet.
       // Let's wait a bit and try again.
       await new Promise((resolve) => setTimeout(resolve, 100));
       response = await this.getProgress();
