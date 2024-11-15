@@ -29,9 +29,8 @@ pub struct DocumentProgress {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressResponse {
-    // Which build we are tracking progress for.
-    // The build id is never 0, so here zero represents an uninitialized state.
-    pub build_id: u32,
+    // Which build we are tracking progress for, if any.
+    pub build_id: Option<u32>,
 
     // Statistics about the progress of the build.
     pub done: i32,
@@ -44,7 +43,7 @@ pub struct ProgressResponse {
 impl ProgressResponse {
     pub fn default() -> ProgressResponse {
         ProgressResponse {
-            build_id: 0,
+            build_id: None,
             done: 0,
             total: 0,
             docs: HashMap::new(),

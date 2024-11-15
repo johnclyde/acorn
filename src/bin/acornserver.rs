@@ -187,8 +187,8 @@ impl SearchTask {
 // Information about the most recent build.
 struct BuildInfo {
     // An id for the build, unique per run of the language server.
-    // If this is zero, we do not intend to be showing information for any build.
-    id: u32,
+    // If this is None, we do not intend to be showing information for any build.
+    id: Option<u32>,
 
     // How many goals have been verified.
     done: i32,
@@ -215,7 +215,7 @@ impl BuildInfo {
     // A placeholder representing no build.
     fn none() -> BuildInfo {
         BuildInfo {
-            id: 0,
+            id: None,
             done: 0,
             total: 0,
             docs: HashMap::new(),
@@ -292,12 +292,12 @@ impl BuildInfo {
     }
 
     async fn handle_event(&mut self, project: &Project, client: &Client, event: &BuildEvent) {
-        if event.build_id != self.id {
-            if self.id != 0 {
+        if Some(event.build_id) != self.id {
+            if self.id.is_some() {
                 log("warning: a new build started without clearing the old one");
                 return;
             }
-            self.id = event.build_id;
+            self.id = Some(event.build_id);
         }
         if let Some((done, total)) = event.progress {
             self.done = done;
