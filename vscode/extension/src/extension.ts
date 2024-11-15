@@ -67,6 +67,7 @@ const verificationDecoration = vscode.window.createTextEditorDecorationType({
   },
 });
 
+// Should be used as a singleton.
 class ProgressTracker {
   // The time we started expecting a build.
   // Also acts as a flag for whether we are tracking.
@@ -82,6 +83,28 @@ class ProgressTracker {
     this.startTime = null;
     this.buildId = null;
     this.docs = {};
+
+    vscode.window.onDidChangeVisibleTextEditors((editors) => {
+      for (let editor of editors) {
+        this.updateDecorations(editor);
+      }
+    });
+  }
+
+  // Updates decorations for a particular editor.
+  updateDecorations(editor: vscode.TextEditor) {
+    let doc = this.docs[editor.document.uri.toString()];
+    if (doc === undefined) {
+      // Clear the decorations
+      editor.setDecorations(verificationDecoration, []);
+    } else {
+      let decorations: vscode.DecorationOptions[] = [];
+      for (let line of doc.verified) {
+        let range = new vscode.Range(line, 0, line, 0);
+        decorations.push({ range });
+      }
+      editor.setDecorations(verificationDecoration, decorations);
+    }
   }
 
   // Fetches the current build progress from the language server.
@@ -93,24 +116,12 @@ class ProgressTracker {
     )) as ProgressResponse;
 
     this.buildId = response.buildId;
+    this.docs = response.docs;
 
-    // Update decorations for each visible editor.
     for (let editor of vscode.window.visibleTextEditors) {
-      let doc = response.docs[editor.document.uri.toString()];
-      if (doc === undefined) {
-        // Clear the decorations
-        editor.setDecorations(verificationDecoration, []);
-      } else {
-        let decorations: vscode.DecorationOptions[] = [];
-        for (let line of doc.verified) {
-          let range = new vscode.Range(line, 0, line, 0);
-          decorations.push({ range });
-        }
-        editor.setDecorations(verificationDecoration, decorations);
-      }
+      this.updateDecorations(editor);
     }
 
-    this.docs = response.docs;
     return response;
   }
 
