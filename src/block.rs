@@ -519,6 +519,8 @@ impl<'a> NodeCursor<'a> {
         }
 
         if let Some(block) = &node.block {
+            let first_line = block.env.first_line;
+            let last_line = block.env.last_line();
             let goal = match &block.goal {
                 Some(goal) => goal,
                 None => return Err(format!("block at {} has no goal", self)),
@@ -526,13 +528,19 @@ impl<'a> NodeCursor<'a> {
             Ok(GoalContext::new(
                 &block.env,
                 goal.clone(),
-                block.env.last_line(),
+                last_line,
+                first_line,
+                last_line,
             ))
         } else {
+            let first_line = node.claim.source.range.start.line;
+            let last_line = node.claim.source.range.end.line;
             return Ok(GoalContext::new(
                 self.env(),
                 Goal::Prove(node.claim.clone()),
-                node.claim.source.range.start.line,
+                first_line,
+                first_line,
+                last_line,
             ));
         }
     }

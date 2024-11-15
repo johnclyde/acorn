@@ -64,7 +64,7 @@ pub struct Environment {
     // For the base environment, first_line is zero.
     // first_line is usually nonzero when the environment is a subenvironment.
     // line_types[0] corresponds to first_line in the source document.
-    first_line: u32,
+    pub first_line: u32,
     line_types: Vec<LineType>,
 
     // Implicit blocks aren't written in the code; they are created for theorems that
