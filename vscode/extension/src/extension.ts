@@ -51,6 +51,10 @@ class ProgressTracker {
   // Also acts as a flag for whether we are tracking.
   startTime: number | null;
 
+  // The id for the build that we are currently displaying in the UI.
+  // There could be another build going on, but we haven't gotten information for it yet.
+  buildId: number | null;
+
   constructor() {
     this.startTime = null;
   }
@@ -62,6 +66,8 @@ class ProgressTracker {
       "acorn/progress",
       {}
     )) as ProgressResponse;
+
+    this.buildId = response.buildId;
     return response;
   }
 
