@@ -190,7 +190,8 @@ struct DocumentBuildInfo {
     // If we got it from the filesystem, there is no version.
     version: Option<i32>,
 
-    // The line ranges with goals that have been verified
+    // The line ranges with goals that have been verified.
+    // Should not include any ranges that are subsumed, or overlap with diagnostics.
     verified: Vec<(u32, u32)>,
 
     // Errors and warnings that have been generated for this document.
@@ -208,6 +209,15 @@ impl DocumentBuildInfo {
 
     // Called when a new goal has been verified.
     fn verify(&mut self, first_line: u32, last_line: u32) {
+        if let Some(diagnostic) = self.diagnostics.last() {
+            // If the last diagnostic overlaps with this goal, that means we can verify
+            // the final step of the proof, but not all the previous steps.
+            // In this case, we don't report the verification downstream.
+            if diagnostic.range.end.line >= first_line && diagnostic.range.start.line <= last_line {
+                return;
+            }
+        }
+
         // We can clear any previous verifications that are subsumed by this one.
         while let Some((line, _)) = self.verified.last() {
             if *line < first_line {
@@ -216,6 +226,11 @@ impl DocumentBuildInfo {
             self.verified.pop();
         }
         self.verified.push((first_line, last_line));
+    }
+
+    // Called when a new problem has been reported.
+    fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
+        self.diagnostics.push(diagnostic);
     }
 }
 
@@ -326,7 +341,7 @@ impl BuildInfo {
             }
             if let Some(diagnostic) = &event.diagnostic {
                 let doc = self.with_doc(&url, |doc| {
-                    doc.diagnostics.push(diagnostic.clone());
+                    doc.add_diagnostic(diagnostic.clone());
                 });
                 client
                     .publish_diagnostics(url, doc.diagnostics.clone(), doc.version)
