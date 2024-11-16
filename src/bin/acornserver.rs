@@ -190,8 +190,8 @@ struct DocumentBuildInfo {
     // If we got it from the filesystem, there is no version.
     version: Option<i32>,
 
-    // The lines with goals that have been verified
-    verified: Vec<u32>,
+    // The line ranges with goals that have been verified
+    verified: Vec<(u32, u32)>,
 
     // Errors and warnings that have been generated for this document.
     diagnostics: Vec<Diagnostic>,
@@ -204,6 +204,18 @@ impl DocumentBuildInfo {
             verified: vec![],
             diagnostics: vec![],
         }
+    }
+
+    // Called when a new goal has been verified.
+    fn verify(&mut self, first_line: u32, last_line: u32) {
+        // We can clear any previous verifications that are subsumed by this one.
+        while let Some((line, _)) = self.verified.last() {
+            if *line < first_line {
+                break;
+            }
+            self.verified.pop();
+        }
+        self.verified.push((first_line, last_line));
     }
 }
 
@@ -255,7 +267,8 @@ impl BuildInfo {
         }
     }
 
-    // Take a function that modifies a DocumentBuildInfo and apply it to the document
+    // Take a function that modifies a DocumentBuildInfo and apply it to the document.
+    // Creates a new entry if the document is not already in the map.
     fn with_doc(
         &mut self,
         url: &Url,
@@ -306,9 +319,9 @@ impl BuildInfo {
             log(message);
         }
         if let Some(url) = project.url_from_module_ref(&event.module) {
-            if let Some((first_line, _)) = &event.verified {
+            if let Some((first_line, last_line)) = &event.verified {
                 self.with_doc(&url, |doc| {
-                    doc.verified.push(*first_line);
+                    doc.verify(*first_line, *last_line);
                 });
             }
             if let Some(diagnostic) = &event.diagnostic {

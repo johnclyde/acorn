@@ -99,8 +99,8 @@ class ProgressTracker {
       editor.setDecorations(verificationDecoration, []);
     } else {
       let decorations: vscode.DecorationOptions[] = [];
-      for (let line of doc.verified) {
-        let range = new vscode.Range(line, 0, line, 0);
+      for (let [first_line, _] of doc.verified) {
+        let range = new vscode.Range(first_line, 0, first_line, 0);
         decorations.push({ range });
       }
       editor.setDecorations(verificationDecoration, decorations);

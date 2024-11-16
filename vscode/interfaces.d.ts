@@ -3,7 +3,7 @@
 
 interface DocumentProgress {
   version: number;
-  verified: number[];
+  verified: [number, number][];
 }
 
 interface ProgressResponse {

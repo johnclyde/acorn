@@ -18,8 +18,8 @@ pub struct DocumentProgress {
     // We only report document progress for versioned documents.
     pub version: i32,
 
-    // The lines that have been verified.
-    pub verified: Vec<u32>,
+    // Line ranges that have been verified.
+    pub verified: Vec<(u32, u32)>,
 }
 
 // The language server stores one progress struct, and returns it at any time.
