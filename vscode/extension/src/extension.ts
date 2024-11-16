@@ -95,16 +95,25 @@ class ProgressTracker {
   updateDecorations(editor: vscode.TextEditor) {
     let doc = this.docs[editor.document.uri.toString()];
     if (doc === undefined) {
-      // Clear the decorations
+      // We don't have any information for this document.
+      // Clear the decorations.
       editor.setDecorations(verificationDecoration, []);
-    } else {
-      let decorations: vscode.DecorationOptions[] = [];
-      for (let [first_line, _] of doc.verified) {
-        let range = new vscode.Range(first_line, 0, first_line, 0);
-        decorations.push({ range });
-      }
-      editor.setDecorations(verificationDecoration, decorations);
+      return;
     }
+
+    if (doc.version !== editor.document.version) {
+      // The document has changed since we last verified it.
+      // Just leave the decorations how they are.
+      return;
+    }
+
+    // Update the decorations to reflect the state of the language server.
+    let decorations: vscode.DecorationOptions[] = [];
+    for (let [first_line, _] of doc.verified) {
+      let range = new vscode.Range(first_line, 0, first_line, 0);
+      decorations.push({ range });
+    }
+    editor.setDecorations(verificationDecoration, decorations);
   }
 
   // Fetches the current build progress from the language server.
