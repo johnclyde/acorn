@@ -70,22 +70,22 @@ All commands are run from `~/acorn`.
 
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
-5. Publish the language server binaries to GitHub
+5. Upload the language server binaries to GitHub
 
    ```bash
-   ./publish.sh
+   ./upload.sh
    ```
 
    If you've already published the binaries for a tag and want to update them, run
 
    ```bash
-   ./publish.sh --clobber
+   ./upload.sh --clobber
    ```
 
-   This also publishes the extension to GitHub. If you just want to let some people test a new extension, you can stop here. Have them get the `.vsix` file from the GitHub release and
+   This also uploads the extension to GitHub. If you just want to let some people test a new extension, you can stop here. Have them get the `.vsix` file from the GitHub release and
    install that into VS Code.
 
-6. Publish the Windows binary to GitHub
+6. Upload the Windows binary to GitHub
 
    Follow the instructions in the previous section to do a Windows release build. It will give you a `gh` command to run to publish the resulting binary to GitHub.
 
