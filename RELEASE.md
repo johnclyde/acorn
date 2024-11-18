@@ -82,8 +82,12 @@ All commands are run from `~/acorn`.
    ./upload.sh --clobber
    ```
 
-   This also uploads the extension to GitHub. If you just want to let some people test a new extension, you can stop here. Have them get the `.vsix` file from the GitHub release and
-   install that into VS Code.
+   This also uploads the extension to GitHub. If you just want to test a new extension, you can stop here. On the test machine, get the `.vsix` file from the GitHub release, and
+   install that into VS Code with:
+
+   ```bash
+   code --install-extension acorn-<version>.vsix
+   ```
 
 6. Upload the Windows binary to GitHub
 
