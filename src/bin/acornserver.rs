@@ -44,10 +44,18 @@ fn log(message: &str) {
     eprintln!("{}", stamped);
 }
 
-fn log_with_doc(url: &Url, version: i32, message: &str) {
-    // Extract the last component of the url
-    let filename = url.path_segments().unwrap().last().unwrap();
-    let versioned = format!("{} v{}: {}", filename, version, message);
+// Only converts to path if it's a file scheme.
+// The Rust docs claim that the regular to_file_path shouldn't be relied on for this.
+fn to_path(url: &Url) -> Option<PathBuf> {
+    if url.scheme() == "file" {
+        url.to_file_path().ok()
+    } else {
+        None
+    }
+}
+
+fn log_with_url(url: &Url, version: i32, message: &str) {
+    let versioned = format!("{} v{}: {}", url, version, message);
     log(&versioned);
 }
 
@@ -477,7 +485,7 @@ impl Backend {
             Some(version) => {
                 // This is an "open".
                 // This document might have been open before. Just create a new one.
-                log_with_doc(&url, version, "new document");
+                log_with_url(&url, version, "new document");
                 let doc = LiveDocument::new(&text, version);
                 self.documents
                     .insert(url.clone(), Arc::new(RwLock::new(doc)));
@@ -498,9 +506,9 @@ impl Backend {
             }
         };
 
-        let path = match url.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
+        let path = match to_path(&url) {
+            Some(path) => path,
+            None => {
                 log(&format!("cannot update doc; no path available for {}", url));
                 return;
             }
@@ -603,9 +611,9 @@ impl Backend {
         }
 
         let project = self.project.read().await;
-        let path = match params.uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
+        let path = match to_path(&params.uri) {
+            Some(path) => path,
+            None => {
                 // There should be a path available, because we don't run this task without one.
                 return self.search_fail(params, "no path available in SearchTask::run");
             }
@@ -809,11 +817,18 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(old_doc) = self.documents.get(&uri) {
-            log_with_doc(&uri, old_doc.read().await.saved_version(), "closed");
+            log_with_url(&uri, old_doc.read().await.saved_version(), "closed");
         }
         self.documents.remove(&uri);
+        let path = match to_path(&uri) {
+            Some(path) => path,
+            None => {
+                // Looks like we're closing an untitled document.
+                return;
+            }
+        };
         let mut project = self.stop_build_and_get_project().await;
-        match project.close_file(uri.to_file_path().unwrap()) {
+        match project.close_file(path) {
             Ok(()) => {}
             Err(e) => log(&format!("close failed: {:?}", e)),
         }
