@@ -730,7 +730,7 @@ impl Project {
     // Returns a list of completions, or None if we don't have any.
     pub fn get_completions(
         &self,
-        path: &Path,
+        path: Option<&Path>,
         env_line: u32,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
@@ -759,6 +759,9 @@ impl Project {
             };
             return env.bindings.get_completions(&self, partial, true);
         }
+
+        // If we don't have a path, we can only complete imports.
+        let path = path?;
 
         // Check if we have a completable word
         let word = match parts.last() {
@@ -1298,7 +1301,7 @@ mod tests {
         assert_eq!(env.get_line_type(9), None);
 
         let check = |prefix: &str, line: u32, expected: &[&str]| {
-            let completions = match p.get_completions(&main, line, prefix) {
+            let completions = match p.get_completions(Some(&main), line, prefix) {
                 Some(c) => c,
                 None => {
                     assert!(expected.is_empty(), "no completions found for '{}'", prefix);

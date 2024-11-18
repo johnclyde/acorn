@@ -509,7 +509,7 @@ impl Backend {
         let path = match to_path(&url) {
             Some(path) => path,
             None => {
-                log(&format!("cannot update doc; no path available for {}", url));
+                // We don't pass on untitled documents to the project.
                 return;
             }
         };
@@ -839,13 +839,7 @@ impl LanguageServer for Backend {
         params: CompletionParams,
     ) -> jsonrpc::Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
-        let path = match uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
-                log(&format!("cannot convert uri to path: {}", uri));
-                return Ok(None);
-            }
-        };
+        let path = to_path(&uri);
         let pos = params.text_document_position.position;
         let doc = match self.documents.get(&uri) {
             Some(doc) => doc,
@@ -858,7 +852,7 @@ impl LanguageServer for Backend {
         let env_line = doc.get_env_line(pos.line);
         let prefix = doc.get_prefix(pos.line, pos.character);
         let project = self.project.read().await;
-        match project.get_completions(&path, env_line, &prefix) {
+        match project.get_completions(path.as_deref(), env_line, &prefix) {
             Some(items) => {
                 let response = CompletionResponse::List(CompletionList {
                     is_incomplete: false,
