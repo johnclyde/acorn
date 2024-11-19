@@ -489,6 +489,11 @@ impl Backend {
                 let doc = LiveDocument::new(&text, version);
                 self.documents
                     .insert(url.clone(), Arc::new(RwLock::new(doc)));
+                if text.is_empty() {
+                    // Opening an empty file usually happens as the first of two events, when
+                    // a previously untitled file has been saved. Let's not mess with the project yet.
+                    return;
+                }
                 version
             }
             None => {
@@ -782,7 +787,7 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        let uri = params.text_document.uri;
+        let url = params.text_document.uri;
         let text = match params.text {
             Some(text) => text,
             None => {
@@ -790,12 +795,14 @@ impl LanguageServer for Backend {
                 return;
             }
         };
-        self.set_full_text(uri, text, None).await;
+
+        self.set_full_text(url, text, None).await;
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let url = params.text_document.uri;
         let text = params.text_document.text;
+
         let version = params.text_document.version;
         self.set_full_text(url, text, Some(version)).await;
     }
