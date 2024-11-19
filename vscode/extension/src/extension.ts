@@ -281,16 +281,32 @@ async function getServerPath(
 }
 
 async function registerCommands(context: vscode.ExtensionContext) {
-  let disposable = vscode.commands.registerCommand(
-    "acorn.newFile",
+  // Create a new Acorn file
+  let newFile = vscode.commands.registerCommand("acorn.newFile", async () => {
+    let document = await vscode.workspace.openTextDocument({
+      language: "acorn",
+    });
+    await vscode.window.showTextDocument(document);
+  });
+  context.subscriptions.push(newFile);
+
+  // Clear the binary cache, to redownload the language server.
+  let clearBinaryCache = vscode.commands.registerCommand(
+    "acorn.clearBinaryCache",
     async () => {
-      let document = await vscode.workspace.openTextDocument({
-        language: "acorn",
-      });
-      await vscode.window.showTextDocument(document);
+      let binDir = vscode.Uri.joinPath(context.globalStorageUri, "bin").fsPath;
+      let oldBins = await fs.promises.readdir(binDir);
+      for (let oldBin of oldBins) {
+        let oldBinPath = path.join(binDir, oldBin);
+        log(`removing old binary ${oldBinPath}`);
+        fs.unlinkSync(oldBinPath);
+      }
+      log("binary cache cleared");
+
+      vscode.commands.executeCommand("workbench.action.reloadWindow");
     }
   );
-  context.subscriptions.push(disposable);
+  context.subscriptions.push(clearBinaryCache);
 }
 
 export async function activate(context: vscode.ExtensionContext) {

@@ -40,6 +40,12 @@
       },
       {
         "category": "Acorn",
+        "command": "acorn.clearBinaryCache",
+        "title": "Clear Binary Cache",
+        "description": "Force a re-download of the Acorn language server binary."
+      },
+      {
+        "category": "Acorn",
         "command": "acorn.displayAssistant",
         "title": "Assistant: Display",
         "description": "Show the Acorn Assistant.",
