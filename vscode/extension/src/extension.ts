@@ -391,17 +391,9 @@ export async function activate(context: vscode.ExtensionContext) {
   let assistant = new Assistant(client, assistantPath);
   context.subscriptions.push(assistant);
 
-  let onSaveOrOpen = async (document: vscode.TextDocument) => {
-    if (document.languageId !== "acorn") {
-      return;
-    }
-    assistant.autoDisplay(document);
-    await tracker.track();
-  };
-
   for (let doc of vscode.workspace.textDocuments) {
     if (doc.languageId === "acorn") {
-      assistant.autoDisplay(doc);
+      // Track the initial build.
       // No await, because we don't want to block the UI thread.
       tracker.track();
       break;
@@ -409,11 +401,26 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   await registerCommands(context);
+
+  assistant.autoDisplay();
+
+  let onSaveOrOpen = async (document: vscode.TextDocument) => {
+    if (document.languageId !== "acorn") {
+      return;
+    }
+    await tracker.track();
+  };
+
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(onSaveOrOpen)
   );
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(onSaveOrOpen)
+  );
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      assistant.autoDisplay();
+    })
   );
 }
 

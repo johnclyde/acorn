@@ -344,18 +344,18 @@ export class Assistant implements Disposable {
     editor.revealRange(range, TextEditorRevealType.InCenterIfOutsideViewport);
   }
 
-  // Display the assistant if it hasn't been displayed for this workspace before.
+  // Display the assistant if it hasn't been displayed for this workspace before, if the
+  // active editor is an Acorn file.
   // Triggered by interacting with an Acorn document for the first time.
-  autoDisplay(document: TextDocument) {
+  autoDisplay() {
     if (this.wasDisplayed) {
       return;
     }
-    for (let editor of window.visibleTextEditors) {
-      if (editor.document === document) {
-        this.display(editor);
-        return;
-      }
+    let editor = window.activeTextEditor;
+    if (!editor || editor.document.languageId !== "acorn") {
+      return;
     }
+    this.display(editor);
   }
 
   // Show the search panel itself.
