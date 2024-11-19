@@ -4,10 +4,6 @@ body {
   line-height: var(--vscode-editor-line-height, 1.4);
 }
 
-pre {
-  font-family: var(--vscode-editor-font-family, monospace);
-}
-
 .block {
   display: block;
 }

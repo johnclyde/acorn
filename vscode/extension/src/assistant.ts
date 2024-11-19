@@ -51,29 +51,53 @@ export class Assistant implements Disposable {
           e.kind === TextEditorSelectionChangeKind.Keyboard
         ) {
           // We only want to trigger on explicit user actions.
-          await this.searchOnSelection(false);
+          await this.searchOnSelection(true, false);
         }
       }),
       workspace.onDidSaveTextDocument(async () => {
-        await this.searchOnSelection(true);
+        await this.searchOnSelection(false, false);
+      }),
+      window.onDidChangeActiveTextEditor(async (editor) => {
+        // This will trigger either when we first save an untitled document, or when
+        // we switch to an existing Acorn file.
+        if (
+          editor &&
+          editor.document !== null &&
+          editor.document.languageId === "acorn" &&
+          editor.document.uri.scheme === "file"
+        ) {
+          this.sendHelp({});
+        }
       }),
     ];
   }
 
+  sendHelp(help: PreSaveHelp) {
+    if (!this.panel) {
+      return;
+    }
+    this.panel.webview.postMessage({ type: "help", help });
+  }
+
   // Runs a new search based on the current selection.
-  // If 'force' is true, we always do it.
-  // Otherwise, we only do it if the selection has changed.
-  async searchOnSelection(force: Boolean) {
+  // The flags indicate why we are doing this - whether the user changed the selection, or
+  // opened the panel.
+  async searchOnSelection(onChange: boolean, onOpen: boolean) {
     try {
       let editor = window.activeTextEditor;
-      if (!editor) {
+      if (!editor || !editor.document) {
         return;
       }
-      if (
-        editor.document.languageId != "acorn" ||
-        editor.document.uri.scheme != "file"
-      ) {
-        // We can't search on unsaved documents.
+      if (editor.document.languageId !== "acorn") {
+        if (onOpen) {
+          // The user must have explicitly opened up the search panel, when we weren't on an Acorn file.
+          this.sendHelp({ noFile: true });
+        }
+        return;
+      }
+      if (editor.document.uri.scheme !== "file") {
+        // This is a new, unsaved file.
+        this.sendHelp({ newDocument: true });
         return;
       }
       if (!this.panel) {
@@ -87,9 +111,9 @@ export class Assistant implements Disposable {
       let selectedLine = editor.selection.start.line;
       let version = editor.document.version;
 
-      // Check if the new request would be essentially the same as the last one.
+      // Check if we are just selecting a different part of the same target.
       if (
-        !force &&
+        onChange &&
         this.currentParams &&
         this.currentParams.uri === uri &&
         this.currentParams.selectedLine === selectedLine
@@ -408,7 +432,7 @@ export class Assistant implements Disposable {
 
     // Always reissue the search request on panel open.
     this.currentParams = null;
-    this.searchOnSelection(true);
+    this.searchOnSelection(false, true);
   }
 
   toggle(editor: TextEditor) {

@@ -10,21 +10,7 @@
   // These are updated to reflect the last valid responses from the extension.
   let searchResponse: SearchResponse | null = null;
   let infoResult: InfoResult | null = null;
-
-  function stepsContain(
-    steps: Array<ProofStepInfo>,
-    step: ProofStepInfo,
-  ): boolean {
-    for (let s of steps) {
-      if (
-        s.rule === step.rule &&
-        JSON.stringify(step.location) === JSON.stringify(s.location)
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }
+  let preSaveHelp: PreSaveHelp | null = null;
 
   function handleSearchResponse(response: SearchResponse) {
     if (response.failure || response.goalName === null) {
@@ -34,7 +20,7 @@
     }
 
     if (searchResponse !== null && searchResponse.id !== response.id) {
-      // Invalidate the info result
+      // A successful search invalidate the other data
       infoResult = null;
     }
 
@@ -61,6 +47,10 @@
       }
       if (event.data.type === "info") {
         handleInfoResponse(event.data.response);
+        return;
+      }
+      if (event.data.type === "help") {
+        preSaveHelp = event.data.help;
         return;
       }
       console.error("unexpected message type:", event.data.type);
@@ -123,7 +113,25 @@
 
 <main>
   {#if searchResponse === null || searchResponse.goalName === null}
-    <span class="header">Select a proposition to see its proof.</span>
+    {#if preSaveHelp !== null && preSaveHelp.noFile}
+      This is the Acorn Assistant.
+      <br /><br />
+      To get started, open an Acorn file, or create a new one.
+      <br /><br />
+      An Acorn file has to have a .ac extension.
+      <br /><br />
+      For help, see the
+      <a href="https://acornprover.org/docs/category/tutorial/">tutorial</a>.
+    {:else if preSaveHelp !== null && preSaveHelp.newDocument}
+      Enter a theorem that you want to prove.
+      <br /><br />
+      When you're ready, save the file to verify it.
+      <br /><br />
+      For help, see the
+      <a href="https://acornprover.org/docs/category/tutorial/">tutorial</a>.
+    {:else}
+      <pre>Select a proposition to see its proof.</pre>
+    {/if}
   {:else}
     <Goal {searchResponse} {showLocation} />
     <hr />
@@ -157,7 +165,7 @@
         <br />
         The full proof has {pluralize(
           searchResponse.status.steps.length,
-          "step",
+          "step"
         )}:
         <br />
         {#each searchResponse.status.steps as step}
