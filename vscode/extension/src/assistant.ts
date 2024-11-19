@@ -60,16 +60,39 @@ export class Assistant implements Disposable {
       window.onDidChangeActiveTextEditor(async (editor) => {
         // This will trigger either when we first save an untitled document, or when
         // we switch to an existing Acorn file.
-        if (
-          editor &&
-          editor.document !== null &&
-          editor.document.languageId === "acorn" &&
-          editor.document.uri.scheme === "file"
-        ) {
-          this.sendHelp({});
-        }
+        this.maybeClearHelp(editor);
       }),
     ];
+  }
+
+  maybeClearHelp(editor: TextEditor) {
+    if (!editor || !editor.document) {
+      return;
+    }
+    let document = editor.document;
+    if (document.languageId !== "acorn" || document.uri.scheme !== "file") {
+      return;
+    }
+
+    // Heuristic, just when to stop telling people "type in a theorem now please"
+    let empty = true;
+    for (let i = 0; i < document.lineCount; i++) {
+      const line = document.lineAt(i);
+      let trim = line.text.trim();
+      if (
+        trim.length > 0 &&
+        !trim.startsWith("//") &&
+        !trim.startsWith("from") &&
+        !trim.startsWith("import")
+      ) {
+        empty = false;
+        break;
+      }
+    }
+
+    if (!empty) {
+      this.sendHelp({});
+    }
   }
 
   sendHelp(help: PreSaveHelp) {
