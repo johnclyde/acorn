@@ -51,31 +51,41 @@ export class Assistant implements Disposable {
           e.kind === TextEditorSelectionChangeKind.Keyboard
         ) {
           // We only want to trigger on explicit user actions.
-          await this.searchOnSelection(true, false);
+          await this.searchOnSelection(true);
         }
       }),
       workspace.onDidSaveTextDocument(async () => {
-        await this.searchOnSelection(false, false);
+        this.chooseHelp();
+        await this.searchOnSelection(false);
       }),
-      window.onDidChangeActiveTextEditor(async (editor) => {
-        // This will trigger either when we first save an untitled document, or when
-        // we switch to an existing Acorn file.
-        this.maybeClearHelp(editor);
+      window.onDidChangeActiveTextEditor(async () => {
+        this.chooseHelp();
       }),
     ];
   }
 
-  maybeClearHelp(editor: TextEditor) {
-    if (!editor || !editor.document) {
+  sendHelp(help: Help) {
+    this.panel.webview.postMessage({ type: "help", help });
+  }
+
+  // Sends an appropriate help object, based on the active editor.
+  chooseHelp() {
+    let editor = window.activeTextEditor;
+    if (!editor || !editor.document || !this.panel) {
       return;
     }
     let document = editor.document;
-    if (document.languageId !== "acorn" || document.uri.scheme !== "file") {
+    if (document.languageId !== "acorn") {
+      return;
+    }
+
+    if (document.uri.scheme !== "file") {
+      // This is an untitled file.
+      this.sendHelp({ newDocument: true });
       return;
     }
 
     // Heuristic, just when to stop telling people "type in a theorem now please"
-    let empty = true;
     for (let i = 0; i < document.lineCount; i++) {
       const line = document.lineAt(i);
       let trim = line.text.trim();
@@ -85,45 +95,29 @@ export class Assistant implements Disposable {
         !trim.startsWith("from") &&
         !trim.startsWith("import")
       ) {
-        empty = false;
-        break;
+        // There may actually be a selection. But the assistant knows to use the search result
+        // if there is one. So, send the help message for there not being a selection.
+        this.sendHelp({ noSelection: true });
+        return;
       }
     }
 
-    if (!empty) {
-      this.sendHelp({});
-    }
-  }
-
-  sendHelp(help: PreSaveHelp) {
-    if (!this.panel) {
-      return;
-    }
-    this.panel.webview.postMessage({ type: "help", help });
+    // This document just doesn't have any real stuff in it.
+    this.sendHelp({ newDocument: true });
   }
 
   // Runs a new search based on the current selection.
-  // The flags indicate why we are doing this - whether the user changed the selection, or
-  // opened the panel.
-  async searchOnSelection(onChange: boolean, onOpen: boolean) {
+  // If 'onSelect' is passed, just the selection changed.
+  async searchOnSelection(onSelect: boolean) {
     try {
       let editor = window.activeTextEditor;
-      if (!editor || !editor.document) {
-        return;
-      }
-      if (editor.document.languageId !== "acorn") {
-        if (onOpen) {
-          // The user must have explicitly opened up the search panel, when we weren't on an Acorn file.
-          this.sendHelp({ noFile: true });
-        }
-        return;
-      }
-      if (editor.document.uri.scheme !== "file") {
-        // This is a new, unsaved file.
-        this.sendHelp({ newDocument: true });
-        return;
-      }
-      if (!this.panel) {
+      if (
+        !editor ||
+        !editor.document ||
+        editor.document.languageId !== "acorn" ||
+        editor.document.uri.scheme !== "file" ||
+        !this.panel
+      ) {
         return;
       }
 
@@ -136,7 +130,7 @@ export class Assistant implements Disposable {
 
       // Check if we are just selecting a different part of the same target.
       if (
-        onChange &&
+        onSelect &&
         this.currentParams &&
         this.currentParams.uri === uri &&
         this.currentParams.selectedLine === selectedLine
@@ -454,8 +448,9 @@ export class Assistant implements Disposable {
     this.panel.webview.html = injected;
 
     // Always reissue the search request on panel open.
+    this.chooseHelp();
     this.currentParams = null;
-    this.searchOnSelection(false, true);
+    this.searchOnSelection(false);
   }
 
   toggle(editor: TextEditor) {

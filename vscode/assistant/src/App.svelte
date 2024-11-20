@@ -10,7 +10,7 @@
   // These are updated to reflect the last valid responses from the extension.
   let searchResponse: SearchResponse | null = null;
   let infoResult: InfoResult | null = null;
-  let preSaveHelp: PreSaveHelp | null = null;
+  let help: Help | null = null;
 
   function handleSearchResponse(response: SearchResponse) {
     if (response.failure || response.goalName === null) {
@@ -50,7 +50,7 @@
         return;
       }
       if (event.data.type === "help") {
-        preSaveHelp = event.data.help;
+        help = event.data.help;
         return;
       }
       console.error("unexpected message type:", event.data.type);
@@ -113,25 +113,23 @@
 
 <main>
   {#if searchResponse === null || searchResponse.goalName === null}
-    {#if preSaveHelp !== null && preSaveHelp.noFile}
+    {#if help !== null && help.noSelection}
+      Select a proposition to see its proof.
+    {:else if help !== null && help.newDocument}
+      Enter a theorem that you want to prove.
+      <br /><br />
+      When you're ready, save the file to verify it.
+    {:else}
+      <!-- Default message to be shown when we don't even have an Acorn file open. -->
       This is the Acorn Assistant.
       <br /><br />
       To get started, open an Acorn file, or create a new one.
       <br /><br />
       An Acorn file has to have a .ac extension.
-      <br /><br />
-      For help, see the
-      <a href="https://acornprover.org/docs/category/tutorial/">tutorial</a>.
-    {:else if preSaveHelp !== null && preSaveHelp.newDocument}
-      Enter a theorem that you want to prove.
-      <br /><br />
-      When you're ready, save the file to verify it.
-      <br /><br />
-      For help, see the
-      <a href="https://acornprover.org/docs/category/tutorial/">tutorial</a>.
-    {:else}
-      <pre>Select a proposition to see its proof.</pre>
     {/if}
+    <br /><br />
+    For help, see the
+    <a href="https://acornprover.org/docs/getting-started/">documentation</a>.
   {:else}
     <Goal {searchResponse} {showLocation} />
     <hr />

@@ -91,13 +91,12 @@ interface InfoResponse {
 // This section is for the extension to communicate with the assistant.
 // There's no Rust equivalent for these interfaces.
 
-// Sent from the extension to the assistant to indicate that the user might need help, and they haven't
-// saved an active Acorn document yet so we can't give them very specific help on it.
-// If none of the flags are set, that clears any presave help.
-interface PreSaveHelp {
-  // We don't even have an Acorn file to do anything with.
-  noFile?: boolean;
-
+// Sent from the extension to the assistant to indicate that the user might need help.
+// Any search response will override these.
+interface Help {
   // The user has just created a new document, so they might need to know how to get started.
   newDocument?: boolean;
+
+  // There's stuff in the document, but we don't have anything selected.
+  noSelection?: boolean;
 }
