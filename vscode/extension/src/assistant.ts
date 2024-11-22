@@ -3,7 +3,6 @@ import {
   Disposable,
   Position,
   Range,
-  TextDocument,
   TextEditor,
   TextEditorRevealType,
   TextEditorSelectionChangeKind,
@@ -30,16 +29,16 @@ export class Assistant implements Disposable {
   listener: Disposable;
   panel: WebviewPanel;
   requestViewColumn: number;
-  wasDisplayed: boolean;
+  wasShown: boolean;
 
   constructor(client: LanguageClient, distPath: string) {
     this.client = client;
     this.distPath = distPath;
     this.currentSearchId = 0;
-    this.wasDisplayed = false;
+    this.wasShown = false;
     this.disposables = [
-      commands.registerTextEditorCommand("acorn.displayAssistant", (editor) =>
-        this.display(editor)
+      commands.registerTextEditorCommand("acorn.showAssistant", (editor) =>
+        this.show(editor)
       ),
 
       commands.registerTextEditorCommand("acorn.toggleAssistant", (editor) =>
@@ -385,23 +384,23 @@ export class Assistant implements Disposable {
     editor.revealRange(range, TextEditorRevealType.InCenterIfOutsideViewport);
   }
 
-  // Display the assistant if it hasn't been displayed for this workspace before, if the
+  // Show the assistant if it hasn't been shown for this workspace before, if the
   // active editor is an Acorn file.
   // Triggered by interacting with an Acorn document for the first time.
-  autoDisplay() {
-    if (this.wasDisplayed) {
+  maybeShow() {
+    if (this.wasShown) {
       return;
     }
     let editor = window.activeTextEditor;
     if (!editor || editor.document.languageId !== "acorn") {
       return;
     }
-    this.display(editor);
+    this.show(editor);
   }
 
   // Show the search panel itself.
-  display(editor: TextEditor) {
-    this.wasDisplayed = true;
+  show(editor: TextEditor) {
+    this.wasShown = true;
     let column =
       editor && editor.viewColumn ? editor.viewColumn + 1 : ViewColumn.Two;
     if (column === 4) {
@@ -460,7 +459,7 @@ export class Assistant implements Disposable {
       return;
     }
 
-    this.display(editor);
+    this.show(editor);
   }
 
   dispose() {

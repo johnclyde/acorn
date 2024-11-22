@@ -402,7 +402,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await registerCommands(context);
 
-  assistant.autoDisplay();
+  assistant.maybeShow();
 
   let onSaveOrOpen = async (document: vscode.TextDocument) => {
     if (document.languageId !== "acorn") {
@@ -419,7 +419,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => {
-      assistant.autoDisplay();
+      assistant.maybeShow();
     })
   );
 }

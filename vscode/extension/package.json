@@ -46,8 +46,8 @@
       },
       {
         "category": "Acorn",
-        "command": "acorn.displayAssistant",
-        "title": "Assistant: Display",
+        "command": "acorn.showAssistant",
+        "title": "Show Assistant",
         "description": "Show the Acorn Assistant.",
         "icon": {
           "light": "images/achy-pixel-color.png",
@@ -57,7 +57,7 @@
       {
         "category": "Acorn",
         "command": "acorn.toggleAssistant",
-        "title": "Assistant: Toggle",
+        "title": "Toggle Assistant",
         "description": "Toggle whether the Acorn Assistant is displayed."
       }
     ],
@@ -78,7 +78,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "acorn.displayAssistant",
+          "command": "acorn.showAssistant",
           "group": "navigation",
           "when": "editorLangId == acorn"
         }
