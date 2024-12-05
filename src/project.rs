@@ -1206,15 +1206,15 @@ mod tests {
         p.mock(
             "/mock/boolbox.ac",
             r#"
-        structure BoolBox {
-            item: Bool
-        }
+            structure BoolBox {
+                item: Bool
+            }
         "#,
         );
         p.mock(
             "/mock/main.ac",
             r#"
-        import boolbox
+            import boolbox
         "#,
         );
         p.check_code("main", "forall(b: boolbox.BoolBox) { true }");
