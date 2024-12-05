@@ -1268,7 +1268,7 @@ impl Environment {
                         &format!("error in '{}' module", full_name),
                     ));
                 }
-                self.bindings.add_module(local_name, module_id);
+                self.bindings.import_module(local_name, module_id);
 
                 // Bring the imported names into this environment
                 for name in &is.names {

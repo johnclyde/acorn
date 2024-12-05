@@ -1217,7 +1217,7 @@ mod tests {
             import boolbox
         "#,
         );
-        p.check_code("main", "forall(b: boolbox.BoolBox) { true }");
+        p.check_code("main", "forall(x0: boolbox.BoolBox) { true }");
     }
 
     #[test]

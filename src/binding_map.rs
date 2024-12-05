@@ -94,7 +94,7 @@ pub struct BindingMap {
     canonical_to_alias: HashMap<(ModuleId, String), String>,
 
     // Names that refer to other modules.
-    // For example after "import foo", "foo" refers to a module.
+    // After "import foo", "foo" refers to a module.
     modules: BTreeMap<String, ModuleId>,
 
     // The local name for imported modules.
@@ -410,7 +410,8 @@ impl BindingMap {
         }
     }
 
-    pub fn add_module(&mut self, name: &str, module: ModuleId) {
+    // Adds this name to the environment as a module.
+    pub fn import_module(&mut self, name: &str, module: ModuleId) {
         if self.name_in_use(name) {
             panic!("module name {} already bound", name);
         }
@@ -1760,8 +1761,9 @@ impl BindingMap {
     // Tools for going the other way, to create expressions and code strings from values and types.
     ////////////////////////////////////////////////////////////////////////////////
 
-    // Returns an error if this type can't be encoded. For example, it could be a type that
-    // is not obviously accessible from this scope.
+    // Returns an error if this type can't be encoded as an expression.
+    // Currently this should only happen when it's defined in a module that isn't directly imported.
+    // In theory we could fix this, but we would have to track the web of dependencies.
     fn type_to_expr(&self, acorn_type: &AcornType) -> Result<Expression, CodeGenError> {
         if let AcornType::Function(ft) = acorn_type {
             let mut args = vec![];
@@ -1781,10 +1783,22 @@ impl BindingMap {
             ));
         }
 
-        match self.reverse_type_names.get(acorn_type) {
-            Some(name) => Ok(Expression::generate_identifier(name)),
-            None => Err(CodeGenError::unnamed_type(acorn_type)),
+        // Check if there's a local alias for this type
+        if let Some(name) = self.reverse_type_names.get(acorn_type) {
+            return Ok(Expression::generate_identifier(name));
         }
+
+        // Check if it's a type from a module that we have imported
+        if let AcornType::Data(module, type_name) = acorn_type {
+            if let Some(module_name) = self.reverse_modules.get(module) {
+                return Ok(Expression::generate_identifier_chain(&[
+                    &module_name,
+                    &type_name,
+                ]));
+            }
+        }
+
+        Err(CodeGenError::unnamed_type(acorn_type))
     }
 
     // We use variables named x0, x1, x2, etc when new temporary variables are needed.
