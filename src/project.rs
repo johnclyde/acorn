@@ -193,7 +193,7 @@ impl Project {
         self.add_target_by_ref(&ModuleRef::Name(module_name.to_string()))
     }
 
-    fn add_target_by_path(&mut self, path: &Path) -> bool {
+    pub fn add_target_by_path(&mut self, path: &Path) -> bool {
         let module_ref = self.module_ref_from_path(path).unwrap();
         self.add_target_by_ref(&module_ref)
     }

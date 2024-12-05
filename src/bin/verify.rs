@@ -5,15 +5,18 @@
 // Try:
 //   cargo build --release --bin=verify; time ~/acorn/target/release/verify
 
+use std::path::PathBuf;
+
 use acorn::builder::Builder;
 use acorn::project::Project;
 use clap::Parser;
 
 #[derive(Parser)]
 struct Args {
-    // Just verify a single module.
-    #[clap(long)]
-    module: Option<String>,
+    // Verify a single module.
+    // Can be either a filename or a module name.
+    #[clap()]
+    target: Option<String>,
 
     // Create a dataset from the prover logs.
     #[clap(long)]
@@ -25,8 +28,14 @@ async fn main() {
     let mut project = Project::new_local().unwrap();
 
     let args = Args::parse();
-    if let Some(module_name) = args.module {
-        project.add_target_by_name(&module_name);
+    if let Some(target) = args.target {
+        if target.ends_with(".ac") {
+            // Looks like a filename
+            let path = PathBuf::from(&target);
+            project.add_target_by_path(&path);
+        } else {
+            project.add_target_by_name(&target);
+        }
     } else {
         project.add_all_targets();
     }
