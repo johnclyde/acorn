@@ -1201,6 +1201,26 @@ mod tests {
     }
 
     #[test]
+    fn test_import_without_from_codegen() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/boolbox.ac",
+            r#"
+        structure BoolBox {
+            item: Bool
+        }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+        import boolbox
+        "#,
+        );
+        p.check_code("main", "forall(b: boolbox.BoolBox) { true }");
+    }
+
+    #[test]
     fn test_prover_iteration_methods() {
         let mut p = Project::new_mock();
         p.mock(
