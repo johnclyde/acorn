@@ -2,7 +2,7 @@ use std::{collections::VecDeque, fmt};
 
 use tower_lsp::lsp_types::Range;
 
-use crate::compilation::{Error, Result};
+use crate::compilation::{Error, ErrorSource, Result};
 use crate::token::{Token, TokenIter, TokenType};
 
 // There are two sorts of expressions.
@@ -603,7 +603,9 @@ impl PartialExpression {
             | PartialExpression::ImplicitApply(token) => token,
         }
     }
+}
 
+impl ErrorSource for PartialExpression {
     fn error(&self, message: String) -> Error {
         match &self {
             PartialExpression::Expression(e) => e.error(message),

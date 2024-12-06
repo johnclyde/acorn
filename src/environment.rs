@@ -7,7 +7,7 @@ use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
-use crate::compilation::{self, Error};
+use crate::compilation::{self, Error, ErrorSource};
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::project::{LoadError, Project};
