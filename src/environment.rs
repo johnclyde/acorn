@@ -344,10 +344,9 @@ impl Environment {
         let acorn_type = self.bindings.evaluate_type(project, &ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
             if acorn_type != AcornType::Data(self.module_id, class.unwrap().to_string()) {
-                return Err(Error::old(
-                    &ls.type_expr.token(),
-                    "numeric class variables must be the class type",
-                ));
+                return Err(ls
+                    .type_expr
+                    .error("numeric class variables must be the class type"));
             }
         }
         let value = if ls.value.token().token_type == TokenType::Axiom {
@@ -381,20 +380,20 @@ impl Environment {
         range: Range,
     ) -> compilation::Result<()> {
         if ds.name == "new" || ds.name == "self" {
-            return Err(Error::old(
-                &ds.name_token,
-                &format!("'{}' is a reserved word. use a different name", ds.name),
-            ));
+            return Err(ds.name_token.error(&format!(
+                "'{}' is a reserved word. use a different name",
+                ds.name
+            )));
         }
         let name = match class_name {
             Some(c) => format!("{}.{}", c, ds.name),
             None => ds.name.clone(),
         };
         if self.bindings.name_in_use(&name) {
-            return Err(Error::old(
-                &ds.name_token,
-                &format!("function name '{}' already defined in this scope", name),
-            ));
+            return Err(ds.name_token.error(&format!(
+                "function name '{}' already defined in this scope",
+                name
+            )));
         }
 
         // Calculate the function value
