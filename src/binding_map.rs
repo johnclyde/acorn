@@ -6,7 +6,7 @@ use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
-use crate::compilation::{self, Error};
+use crate::compilation::{self, Error, ErrorSource};
 use crate::expression::{Declaration, Expression, Terminator};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
@@ -133,16 +133,13 @@ struct ConstantInfo {
 // actual_type should be non-generic here.
 // expected_type can be generic.
 pub fn check_type<'a>(
-    error_token: &Token,
+    source: &dyn ErrorSource,
     expected_type: Option<&AcornType>,
     actual_type: &AcornType,
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
-            return Err(Error::old(
-                error_token,
-                &format!("expected type {}, but got {}", e, actual_type),
-            ));
+            return Err(source.error(format!("expected type {}, but this is {}", e, actual_type)));
         }
     }
     Ok(())
