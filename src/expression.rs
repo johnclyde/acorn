@@ -509,10 +509,7 @@ impl Expression {
             Expression::Grouping(_, e, _) => Ok(e.flatten_comma_separated_list()),
             e => {
                 if !allow_singleton {
-                    Err(Error::old(
-                        self.token(),
-                        &format!("expected a grouped list but found: {}", self),
-                    ))
+                    Err(self.error(format!("expected a grouped list but found: {}", self)))
                 } else {
                     Ok(vec![e])
                 }
@@ -606,6 +603,15 @@ impl PartialExpression {
             | PartialExpression::ImplicitApply(token) => token,
         }
     }
+
+    fn error(&self, message: String) -> Error {
+        match &self {
+            PartialExpression::Expression(e) => e.error(message),
+            PartialExpression::Unary(t)
+            | PartialExpression::Binary(t)
+            | PartialExpression::ImplicitApply(t) => t.error(message),
+        }
+    }
 }
 
 // Create partial expressions from tokens.
@@ -624,7 +630,7 @@ fn parse_partial_expressions(
         if token.token_type.is_binary() {
             match (expected_type, token.token_type) {
                 (ExpressionType::Value, TokenType::Colon) => {
-                    return Err(Error::old(&token, "unexpected colon in value"));
+                    return Err(token.error("unexpected colon in value".to_string()));
                 }
                 (ExpressionType::Value, _) => {
                     // Anything else can be in a value
@@ -635,7 +641,7 @@ fn parse_partial_expressions(
                     // These are okay in types
                 }
                 (ExpressionType::Type, _) => {
-                    return Err(Error::old(&token, "unexpected token in type"));
+                    return Err(token.error("unexpected token in type".to_string()));
                 }
             }
 
@@ -689,14 +695,14 @@ fn parse_partial_expressions(
             }
             TokenType::Numeral | TokenType::True | TokenType::False | TokenType::SelfToken => {
                 if expected_type == ExpressionType::Type {
-                    return Err(Error::old(&token, "expected a type but found a value"));
+                    return Err(token.error("expected a type but found a value".to_string()));
                 }
                 partials.push_back(PartialExpression::Expression(Expression::Singleton(token)));
             }
 
             TokenType::ForAll | TokenType::Exists | TokenType::Function => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::old(&token, "quantifiers cannot be used here"));
+                    return Err(token.error("quantifiers cannot be used here".to_string()));
                 }
                 tokens.expect_type(TokenType::LeftParen)?;
                 let args = Declaration::parse_list(tokens)?;
@@ -712,7 +718,7 @@ fn parse_partial_expressions(
 
             TokenType::If => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::old(&token, "'if' expressions cannot be used here"));
+                    return Err(token.error("'if' expressions cannot be used here".to_string()));
                 }
                 let (condition, _) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
@@ -734,7 +740,7 @@ fn parse_partial_expressions(
 
             TokenType::Match => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::old(&token, "'match' cannot be used here"));
+                    return Err(token.error("'match' cannot be used here".to_string()));
                 }
                 let (scrutinee, _) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
@@ -772,10 +778,10 @@ fn parse_partial_expressions(
             }
 
             _ => {
-                return Err(Error::old(
-                    &token,
-                    &format!("expected an expression terminated by {}", termination),
-                ));
+                return Err(token.error(format!(
+                    "expected an expression terminated by {}",
+                    termination
+                )));
             }
         }
     }
@@ -813,10 +819,7 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
         Some((neg_precedence, index)) => {
             if neg_precedence == 0 {
                 let token = partials[index].token();
-                return Err(Error::old(
-                    token,
-                    &format!("operator {} has precedence 0", token),
-                ));
+                return Err(token.error(format!("operator {} has precedence 0", token)));
             }
             Ok(Some(index))
         }
@@ -836,13 +839,10 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
             match (left, right) {
                 (PartialExpression::Binary(a), PartialExpression::Binary(b))
                 | (PartialExpression::Unary(a), PartialExpression::Binary(b)) => {
-                    return Err(Error::old(
-                        right.token(),
-                        &format!(
-                            "the '{}' operator cannot be followed by the '{}' operator",
-                            a, b
-                        ),
-                    ));
+                    return Err(right.error(format!(
+                        "the '{}' operator cannot be followed by the '{}' operator",
+                        a, b
+                    )));
                 }
                 _ => {}
             }
