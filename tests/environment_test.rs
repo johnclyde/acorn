@@ -937,7 +937,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_infix_codegen() {
+    fn test_operator_codegen() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -952,6 +952,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 define gt(self, other: Nat) -> Bool { axiom }
                 define lte(self, other: Nat) -> Bool { axiom }
                 define gte(self, other: Nat) -> Bool { axiom }
+                define neg(self) -> Nat { axiom }
                 define suc(self) -> Nat { axiom }
                 define foo(self, other: Nat) -> Nat { axiom }
                 let 0: Nat = axiom
@@ -977,6 +978,10 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("1 + 1 * 1");
         env.bindings.expect_good_code("0.suc = 1");
         env.bindings.expect_good_code("0.foo(1)");
+        env.bindings.expect_good_code("-0 - 1");
+        env.bindings.expect_good_code("-(0 - 1)");
+        env.bindings.expect_good_code("-0 * 1");
+        env.bindings.expect_good_code("-(0 * 1)");
     }
 
     #[test]
