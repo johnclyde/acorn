@@ -317,30 +317,29 @@ impl Environment {
         range: Range,
     ) -> compilation::Result<()> {
         if class.is_none() && ls.name_token.token_type == TokenType::Numeral {
-            return Err(Error::old(
-                &ls.name_token,
-                "numeric literals may not be defined outside of a class",
-            ));
+            return Err(ls
+                .name_token
+                .error("numeric literals may not be defined outside of a class"));
         }
         if ls.name == "self"
             || ls.name == "new"
             || ls.name == "read"
             || (class.is_some() && TokenType::is_magic_method_name(&ls.name))
         {
-            return Err(Error::old(
-                &ls.name_token,
-                &format!("'{}' is a reserved word. use a different name", ls.name),
-            ));
+            return Err(ls.name_token.error(&format!(
+                "'{}' is a reserved word. use a different name",
+                ls.name
+            )));
         }
         let name = match class {
             Some(c) => format!("{}.{}", c, ls.name),
             None => ls.name.clone(),
         };
         if self.bindings.name_in_use(&name) {
-            return Err(Error::old(
-                &ls.name_token,
-                &format!("constant name '{}' already defined in this scope", name),
-            ));
+            return Err(ls.name_token.error(&format!(
+                "constant name '{}' already defined in this scope",
+                name
+            )));
         }
         let acorn_type = self.bindings.evaluate_type(project, &ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
