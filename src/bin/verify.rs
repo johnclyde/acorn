@@ -32,9 +32,15 @@ async fn main() {
         if target.ends_with(".ac") {
             // Looks like a filename
             let path = PathBuf::from(&target);
-            project.add_target_by_path(&path);
+            if !project.add_target_by_path(&path) {
+                println!("File not found: {}", target);
+                return;
+            }
         } else {
-            project.add_target_by_name(&target);
+            if !project.add_target_by_name(&target) {
+                println!("Module not found: {}", target);
+                return;
+            }
         }
     } else {
         project.add_all_targets();

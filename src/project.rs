@@ -189,10 +189,12 @@ impl Project {
         answer
     }
 
+    // Returns whether it loaded okay.
     pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
         self.add_target_by_ref(&ModuleRef::Name(module_name.to_string()))
     }
 
+    // Returns whether it loaded okay.
     pub fn add_target_by_path(&mut self, path: &Path) -> bool {
         let module_ref = self.module_ref_from_path(path).unwrap();
         self.add_target_by_ref(&module_ref)
