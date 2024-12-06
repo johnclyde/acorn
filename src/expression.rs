@@ -1095,4 +1095,13 @@ mod tests {
         check_value("match a { Foo.bar(b) { b } Foo.qux(b) { b } }");
         check_not_value("match a { }");
     }
+
+    #[test]
+    fn test_unary_negate_expression() {
+        check_value("-1");
+        // check_value("-a");
+        // check_value("-a - a");
+        // check_value("a + -a");
+        // check_value("a - -a");
+    }
 }
