@@ -572,21 +572,17 @@ impl BindingMap {
         match expression {
             Expression::Singleton(token) => {
                 if token.token_type == TokenType::Axiom {
-                    return Err(Error::old(
-                        token,
-                        "axiomatic types can only be created at the top level",
-                    ));
+                    return Err(token.error("axiomatic types can only be created at the top level"));
                 }
                 if let Some(acorn_type) = self.type_names.get(token.text()) {
                     Ok(acorn_type.clone())
                 } else {
-                    Err(Error::old(token, "expected type name"))
+                    Err(token.error("expected type name"))
                 }
             }
-            Expression::Unary(token, _) => Err(Error::old(
-                token,
-                "unexpected unary operator in type expression",
-            )),
+            Expression::Unary(token, _) => {
+                Err(token.error("unexpected unary operator in type expression"))
+            }
             Expression::Binary(left, token, right) => match token.token_type {
                 TokenType::RightArrow => {
                     let arg_exprs = left.flatten_list(true)?;
@@ -601,23 +597,18 @@ impl BindingMap {
                     let entity = self.evaluate_entity(&mut Stack::new(), project, expression)?;
                     entity.expect_type(token)
                 }
-                _ => Err(Error::old(
-                    token,
-                    "unexpected binary operator in type expression",
-                )),
+                _ => Err(token.error("unexpected binary operator in type expression")),
             },
-            Expression::Apply(left, _) => Err(Error::old(
-                left.token(),
-                "unexpected function application in type expression",
-            )),
+            Expression::Apply(left, _) => Err(left
+                .token()
+                .error("unexpected function application in type expression")),
             Expression::Grouping(_, e, _) => self.evaluate_type(project, e),
             Expression::Binder(token, _, _, _) | Expression::IfThenElse(token, _, _, _, _) => {
-                Err(Error::old(token, "unexpected token in type expression"))
+                Err(token.error("unexpected token in type expression"))
             }
-            Expression::Match(token, _, _, _) => Err(Error::old(
-                token,
-                "unexpected match token in type expression",
-            )),
+            Expression::Match(token, _, _, _) => {
+                Err(token.error("unexpected match token in type expression"))
+            }
         }
     }
 
@@ -654,10 +645,7 @@ impl BindingMap {
                 return Ok((name_token.to_string(), acorn_type));
             }
             Declaration::SelfToken(name_token) => {
-                return Err(Error::old(
-                    &name_token,
-                    "cannot use 'self' as an argument here",
-                ));
+                return Err(name_token.error("cannot use 'self' as an argument here"));
             }
         };
     }
@@ -688,25 +676,22 @@ impl BindingMap {
                         continue;
                     }
                     _ => {
-                        return Err(Error::old(
-                            declaration.token(),
-                            "first argument of a member function must be 'self'",
-                        ));
+                        return Err(declaration
+                            .token()
+                            .error("first argument of a member function must be 'self'"));
                     }
                 }
             }
             let (name, acorn_type) = self.evaluate_declaration(project, declaration)?;
             if self.name_in_use(&name) {
-                return Err(Error::old(
-                    declaration.token(),
-                    "cannot redeclare a name in an argument list",
-                ));
+                return Err(declaration
+                    .token()
+                    .error("cannot redeclare a name in an argument list"));
             }
             if names.contains(&name) {
-                return Err(Error::old(
-                    declaration.token(),
-                    "cannot declare a name twice in one argument list",
-                ));
+                return Err(declaration
+                    .token()
+                    .error("cannot declare a name twice in one argument list"));
             }
             names.push(name);
             types.push(acorn_type);
@@ -735,14 +720,14 @@ impl BindingMap {
                 };
                 bindings.constants.get(name).unwrap()
             }
-            _ => return Err(Error::old(token, "invalid pattern")),
+            _ => return Err(token.error("invalid pattern")),
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
                 check_type(token, Some(expected_type), &constructor_type)?;
                 Ok((*i, *total))
             }
-            None => Err(Error::old(token, "expected a constructor")),
+            None => Err(token.error("expected a constructor")),
         }
     }
 
@@ -775,49 +760,38 @@ impl BindingMap {
         let arg_types = match constructor.get_type() {
             AcornType::Function(f) => {
                 if &*f.return_type != expected_type {
-                    return Err(Error::old(
-                        pattern.token(),
-                        "pattern type does not match scrutinee",
-                    ));
+                    return Err(pattern.error(&format!(
+                        "the pattern has type {} but we are matching type {}",
+                        &*f.return_type, expected_type
+                    )));
                 }
                 f.arg_types
             }
-            _ => return Err(Error::old(fn_exp.token(), "expected a function")),
+            _ => return Err(fn_exp.error("expected a function")),
         };
         let name_exps = args.flatten_list(false)?;
         if name_exps.len() != arg_types.len() {
-            return Err(Error::old(
-                token,
-                &format!(
-                    "expected {} arguments but got {}",
-                    arg_types.len(),
-                    name_exps.len()
-                ),
-            ));
+            return Err(args.error(&format!(
+                "expected {} arguments but got {}",
+                arg_types.len(),
+                name_exps.len()
+            )));
         }
         let mut args = vec![];
         for (name_exp, arg_type) in name_exps.into_iter().zip(arg_types.into_iter()) {
             let name = match name_exp {
                 Expression::Singleton(token) => token.text().to_string(),
-                _ => {
-                    return Err(Error::old(
-                        name_exp.token(),
-                        "expected a simple name in pattern",
-                    ))
-                }
+                _ => return Err(name_exp.error("expected a simple name in pattern")),
             };
             if self.name_in_use(&name) {
-                return Err(Error::old(
-                    name_exp.token(),
-                    &format!("name {} already bound", name),
-                ));
+                return Err(name_exp.error(&format!("name '{}' is already bound", name)));
             }
             // Check if we already saw this name
             if args.iter().any(|(n, _)| n == &name) {
-                return Err(Error::old(
-                    name_exp.token(),
-                    "cannot use a name twice in one pattern",
-                ));
+                return Err(name_exp.error(&format!(
+                    "cannot use the name '{}' twice in one pattern",
+                    name
+                )));
             }
             args.push((name, arg_type))
         }
