@@ -1971,9 +1971,16 @@ impl BindingMap {
                 }
 
                 if let Some(name) = fa.function.is_member(&fa.args[0].get_type()) {
+                    if args.len() == 1 {
+                        // Prefix operators
+                        if let Some(op) = TokenType::from_prefix_magic_method_name(&name) {
+                            return Ok(Expression::generate_unary(op, args.pop().unwrap()));
+                        }
+                    }
+
                     if args.len() == 2 {
                         // Infix operators
-                        if let Some(op) = TokenType::from_magic_method_name(&name) {
+                        if let Some(op) = TokenType::from_infix_magic_method_name(&name) {
                             let right = args.pop().unwrap();
                             let left = args.pop().unwrap();
                             return Ok(Expression::generate_binary(left, op, right));

@@ -324,7 +324,7 @@ impl Environment {
         if ls.name == "self"
             || ls.name == "new"
             || ls.name == "read"
-            || (class.is_some() && TokenType::from_magic_method_name(&ls.name).is_some())
+            || (class.is_some() && TokenType::is_magic_method_name(&ls.name))
         {
             return Err(Error::new(
                 &ls.name_token,
@@ -866,7 +866,7 @@ impl Environment {
                 for (field_name_token, field_type_expr) in &ss.fields {
                     let field_type = self.bindings.evaluate_type(project, &field_type_expr)?;
                     field_types.push(field_type.clone());
-                    if TokenType::from_magic_method_name(&field_name_token.text()).is_some() {
+                    if TokenType::is_magic_method_name(&field_name_token.text()) {
                         return Err(Error::new(
                             field_name_token,
                             &format!(

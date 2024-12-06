@@ -259,18 +259,27 @@ impl TokenType {
     }
 
     // Converting the other way, from a (potential) magic method name to a token.
-    pub fn from_magic_method_name(name: &str) -> Option<TokenType> {
+    pub fn from_infix_magic_method_name(name: &str) -> Option<TokenType> {
         for (method_name, token_type) in INFIX_MAGIC_METHODS {
             if method_name == &name {
                 return Some(*token_type);
             }
         }
+        None
+    }
+
+    pub fn from_prefix_magic_method_name(name: &str) -> Option<TokenType> {
         for (method_name, token_type) in PREFIX_MAGIC_METHODS {
             if method_name == &name {
                 return Some(*token_type);
             }
         }
         None
+    }
+
+    pub fn is_magic_method_name(name: &str) -> bool {
+        TokenType::from_infix_magic_method_name(name).is_some()
+            || TokenType::from_prefix_magic_method_name(name).is_some()
     }
 
     // A token created without a line.
