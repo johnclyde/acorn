@@ -15,7 +15,9 @@ pub struct Error {
     message: String,
 
     // When you try to import a module that itself had a compilation error, that is a "secondary error".
-    // We may or may not want to report these, depending on the context.
+    // We may or may not want to report these.
+    // If the primary location is visible, there's no point in also reporting the secondary.
+    // But if the primary location is inaccessible, we should report it at the secondary location.
     pub secondary: bool,
 }
 
@@ -57,11 +59,11 @@ impl Error {
         }
     }
 
-    pub fn secondary(token: &Token, message: &str) -> Self {
+    pub fn secondary(first_token: &Token, last_token: &Token, message: &str) -> Self {
         Error {
+            first_token: first_token.clone(),
+            last_token: last_token.clone(),
             message: message.to_string(),
-            first_token: token.clone(),
-            last_token: token.clone(),
             secondary: true,
         }
     }
