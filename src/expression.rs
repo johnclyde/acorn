@@ -2,7 +2,8 @@ use std::{collections::VecDeque, fmt};
 
 use tower_lsp::lsp_types::Range;
 
-use crate::token::{Error, Result, Token, TokenIter, TokenType};
+use crate::compilation::{Error, Result};
+use crate::token::{Token, TokenIter, TokenType};
 
 // There are two sorts of expressions.
 // Value expressions, like:

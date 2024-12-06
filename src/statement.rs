@@ -1,7 +1,8 @@
 use tower_lsp::lsp_types::Range;
 
+use crate::compilation::{Error, Result};
 use crate::expression::{Declaration, Expression, Terminator};
-use crate::token::{Error, Result, Token, TokenIter, TokenType};
+use crate::token::{Token, TokenIter, TokenType};
 
 use std::fmt;
 

@@ -1,6 +1,7 @@
 use std::{fmt, path::PathBuf};
 
-use crate::{environment::Environment, token};
+use crate::compilation;
+use crate::environment::Environment;
 
 // The code in one file is exposed to other Acorn code as a "module".
 // You could have two different types both named "MyStruct" but defined in different places.
@@ -25,7 +26,7 @@ pub enum Module {
     Loading,
 
     // The module has been loaded, but there is an error in its code
-    Error(token::Error),
+    Error(compilation::Error),
 
     // The module has been loaded successfully and we have its environment
     Ok(Environment),

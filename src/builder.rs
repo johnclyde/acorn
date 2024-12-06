@@ -3,13 +3,13 @@ use std::time::Duration;
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 
+use crate::compilation::Error;
 use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
 use crate::module::ModuleRef;
 use crate::prover::{Outcome, Prover};
-use crate::token::Error;
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
 

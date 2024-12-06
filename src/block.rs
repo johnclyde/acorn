@@ -6,6 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
+use crate::compilation::{self, Error};
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -13,7 +14,7 @@ use crate::project::Project;
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::Body;
-use crate::token::{self, Error, Token};
+use crate::token::Token;
 
 // Proofs are structured into blocks.
 // The environment specific to this block can have a bunch of propositions that need to be
@@ -88,7 +89,7 @@ impl Block {
         first_line: u32,
         last_line: u32,
         body: Option<&Body>,
-    ) -> token::Result<Block> {
+    ) -> compilation::Result<Block> {
         let mut subenv = env.child(first_line, body.is_none());
 
         // Inside the block, the type parameters are opaque data types.
@@ -269,7 +270,7 @@ impl Block {
         &self,
         outer_env: &Environment,
         token: &Token,
-    ) -> token::Result<(AcornValue, Range)> {
+    ) -> compilation::Result<(AcornValue, Range)> {
         let (inner_claim, range) = match self.env.nodes.last() {
             Some(p) => (&p.claim.value, p.claim.source.range),
             None => {

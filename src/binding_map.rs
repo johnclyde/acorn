@@ -6,11 +6,12 @@ use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
+use crate::compilation::{self, Error};
 use crate::expression::{Declaration, Expression, Terminator};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
 use crate::termination_checker::TerminationChecker;
-use crate::token::{self, Error, Token, TokenIter, TokenType};
+use crate::token::{self, Token, TokenIter, TokenType};
 
 // A representation of the variables on the stack.
 pub struct Stack {
@@ -135,7 +136,7 @@ pub fn check_type<'a>(
     error_token: &Token,
     expected_type: Option<&AcornType>,
     actual_type: &AcornType,
-) -> token::Result<()> {
+) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
             return Err(Error::new(
@@ -168,7 +169,7 @@ impl NamedEntity {
         self,
         expected_type: Option<&AcornType>,
         token: &Token,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         match self {
             NamedEntity::Value(value) => {
                 check_type(token, expected_type, &value.get_type())?;
@@ -185,7 +186,7 @@ impl NamedEntity {
         }
     }
 
-    fn expect_type(self, token: &Token) -> token::Result<AcornType> {
+    fn expect_type(self, token: &Token) -> compilation::Result<AcornType> {
         match self {
             NamedEntity::Value(_) => Err(Error::new(
                 token,
@@ -574,7 +575,7 @@ impl BindingMap {
         &self,
         project: &Project,
         expression: &Expression,
-    ) -> token::Result<AcornType> {
+    ) -> compilation::Result<AcornType> {
         match expression {
             Expression::Singleton(token) => {
                 if token.token_type == TokenType::Axiom {
@@ -633,7 +634,7 @@ impl BindingMap {
         project: &Project,
         expression: &Expression,
         output: &mut Vec<AcornType>,
-    ) -> token::Result<()> {
+    ) -> compilation::Result<()> {
         match expression {
             Expression::Grouping(_, e, _) => self.evaluate_type_list(project, e, output),
             Expression::Binary(left, token, right) if token.token_type == TokenType::Comma => {
@@ -653,7 +654,7 @@ impl BindingMap {
         &self,
         project: &Project,
         declaration: &Declaration,
-    ) -> token::Result<(String, AcornType)> {
+    ) -> compilation::Result<(String, AcornType)> {
         match declaration {
             Declaration::Typed(name_token, type_expr) => {
                 let acorn_type = self.evaluate_type(project, &type_expr)?;
@@ -676,7 +677,7 @@ impl BindingMap {
         project: &Project,
         declarations: I,
         class_name: Option<&str>,
-    ) -> token::Result<(Vec<String>, Vec<AcornType>)>
+    ) -> compilation::Result<(Vec<String>, Vec<AcornType>)>
     where
         I: IntoIterator<Item = &'a Declaration>,
     {
@@ -731,7 +732,7 @@ impl BindingMap {
         expected_type: &AcornType,
         value: &AcornValue,
         token: &Token,
-    ) -> token::Result<(usize, usize)> {
+    ) -> compilation::Result<(usize, usize)> {
         let info = match value {
             AcornValue::Constant(module, name, _, _) => {
                 let bindings = if *module == self.module {
@@ -764,7 +765,7 @@ impl BindingMap {
         project: &Project,
         expected_type: &AcornType,
         pattern: &Expression,
-    ) -> token::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
+    ) -> compilation::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
         let token = pattern.token();
         let (fn_exp, args) = match pattern {
             Expression::Apply(function, args) => (function, args),
@@ -840,7 +841,7 @@ impl BindingMap {
         module: ModuleId,
         type_name: &str,
         s: &str,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         if let Some(value) = self.evaluate_class_variable(project, module, type_name, s) {
             return Ok(value);
         }
@@ -897,7 +898,7 @@ impl BindingMap {
         project: &Project,
         expression: &Expression,
         expected_type: Option<&AcornType>,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         self.evaluate_value_with_stack(&mut Stack::new(), project, expression, expected_type)
     }
 
@@ -909,7 +910,7 @@ impl BindingMap {
         project: &Project,
         instance: AcornValue,
         name: &str,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         let base_type = instance.get_type();
         if let AcornType::Data(module, type_name) = base_type {
             let bindings = if module == self.module {
@@ -958,7 +959,7 @@ impl BindingMap {
         project: &Project,
         stack: &Stack,
         namespace: Option<NamedEntity>,
-    ) -> token::Result<NamedEntity> {
+    ) -> compilation::Result<NamedEntity> {
         let name = name_token.text();
         match namespace {
             Some(NamedEntity::Value(instance)) => {
@@ -1060,7 +1061,7 @@ impl BindingMap {
         project: &Project,
         left: &Expression,
         right: &Expression,
-    ) -> token::Result<NamedEntity> {
+    ) -> compilation::Result<NamedEntity> {
         let right_token = match right {
             Expression::Singleton(token) => token,
             _ => {
@@ -1097,7 +1098,7 @@ impl BindingMap {
         stack: &mut Stack,
         project: &Project,
         expression: &Expression,
-    ) -> token::Result<NamedEntity> {
+    ) -> compilation::Result<NamedEntity> {
         // Handle a plain old name
         if let Expression::Singleton(token) = expression {
             return self.evaluate_name(token, project, stack, None);
@@ -1125,7 +1126,7 @@ impl BindingMap {
         right: &Expression,
         name: &str,
         expected_type: Option<&AcornType>,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         let left_value = self.evaluate_value_with_stack(stack, project, left, None)?;
         let right_value = self.evaluate_value_with_stack(stack, project, right, None)?;
 
@@ -1174,7 +1175,7 @@ impl BindingMap {
         project: &Project,
         module: ModuleId,
         name_token: &Token,
-    ) -> token::Result<()> {
+    ) -> compilation::Result<()> {
         if self.name_in_use(&name_token.text()) {
             return Err(Error::new(
                 name_token,
@@ -1224,7 +1225,7 @@ impl BindingMap {
         project: &Project,
         expression: &Expression,
         expected_type: Option<&AcornType>,
-    ) -> token::Result<AcornValue> {
+    ) -> compilation::Result<AcornValue> {
         match expression {
             Expression::Singleton(token) => match token.token_type {
                 TokenType::Axiom => panic!("axiomatic values should be handled elsewhere"),
@@ -1407,7 +1408,7 @@ impl BindingMap {
                 let mut args = vec![];
                 let mut mapping = HashMap::new();
                 for (i, arg_expr) in arg_exprs.iter().enumerate() {
-                    let arg_type = &function_type.arg_types[i];
+                    let arg_type: &AcornType = &function_type.arg_types[i];
                     let arg_value =
                         self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
                     if !arg_type.match_specialized(&arg_value.get_type(), &mut mapping) {
@@ -1607,7 +1608,7 @@ impl BindingMap {
         value_expr: &Expression,
         class_name: Option<&str>,
         function_name: Option<&str>,
-    ) -> token::Result<(
+    ) -> compilation::Result<(
         Vec<String>,
         Vec<String>,
         Vec<AcornType>,

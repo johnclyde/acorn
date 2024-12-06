@@ -11,12 +11,13 @@ use walkdir::WalkDir;
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::builder::{BuildEvent, BuildStatus, Builder};
+use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{Module, ModuleId, ModuleRef, FIRST_NORMAL};
 use crate::prover::Prover;
-use crate::token::{self, Token};
+use crate::token::Token;
 
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {
@@ -522,7 +523,7 @@ impl Project {
         }
     }
 
-    pub fn errors(&self) -> Vec<(ModuleId, &token::Error)> {
+    pub fn errors(&self) -> Vec<(ModuleId, &compilation::Error)> {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
             if let (_, Module::Error(e)) = module {
