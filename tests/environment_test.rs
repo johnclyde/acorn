@@ -991,11 +991,11 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("0.foo(1)");
         env.bindings.expect_good_code("0.add");
         env.bindings.expect_good_code("-0 - 1");
-        // env.bindings.expect_good_code("-(0 - 1)");
-        // env.bindings.expect_good_code("-0 * 1");
-        // env.bindings.expect_good_code("-(0 * 1)");
-        // env.bindings.expect_good_code("-0.suc");
-        // env.bindings.expect_good_code("(-0).suc");
+        env.bindings.expect_good_code("-(0 - 1)");
+        env.bindings.expect_good_code("-0 * 1");
+        env.bindings.expect_good_code("-(0 * 1)");
+        env.bindings.expect_good_code("-0.suc");
+        env.bindings.expect_good_code("(-0).suc");
     }
 
     #[test]
