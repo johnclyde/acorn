@@ -1258,10 +1258,15 @@ impl BindingMap {
                     )?;
                     Ok(AcornValue::Not(Box::new(value)))
                 }
-                _ => Err(Error::new(
-                    token,
-                    "unexpected unary operator in value expression",
-                )),
+                token_type => match token_type.to_prefix_magic_method_name() {
+                    Some(name) => {
+                        todo!("handle magic prefix things: {}", name);
+                    }
+                    None => Err(Error::new(
+                        token,
+                        "unexpected unary operator in value expression",
+                    )),
+                },
             },
             Expression::Binary(left, token, right) => match token.token_type {
                 TokenType::RightArrow => {
@@ -1359,7 +1364,7 @@ impl BindingMap {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
                     Ok(entity.expect_value(expected_type, token)?)
                 }
-                token_type => match token_type.to_magic_method_name() {
+                token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => {
                         self.evaluate_infix(stack, project, left, token, right, name, expected_type)
                     }
