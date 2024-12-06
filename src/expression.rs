@@ -160,10 +160,10 @@ impl Declaration {
         if name_token.text() == "self" {
             let token = tokens.expect_token()?;
             if token.token_type == TokenType::Colon {
-                return Err(Error::new(&token, "no type is needed after 'self'"));
+                return Err(Error::old(&token, "no type is needed after 'self'"));
             }
             if !terminator.matches(&token.token_type) {
-                return Err(Error::new(
+                return Err(Error::old(
                     &token,
                     &format!("expected {} but found \"{}\"", terminator, token),
                 ));
@@ -508,7 +508,7 @@ impl Expression {
             Expression::Grouping(_, e, _) => Ok(e.flatten_comma_separated_list()),
             e => {
                 if !allow_singleton {
-                    Err(Error::new(
+                    Err(Error::old(
                         self.token(),
                         &format!("expected a grouped list but found: {}", self),
                     ))
@@ -623,7 +623,7 @@ fn parse_partial_expressions(
         if token.token_type.is_binary() {
             match (expected_type, token.token_type) {
                 (ExpressionType::Value, TokenType::Colon) => {
-                    return Err(Error::new(&token, "unexpected colon in value"));
+                    return Err(Error::old(&token, "unexpected colon in value"));
                 }
                 (ExpressionType::Value, _) => {
                     // Anything else can be in a value
@@ -634,7 +634,7 @@ fn parse_partial_expressions(
                     // These are okay in types
                 }
                 (ExpressionType::Type, _) => {
-                    return Err(Error::new(&token, "unexpected token in type"));
+                    return Err(Error::old(&token, "unexpected token in type"));
                 }
             }
 
@@ -688,14 +688,14 @@ fn parse_partial_expressions(
             }
             TokenType::Numeral | TokenType::True | TokenType::False | TokenType::SelfToken => {
                 if expected_type == ExpressionType::Type {
-                    return Err(Error::new(&token, "expected a type but found a value"));
+                    return Err(Error::old(&token, "expected a type but found a value"));
                 }
                 partials.push_back(PartialExpression::Expression(Expression::Singleton(token)));
             }
 
             TokenType::ForAll | TokenType::Exists | TokenType::Function => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::new(&token, "quantifiers cannot be used here"));
+                    return Err(Error::old(&token, "quantifiers cannot be used here"));
                 }
                 tokens.expect_type(TokenType::LeftParen)?;
                 let args = Declaration::parse_list(tokens)?;
@@ -711,7 +711,7 @@ fn parse_partial_expressions(
 
             TokenType::If => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::new(&token, "'if' expressions cannot be used here"));
+                    return Err(Error::old(&token, "'if' expressions cannot be used here"));
                 }
                 let (condition, _) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
@@ -733,7 +733,7 @@ fn parse_partial_expressions(
 
             TokenType::Match => {
                 if expected_type != ExpressionType::Value {
-                    return Err(Error::new(&token, "'match' cannot be used here"));
+                    return Err(Error::old(&token, "'match' cannot be used here"));
                 }
                 let (scrutinee, _) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
@@ -771,7 +771,7 @@ fn parse_partial_expressions(
             }
 
             _ => {
-                return Err(Error::new(
+                return Err(Error::old(
                     &token,
                     &format!("expected an expression terminated by {}", termination),
                 ));
@@ -812,7 +812,7 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
         Some((neg_precedence, index)) => {
             if neg_precedence == 0 {
                 let token = partials[index].token();
-                return Err(Error::new(
+                return Err(Error::old(
                     token,
                     &format!("operator {} has precedence 0", token),
                 ));
@@ -835,7 +835,7 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
             match (left, right) {
                 (PartialExpression::Binary(a), PartialExpression::Binary(b))
                 | (PartialExpression::Unary(a), PartialExpression::Binary(b)) => {
-                    return Err(Error::new(
+                    return Err(Error::old(
                         right.token(),
                         &format!(
                             "the '{}' operator cannot be followed by the '{}' operator",
@@ -866,7 +866,7 @@ fn combine_partial_expressions(
         if let PartialExpression::Expression(e) = partial {
             return Ok(e);
         }
-        return Err(Error::new(partial.token(), "incomplete expression"));
+        return Err(Error::old(partial.token(), "incomplete expression"));
     }
 
     // If there are operators, find the operator that should operate last,
@@ -880,7 +880,7 @@ fn combine_partial_expressions(
                     Box::new(combine_partial_expressions(partials, expected_type, iter)?),
                 ));
             }
-            return Err(Error::new(partial.token(), "expected unary operator"));
+            return Err(Error::old(partial.token(), "expected unary operator"));
         }
 
         let mut right_partials = partials.split_off(index);
@@ -897,7 +897,7 @@ fn combine_partial_expressions(
                 let right = combine_partial_expressions(right_partials, expected_type, iter)?;
                 Ok(Expression::Apply(Box::new(left), Box::new(right)))
             }
-            _ => Err(Error::new(partial.token(), "expected binary operator")),
+            _ => Err(Error::old(partial.token(), "expected binary operator")),
         };
     }
 
@@ -912,15 +912,15 @@ fn combine_partial_expressions(
                         Expression::Grouping(_, _, _) => {
                             answer = Expression::Apply(Box::new(answer), Box::new(expr))
                         }
-                        _ => return Err(Error::new(expr.token(), "expected a grouping")),
+                        _ => return Err(Error::old(expr.token(), "expected a grouping")),
                     },
-                    _ => return Err(Error::new(partial.token(), "unexpected operator")),
+                    _ => return Err(Error::old(partial.token(), "unexpected operator")),
                 }
             }
             Ok(answer)
         }
 
-        e => Err(Error::new(e.token(), "expected an expression")),
+        e => Err(Error::old(e.token(), "expected an expression")),
     }
 }
 

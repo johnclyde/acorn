@@ -274,7 +274,7 @@ impl Block {
         let (inner_claim, range) = match self.env.nodes.last() {
             Some(p) => (&p.claim.value, p.claim.source.range),
             None => {
-                return Err(Error::new(token, "expected a claim in this block"));
+                return Err(Error::old(token, "expected a claim in this block"));
             }
         };
         let outer_claim = self.export_bool(outer_env, inner_claim);
