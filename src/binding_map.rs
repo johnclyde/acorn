@@ -165,35 +165,31 @@ impl NamedEntity {
     fn expect_value(
         self,
         expected_type: Option<&AcornType>,
-        token: &Token,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         match self {
             NamedEntity::Value(value) => {
-                check_type(token, expected_type, &value.get_type())?;
+                check_type(source, expected_type, &value.get_type())?;
                 Ok(value)
             }
-            NamedEntity::Type(_) => Err(Error::old(
-                token,
-                "name refers to a type but we expected a value",
-            )),
-            NamedEntity::Module(_) => Err(Error::old(
-                token,
-                "name refers to a module but we expected a value",
-            )),
+            NamedEntity::Type(_) => {
+                Err(source.error("name refers to a type but we expected a value".to_string()))
+            }
+            NamedEntity::Module(_) => {
+                Err(source.error("name refers to a module but we expected a value".to_string()))
+            }
         }
     }
 
-    fn expect_type(self, token: &Token) -> compilation::Result<AcornType> {
+    fn expect_type(self, source: &dyn ErrorSource) -> compilation::Result<AcornType> {
         match self {
-            NamedEntity::Value(_) => Err(Error::old(
-                token,
-                "name refers to a value but we expected a type",
-            )),
+            NamedEntity::Value(_) => {
+                Err(source.error("name refers to a value but we expected a type".to_string()))
+            }
             NamedEntity::Type(t) => Ok(t),
-            NamedEntity::Module(_) => Err(Error::old(
-                token,
-                "name refers to a module but we expected a type",
-            )),
+            NamedEntity::Module(_) => {
+                Err(source.error("name refers to a module but we expected a type".to_string()))
+            }
         }
     }
 }
