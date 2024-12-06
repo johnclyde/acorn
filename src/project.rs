@@ -315,7 +315,7 @@ impl Project {
                     envs.push(env);
                 }
                 Module::Error(e) => {
-                    if e.external {
+                    if e.secondary {
                         // The real problem is in a different module.
                         // So we don't want to locate the error in this module.
                         builder.log_info(format!("error: {}", e));

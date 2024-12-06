@@ -1264,7 +1264,7 @@ impl Environment {
                 };
                 if project.get_bindings(module_id).is_none() {
                     // The fundamental error is in the other module, not this one.
-                    return Err(Error::external(
+                    return Err(Error::secondary(
                         &statement.first_token,
                         &format!("error in '{}' module", full_name),
                     ));

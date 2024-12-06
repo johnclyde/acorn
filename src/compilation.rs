@@ -9,8 +9,9 @@ pub struct Error {
     pub message: String,
     pub token: Token,
 
-    // external is true when the root error is in a different module.
-    pub external: bool,
+    // When you try to import a module that itself had a compilation error, that is a "secondary error".
+    // We may or may not want to report these, depending on the context.
+    pub secondary: bool,
 }
 
 fn fmt_line_part(f: &mut fmt::Formatter, text: &str, line: &str, index: usize) -> fmt::Result {
@@ -46,15 +47,15 @@ impl Error {
         Error {
             message: message.to_string(),
             token: token.clone(),
-            external: false,
+            secondary: false,
         }
     }
 
-    pub fn external(token: &Token, message: &str) -> Self {
+    pub fn secondary(token: &Token, message: &str) -> Self {
         Error {
             message: message.to_string(),
             token: token.clone(),
-            external: true,
+            secondary: true,
         }
     }
 }
