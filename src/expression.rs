@@ -869,7 +869,7 @@ fn combine_partial_expressions(
         if let PartialExpression::Expression(e) = partial {
             return Ok(e);
         }
-        return Err(Error::old(partial.token(), "incomplete expression"));
+        return Err(partial.error("incomplete expression".to_string()));
     }
 
     // If there are operators, find the operator that should operate last,
@@ -883,7 +883,7 @@ fn combine_partial_expressions(
                     Box::new(combine_partial_expressions(partials, expected_type, iter)?),
                 ));
             }
-            return Err(Error::old(partial.token(), "expected unary operator"));
+            return Err(partial.error("expected unary operator".to_string()));
         }
 
         let mut right_partials = partials.split_off(index);
@@ -900,7 +900,7 @@ fn combine_partial_expressions(
                 let right = combine_partial_expressions(right_partials, expected_type, iter)?;
                 Ok(Expression::Apply(Box::new(left), Box::new(right)))
             }
-            _ => Err(Error::old(partial.token(), "expected binary operator")),
+            _ => Err(partial.error("expected binary operator".to_string())),
         };
     }
 
@@ -915,15 +915,15 @@ fn combine_partial_expressions(
                         Expression::Grouping(_, _, _) => {
                             answer = Expression::Apply(Box::new(answer), Box::new(expr))
                         }
-                        _ => return Err(Error::old(expr.token(), "expected a grouping")),
+                        _ => return Err(expr.error("expected a grouping".to_string())),
                     },
-                    _ => return Err(Error::old(partial.token(), "unexpected operator")),
+                    _ => return Err(partial.error("unexpected operator".to_string())),
                 }
             }
             Ok(answer)
         }
 
-        e => Err(Error::old(e.token(), "expected an expression")),
+        e => Err(e.error("expected an expression".to_string())),
     }
 }
 
