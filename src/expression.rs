@@ -360,14 +360,14 @@ impl Expression {
         op: TokenType,
         mut right: Expression,
     ) -> Expression {
-        if left.value_precedence() < op.value_precedence() {
+        if left.value_precedence() < op.binary_precedence() {
             left = Expression::Grouping(
                 TokenType::LeftParen.generate(),
                 Box::new(left),
                 TokenType::RightParen.generate(),
             );
         }
-        if right.value_precedence() <= op.value_precedence() {
+        if right.value_precedence() <= op.binary_precedence() {
             right = Expression::Grouping(
                 TokenType::LeftParen.generate(),
                 Box::new(right),
@@ -439,7 +439,7 @@ impl Expression {
             Expression::Unary(token, _) | Expression::Binary(_, token, _) => {
                 token.value_precedence()
             }
-            Expression::Apply(..) => TokenType::Dot.value_precedence(),
+            Expression::Apply(..) => TokenType::Dot.binary_precedence(),
         }
     }
 
@@ -787,7 +787,7 @@ fn find_last_operator(
                 // foo.bar(baz) is parsed as (foo.bar)(baz)
                 // foo(bar).baz is parsed as (foo(bar)).baz
                 // foo(bar)(baz) is parsed as (foo(bar))(baz)
-                Some((-TokenType::Dot.value_precedence(), i))
+                Some((-TokenType::Dot.binary_precedence(), i))
             }
             _ => None,
         }

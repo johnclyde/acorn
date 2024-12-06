@@ -174,17 +174,14 @@ impl TokenType {
         }
     }
 
+    // The precedence of a binary operator.
     // Higher precedence operators are bound to arguments first.
-    // It is an error to not specify the order when the precedence is the same.
-    // Only unary and binary operators should have precedences.
-    // There are two precedences: for operators in a value, like 2 + 2, and operators in
-    // a type expression, like (int -> int) -> int.
     // Operators that are not allowed in an expression have a precedence of 0.
     // "Value" expressions also include "declarations" which is why colons are allowed.
     // Function application implicitly has the same precedence as dot.
-    pub fn value_precedence(&self) -> i8 {
+    pub fn binary_precedence(&self) -> i8 {
         match self {
-            TokenType::Dot => 12,
+            TokenType::Dot => 13,
             TokenType::Asterisk => 11,
             TokenType::Slash => 11,
             TokenType::Plus => 10,
@@ -207,6 +204,17 @@ impl TokenType {
         }
     }
 
+    // The precedence of a unary operator.
+    pub fn unary_precedence(&self) -> i8 {
+        match self {
+            TokenType::Not => 6,
+            TokenType::Minus => 12,
+            _ => 0,
+        }
+    }
+
+    // The precedence of a binary operator when they occur in types.
+    // This is actually no different from when they occur in values, so do we even need this?
     pub fn type_precedence(&self) -> i8 {
         match self {
             TokenType::Dot => 4,
@@ -217,7 +225,7 @@ impl TokenType {
         }
     }
 
-    // Whether we put a space to the left of this operator in the canonical style.
+    // Whether we put a space to the left of this binary operator in the canonical style.
     pub fn left_space(&self) -> bool {
         match self {
             TokenType::Dot => false,
@@ -227,7 +235,7 @@ impl TokenType {
         }
     }
 
-    // Whether we put a space to the right of this operator in the canonical style.
+    // Whether we put a space to the right of this binary operator in the canonical style.
     pub fn right_space(&self) -> bool {
         match self {
             TokenType::Dot => false,
@@ -445,7 +453,7 @@ impl Token {
     }
 
     pub fn value_precedence(&self) -> i8 {
-        self.token_type.value_precedence()
+        self.token_type.binary_precedence()
     }
 
     pub fn type_precedence(&self) -> i8 {
