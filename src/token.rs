@@ -193,7 +193,6 @@ impl TokenType {
             TokenType::LessThanOrEquals => 8,
             TokenType::Equals => 7,
             TokenType::NotEquals => 7,
-            TokenType::Not => 6,
             TokenType::Or => 5,
             TokenType::And => 5,
             TokenType::LeftRightArrow => 4,
@@ -259,7 +258,7 @@ impl TokenType {
         None
     }
 
-    // Converting the other way, from a (potential) magic method name to an infix token.
+    // Converting the other way, from a (potential) magic method name to a token.
     pub fn from_magic_method_name(name: &str) -> Option<TokenType> {
         for (method_name, token_type) in INFIX_MAGIC_METHODS {
             if method_name == &name {

@@ -937,6 +937,18 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_propositional_codegen() {
+        let mut env = Environment::new_test();
+        env.add("let b: Bool = axiom");
+        env.bindings.expect_good_code("not b or b");
+        env.bindings.expect_good_code("b and not b");
+        env.bindings.expect_good_code("not not b");
+
+        // TODO: fix
+        // env.bindings.expect_good_code("not (b and b)");
+    }
+
+    #[test]
     fn test_operator_codegen() {
         let mut env = Environment::new_test();
         env.add(
@@ -967,6 +979,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("0 / 1");
         env.bindings.expect_good_code("0 % 1");
         env.bindings.expect_good_code("0 < 1");
+        env.bindings.expect_good_code("not 0 < 1");
         env.bindings.expect_good_code("0 > 1");
         env.bindings.expect_good_code("0 <= 1");
         env.bindings.expect_good_code("0 >= 1");
@@ -979,11 +992,13 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("0.suc = 1");
         env.bindings.expect_good_code("0.foo(1)");
 
-        // TODO: make these work
+        // TODO: fix
         // env.bindings.expect_good_code("-0 - 1");
         // env.bindings.expect_good_code("-(0 - 1)");
         // env.bindings.expect_good_code("-0 * 1");
         // env.bindings.expect_good_code("-(0 * 1)");
+        // env.bindings.expect_good_code("-0.suc");
+        // env.bindings.expect_good_code("(-0).suc");
     }
 
     #[test]
