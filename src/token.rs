@@ -396,7 +396,7 @@ impl fmt::Display for Token {
 }
 
 impl ErrorSource for Token {
-    fn error(&self, message: String) -> Error {
+    fn error(&self, message: &str) -> Error {
         Error::new(self, self, message)
     }
 }

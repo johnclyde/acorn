@@ -139,7 +139,7 @@ pub fn check_type<'a>(
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
-            return Err(source.error(format!("expected type {}, but this is {}", e, actual_type)));
+            return Err(source.error(&format!("expected type {}, but this is {}", e, actual_type)));
         }
     }
     Ok(())
@@ -173,10 +173,10 @@ impl NamedEntity {
                 Ok(value)
             }
             NamedEntity::Type(_) => {
-                Err(source.error("name refers to a type but we expected a value".to_string()))
+                Err(source.error("name refers to a type but we expected a value"))
             }
             NamedEntity::Module(_) => {
-                Err(source.error("name refers to a module but we expected a value".to_string()))
+                Err(source.error("name refers to a module but we expected a value"))
             }
         }
     }
@@ -184,11 +184,11 @@ impl NamedEntity {
     fn expect_type(self, source: &dyn ErrorSource) -> compilation::Result<AcornType> {
         match self {
             NamedEntity::Value(_) => {
-                Err(source.error("name refers to a value but we expected a type".to_string()))
+                Err(source.error("name refers to a value but we expected a type"))
             }
             NamedEntity::Type(t) => Ok(t),
             NamedEntity::Module(_) => {
-                Err(source.error("name refers to a module but we expected a type".to_string()))
+                Err(source.error("name refers to a module but we expected a type"))
             }
         }
     }

@@ -59,20 +59,20 @@ impl Error {
         }
     }
 
-    pub fn new(first_token: &Token, last_token: &Token, message: String) -> Self {
+    pub fn new(first_token: &Token, last_token: &Token, message: &str) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
-            message,
+            message: message.to_string(),
             secondary: false,
         }
     }
 
-    pub fn secondary(first_token: &Token, last_token: &Token, message: String) -> Self {
+    pub fn secondary(first_token: &Token, last_token: &Token, message: &str) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
-            message,
+            message: message.to_string(),
             secondary: true,
         }
     }
@@ -85,5 +85,5 @@ impl Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait ErrorSource {
-    fn error(&self, message: String) -> Error;
+    fn error(&self, message: &str) -> Error;
 }
