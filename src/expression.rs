@@ -1125,9 +1125,12 @@ mod tests {
     #[test]
     fn test_unary_negate_expression() {
         check_value("-1");
-        // check_value("-a");
-        // check_value("-a - a");
-        // check_value("a + -a");
-        // check_value("a - -a");
+        check_value("-a");
+        check_value("-a - b");
+        check_value("-(a - b)");
+        check_value("a + -b");
+        check_value("a - -b");
+        check_value("-a * b");
+        check_value("-(a * b)");
     }
 }
