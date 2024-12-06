@@ -71,7 +71,11 @@ impl fmt::Display for Expression {
         match self {
             Expression::Singleton(token) => write!(f, "{}", token),
             Expression::Unary(token, subexpression) => {
-                write!(f, "{} {}", token, subexpression)
+                if token.token_type == TokenType::Minus {
+                    write!(f, "{}{}", token, subexpression)
+                } else {
+                    write!(f, "{} {}", token, subexpression)
+                }
             }
             Expression::Binary(left, token, right) => {
                 let left_spacer = if token.token_type.left_space() {
@@ -614,6 +618,28 @@ fn parse_partial_expressions(
                     return Err(Error::new(&token, "unexpected token in type"));
                 }
             }
+
+            if token.token_type.is_unary() {
+                // This could either be unary or binary.
+                // Look at the previous token to decide.
+                if match partials.back() {
+                    Some(PartialExpression::Expression(_)) => {
+                        // An expression can't be followed by a unary operator.
+                        false
+                    }
+                    Some(PartialExpression::Unary(_))
+                    | Some(PartialExpression::ImplicitApply(_))
+                    | Some(PartialExpression::Binary(_))
+                    | None => {
+                        // All of these things can be followed by a unary operator.
+                        true
+                    }
+                } {
+                    partials.push_back(PartialExpression::Unary(token));
+                    continue;
+                }
+            }
+
             partials.push_back(PartialExpression::Binary(token));
             continue;
         }

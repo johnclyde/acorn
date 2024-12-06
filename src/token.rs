@@ -134,6 +134,7 @@ impl TokenType {
     pub fn is_unary(&self) -> bool {
         match self {
             TokenType::Not => true,
+            TokenType::Minus => true,
             _ => false,
         }
     }
