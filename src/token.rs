@@ -213,18 +213,6 @@ impl TokenType {
         }
     }
 
-    // The precedence of a binary operator when they occur in types.
-    // This is actually no different from when they occur in values, so do we even need this?
-    pub fn type_precedence(&self) -> i8 {
-        match self {
-            TokenType::Dot => 4,
-            TokenType::RightArrow => 3,
-            TokenType::Colon => 2,
-            TokenType::Comma => 1,
-            _ => 0,
-        }
-    }
-
     // Whether we put a space to the left of this binary operator in the canonical style.
     pub fn left_space(&self) -> bool {
         match self {
@@ -452,20 +440,12 @@ impl Token {
         }
     }
 
-    pub fn value_precedence(&self) -> i8 {
+    pub fn binary_precedence(&self) -> i8 {
         self.token_type.binary_precedence()
     }
 
-    pub fn type_precedence(&self) -> i8 {
-        self.token_type.type_precedence()
-    }
-
-    pub fn precedence(&self, is_value: bool) -> i8 {
-        if is_value {
-            self.value_precedence()
-        } else {
-            self.type_precedence()
-        }
+    pub fn unary_precedence(&self) -> i8 {
+        self.token_type.unary_precedence()
     }
 
     pub fn identifierish(ch: char) -> bool {

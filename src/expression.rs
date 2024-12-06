@@ -437,7 +437,7 @@ impl Expression {
                 i8::MAX
             }
             Expression::Unary(token, _) | Expression::Binary(_, token, _) => {
-                token.value_precedence()
+                token.binary_precedence()
             }
             Expression::Apply(..) => TokenType::Dot.binary_precedence(),
         }
@@ -764,22 +764,18 @@ fn parse_partial_expressions(
 
 // Find the index of the operator that should operate last. (Ie, the root of the tree.)
 // If there are no operators, return None.
-fn find_last_operator(
-    partials: &VecDeque<PartialExpression>,
-    expected_type: ExpressionType,
-) -> Result<Option<usize>> {
-    let is_value = expected_type == ExpressionType::Value;
+fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<usize>> {
     let operators = partials.iter().enumerate().filter_map(|(i, partial)| {
         match partial {
             PartialExpression::Unary(token) => {
                 // Only a unary operator at the beginning of the expression can operate last
                 if i == 0 {
-                    Some((-token.precedence(is_value), i))
+                    Some((-token.unary_precedence(), i))
                 } else {
                     None
                 }
             }
-            PartialExpression::Binary(token) => Some((-token.precedence(is_value), i)),
+            PartialExpression::Binary(token) => Some((-token.binary_precedence(), i)),
             PartialExpression::ImplicitApply(_) => {
                 // Application has the same precedence as dot, so it goes left to right.
                 // This is intuitive if you look at the cases:
@@ -856,7 +852,7 @@ fn combine_partial_expressions(
 
     // If there are operators, find the operator that should operate last,
     // and recurse on each of the two sides.
-    if let Some(index) = find_last_operator(&partials, expected_type)? {
+    if let Some(index) = find_last_operator(&partials)? {
         if index == 0 {
             let partial = partials.pop_front().unwrap();
             if let PartialExpression::Unary(token) = partial {
