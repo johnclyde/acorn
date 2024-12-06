@@ -943,9 +943,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("not b or b");
         env.bindings.expect_good_code("b and not b");
         env.bindings.expect_good_code("not not b");
-
-        // TODO: fix
-        // env.bindings.expect_good_code("not (b and b)");
+        env.bindings.expect_good_code("not (b and b)");
     }
 
     #[test]

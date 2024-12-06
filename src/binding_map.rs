@@ -2020,7 +2020,7 @@ impl BindingMap {
             }
             AcornValue::Not(x) => {
                 let x = self.value_to_expr(x, var_names, next_x, next_k)?;
-                Ok(Expression::Unary(TokenType::Not.generate(), Box::new(x)))
+                Ok(Expression::generate_unary(TokenType::Not, x))
             }
             AcornValue::ForAll(quants, value) => self.generate_quantifier_expr(
                 TokenType::ForAll,
