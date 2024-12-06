@@ -9,7 +9,7 @@ use crate::token::Token;
 #[derive(Debug)]
 pub struct Error {
     pub message: String,
-    pub token: Token,
+    token: Token,
 
     // When you try to import a module that itself had a compilation error, that is a "secondary error".
     // We may or may not want to report these, depending on the context.
