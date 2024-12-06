@@ -1,5 +1,7 @@
 use std::fmt;
 
+use tower_lsp::lsp_types::Range;
+
 use crate::token::Token;
 
 // Errors that happen during compilation.
@@ -57,6 +59,10 @@ impl Error {
             token: token.clone(),
             secondary: true,
         }
+    }
+
+    pub fn range(&self) -> Range {
+        self.token.range()
     }
 }
 

@@ -203,7 +203,7 @@ impl<'a> Builder<'a> {
     // Logs an error during the loading phase, that can be localized to a particular place.
     pub fn log_loading_error(&mut self, module_ref: &ModuleRef, error: &Error) {
         let diagnostic = Diagnostic {
-            range: error.token.range(),
+            range: error.range(),
             severity: Some(DiagnosticSeverity::ERROR),
             message: error.to_string(),
             ..Diagnostic::default()
