@@ -59,20 +59,20 @@ impl Error {
         }
     }
 
-    pub fn new(first_token: &Token, last_token: &Token, message: &str) -> Self {
+    pub fn new(first_token: &Token, last_token: &Token, message: String) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
-            message: message.to_string(),
+            message,
             secondary: false,
         }
     }
 
-    pub fn secondary(first_token: &Token, last_token: &Token, message: &str) -> Self {
+    pub fn secondary(first_token: &Token, last_token: &Token, message: String) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
-            message: message.to_string(),
+            message,
             secondary: true,
         }
     }

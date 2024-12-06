@@ -407,7 +407,7 @@ impl Token {
         }
     }
 
-    pub fn error(&self, message: &str) -> Error {
+    pub fn error(&self, message: String) -> Error {
         Error::new(self, self, message)
     }
 

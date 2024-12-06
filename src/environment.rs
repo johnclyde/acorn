@@ -319,14 +319,14 @@ impl Environment {
         if class.is_none() && ls.name_token.token_type == TokenType::Numeral {
             return Err(ls
                 .name_token
-                .error("numeric literals may not be defined outside of a class"));
+                .error("numeric literals may not be defined outside of a class".to_string()));
         }
         if ls.name == "self"
             || ls.name == "new"
             || ls.name == "read"
             || (class.is_some() && TokenType::is_magic_method_name(&ls.name))
         {
-            return Err(ls.name_token.error(&format!(
+            return Err(ls.name_token.error(format!(
                 "'{}' is a reserved word. use a different name",
                 ls.name
             )));
@@ -336,7 +336,7 @@ impl Environment {
             None => ls.name.clone(),
         };
         if self.bindings.name_in_use(&name) {
-            return Err(ls.name_token.error(&format!(
+            return Err(ls.name_token.error(format!(
                 "constant name '{}' already defined in this scope",
                 name
             )));
@@ -346,7 +346,7 @@ impl Environment {
             if acorn_type != AcornType::Data(self.module_id, class.unwrap().to_string()) {
                 return Err(ls
                     .type_expr
-                    .error("numeric class variables must be the class type"));
+                    .error("numeric class variables must be the class type".to_string()));
             }
         }
         let value = if ls.value.token().token_type == TokenType::Axiom {
@@ -380,7 +380,7 @@ impl Environment {
         range: Range,
     ) -> compilation::Result<()> {
         if ds.name == "new" || ds.name == "self" {
-            return Err(ds.name_token.error(&format!(
+            return Err(ds.name_token.error(format!(
                 "'{}' is a reserved word. use a different name",
                 ds.name
             )));
@@ -390,7 +390,7 @@ impl Environment {
             None => ds.name.clone(),
         };
         if self.bindings.name_in_use(&name) {
-            return Err(ds.name_token.error(&format!(
+            return Err(ds.name_token.error(format!(
                 "function name '{}' already defined in this scope",
                 name
             )));
@@ -1265,7 +1265,7 @@ impl Environment {
                     return Err(Error::secondary(
                         &statement.first_token,
                         &statement.last_token,
-                        &format!("error in '{}' module", full_name),
+                        format!("error in '{}' module", full_name),
                     ));
                 }
                 self.bindings.import_module(local_name, module_id);
