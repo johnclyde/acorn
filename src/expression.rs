@@ -360,14 +360,14 @@ impl Expression {
         op: TokenType,
         mut right: Expression,
     ) -> Expression {
-        if left.value_precedence() < op.binary_precedence() {
+        if left.top_level_precedence() < op.binary_precedence() {
             left = Expression::Grouping(
                 TokenType::LeftParen.generate(),
                 Box::new(left),
                 TokenType::RightParen.generate(),
             );
         }
-        if right.value_precedence() <= op.binary_precedence() {
+        if right.top_level_precedence() <= op.binary_precedence() {
             right = Expression::Grouping(
                 TokenType::LeftParen.generate(),
                 Box::new(right),
@@ -424,9 +424,8 @@ impl Expression {
         }
     }
 
-    // The precedence this expression needs at the top level.
-    // We assume this is a value rather than a type.
-    pub fn value_precedence(&self) -> i8 {
+    // The precedence this expression uses at the top level.
+    pub fn top_level_precedence(&self) -> i8 {
         match self {
             Expression::Singleton(_)
             | Expression::Grouping(..)
@@ -436,9 +435,8 @@ impl Expression {
                 // These expressions never need to be parenthesized.
                 i8::MAX
             }
-            Expression::Unary(token, _) | Expression::Binary(_, token, _) => {
-                token.binary_precedence()
-            }
+            Expression::Unary(token, _) => token.unary_precedence(),
+            Expression::Binary(_, token, _) => token.binary_precedence(),
             Expression::Apply(..) => TokenType::Dot.binary_precedence(),
         }
     }
