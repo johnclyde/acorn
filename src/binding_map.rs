@@ -1260,7 +1260,12 @@ impl BindingMap {
                 }
                 token_type => match token_type.to_prefix_magic_method_name() {
                     Some(name) => {
-                        todo!("handle magic prefix things: {}", name);
+                        let subvalue =
+                            self.evaluate_value_with_stack(stack, project, expr, None)?;
+                        let value =
+                            self.evaluate_instance_variable(token, project, subvalue, name)?;
+                        check_type(token, expected_type, &value.get_type())?;
+                        Ok(value)
                     }
                     None => Err(Error::new(
                         token,
