@@ -274,6 +274,10 @@ impl Expression {
         }
     }
 
+    pub fn error(&self, message: &str) -> Error {
+        Error::new(self.first_token(), self.last_token(), message)
+    }
+
     pub fn print_one_level(&self) {
         match self {
             Expression::Singleton(token) => {
