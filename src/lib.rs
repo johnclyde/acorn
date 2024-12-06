@@ -8,6 +8,7 @@ pub mod builder;
 pub mod clause;
 pub mod code_gen_error;
 pub mod common;
+pub mod compilation;
 pub mod constant_map;
 pub mod dataset;
 pub mod display;
