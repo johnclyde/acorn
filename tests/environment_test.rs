@@ -867,6 +867,20 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_prefix_neg() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Nat: axiom
+            class Nat {
+                define neg(self) -> Nat { axiom }
+            }
+            theorem goal(a: Nat) { -a = a }
+        "#,
+        );
+    }
+
+    #[test]
     fn test_self_must_have_correct_type() {
         let mut env = Environment::new_test();
         env.add("type Nat: axiom");
