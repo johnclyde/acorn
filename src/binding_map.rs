@@ -709,7 +709,7 @@ impl BindingMap {
         project: &Project,
         expected_type: &AcornType,
         value: &AcornValue,
-        token: &Token,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
         let info = match value {
             AcornValue::Constant(module, name, _, _) => {
@@ -720,14 +720,14 @@ impl BindingMap {
                 };
                 bindings.constants.get(name).unwrap()
             }
-            _ => return Err(token.error("invalid pattern")),
+            _ => return Err(source.error("invalid pattern")),
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
-                check_type(token, Some(expected_type), &constructor_type)?;
+                check_type(source, Some(expected_type), &constructor_type)?;
                 Ok((*i, *total))
             }
-            None => Err(token.error("expected a constructor")),
+            None => Err(source.error("expected a constructor")),
         }
     }
 
