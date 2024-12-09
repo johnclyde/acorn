@@ -1099,7 +1099,7 @@ impl BindingMap {
 
         fa.args.push(right_value);
         let value = AcornValue::new_apply(*fa.function, fa.args);
-        check_type(token, expected_type, &value.get_type())?;
+        check_type(expression, expected_type, &value.get_type())?;
         Ok(value)
     }
 
