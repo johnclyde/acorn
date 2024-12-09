@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::compilation::{self, Error};
+use crate::compilation::{self, ErrorSource};
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -274,7 +274,7 @@ impl Block {
         let (inner_claim, range) = match self.env.nodes.last() {
             Some(p) => (&p.claim.value, p.claim.source.range),
             None => {
-                return Err(Error::old(token, "expected a claim in this block"));
+                return Err(token.error("expected a claim in this block"));
             }
         };
         let outer_claim = self.export_bool(outer_env, inner_claim);

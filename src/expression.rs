@@ -124,6 +124,12 @@ impl fmt::Display for Expression {
     }
 }
 
+impl ErrorSource for Expression {
+    fn error(&self, message: &str) -> Error {
+        Error::new(self.first_token(), self.last_token(), message)
+    }
+}
+
 // A single variable declaration, like "p: bool".
 #[derive(Debug)]
 pub enum Declaration {
@@ -271,10 +277,6 @@ impl Expression {
             Expression::IfThenElse(_, _, _, _, right_brace) => right_brace,
             Expression::Match(_, _, _, right_brace) => right_brace,
         }
-    }
-
-    pub fn error(&self, message: &str) -> Error {
-        Error::new(self.first_token(), self.last_token(), message)
     }
 
     pub fn print_one_level(&self) {

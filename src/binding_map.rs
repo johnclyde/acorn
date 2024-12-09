@@ -6,7 +6,7 @@ use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
-use crate::compilation::{self, Error, ErrorSource};
+use crate::compilation::{self, ErrorSource};
 use crate::expression::{Declaration, Expression, Terminator};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
@@ -1301,10 +1301,7 @@ impl BindingMap {
                     Some(name) => {
                         self.evaluate_infix(stack, project, left, token, right, name, expected_type)
                     }
-                    None => Err(Error::old(
-                        token,
-                        "unhandled binary operator in value expression",
-                    )),
+                    None => Err(expression.error("unhandled binary operator in value expression")),
                 },
             },
             Expression::Apply(function_expr, args_expr) => {
@@ -1315,21 +1312,18 @@ impl BindingMap {
                 let function_type = match function_type {
                     AcornType::Function(f) => f,
                     _ => {
-                        return Err(Error::old(function_expr.token(), "expected a function"));
+                        return Err(function_expr.error("expected a function"));
                     }
                 };
 
                 let arg_exprs = args_expr.flatten_list(false)?;
 
                 if function_type.arg_types.len() < arg_exprs.len() {
-                    return Err(Error::old(
-                        args_expr.token(),
-                        &format!(
-                            "expected <= {} arguments, but got {}",
-                            function_type.arg_types.len(),
-                            arg_exprs.len()
-                        ),
-                    ));
+                    return Err(args_expr.error(&format!(
+                        "expected <= {} arguments, but got {}",
+                        function_type.arg_types.len(),
+                        arg_exprs.len()
+                    )));
                 }
 
                 let mut args = vec![];
@@ -1339,14 +1333,11 @@ impl BindingMap {
                     let arg_value =
                         self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
                     if !arg_type.match_specialized(&arg_value.get_type(), &mut mapping) {
-                        return Err(Error::old(
-                            arg_expr.token(),
-                            &format!(
-                                "expected type {}, but got {}",
-                                arg_type,
-                                arg_value.get_type()
-                            ),
-                        ));
+                        return Err(arg_expr.error(&format!(
+                            "expected type {}, but got {}",
+                            arg_type,
+                            arg_value.get_type()
+                        )));
                     }
                     args.push(arg_value);
                 }
@@ -1363,10 +1354,9 @@ impl BindingMap {
                     if let AcornValue::Constant(c_module, c_name, c_type, c_params) = function {
                         (c_module, c_name, c_type, c_params)
                     } else {
-                        return Err(Error::old(
-                            function_expr.token(),
-                            "a non-constant function cannot be a template",
-                        ));
+                        return Err(
+                            function_expr.error("a non-constant function cannot be a template")
+                        );
                     };
 
                 let mut params = vec![];
@@ -1374,10 +1364,8 @@ impl BindingMap {
                     match mapping.get(param_name) {
                         Some(t) => params.push((param_name.clone(), t.clone())),
                         None => {
-                            return Err(Error::old(
-                                function_expr.token(),
-                                &format!("parameter {} could not be inferred", param_name),
-                            ))
+                            return Err(function_expr
+                                .error(&format!("parameter {} could not be inferred", param_name)))
                         }
                     }
                 }
@@ -1385,7 +1373,7 @@ impl BindingMap {
                 if expected_type.is_some() {
                     // Check the applied type
                     let specialized_type = applied_type.specialize(&params);
-                    check_type(function_expr.token(), expected_type, &specialized_type)?;
+                    check_type(&**function_expr, expected_type, &specialized_type)?;
                 }
 
                 let specialized = AcornValue::Specialized(c_module, c_name, c_type, params);
@@ -1399,7 +1387,7 @@ impl BindingMap {
             }
             Expression::Binder(token, args, body, _) => {
                 if args.len() < 1 {
-                    return Err(Error::old(token, "binders must have at least one argument"));
+                    return Err(token.error("binders must have at least one argument"));
                 }
                 let (arg_names, arg_types) = self.bind_args(stack, project, args, None)?;
                 let body_type = match token.token_type {
@@ -1413,7 +1401,7 @@ impl BindingMap {
                         TokenType::ForAll => Ok(AcornValue::ForAll(arg_types, Box::new(value))),
                         TokenType::Exists => Ok(AcornValue::Exists(arg_types, Box::new(value))),
                         TokenType::Function => Ok(AcornValue::Lambda(arg_types, Box::new(value))),
-                        _ => Err(Error::old(token, "expected a binder identifier token")),
+                        _ => Err(token.error("expected a binder identifier token")),
                     },
                     Err(e) => Err(e),
                 };
@@ -1464,10 +1452,8 @@ impl BindingMap {
                         stack.insert(name.clone(), arg_type.clone());
                     }
                     if indices.contains(&i) {
-                        return Err(Error::old(
-                            pattern_exp.token(),
-                            "cannot have multiple cases for the same constructor",
-                        ));
+                        return Err(pattern_exp
+                            .error("cannot have multiple cases for the same constructor"));
                     }
                     indices.push(i);
                     if total == indices.len() {
@@ -1492,10 +1478,7 @@ impl BindingMap {
                     cases.push((arg_types, pattern, result));
                 }
                 if !all_cases {
-                    return Err(Error::old(
-                        expression.token(),
-                        "not all constructors are covered in this match",
-                    ));
+                    return Err(expression.error("not all constructors are covered in this match"));
                 }
                 Ok(AcornValue::Match(Box::new(scrutinee), cases))
             }
@@ -1549,10 +1532,7 @@ impl BindingMap {
         let mut type_param_names: Vec<String> = vec![];
         for token in type_param_tokens {
             if self.type_names.contains_key(token.text()) {
-                return Err(Error::old(
-                    token,
-                    "cannot redeclare a type in a generic type list",
-                ));
+                return Err(token.error("cannot redeclare a type in a generic type list"));
             }
             self.add_data_type(token.text());
             type_param_names.push(token.text().to_string());
@@ -1569,13 +1549,10 @@ impl BindingMap {
                 .iter()
                 .any(|a| a.refers_to(self.module, &type_param_name))
             {
-                return Err(Error::old(
-                    &type_param_tokens[i],
-                    &format!(
-                        "type parameter {} is not used in the function arguments",
-                        type_param_names[i]
-                    ),
-                ));
+                return Err(type_param_tokens[i].error(&format!(
+                    "type parameter {} is not used in the function arguments",
+                    type_param_names[i]
+                )));
             }
         }
 
@@ -1619,10 +1596,9 @@ impl BindingMap {
                     specific_arg_types.len(),
                 );
                 if !checker.check(&specific_value) {
-                    return Err(Error::old(
-                        value_expr.token(),
-                        "the termination checker could not prove that this terminates",
-                    ));
+                    return Err(
+                        value_expr.error("the compiler thinks this looks like an infinite loop")
+                    );
                 }
             }
 
