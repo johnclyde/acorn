@@ -349,7 +349,7 @@ impl Environment {
                     .error("numeric class variables must be the class type"));
             }
         }
-        let value = if ls.value.token().token_type == TokenType::Axiom {
+        let value = if ls.value.is_axiom() {
             None
         } else {
             Some(
@@ -467,7 +467,7 @@ impl Environment {
                         ts.name
                     )));
                 }
-                if ts.type_expr.token().token_type == TokenType::Axiom {
+                if ts.type_expr.is_axiom() {
                     self.bindings.add_data_type(&ts.name);
                 } else {
                     let acorn_type = self.bindings.evaluate_type(project, &ts.type_expr)?;

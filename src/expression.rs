@@ -239,20 +239,6 @@ impl Terminator {
 }
 
 impl Expression {
-    // This is not the first token or the last token, but the "conceptually top level" token.
-    pub fn token(&self) -> &Token {
-        match self {
-            Expression::Singleton(token) => token,
-            Expression::Unary(token, _) => token,
-            Expression::Binary(_, token, _) => token,
-            Expression::Apply(left, _) => left.token(),
-            Expression::Grouping(left_paren, _, _) => left_paren,
-            Expression::Binder(token, _, _, _) => token,
-            Expression::IfThenElse(token, _, _, _, _) => token,
-            Expression::Match(token, _, _, _) => token,
-        }
-    }
-
     pub fn first_token(&self) -> &Token {
         match self {
             Expression::Singleton(token) => token,

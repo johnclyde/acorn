@@ -1578,7 +1578,7 @@ impl BindingMap {
         }
 
         // Evaluate the inner value using our modified bindings
-        let generic_value = if value_expr.token().token_type == TokenType::Axiom {
+        let generic_value = if value_expr.is_axiom() {
             None
         } else {
             let specific_value = self.evaluate_value_with_stack(
