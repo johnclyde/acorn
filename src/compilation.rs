@@ -50,15 +50,6 @@ impl fmt::Display for Error {
 }
 
 impl Error {
-    pub fn old(token: &Token, message: &str) -> Self {
-        Error {
-            message: message.to_string(),
-            first_token: token.clone(),
-            last_token: token.clone(),
-            secondary: false,
-        }
-    }
-
     pub fn new(first_token: &Token, last_token: &Token, message: &str) -> Self {
         Error {
             first_token: first_token.clone(),
