@@ -658,14 +658,11 @@ impl Token {
         for (i, char) in self.text().chars().enumerate() {
             if i == 0 {
                 if !char.is_ascii_uppercase() {
-                    return Err(Error::old(
-                        &self,
-                        "type names must start with an uppercase letter",
-                    ));
+                    return Err(self.error("type names must start with an uppercase letter"));
                 }
             } else {
                 if !char.is_alphanumeric() {
-                    return Err(Error::old(&self, "type names must be alphanumeric"));
+                    return Err(self.error("type names must be alphanumeric"));
                 }
             }
         }
@@ -702,8 +699,8 @@ impl TokenIter {
 
     pub fn error(&mut self, message: &str) -> Error {
         match self.peek() {
-            Some(token) => Error::old(token, message),
-            None => Error::old(&self.last, message),
+            Some(token) => token.error(message),
+            None => self.last.error(message),
         }
     }
 
@@ -719,7 +716,7 @@ impl TokenIter {
             None => return Err(self.error("unexpected end of file")),
         };
         if token.token_type != expected {
-            return Err(Error::old(&token, &format!("expected {:?}", expected)));
+            return Err(token.error(&format!("expected {:?}", expected)));
         }
         Ok(token)
     }
@@ -732,17 +729,17 @@ impl TokenIter {
             TokenType::Identifier => match name_token.text().chars().next() {
                 Some(c) => {
                     if !c.is_ascii_lowercase() {
-                        return Err(Error::old(&name_token, "invalid variable name"));
+                        return Err(name_token.error("invalid variable name"));
                     }
                 }
-                None => return Err(Error::old(&name_token, "empty token (probably a bug)")),
+                None => return Err(name_token.error("empty token (probably a bug)")),
             },
             TokenType::Numeral => {
                 if !numeral_ok {
-                    return Err(Error::old(&name_token, "did not expect a numeral here"));
+                    return Err(name_token.error("did not expect a numeral here"));
                 }
             }
-            _ => return Err(Error::old(&name_token, "expected a variable name")),
+            _ => return Err(name_token.error("expected a variable name")),
         }
         Ok(name_token)
     }

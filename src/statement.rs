@@ -1,6 +1,6 @@
 use tower_lsp::lsp_types::Range;
 
-use crate::compilation::{ErrorSource, Result};
+use crate::compilation::{Error, ErrorSource, Result};
 use crate::expression::{Declaration, Expression, Terminator};
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -196,6 +196,12 @@ pub struct Statement {
     pub first_token: Token,
     pub last_token: Token,
     pub statement: StatementInfo,
+}
+
+impl ErrorSource for Statement {
+    fn error(&self, message: &str) -> Error {
+        Error::new(&self.first_token, &self.last_token, message)
+    }
 }
 
 // Information about a statement that is specific to the type of statement it is

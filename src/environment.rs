@@ -411,21 +411,15 @@ impl Environment {
         if let Some(class_name) = class_name {
             let class_type = AcornType::Data(self.module_id, class_name.to_string());
             if arg_types[0] != class_type {
-                return Err(Error::old(
-                    ds.args[0].token(),
-                    "self must be the class type",
-                ));
+                return Err(ds.args[0].token().error("self must be the class type"));
             }
 
             if ds.name == "read" {
                 if arg_types.len() != 2 || arg_types[1] != class_type || value_type != class_type {
-                    return Err(Error::old(
-                        &ds.name_token,
-                        &format!(
-                            "{}.read should be type ({}, {}) -> {}",
-                            class_name, class_name, class_name, class_name
-                        ),
-                    ));
+                    return Err(ds.name_token.error(&format!(
+                        "{}.read should be type ({}, {}) -> {}",
+                        class_name, class_name, class_name, class_name
+                    )));
                 }
             }
         }
@@ -460,19 +454,18 @@ impl Environment {
         statement: &Statement,
     ) -> compilation::Result<()> {
         if self.includes_explicit_false {
-            return Err(Error::old(
-                &statement.first_token,
-                "an explicit 'false' may not be followed by other statements",
-            ));
+            return Err(
+                statement.error("an explicit 'false' may not be followed by other statements")
+            );
         }
         match &statement.statement {
             StatementInfo::Type(ts) => {
                 self.add_other_lines(statement);
                 if self.bindings.name_in_use(&ts.name) {
-                    return Err(Error::old(
-                        &ts.type_expr.token(),
-                        &format!("type name '{}' already defined in this scope", ts.name),
-                    ));
+                    return Err(statement.error(&format!(
+                        "type name '{}' already defined in this scope",
+                        ts.name
+                    )));
                 }
                 if ts.type_expr.token().token_type == TokenType::Axiom {
                     self.bindings.add_data_type(&ts.name);
@@ -504,10 +497,10 @@ impl Environment {
 
                 if let Some(name) = &ts.name {
                     if self.bindings.name_in_use(&name) {
-                        return Err(Error::old(
-                            &statement.first_token,
-                            &format!("theorem name '{}' already defined in this scope", name),
-                        ));
+                        return Err(statement.first_token.error(&format!(
+                            "theorem name '{}' already defined in this scope",
+                            name
+                        )));
                     }
 
                     self.definition_ranges
@@ -525,16 +518,12 @@ impl Environment {
                         None,
                     )?;
 
-                let unbound_claim = value.ok_or_else(|| {
-                    Error::old(&statement.first_token, "theorems must have values")
-                })?;
+                let unbound_claim =
+                    value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
 
                 let is_citation = self.bindings.is_citation(project, &unbound_claim);
                 if is_citation && ts.body.is_some() {
-                    return Err(Error::old(
-                        &statement.first_token,
-                        "citations do not need proof blocks",
-                    ));
+                    return Err(statement.error("citations do not need proof blocks"));
                 }
 
                 let mut block_args = vec![];
