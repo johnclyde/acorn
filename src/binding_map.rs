@@ -866,7 +866,7 @@ impl BindingMap {
     // token is used for reporting errors but may not correspond to anything in particular.
     fn evaluate_instance_variable(
         &self,
-        token: &Token,
+        source: &dyn ErrorSource,
         project: &Project,
         instance: AcornValue,
         name: &str,
@@ -883,7 +883,7 @@ impl BindingMap {
                 Some(value) => value,
                 None => {
                     return Err(
-                        token.error(&format!("unknown instance variable '{}'", constant_name))
+                        source.error(&format!("unknown instance variable '{}'", constant_name))
                     )
                 }
             };
@@ -891,18 +891,18 @@ impl BindingMap {
             match function.get_type() {
                 AcornType::Function(function_type) => {
                     check_type(
-                        token,
+                        source,
                         Some(&function_type.arg_types[0]),
                         &instance.get_type(),
                     )?;
                 }
                 _ => {
-                    return Err(token.error("expected member to be a function"));
+                    return Err(source.error("expected member to be a function"));
                 }
             };
             Ok(AcornValue::new_apply(function, vec![instance]))
         } else {
-            Err(token.error(&format!("objects of type {:?} have no members", base_type)))
+            Err(source.error(&format!("objects of type {:?} have no members", base_type)))
         }
     }
 
@@ -1065,6 +1065,7 @@ impl BindingMap {
         &self,
         stack: &mut Stack,
         project: &Project,
+        expression: &Expression,
         left: &Expression,
         token: &Token,
         right: &Expression,
@@ -1075,11 +1076,11 @@ impl BindingMap {
         let right_value = self.evaluate_value_with_stack(stack, project, right, None)?;
 
         // Get the partial application to the left
-        let partial = self.evaluate_instance_variable(token, project, left_value, name)?;
+        let partial = self.evaluate_instance_variable(expression, project, left_value, name)?;
         let mut fa = match partial {
             AcornValue::Application(fa) => fa,
             _ => {
-                return Err(token.error(&format!(
+                return Err(expression.error(&format!(
                     "the '{}' operator requires a method named '{}'",
                     token, name
                 )))
@@ -1088,13 +1089,12 @@ impl BindingMap {
         match fa.function.get_type() {
             AcornType::Function(f) => {
                 if f.arg_types.len() != 2 {
-                    return Err(
-                        token.error(&format!("expected a binary function for '{}' method", name))
-                    );
+                    return Err(expression
+                        .error(&format!("expected a binary function for '{}' method", name)));
                 }
-                check_type(token, Some(&f.arg_types[1]), &right_value.get_type())?;
+                check_type(expression, Some(&f.arg_types[1]), &right_value.get_type())?;
             }
-            _ => return Err(token.error(&format!("unexpected type for '{}' method", name))),
+            _ => return Err(expression.error(&format!("unexpected type for '{}' method", name))),
         };
 
         fa.args.push(right_value);
@@ -1297,9 +1297,16 @@ impl BindingMap {
                     Ok(entity.expect_value(expected_type, token)?)
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
-                    Some(name) => {
-                        self.evaluate_infix(stack, project, left, token, right, name, expected_type)
-                    }
+                    Some(name) => self.evaluate_infix(
+                        stack,
+                        project,
+                        expression,
+                        left,
+                        token,
+                        right,
+                        name,
+                        expected_type,
+                    ),
                     None => Err(expression.error("unhandled binary operator in value expression")),
                 },
             },
