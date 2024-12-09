@@ -21,31 +21,26 @@ pub struct Error {
     pub secondary: bool,
 }
 
-fn fmt_line_part(f: &mut fmt::Formatter, text: &str, line: &str, index: usize) -> fmt::Result {
-    write!(f, "{}\n", line)?;
-    for (i, _) in line.char_indices() {
-        if i < index {
-            write!(f, " ")?;
-        } else if i < index + text.len() {
-            write!(f, "^")?;
-        }
-    }
-    if index >= line.len() {
-        // The token is the final newline.
-        write!(f, "^")?;
-    }
-    write!(f, "\n")
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:\n", self.message)?;
-        fmt_line_part(
-            f,
-            &self.first_token.text(),
-            &self.first_token.line,
-            self.first_token.start as usize,
-        )
+        write!(f, "{}\n", self.first_token.line)?;
+        for (i, _) in self.first_token.line.char_indices() {
+            let i = i as u32;
+            if i < self.first_token.start {
+                // This is before the area to highlight.
+                write!(f, " ")?;
+            } else if self.first_token.line_number == self.last_token.line_number
+                && i >= self.last_token.start + self.last_token.len
+            {
+                // This is after the area to highlight.
+                break;
+            } else {
+                // This is the area to highlight.
+                write!(f, "^")?;
+            }
+        }
+        write!(f, "\n")
     }
 }
 

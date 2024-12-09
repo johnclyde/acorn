@@ -426,6 +426,7 @@ impl Token {
         }
     }
 
+    // One spot after the last character in the token.
     pub fn end_pos(&self) -> Position {
         Position {
             line: self.line_number,
