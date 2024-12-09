@@ -279,6 +279,13 @@ impl Expression {
         }
     }
 
+    pub fn is_axiom(&self) -> bool {
+        match self {
+            Expression::Singleton(token) => token.token_type == TokenType::Axiom,
+            _ => false,
+        }
+    }
+
     pub fn print_one_level(&self) {
         match self {
             Expression::Singleton(token) => {
@@ -598,17 +605,6 @@ impl fmt::Display for PartialExpression {
     }
 }
 
-impl PartialExpression {
-    fn token(&self) -> &Token {
-        match self {
-            PartialExpression::Expression(e) => e.token(),
-            PartialExpression::Unary(token)
-            | PartialExpression::Binary(token)
-            | PartialExpression::ImplicitApply(token) => token,
-        }
-    }
-}
-
 impl ErrorSource for PartialExpression {
     fn error(&self, message: &str) -> Error {
         match &self {
@@ -824,8 +820,9 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
     match operators.max() {
         Some((neg_precedence, index)) => {
             if neg_precedence == 0 {
-                let token = partials[index].token();
-                return Err(token.error(&format!("operator {} has precedence 0", token)));
+                return Err(partials[index].error(&format!(
+                    "the parser did not expect a precedence-zero thing here"
+                )));
             }
             Ok(Some(index))
         }
