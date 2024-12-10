@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
@@ -80,6 +81,51 @@ impl BuildStatus {
     }
 }
 
+// Information stored about a single module.
+struct ModuleInfo {
+    // The module that this information is about.
+    module_ref: ModuleRef,
+
+    // Whether this module is error-free so far.
+    good: bool,
+
+    // A hash of the module's string contents.
+    hash: u64,
+
+    // The modules that this module directly depends on.
+    dependencies: Vec<ModuleRef>,
+
+    // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
+    verified: Vec<(u32, u32)>,
+}
+
+impl ModuleInfo {
+    fn new(module_ref: &ModuleRef) -> Self {
+        ModuleInfo {
+            module_ref: module_ref.clone(),
+            good: true,
+            hash: 0,
+            dependencies: Vec::new(),
+            verified: Vec::new(),
+        }
+    }
+}
+
+// Information stored from a single build.
+pub struct BuildCache {
+    // When every goal in a module is verified in a build, we cache information for it.
+    // We only keep "good" modules in the cache.
+    modules: HashMap<ModuleRef, ModuleInfo>,
+}
+
+impl BuildCache {
+    fn new() -> Self {
+        BuildCache {
+            modules: HashMap::new(),
+        }
+    }
+}
+
 // The Builder exists to manage a single build.
 // A single Project can correspond to many builds.
 // A single logger is used across all modules.
@@ -102,11 +148,8 @@ pub struct Builder<'a> {
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
 
-    // The current module we are proving. Not set when we are loading.
-    current_module: Option<ModuleRef>,
-
-    // Whether the current module is good so far.
-    current_module_good: bool,
+    // Information about the current module we are proving. Not set when we are loading.
+    current_module: Option<ModuleInfo>,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -141,7 +184,6 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
-            current_module_good: true,
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -163,10 +205,17 @@ impl<'a> Builder<'a> {
     }
 
     // Returns Anonymous while loading
-    fn module(&self) -> &ModuleRef {
-        match self.current_module {
-            None => &ModuleRef::Anonymous,
-            Some(ref m) => m,
+    fn module(&self) -> ModuleRef {
+        match &self.current_module {
+            None => ModuleRef::Anonymous,
+            Some(m) => m.module_ref.clone(),
+        }
+    }
+
+    // Just no-ops if we have no module info.
+    fn with_module_info(&mut self, f: impl FnOnce(&mut ModuleInfo)) {
+        if let Some(ref mut module_info) = self.current_module {
+            f(module_info);
         }
     }
 
@@ -220,12 +269,11 @@ impl<'a> Builder<'a> {
 
     // Called when we start proving a module.
     pub fn module_proving_started(&mut self, module: &ModuleRef) {
-        self.current_module = Some(module.clone());
-        self.current_module_good = true;
+        self.current_module = Some(ModuleInfo::new(module));
     }
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {
-        assert_eq!(self.module(), module);
+        assert_eq!(&self.module(), module);
         self.current_module = None;
     }
 
@@ -358,7 +406,9 @@ impl<'a> Builder<'a> {
     fn log_proving_warning(&mut self, prover: &Prover, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(prover, goal_context, message, DiagnosticSeverity::WARNING);
         (self.event_handler)(event);
-        self.current_module_good = false;
+        self.with_module_info(|module_info| {
+            module_info.good = false;
+        });
         self.status.warn();
     }
 
@@ -369,7 +419,9 @@ impl<'a> Builder<'a> {
         // Set progress as complete, because an error will halt the build
         event.progress = Some((self.goals_total, self.goals_total));
         (self.event_handler)(event);
-        self.current_module_good = false;
+        self.with_module_info(|module_info| {
+            module_info.good = false;
+        });
         self.status = BuildStatus::Error;
     }
 

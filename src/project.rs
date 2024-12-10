@@ -289,7 +289,6 @@ impl Project {
     }
 
     // Builds all open modules, logging build events.
-    // Returns the build status.
     pub fn build(&self, builder: &mut Builder) {
         // Build in alphabetical order by module name for consistency.
         let mut targets = self.targets.iter().collect::<Vec<_>>();
