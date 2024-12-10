@@ -9,7 +9,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
-use crate::module::ModuleRef;
+use crate::module::{ModuleId, ModuleRef};
 use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
@@ -84,6 +84,7 @@ impl BuildStatus {
 // Information stored about a single module.
 struct ModuleInfo {
     // The module that this information is about.
+    module_id: ModuleId,
     module_ref: ModuleRef,
 
     // Whether this module is error-free so far.
@@ -93,29 +94,17 @@ struct ModuleInfo {
     hash: u64,
 
     // The modules that this module directly depends on.
-    dependencies: Vec<ModuleRef>,
+    direct_dependencies: Vec<ModuleId>,
 
     // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
     verified: Vec<(u32, u32)>,
-}
-
-impl ModuleInfo {
-    fn new(module_ref: &ModuleRef) -> Self {
-        ModuleInfo {
-            module_ref: module_ref.clone(),
-            good: true,
-            hash: 0,
-            dependencies: Vec::new(),
-            verified: Vec::new(),
-        }
-    }
 }
 
 // Information stored from a single build.
 pub struct BuildCache {
     // When every goal in a module is verified in a build, we cache information for it.
     // We only keep "good" modules in the cache.
-    modules: HashMap<ModuleRef, ModuleInfo>,
+    modules: HashMap<ModuleId, ModuleInfo>,
 }
 
 impl BuildCache {
@@ -268,8 +257,20 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(&mut self, module: &ModuleRef) {
-        self.current_module = Some(ModuleInfo::new(module));
+    pub fn module_proving_started(
+        &mut self,
+        module_id: ModuleId,
+        module_ref: &ModuleRef,
+        direct_dependencies: Vec<ModuleId>,
+    ) {
+        self.current_module = Some(ModuleInfo {
+            module_id,
+            module_ref: module_ref.clone(),
+            good: true,
+            hash: 0,
+            direct_dependencies,
+            verified: Vec::new(),
+        });
     }
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {

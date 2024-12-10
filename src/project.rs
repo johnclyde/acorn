@@ -352,7 +352,7 @@ impl Project {
     // Verifies all goals within this target.
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
-        builder.module_proving_started(target);
+        builder.module_proving_started(env.module_id, target, env.bindings.direct_dependencies());
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.
