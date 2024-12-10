@@ -11,5 +11,6 @@ little acorn icon in the upper right, when you have an Acorn file open.
 
 ## Documentation
 
-See [the Acorn website](https://acornprover.org) for more details. It would be great if we had more specific
-links to useful parts of the documentation here, wouldn't it.
+If you're having trouble installing Acorn, see [Getting Started guide](https://acornprover.org/docs/getting-started/).
+
+If you have Acorn installed and you'd like to learn more about how to use it, see the [Tutorial](https://acornprover.org/docs/category/tutorial/).
