@@ -144,6 +144,9 @@ pub struct Builder<'a> {
     // Information about the current module we are proving. Not set when we are loading.
     current_module: Option<ModuleInfo>,
 
+    // The build cache that we are creating for this build.
+    new_cache: BuildCache,
+
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
 
@@ -177,6 +180,7 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
+            new_cache: BuildCache::new(),
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -280,7 +284,11 @@ impl<'a> Builder<'a> {
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {
         assert_eq!(&self.module(), module);
-        self.current_module = None;
+        self.current_module.take().map(|info| {
+            if info.good {
+                self.new_cache.add(info);
+            }
+        });
     }
 
     // Called when a single proof search completes.
@@ -364,9 +372,13 @@ impl<'a> Builder<'a> {
 
     // Logs a successful proof.
     fn log_proving_success(&mut self, goal_context: &GoalContext) {
+        let line_pair = (goal_context.first_line, goal_context.last_line);
+        self.with_module_info(|info| {
+            info.verified.push(line_pair);
+        });
         let event = BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
-            verified: Some((goal_context.first_line, goal_context.last_line)),
+            verified: Some(line_pair),
             ..self.default_event()
         };
         (self.event_handler)(event);
