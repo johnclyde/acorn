@@ -52,9 +52,6 @@ pub struct Project {
     // The module names that we want to build.
     targets: HashSet<ModuleRef>,
 
-    // Cached information from the last completed build.
-    build_cache: Option<BuildCache>,
-
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
 }
@@ -74,12 +71,6 @@ impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
-}
-
-fn hash_string(input: &str) -> u64 {
-    let mut hasher = FxHasher::default();
-    input.hash(&mut hasher);
-    hasher.finish()
 }
 
 fn new_modules() -> Vec<(ModuleRef, Module, u64)> {
@@ -120,7 +111,6 @@ impl Project {
             modules: new_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
-            build_cache: None,
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -370,9 +360,8 @@ impl Project {
     // Verifies all goals within this target.
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
-        let deps = env.bindings.direct_dependencies();
         let hash = self.get_hash(env.module_id);
-        builder.module_proving_started(env.module_id, target, deps, hash);
+        builder.module_proving_started(env.module_id, target, hash);
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.
@@ -494,12 +483,12 @@ impl Project {
 
     // Does the build and returns when it's done, rather than asynchronously.
     // Returns (status, events, num_success, cache).
-    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, Option<BuildCache>) {
+    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, BuildCache) {
         let mut events = vec![];
         let (status, num_success, cache) = {
             let mut builder = Builder::new(|event| events.push(event));
             self.build(&mut builder);
-            (builder.status, builder.num_success, builder.take_cache())
+            (builder.status, builder.num_success, builder.new_cache)
         };
         (status, events, num_success, cache)
     }
@@ -673,23 +662,30 @@ impl Project {
             }
         };
         let text = self.read_file(&path)?;
-        let hash = hash_string(&text);
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
-        self.modules
-            .push((module_ref.clone(), Module::Loading, hash));
+        self.modules.push((module_ref.clone(), Module::Loading, 0));
         self.module_map.insert(module_ref.clone(), module_id);
 
         let mut env = Environment::new(module_id);
         let tokens = Token::scan(&text);
-        let module = if let Err(e) = env.add_tokens(self, tokens) {
-            Module::Error(e)
-        } else {
-            Module::Ok(env)
-        };
-        self.modules[module_id as usize].1 = module;
+        if let Err(e) = env.add_tokens(self, tokens) {
+            self.modules[module_id as usize].1 = Module::Error(e);
+            return Ok(module_id);
+        }
 
+        // Give this module a hash that depends on the hashes of all its dependencies.
+        let mut hasher = FxHasher::default();
+        text.hash(&mut hasher);
+        for dependency_id in env.bindings.direct_dependencies() {
+            let (_, _, dependency_hash) = self.modules[dependency_id as usize];
+            dependency_hash.hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+
+        self.modules[module_id as usize].1 = Module::Ok(env);
+        self.modules[module_id as usize].2 = hash;
         Ok(module_id)
     }
 
@@ -882,7 +878,7 @@ impl Project {
         assert!(events.len() > 0);
         let (done, total) = events.last().unwrap().progress.unwrap();
         assert_eq!(done, total);
-        (num_success, cache.expect("no cache produced"))
+        (num_success, cache)
     }
 
     #[cfg(test)]

@@ -82,6 +82,7 @@ impl BuildStatus {
 }
 
 // Information stored about a single module.
+#[derive(Debug, Clone)]
 struct ModuleInfo {
     // The module that this information is about.
     module_id: ModuleId,
@@ -90,17 +91,15 @@ struct ModuleInfo {
     // Whether this module is error-free so far.
     good: bool,
 
-    // A hash of the module's string contents.
+    // A hash of the module's logical contents, including its dependencies.
     hash: u64,
-
-    // The modules that this module directly depends on.
-    direct_dependencies: Vec<ModuleId>,
 
     // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
     verified: Vec<(u32, u32)>,
 }
 
 // Information stored from a single build.
+#[derive(Debug, Clone)]
 pub struct BuildCache {
     // When every goal in a module is verified in a build, we cache information for it.
     // We only keep "good" modules in the cache.
@@ -123,10 +122,11 @@ impl BuildCache {
     }
 }
 
-// The Builder exists to manage a single build.
-// A single Project can correspond to many builds.
-// A single logger is used across all modules.
+// The Builder contains all the mutable state for a single build.
+// This is separate from the Project because you can read information from the Project from other
+// threads while a build is ongoing, but a Builder is only used by the build itself.
 pub struct Builder<'a> {
+    // A single event handler is used across all modules.
     event_handler: Box<dyn FnMut(BuildEvent) + 'a>,
 
     pub status: BuildStatus,
@@ -148,8 +148,11 @@ pub struct Builder<'a> {
     // Information about the current module we are proving. Not set when we are loading.
     current_module: Option<ModuleInfo>,
 
+    // The build cache that we have from a previous build.
+    pub old_cache: BuildCache,
+
     // The build cache that we are creating for this build.
-    new_cache: Option<BuildCache>,
+    pub new_cache: BuildCache,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -185,7 +188,8 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
-            new_cache: Some(BuildCache::new()),
+            old_cache: BuildCache::new(),
+            new_cache: BuildCache::new(),
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -212,10 +216,6 @@ impl<'a> Builder<'a> {
             None => ModuleRef::Anonymous,
             Some(m) => m.module_ref.clone(),
         }
-    }
-
-    pub fn take_cache(&mut self) -> Option<BuildCache> {
-        self.new_cache.take()
     }
 
     // Called when a single module is loaded successfully.
@@ -271,7 +271,6 @@ impl<'a> Builder<'a> {
         &mut self,
         module_id: ModuleId,
         module_ref: &ModuleRef,
-        direct_dependencies: Vec<ModuleId>,
         hash: u64,
     ) {
         self.current_module = Some(ModuleInfo {
@@ -279,7 +278,6 @@ impl<'a> Builder<'a> {
             module_ref: module_ref.clone(),
             good: true,
             hash,
-            direct_dependencies,
             verified: Vec::new(),
         });
     }
@@ -288,7 +286,7 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.new_cache.as_mut().map(|cache| cache.add(info));
+                self.new_cache.add(info);
             }
         });
     }
