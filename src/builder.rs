@@ -149,7 +149,7 @@ pub struct Builder<'a> {
     current_module: Option<ModuleInfo>,
 
     // The build cache that we are creating for this build.
-    new_cache: BuildCache,
+    new_cache: Option<BuildCache>,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -185,7 +185,7 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
-            new_cache: BuildCache::new(),
+            new_cache: Some(BuildCache::new()),
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -214,8 +214,8 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn into_cache(self) -> BuildCache {
-        self.new_cache
+    pub fn take_cache(&mut self) -> Option<BuildCache> {
+        self.new_cache.take()
     }
 
     // Called when a single module is loaded successfully.
@@ -288,7 +288,7 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.new_cache.add(info);
+                self.new_cache.as_mut().map(|cache| cache.add(info));
             }
         });
     }

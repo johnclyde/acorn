@@ -494,12 +494,12 @@ impl Project {
 
     // Does the build and returns when it's done, rather than asynchronously.
     // Returns (status, events, num_success, cache).
-    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, BuildCache) {
+    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, Option<BuildCache>) {
         let mut events = vec![];
         let (status, num_success, cache) = {
             let mut builder = Builder::new(|event| events.push(event));
             self.build(&mut builder);
-            (builder.status, builder.num_success, builder.into_cache())
+            (builder.status, builder.num_success, builder.take_cache())
         };
         (status, events, num_success, cache)
     }
@@ -882,7 +882,7 @@ impl Project {
         assert!(events.len() > 0);
         let (done, total) = events.last().unwrap().progress.unwrap();
         assert_eq!(done, total);
-        (num_success, cache)
+        (num_success, cache.expect("no cache produced"))
     }
 
     #[cfg(test)]
