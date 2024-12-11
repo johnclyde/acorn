@@ -249,6 +249,11 @@ impl Project {
         self.open_files.get(path).map(|(_, version)| *version)
     }
 
+    pub fn get_hash(&self, module_id: ModuleId) -> u64 {
+        let (_, _, hash) = self.modules[module_id as usize];
+        hash
+    }
+
     // Updating a file makes us treat it as "open". When a file is open, we use the
     // content in memory for it, rather than the content on disk.
     // Updated files are also added as build targets.
@@ -361,7 +366,9 @@ impl Project {
     // Verifies all goals within this target.
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
-        builder.module_proving_started(env.module_id, target, env.bindings.direct_dependencies());
+        let deps = env.bindings.direct_dependencies();
+        let hash = self.get_hash(env.module_id);
+        builder.module_proving_started(env.module_id, target, deps, hash);
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.

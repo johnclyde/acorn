@@ -262,12 +262,13 @@ impl<'a> Builder<'a> {
         module_id: ModuleId,
         module_ref: &ModuleRef,
         direct_dependencies: Vec<ModuleId>,
+        hash: u64,
     ) {
         self.current_module = Some(ModuleInfo {
             module_id,
             module_ref: module_ref.clone(),
             good: true,
-            hash: 0,
+            hash,
             direct_dependencies,
             verified: Vec::new(),
         });
