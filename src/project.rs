@@ -361,13 +361,16 @@ impl Project {
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
         let hash = self.get_hash(env.module_id);
+
         builder.module_proving_started(env.module_id, target, hash);
 
-        // Fast and slow modes should be interchangeable here.
-        // If we run into a bug with fast mode, try using slow mode to debug.
-        self.for_each_prover_fast(env, &mut |prover, goal_context| {
-            self.prove(prover, goal_context, builder)
-        });
+        if !builder.handle_current_module_from_cache() {
+            // Fast and slow modes should be interchangeable here.
+            // If we run into a bug with fast mode, try using slow mode to debug.
+            self.for_each_prover_fast(env, &mut |prover, goal_context| {
+                self.prove(prover, goal_context, builder)
+            });
+        }
 
         builder.module_proving_complete(target);
     }

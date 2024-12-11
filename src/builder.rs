@@ -117,6 +117,7 @@ impl BuildCache {
         self.modules.insert(info.module_id, info);
     }
 
+    #[cfg(test)]
     pub fn num_modules(&self) -> usize {
         self.modules.len()
     }
@@ -273,6 +274,7 @@ impl<'a> Builder<'a> {
         module_ref: &ModuleRef,
         hash: u64,
     ) {
+        assert_ne!(hash, 0);
         self.current_module = Some(ModuleInfo {
             module_id,
             module_ref: module_ref.clone(),
@@ -280,6 +282,12 @@ impl<'a> Builder<'a> {
             hash,
             verified: Vec::new(),
         });
+    }
+
+    // Handles the current module from the cache, if possible.
+    // Returns whether the module was handled from the cache.
+    pub fn handle_current_module_from_cache(&mut self) -> bool {
+        false
     }
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {
