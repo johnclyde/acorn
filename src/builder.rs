@@ -113,6 +113,10 @@ impl BuildCache {
             modules: HashMap::new(),
         }
     }
+
+    fn add(&mut self, info: ModuleInfo) {
+        self.modules.insert(info.module_id, info);
+    }
 }
 
 // The Builder exists to manage a single build.
