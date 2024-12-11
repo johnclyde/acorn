@@ -876,6 +876,8 @@ impl Project {
         let (status, events, num_success, cache) = self.sync_build();
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
+        let (done, total) = events.last().unwrap().progress.unwrap();
+        assert_eq!(done, total);
         (num_success, cache)
     }
 
