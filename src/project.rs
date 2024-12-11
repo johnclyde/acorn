@@ -12,7 +12,7 @@ use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
-use crate::builder::{BuildEvent, BuildStatus, Builder};
+use crate::builder::{BuildCache, BuildEvent, BuildStatus, Builder};
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
@@ -488,15 +488,16 @@ impl Project {
         !builder.status.is_error()
     }
 
-    // Does the build and returns all events when it's done, rather than asynchronously.
-    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>) {
+    // Does the build and returns when it's done, rather than asynchronously.
+    // Returns (status, events, num_success, cache).
+    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, BuildCache) {
         let mut events = vec![];
-        let status = {
+        let (status, num_success, cache) = {
             let mut builder = Builder::new(|event| events.push(event));
             self.build(&mut builder);
-            builder.status
+            (builder.status, builder.num_success, builder.into_cache())
         };
-        (status, events)
+        (status, events, num_success, cache)
     }
 
     // Set the file content. This has priority over the actual filesystem.
@@ -872,14 +873,14 @@ impl Project {
 
     #[cfg(test)]
     fn expect_build_ok(&mut self) {
-        let (status, events) = self.sync_build();
+        let (status, events, _, _) = self.sync_build();
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
     }
 
     #[cfg(test)]
     fn expect_build_fails(&mut self) {
-        let (status, _) = self.sync_build();
+        let (status, _, _, _) = self.sync_build();
         assert_ne!(status, BuildStatus::Good, "expected build to fail");
     }
 }
@@ -1364,5 +1365,34 @@ mod tests {
         check("nat.u", 7, &[]);
         check("nat.", 7, &["Nat"]);
         check("foo.", 7, &["0", "induction", "suc"]);
+    }
+
+    #[test]
+    fn test_build_cache() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/lib.ac",
+            r#"
+            let thing1: Bool = axiom
+            let thing2: Bool = thing1
+
+            theorem one {
+                thing1 = thing2
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import lib
+            theorem two {
+                lib.thing1 = lib.thing2
+            }
+        "#,
+        );
+        let (status, _, num_success, cache) = p.sync_build();
+        assert_eq!(status, BuildStatus::Good);
+        assert_eq!(num_success, 2);
+        assert_eq!(cache.num_modules(), 2);
     }
 }

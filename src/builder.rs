@@ -39,7 +39,7 @@ pub struct BuildEvent {
     pub verified: Option<(u32, u32)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BuildStatus {
     // No problems of any kind
     Good,
@@ -117,6 +117,10 @@ impl BuildCache {
     fn add(&mut self, info: ModuleInfo) {
         self.modules.insert(info.module_id, info);
     }
+
+    pub fn num_modules(&self) -> usize {
+        self.modules.len()
+    }
 }
 
 // The Builder exists to manage a single build.
@@ -152,6 +156,7 @@ pub struct Builder<'a> {
 
     // The Builder also tracks statistics.
     // Think of these as having a "goal_done" denominator.
+    // When we use the cache, we don't use it to modify these statistics.
 
     // Number of goals successfully proven
     pub num_success: i32,
@@ -214,6 +219,10 @@ impl<'a> Builder<'a> {
         if let Some(ref mut module_info) = self.current_module {
             f(module_info);
         }
+    }
+
+    pub fn into_cache(self) -> BuildCache {
+        self.new_cache
     }
 
     // Called when a single module is loaded successfully.
