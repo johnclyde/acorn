@@ -1386,28 +1386,42 @@ mod tests {
     #[test]
     fn test_build_cache() {
         let mut p = Project::new_mock();
-        p.mock(
-            "/mock/lib.ac",
-            r#"
-            let thing1: Bool = axiom
-            let thing2: Bool = thing1
+        let lib_text = r#"
+        let thing1: Bool = axiom
+        let thing2: Bool = thing1
 
-            theorem one {
-                thing1 = thing2
-            }
-        "#,
-        );
-        p.mock(
-            "/mock/main.ac",
-            r#"
-            import lib
-            theorem two {
-                lib.thing1 = lib.thing2
-            }
-        "#,
-        );
+        theorem one {
+            thing1 = thing2
+        }
+        "#;
+        let main_text = r#"
+        import lib
+        theorem two {
+            lib.thing1 = lib.thing2
+        }
+        "#;
+        p.mock("/mock/lib.ac", lib_text);
+        p.mock("/mock/main.ac", main_text);
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
         assert_eq!(p.build_cache.num_modules(), 2);
+
+        // Just rebuilding a second time should require no work
+        let num_success = p.expect_build_ok();
+        assert_eq!(num_success, 0);
+
+        // If we change main, we should only have to rebuild main
+        let touched_main = format!("{}\n// Touch", main_text);
+        p.update_file(PathBuf::from("/mock/main.ac"), &touched_main, 1)
+            .expect("update failed");
+        let num_success = p.expect_build_ok();
+        assert_eq!(num_success, 1);
+
+        // If we change lib, we should have to rebuild both
+        let touched_lib = format!("{}\n// Touch", lib_text);
+        p.update_file(PathBuf::from("/mock/lib.ac"), &touched_lib, 1)
+            .expect("update failed");
+        let num_success = p.expect_build_ok();
+        assert_eq!(num_success, 2);
     }
 }
