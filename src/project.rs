@@ -52,6 +52,9 @@ pub struct Project {
     // The module names that we want to build.
     targets: HashSet<ModuleRef>,
 
+    // Cached information from the last completed build.
+    build_cache: Option<BuildCache>,
+
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
 }
@@ -117,6 +120,7 @@ impl Project {
             modules: new_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
+            build_cache: None,
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
