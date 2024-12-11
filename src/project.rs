@@ -12,7 +12,8 @@ use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
-use crate::builder::{BuildCache, BuildEvent, BuildStatus, Builder};
+use crate::build_cache::BuildCache;
+use crate::builder::{BuildEvent, BuildStatus, Builder};
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;

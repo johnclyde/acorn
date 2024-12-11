@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 
+use crate::build_cache::BuildCache;
 use crate::compilation::Error;
 use crate::dataset::Dataset;
 use crate::environment::Environment;
@@ -95,39 +95,6 @@ struct ModuleInfo {
 
     // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
     verified: Vec<(u32, u32)>,
-}
-
-// Information stored about a single module in the cache.
-#[derive(Debug, Clone)]
-struct BuildCacheEntry {
-    hash: u64,
-    verified: Vec<(u32, u32)>,
-}
-
-// Information stored from a single build.
-#[derive(Debug, Clone)]
-pub struct BuildCache {
-    // When every goal in a module is verified in a build, we cache information for it.
-    // We only keep "good" modules in the cache.
-    modules: HashMap<ModuleRef, BuildCacheEntry>,
-}
-
-impl BuildCache {
-    fn new() -> Self {
-        BuildCache {
-            modules: HashMap::new(),
-        }
-    }
-
-    fn add(&mut self, module_id: ModuleRef, hash: u64, verified: Vec<(u32, u32)>) {
-        self.modules
-            .insert(module_id, BuildCacheEntry { hash, verified });
-    }
-
-    #[cfg(test)]
-    pub fn num_modules(&self) -> usize {
-        self.modules.len()
-    }
 }
 
 // The Builder contains all the mutable state for a single build.
@@ -293,14 +260,9 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.old_cache.modules.get(&current.module_ref) {
+        let verified = match self.old_cache.get(&current.module_ref, current.hash) {
             None => return false,
-            Some(cached) => {
-                if cached.hash != current.hash {
-                    return false;
-                }
-                cached.verified.clone()
-            }
+            Some(v) => v,
         };
 
         for (first_line, last_line) in verified {
