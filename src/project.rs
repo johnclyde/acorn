@@ -872,10 +872,11 @@ impl Project {
     }
 
     #[cfg(test)]
-    fn expect_build_ok(&mut self) {
-        let (status, events, _, _) = self.sync_build();
+    fn expect_build_ok(&mut self) -> (i32, BuildCache) {
+        let (status, events, num_success, cache) = self.sync_build();
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
+        (num_success, cache)
     }
 
     #[cfg(test)]
@@ -1390,8 +1391,7 @@ mod tests {
             }
         "#,
         );
-        let (status, _, num_success, cache) = p.sync_build();
-        assert_eq!(status, BuildStatus::Good);
+        let (num_success, cache) = p.expect_build_ok();
         assert_eq!(num_success, 2);
         assert_eq!(cache.num_modules(), 2);
     }
