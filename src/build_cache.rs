@@ -9,7 +9,7 @@ struct BuildCacheEntry {
     verified: Vec<(u32, u32)>,
 }
 
-// Information stored from a single build.
+// Information stored from past builds.
 #[derive(Clone)]
 pub struct BuildCache {
     // When every goal in a module is verified in a build, we cache information for it.
