@@ -362,7 +362,7 @@ impl Project {
     fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
         let hash = self.get_hash(env.module_id);
 
-        builder.module_proving_started(env.module_id, target, hash);
+        builder.module_proving_started(target, hash);
 
         if !builder.handle_current_module_from_cache() {
             // Fast and slow modes should be interchangeable here.

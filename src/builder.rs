@@ -9,7 +9,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
-use crate::module::{ModuleId, ModuleRef};
+use crate::module::ModuleRef;
 use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
@@ -85,7 +85,6 @@ impl BuildStatus {
 #[derive(Debug, Clone)]
 struct ModuleInfo {
     // The module that this information is about.
-    module_id: ModuleId,
     module_ref: ModuleRef,
 
     // Whether this module is error-free so far.
@@ -98,12 +97,19 @@ struct ModuleInfo {
     verified: Vec<(u32, u32)>,
 }
 
+// Information stored about a single module in the cache.
+#[derive(Debug, Clone)]
+struct BuildCacheEntry {
+    hash: u64,
+    verified: Vec<(u32, u32)>,
+}
+
 // Information stored from a single build.
 #[derive(Debug, Clone)]
 pub struct BuildCache {
     // When every goal in a module is verified in a build, we cache information for it.
     // We only keep "good" modules in the cache.
-    modules: HashMap<ModuleId, ModuleInfo>,
+    modules: HashMap<ModuleRef, BuildCacheEntry>,
 }
 
 impl BuildCache {
@@ -113,8 +119,9 @@ impl BuildCache {
         }
     }
 
-    fn add(&mut self, info: ModuleInfo) {
-        self.modules.insert(info.module_id, info);
+    fn add(&mut self, module_id: ModuleRef, hash: u64, verified: Vec<(u32, u32)>) {
+        self.modules
+            .insert(module_id, BuildCacheEntry { hash, verified });
     }
 
     #[cfg(test)]
@@ -268,15 +275,9 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(
-        &mut self,
-        module_id: ModuleId,
-        module_ref: &ModuleRef,
-        hash: u64,
-    ) {
+    pub fn module_proving_started(&mut self, module_ref: &ModuleRef, hash: u64) {
         assert_ne!(hash, 0);
         self.current_module = Some(ModuleInfo {
-            module_id,
             module_ref: module_ref.clone(),
             good: true,
             hash,
@@ -292,7 +293,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.old_cache.modules.get(&current.module_id) {
+        let verified = match self.old_cache.modules.get(&current.module_ref) {
             None => return false,
             Some(cached) => {
                 if cached.hash != current.hash {
@@ -313,7 +314,8 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.new_cache.add(info);
+                self.new_cache
+                    .add(info.module_ref, info.hash, info.verified);
             }
         });
     }
