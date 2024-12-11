@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::{fmt, io};
 
+use fxhash::FxHasher;
 use regex::Regex;
 use tower_lsp::lsp_types::{CompletionItem, Url};
 use walkdir::WalkDir;
@@ -39,9 +41,10 @@ pub struct Project {
     // From vscode, it'll be the vscode version number.
     open_files: HashMap<PathBuf, (String, i32)>,
 
-    // modules[module_id] is the (ref, Module) for the given module id.
+    // modules[module_id] is the (ref, Module, hash) for the given module id.
     // Built-in modules have no name.
-    modules: Vec<(ModuleRef, Module)>,
+    // Hashes only relate to the content of the module itself, not to its dependencies.
+    modules: Vec<(ModuleRef, Module, u64)>,
 
     // module_map maps from a module ref to its id
     module_map: HashMap<ModuleRef, ModuleId>,
@@ -70,10 +73,16 @@ impl fmt::Display for LoadError {
     }
 }
 
-fn new_modules() -> Vec<(ModuleRef, Module)> {
+fn hash_string(input: &str) -> u64 {
+    let mut hasher = FxHasher::default();
+    input.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn new_modules() -> Vec<(ModuleRef, Module, u64)> {
     let mut modules = vec![];
     while modules.len() < FIRST_NORMAL as usize {
-        modules.push((ModuleRef::Anonymous, Module::None));
+        modules.push((ModuleRef::Anonymous, Module::None, 0));
     }
     modules
 }
@@ -492,7 +501,7 @@ impl Project {
 
     pub fn get_module_by_id(&self, module_id: ModuleId) -> &Module {
         match self.modules.get(module_id as usize) {
-            Some((_, module)) => module,
+            Some((_, module, _)) => module,
             None => &Module::None,
         }
     }
@@ -525,7 +534,7 @@ impl Project {
     pub fn errors(&self) -> Vec<(ModuleId, &compilation::Error)> {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
-            if let (_, Module::Error(e)) = module {
+            if let (_, Module::Error(e), _) = module {
                 errors.push((module_id as ModuleId, e));
             }
         }
@@ -652,10 +661,12 @@ impl Project {
             }
         };
         let text = self.read_file(&path)?;
+        let hash = hash_string(&text);
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
-        self.modules.push((module_ref.clone(), Module::Loading));
+        self.modules
+            .push((module_ref.clone(), Module::Loading, hash));
         self.module_map.insert(module_ref.clone(), module_id);
 
         let mut env = Environment::new(module_id);
