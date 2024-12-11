@@ -287,7 +287,26 @@ impl<'a> Builder<'a> {
     // Handles the current module from the cache, if possible.
     // Returns whether the module was handled from the cache.
     pub fn handle_current_module_from_cache(&mut self) -> bool {
-        false
+        let current = match self.current_module {
+            None => return false,
+            Some(ref m) => m,
+        };
+
+        let verified = match self.old_cache.modules.get(&current.module_id) {
+            None => return false,
+            Some(cached) => {
+                if cached.hash != current.hash {
+                    return false;
+                }
+                cached.verified.clone()
+            }
+        };
+
+        for (first_line, last_line) in verified {
+            self.goals_done += 1;
+            self.log_proving_success(first_line, last_line);
+        }
+        true
     }
 
     pub fn module_proving_complete(&mut self, module: &ModuleRef) {
@@ -339,7 +358,10 @@ impl<'a> Builder<'a> {
                                 &format!("took {}", elapsed_str),
                             );
                         } else {
-                            self.log_proving_success(&goal_context);
+                            self.log_proving_success(
+                                goal_context.first_line,
+                                goal_context.last_line,
+                            );
                         }
                     }
 
@@ -379,8 +401,8 @@ impl<'a> Builder<'a> {
     }
 
     // Logs a successful proof.
-    fn log_proving_success(&mut self, goal_context: &GoalContext) {
-        let line_pair = (goal_context.first_line, goal_context.last_line);
+    fn log_proving_success(&mut self, first_line: u32, last_line: u32) {
+        let line_pair = (first_line, last_line);
         self.current_module.as_mut().map(|info| {
             info.verified.push(line_pair);
         });
