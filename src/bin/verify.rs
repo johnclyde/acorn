@@ -47,7 +47,7 @@ async fn main() {
     }
 
     // Set up the builder
-    let mut builder = Builder::new(|event| {
+    let mut builder = Builder::new(project.build_cache.clone(), |event| {
         if let Some(m) = event.log_message {
             if let Some(diagnostic) = event.diagnostic {
                 println!(

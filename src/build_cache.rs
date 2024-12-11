@@ -1,30 +1,31 @@
-use std::collections::HashMap;
+use std::sync::Arc;
+
+use dashmap::DashMap;
 
 use crate::module::ModuleRef;
 
 // Information stored about a single module in the cache.
-#[derive(Clone)]
 struct BuildCacheEntry {
     hash: u64,
     verified: Vec<(u32, u32)>,
 }
 
-// Information stored from past builds.
+// The build cache stores the verified goals for modules that had no warnings or errors in them.
+// They might still be dependent on other modules with warnings.
+// They can't be dependent on modules with errors, because the prover won't run at all with errors.
 #[derive(Clone)]
 pub struct BuildCache {
-    // When every goal in a module is verified in a build, we cache information for it.
-    // We only keep "good" modules in the cache.
-    modules: HashMap<ModuleRef, BuildCacheEntry>,
+    modules: Arc<DashMap<ModuleRef, BuildCacheEntry>>,
 }
 
 impl BuildCache {
     pub fn new() -> Self {
         BuildCache {
-            modules: HashMap::new(),
+            modules: Arc::new(DashMap::new()),
         }
     }
 
-    pub fn add(&mut self, module_id: ModuleRef, hash: u64, verified: Vec<(u32, u32)>) {
+    pub fn insert(&self, module_id: ModuleRef, hash: u64, verified: Vec<(u32, u32)>) {
         self.modules
             .insert(module_id, BuildCacheEntry { hash, verified });
     }

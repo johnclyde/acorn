@@ -123,11 +123,8 @@ pub struct Builder<'a> {
     // Information about the current module we are proving. Not set when we are loading.
     current_module: Option<ModuleInfo>,
 
-    // The build cache that we have from a previous build.
-    pub old_cache: BuildCache,
-
-    // The build cache that we are creating for this build.
-    pub new_cache: BuildCache,
+    // The build cache that we are using for this build.
+    pub cache: BuildCache,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -153,7 +150,7 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(event_handler: impl FnMut(BuildEvent) + 'a) -> Self {
+    pub fn new(cache: BuildCache, event_handler: impl FnMut(BuildEvent) + 'a) -> Self {
         let event_handler = Box::new(event_handler);
         Builder {
             event_handler,
@@ -163,8 +160,7 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
-            old_cache: BuildCache::new(),
-            new_cache: BuildCache::new(),
+            cache,
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -260,7 +256,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.old_cache.get(&current.module_ref, current.hash) {
+        let verified = match self.cache.get(&current.module_ref, current.hash) {
             None => return false,
             Some(v) => v,
         };
@@ -276,8 +272,7 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.new_cache
-                    .add(info.module_ref, info.hash, info.verified);
+                self.cache.insert(info.module_ref, info.hash, info.verified);
             }
         });
     }

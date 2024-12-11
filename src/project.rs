@@ -53,6 +53,8 @@ pub struct Project {
     // The module names that we want to build.
     targets: HashSet<ModuleRef>,
 
+    pub build_cache: BuildCache,
+
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
 }
@@ -112,6 +114,7 @@ impl Project {
             modules: new_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
+            build_cache: BuildCache::new(),
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -487,14 +490,14 @@ impl Project {
 
     // Does the build and returns when it's done, rather than asynchronously.
     // Returns (status, events, num_success, cache).
-    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32, BuildCache) {
+    pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32) {
         let mut events = vec![];
-        let (status, num_success, cache) = {
-            let mut builder = Builder::new(|event| events.push(event));
+        let (status, num_success) = {
+            let mut builder = Builder::new(self.build_cache.clone(), |event| events.push(event));
             self.build(&mut builder);
-            (builder.status, builder.num_success, builder.new_cache)
+            (builder.status, builder.num_success)
         };
-        (status, events, num_success, cache)
+        (status, events, num_success)
     }
 
     // Set the file content. This has priority over the actual filesystem.
@@ -875,19 +878,20 @@ impl Project {
         self.check_code_into(module_name, code, code);
     }
 
+    // Returns num_success.
     #[cfg(test)]
-    fn expect_build_ok(&mut self) -> (i32, BuildCache) {
-        let (status, events, num_success, cache) = self.sync_build();
+    fn expect_build_ok(&mut self) -> i32 {
+        let (status, events, num_success) = self.sync_build();
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
         let (done, total) = events.last().unwrap().progress.unwrap();
         assert_eq!(done, total);
-        (num_success, cache)
+        num_success
     }
 
     #[cfg(test)]
     fn expect_build_fails(&mut self) {
-        let (status, _, _, _) = self.sync_build();
+        let (status, _, _) = self.sync_build();
         assert_ne!(status, BuildStatus::Good, "expected build to fail");
     }
 }
@@ -1397,8 +1401,8 @@ mod tests {
             }
         "#,
         );
-        let (num_success, cache) = p.expect_build_ok();
+        let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
-        assert_eq!(cache.num_modules(), 2);
+        assert_eq!(p.build_cache.num_modules(), 2);
     }
 }
