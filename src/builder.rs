@@ -214,13 +214,6 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // Just no-ops if we have no module info.
-    fn with_module_info(&mut self, f: impl FnOnce(&mut ModuleInfo)) {
-        if let Some(ref mut module_info) = self.current_module {
-            f(module_info);
-        }
-    }
-
     pub fn into_cache(self) -> BuildCache {
         self.new_cache
     }
@@ -382,7 +375,7 @@ impl<'a> Builder<'a> {
     // Logs a successful proof.
     fn log_proving_success(&mut self, goal_context: &GoalContext) {
         let line_pair = (goal_context.first_line, goal_context.last_line);
-        self.with_module_info(|info| {
+        self.current_module.as_mut().map(|info| {
             info.verified.push(line_pair);
         });
         let event = BuildEvent {
@@ -433,7 +426,7 @@ impl<'a> Builder<'a> {
     fn log_proving_warning(&mut self, prover: &Prover, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(prover, goal_context, message, DiagnosticSeverity::WARNING);
         (self.event_handler)(event);
-        self.with_module_info(|module_info| {
+        self.current_module.as_mut().map(|module_info| {
             module_info.good = false;
         });
         self.status.warn();
@@ -446,7 +439,7 @@ impl<'a> Builder<'a> {
         // Set progress as complete, because an error will halt the build
         event.progress = Some((self.goals_total, self.goals_total));
         (self.event_handler)(event);
-        self.with_module_info(|module_info| {
+        self.current_module.as_mut().map(|module_info| {
             module_info.good = false;
         });
         self.status = BuildStatus::Error;
