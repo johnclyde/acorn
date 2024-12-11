@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use crate::module::ModuleRef;
 
 // Information stored about a single module in the cache.
-#[derive(Debug, Clone)]
-pub struct BuildCacheEntry {
-    pub hash: u64,
-    pub verified: Vec<(u32, u32)>,
+#[derive(Clone)]
+struct BuildCacheEntry {
+    hash: u64,
+    verified: Vec<(u32, u32)>,
 }
 
 // Information stored from a single build.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BuildCache {
     // When every goal in a module is verified in a build, we cache information for it.
     // We only keep "good" modules in the cache.
