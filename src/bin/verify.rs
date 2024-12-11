@@ -7,7 +7,6 @@
 
 use std::path::PathBuf;
 
-use acorn::builder::Builder;
 use acorn::project::Project;
 use clap::Parser;
 
@@ -47,7 +46,7 @@ async fn main() {
     }
 
     // Set up the builder
-    let mut builder = Builder::new(project.build_cache.clone(), |event| {
+    let mut builder = project.builder(|event| {
         if let Some(m) = event.log_message {
             if let Some(diagnostic) = event.diagnostic {
                 println!(

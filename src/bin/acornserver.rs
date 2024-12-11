@@ -16,7 +16,6 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use acorn::block::NodeCursor;
-use acorn::builder::Builder;
 use acorn::interfaces::{
     DocumentProgress, InfoParams, InfoResponse, ProgressParams, ProgressResponse, SearchParams,
     SearchResponse, SearchStatus,
@@ -439,10 +438,9 @@ impl Backend {
         let project = self.project.clone();
         tokio::spawn(async move {
             let project = project.read().await;
-            let build_cache = project.build_cache.clone();
 
             tokio::task::block_in_place(move || {
-                let mut builder = Builder::new(build_cache, move |event| {
+                let mut builder = project.builder(move |event| {
                     tx.send(event).unwrap();
                 });
                 project.build(&mut builder);

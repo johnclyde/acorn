@@ -4,7 +4,6 @@
 //   cargo build --bin=profile_prover --profile=fastdev
 //   samply record target/fastdev/profile_prover
 
-use acorn::builder::Builder;
 use acorn::project::Project;
 
 fn main() {
@@ -13,7 +12,7 @@ fn main() {
         assert!(project.add_target_by_name("nat"));
         assert!(project.add_target_by_name("nat_gcd"));
         assert!(project.add_target_by_name("int"));
-        let mut logger = Builder::new(project.build_cache.clone(), |event| {
+        let mut logger = project.builder(|event| {
             if let Some(m) = event.log_message {
                 println!("{}", m);
             }

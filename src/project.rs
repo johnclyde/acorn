@@ -300,6 +300,11 @@ impl Project {
         Ok(())
     }
 
+    // Create a Builder object that will then handle the build.
+    pub fn builder<'a>(&self, event_handler: impl FnMut(BuildEvent) + 'a) -> Builder<'a> {
+        Builder::new(self.build_cache.clone(), event_handler)
+    }
+
     // Builds all open modules, logging build events.
     pub fn build(&self, builder: &mut Builder) {
         // Build in alphabetical order by module name for consistency.
@@ -493,7 +498,7 @@ impl Project {
     pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32) {
         let mut events = vec![];
         let (status, num_success) = {
-            let mut builder = Builder::new(self.build_cache.clone(), |event| events.push(event));
+            let mut builder = self.builder(|event| events.push(event));
             self.build(&mut builder);
             (builder.status, builder.num_success)
         };
