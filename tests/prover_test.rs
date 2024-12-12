@@ -1495,4 +1495,31 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_prove_easy_constraint() {
+        let text = r#"
+        structure Foo {
+            first: Bool
+            second: Bool
+        } constraint {
+            first = second
+        }
+        "#;
+        verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_prove_impossible_constraint() {
+        let text = r#"
+        structure Foo {
+            first: Bool
+            second: Bool
+            third: Bool
+        } constraint {
+            first != second and first != third and second != third
+        }
+        "#;
+        verify_fails(text);
+    }
 }
