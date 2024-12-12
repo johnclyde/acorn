@@ -1522,4 +1522,20 @@ mod prover_test {
         "#;
         verify_fails(text);
     }
+
+    #[test]
+    fn test_prove_constraint_equation() {
+        let text = r#"
+        structure Foo {
+            first: Bool
+            second: Bool
+        } constraint {
+            first != second
+        }
+        theorem goal(f: Foo) {
+            f.first != f.second
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }
