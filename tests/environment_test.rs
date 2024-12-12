@@ -1834,4 +1834,36 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_structure_with_bad_constraint() {
+        let mut env = Environment::new_test();
+        env.bad(
+            r#"
+            structure Thing {
+                foo: Bool
+                baz: Bool
+                bar: Bool
+            } constraint {
+                foo or qux
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_structure_with_good_constraint() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Thing {
+                foo: Bool
+                baz: Bool
+                bar: Bool
+            } constraint {
+                foo or baz or bar
+            }
+        "#,
+        );
+    }
 }
