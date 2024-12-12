@@ -863,6 +863,8 @@ impl Environment {
                 }
 
                 // If there's a constraint, add a block to prove it can be satisfied.
+                // This happens before adding any names of methods, so that the block
+                // can't use them.
                 let unbound_constraint = if let Some(constraint) = &ss.constraint {
                     let mut stack = Stack::new();
                     for ((name_token, _), t) in ss.fields.iter().zip(&field_types) {
@@ -923,30 +925,54 @@ impl Environment {
                 );
                 let new_fn = self.bindings.get_constant_value(&new_fn_name).unwrap();
 
-                // A struct can be recreated by new'ing from its members. Ie:
-                // Pair.new(Pair.first(p), Pair.second(p)) = p.
-                // This is the "new equation" for a struct type.
-                let new_eq_var = AcornValue::Variable(0, struct_type.clone());
-                let new_eq_args = member_fns
+                // Each object of this new type has certain properties.
+                let object_var = AcornValue::Variable(0, struct_type.clone());
+                let member_args = member_fns
                     .iter()
                     .map(|f| {
                         AcornValue::Application(FunctionApplication {
                             function: Box::new(f.clone()),
-                            args: vec![new_eq_var.clone()],
+                            args: vec![object_var.clone()],
                         })
                     })
                     .collect::<Vec<_>>();
-                let recreated = AcornValue::Application(FunctionApplication {
-                    function: Box::new(new_fn.clone()),
-                    args: new_eq_args,
-                });
-                let new_eq =
-                    AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(new_eq_var));
-                let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq));
                 let range = Range {
                     start: statement.first_token.start_pos(),
                     end: ss.name_token.end_pos(),
                 };
+
+                // If there is a constraint, it applies to all instances of the type.
+                // constraint(Pair.first(p), Pair.second(p))
+                // This is the "constraint equation".
+                if let Some(unbound_constraint) = &unbound_constraint {
+                    let bound_constraint =
+                        unbound_constraint.clone().bind_values(0, 0, &member_args);
+                    let constraint_claim =
+                        AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint));
+                    self.add_node(
+                        project,
+                        true,
+                        Proposition::type_definition(
+                            constraint_claim,
+                            self.module_id,
+                            range,
+                            ss.name.clone(),
+                        ),
+                        None,
+                    );
+                }
+
+                // An object can be recreated by new'ing from its members. Ie:
+                // Pair.new(Pair.first(p), Pair.second(p)) = p.
+                // This is the "new equation" for a struct type.
+                let recreated = AcornValue::Application(FunctionApplication {
+                    function: Box::new(new_fn.clone()),
+                    args: member_args,
+                });
+                let new_eq =
+                    AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
+                let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq));
+
                 self.add_node(
                     project,
                     true,
