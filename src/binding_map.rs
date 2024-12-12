@@ -34,7 +34,7 @@ impl Stack {
         answer
     }
 
-    fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
+    pub fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
         let i = self.vars.len() as AtomId;
         self.vars.insert(name, (i, acorn_type));
         i

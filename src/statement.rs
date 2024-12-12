@@ -139,6 +139,9 @@ pub struct StructureStatement {
     // Each field contains a field name-token and a type expression
     pub fields: Vec<(Token, Expression)>,
 
+    // The token that ends the first part of the structure statement
+    pub first_right_brace: Token,
+
     // The constraint on the structure, if there is one.
     pub constraint: Option<Expression>,
 
@@ -617,6 +620,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     return Err(token.error("structs must have at least one field"));
                 }
                 let right_brace = tokens.next().unwrap();
+                let first_right_brace = right_brace.clone();
 
                 // Check for a constraint
                 let (constraint, body, last_token) = match tokens.peek() {
@@ -643,6 +647,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         name: name_token.to_string(),
                         name_token,
                         fields,
+                        first_right_brace,
                         constraint,
                         body,
                     }),

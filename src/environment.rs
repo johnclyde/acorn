@@ -836,7 +836,11 @@ impl Environment {
             }
 
             StatementInfo::Structure(ss) => {
-                self.add_other_lines(statement);
+                self.add_line_types(
+                    LineType::Other,
+                    statement.first_line(),
+                    ss.first_right_brace.line_number,
+                );
                 if self.bindings.has_type_name(&ss.name) {
                     return Err(statement.error("type name already defined in this scope"));
                 }
@@ -856,6 +860,39 @@ impl Environment {
                     }
                     let member_fn_name = format!("{}.{}", ss.name, field_name_token.text());
                     member_fn_names.push(member_fn_name);
+                }
+
+                // If there's a constraint, add a block to prove it can be satisfied.
+                if let Some(constraint) = &ss.constraint {
+                    let mut stack = Stack::new();
+                    for ((name_token, _), t) in ss.fields.iter().zip(&field_types) {
+                        stack.insert(name_token.to_string(), t.clone());
+                    }
+                    let unbound = self.bindings.evaluate_value_with_stack(
+                        &mut stack,
+                        project,
+                        &constraint,
+                        Some(&AcornType::Bool),
+                    )?;
+                    let inhabited = AcornValue::Exists(field_types.clone(), Box::new(unbound));
+                    let params = BlockParams::Constraint(inhabited, constraint.range());
+                    let block = Block::new(
+                        project,
+                        &self,
+                        vec![], // no type params
+                        vec![], // no args, because we already handled them
+                        params,
+                        statement.first_line(),
+                        statement.last_line(),
+                        None,
+                    )?;
+                    let vacuous_prop = Proposition::anonymous(
+                        AcornValue::Bool(true),
+                        self.module_id,
+                        statement.range(),
+                    );
+                    let index = self.add_node(project, false, vacuous_prop, Some(block));
+                    self.add_node_lines(index, &statement.range());
                 }
 
                 // The member functions take the type itself to a particular member.
@@ -916,6 +953,7 @@ impl Environment {
                 // There are also formulas for new followed by member functions. Ie:
                 // Pair.first(Pair.new(a, b)) = a.
                 // These are the "member equations".
+                // TODO: add the constraint to the member equations.
                 let var_args = (0..ss.fields.len())
                     .map(|i| AcornValue::Variable(i as AtomId, field_types[i].clone()))
                     .collect::<Vec<_>>();

@@ -74,6 +74,11 @@ pub enum BlockParams<'a> {
     // The scrutinee, the constructor, the pattern arguments, and the range of the pattern.
     MatchCase(AcornValue, AcornValue, Vec<(String, AcornType)>, Range),
 
+    // The value is the boolean existence condition that we must prove is true, in order
+    // for the constraint to express an inhabited type.
+    // The range is of the constraint portion of the statement.
+    Constraint(AcornValue, Range),
+
     // No special params needed
     ForAll,
     Problem,
@@ -159,7 +164,7 @@ impl Block {
                     .map(|(name, _)| subenv.bindings.get_constant_value(name).unwrap())
                     .collect::<Vec<_>>();
                 // The partial goal has variables 0..args.len() bound to the block's args,
-                // but there one last variable that needs to be existentially quantified.
+                // but there is one last variable that needs to be existentially quantified.
                 let partial_goal = unbound_goal.bind_values(0, 0, &arg_values);
                 let bound_goal = AcornValue::new_exists(vec![return_type], partial_goal);
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
@@ -184,6 +189,14 @@ impl Block {
                     None,
                 );
                 None
+            }
+            BlockParams::Constraint(constraint, range) => {
+                // We don't add any other given theorems.
+                Some(Goal::Prove(Proposition::anonymous(
+                    constraint,
+                    env.module_id,
+                    range,
+                )))
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
             BlockParams::ForAll | BlockParams::Problem => None,
