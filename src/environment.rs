@@ -863,7 +863,7 @@ impl Environment {
                 }
 
                 // If there's a constraint, add a block to prove it can be satisfied.
-                if let Some(constraint) = &ss.constraint {
+                let unbound_constraint = if let Some(constraint) = &ss.constraint {
                     let mut stack = Stack::new();
                     for ((name_token, _), t) in ss.fields.iter().zip(&field_types) {
                         stack.insert(name_token.to_string(), t.clone());
@@ -874,7 +874,8 @@ impl Environment {
                         &constraint,
                         Some(&AcornType::Bool),
                     )?;
-                    let inhabited = AcornValue::Exists(field_types.clone(), Box::new(unbound));
+                    let inhabited =
+                        AcornValue::Exists(field_types.clone(), Box::new(unbound.clone()));
                     let params = BlockParams::Constraint(inhabited, constraint.range());
                     let block = Block::new(
                         project,
@@ -893,7 +894,10 @@ impl Environment {
                     );
                     let index = self.add_node(project, false, vacuous_prop, Some(block));
                     self.add_node_lines(index, &statement.range());
-                }
+                    Some(unbound)
+                } else {
+                    None
+                };
 
                 // The member functions take the type itself to a particular member.
                 let struct_type = self.bindings.add_data_type(&ss.name);
@@ -951,9 +955,11 @@ impl Environment {
                 );
 
                 // There are also formulas for new followed by member functions. Ie:
-                // Pair.first(Pair.new(a, b)) = a.
+                //   Pair.first(Pair.new(a, b)) = a.
                 // These are the "member equations".
-                // TODO: add the constraint to the member equations.
+                //
+                // When there's a constraint, we need to add it as a condition here, like:
+                //   constraint(a, b) -> Pair.first(Pair.new(a, b)) = a.
                 let var_args = (0..ss.fields.len())
                     .map(|i| AcornValue::Variable(i as AtomId, field_types[i].clone()))
                     .collect::<Vec<_>>();
@@ -972,7 +978,13 @@ impl Environment {
                         })),
                         Box::new(AcornValue::Variable(i as AtomId, field_types[i].clone())),
                     );
-                    let member_claim = AcornValue::ForAll(field_types.clone(), Box::new(member_eq));
+                    let unbound_member_claim = if let Some(constraint) = &unbound_constraint {
+                        AcornValue::new_implies(constraint.clone(), member_eq)
+                    } else {
+                        member_eq
+                    };
+                    let member_claim =
+                        AcornValue::ForAll(field_types.clone(), Box::new(unbound_member_claim));
                     let range = Range {
                         start: field_name_token.start_pos(),
                         end: field_type_expr.last_token().end_pos(),
