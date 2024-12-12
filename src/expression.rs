@@ -529,6 +529,7 @@ impl Expression {
     }
 
     // Parse an expression that should represent a value.
+    // Consumes the terminating token and returns it.
     pub fn parse_value(
         tokens: &mut TokenIter,
         terminator: Terminator,
@@ -537,6 +538,7 @@ impl Expression {
     }
 
     // Parse an expression that should represent a type, or part of a type.
+    // Consumes the terminating token and returns it.
     pub fn parse_type(
         tokens: &mut TokenIter,
         terminator: Terminator,

@@ -138,6 +138,9 @@ pub struct StructureStatement {
 
     // Each field contains a field name-token and a type expression
     pub fields: Vec<(Token, Expression)>,
+
+    // The constraint on the structure, if there is one.
+    pub constraint: Option<Expression>,
 }
 
 // Inductive statements define a new type by defining a set of constructors.
@@ -608,13 +611,33 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 if fields.len() == 0 {
                     return Err(token.error("structs must have at least one field"));
                 }
+                let right_brace = tokens.next().unwrap();
+
+                // Check for a constraint
+                let (constraint, last_token) = match tokens.peek() {
+                    Some(token) => match token.token_type {
+                        TokenType::Constraint => {
+                            tokens.next();
+                            tokens.expect_type(TokenType::LeftBrace)?;
+                            let (constraint, terminator) = Expression::parse_value(
+                                tokens,
+                                Terminator::Is(TokenType::RightBrace),
+                            )?;
+                            (Some(constraint), terminator)
+                        }
+                        _ => (None, right_brace),
+                    },
+                    None => (None, right_brace),
+                };
+
                 return Ok(Statement {
                     first_token: keyword,
-                    last_token: tokens.next().unwrap(),
+                    last_token,
                     statement: StatementInfo::Structure(StructureStatement {
                         name: name_token.to_string(),
                         name_token,
                         fields,
+                        constraint,
                     }),
                 });
             }
@@ -965,7 +988,15 @@ impl Statement {
                 for (name, type_expr) in &ss.fields {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }
-                write!(f, "{}}}", indentation)
+                write!(f, "{}}}", indentation)?;
+                if let Some(constraint) = &ss.constraint {
+                    write!(
+                        f,
+                        " constraint {{\n{}{}\n{}}}",
+                        new_indentation, constraint, indentation
+                    )?;
+                }
+                Ok(())
             }
 
             StatementInfo::Inductive(is) => {
@@ -1666,6 +1697,17 @@ mod tests {
         ok(indoc! {"
         theorem(a: Bool, b: Bool) {
             a = b or a or b
+        }"});
+    }
+
+    #[test]
+    fn test_parsing_structure_with_constraint() {
+        ok(indoc! {"
+        structure Foo {
+            bar: Nat
+            baz: Nat
+        } constraint {
+            bar > baz
         }"});
     }
 }
