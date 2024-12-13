@@ -1536,4 +1536,49 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_prove_constrained_member_equation() {
+        let text = r#"
+        type Foo: axiom
+        let foo: Foo = axiom
+        let foof: Foo -> Bool = axiom
+        axiom {
+            foof(foo)
+        }
+
+        structure Bar {
+            f: Foo
+        } constraint {
+            foof(f)
+        }
+        theorem goal(f: Foo) {
+            foof(f) -> Bar.new(f).f = f
+        }
+        "#;
+        verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_prove_member_equation_requires_constraint() {
+        // This shouldn't work, because maybe Bar.new(f) doesn't meet the constraint.
+        let text = r#"
+        type Foo: axiom
+        let foo: Foo = axiom
+        let foof: Foo -> Bool = axiom
+        axiom {
+            foof(foo)
+        }
+
+        structure Bar {
+            f: Foo
+        } constraint {
+            foof(f)
+        }
+        theorem goal(f: Foo) {
+            Bar.new(f).f = f
+        }
+        "#;
+        verify_fails(text);
+    }
 }
