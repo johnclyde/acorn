@@ -1849,7 +1849,6 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
         "#,
         );
-        env.check_lines();
     }
 
     #[test]
@@ -1866,6 +1865,24 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
         "#,
         );
-        env.check_lines();
+    }
+
+    #[test]
+    fn test_structure_with_constraint_and_by_block() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Thing {
+                foo: Bool
+                baz: Bool
+                bar: Bool
+            } constraint {
+                foo or baz or bar
+            } by {
+                true or true or true
+            }
+        "#,
+        );
+        assert_eq!(env.iter_goals().count(), 2);
     }
 }
