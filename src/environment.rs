@@ -887,7 +887,7 @@ impl Environment {
                         params,
                         statement.first_line(),
                         statement.last_line(),
-                        None,
+                        ss.body.as_ref(),
                     )?;
                     let vacuous_prop = Proposition::anonymous(
                         AcornValue::Bool(true),
