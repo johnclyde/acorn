@@ -1849,6 +1849,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
         "#,
         );
+        env.check_lines();
     }
 
     #[test]
@@ -1865,5 +1866,6 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
         "#,
         );
+        env.check_lines();
     }
 }
