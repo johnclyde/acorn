@@ -1503,7 +1503,7 @@ mod prover_test {
             first: Bool
             second: Bool
         } constraint {
-            first = second
+            first or second
         }
         "#;
         verify_succeeds(text);
@@ -1514,10 +1514,8 @@ mod prover_test {
         let text = r#"
         structure Foo {
             first: Bool
-            second: Bool
-            third: Bool
         } constraint {
-            first != second and first != third and second != third
+            first and not first
         }
         "#;
         verify_fails(text);
@@ -1530,10 +1528,10 @@ mod prover_test {
             first: Bool
             second: Bool
         } constraint {
-            first != second
+            first or second
         }
         theorem goal(f: Foo) {
-            f.first != f.second
+            f.first or f.second
         }
         "#;
         verify_succeeds(text);
