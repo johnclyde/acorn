@@ -1821,7 +1821,7 @@ impl BindingMap {
                 parts.insert(0, module_name);
                 Ok(Expression::generate_identifier_chain(&parts))
             }
-            None => Err(CodeGenError::UnimportedModule(module)),
+            None => Err(CodeGenError::UnimportedModule(module, name.to_string())),
         }
     }
 

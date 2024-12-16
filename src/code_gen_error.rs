@@ -9,7 +9,7 @@ pub enum CodeGenError {
     Skolem(String),
 
     // Trouble referencing a module that has not been directly imported.
-    UnimportedModule(ModuleId),
+    UnimportedModule(ModuleId, String),
 
     // Trouble using a type that we can't find the name for.
     UnnamedType(String),
@@ -43,7 +43,7 @@ impl CodeGenError {
     pub fn error_type(&self) -> &'static str {
         match self {
             CodeGenError::Skolem(_) => "Skolem",
-            CodeGenError::UnimportedModule(_) => "UnimportedModule",
+            CodeGenError::UnimportedModule(..) => "UnimportedModule",
             CodeGenError::UnnamedType(_) => "UnnamedType",
             CodeGenError::UnhandledValue(_) => "UnhandledValue",
             CodeGenError::ExplicitGoal => "ExplicitGoal",
@@ -59,8 +59,12 @@ impl fmt::Display for CodeGenError {
             CodeGenError::Skolem(s) => {
                 write!(f, "could not find a name for the skolem constant: {}", s)
             }
-            CodeGenError::UnimportedModule(m) => {
-                write!(f, "could not find local name for module {}", m)
+            CodeGenError::UnimportedModule(_, name) => {
+                write!(
+                    f,
+                    "could not generate code using '{}' because it is not imported",
+                    name
+                )
             }
             CodeGenError::UnnamedType(s) => {
                 write!(f, "could not figure out a name for the type: {}", s)
