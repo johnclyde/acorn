@@ -648,7 +648,7 @@ impl Prover {
     // Designed to be called multiple times in succession.
     // The time-based limit is set low, so that it feels interactive.
     pub fn partial_search(&mut self) -> Outcome {
-        self.search_for_contradiction(10000, 0.1, false)
+        self.search_for_contradiction(5000, 0.1, false)
     }
 
     // Search in verification mode to see if this goal can be easily proven.
