@@ -329,7 +329,7 @@ fn parse_args(
 
 // Parses a by block if that's the next thing in the token stream.
 // Takes the right brace that ended the previous expression.
-// Returns the last token parsed..
+// Returns the last token parsed.
 // Consumes newlines in any case.
 fn parse_by_block(right_brace: Token, tokens: &mut TokenIter) -> Result<(Option<Body>, Token)> {
     loop {
@@ -628,7 +628,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         TokenType::Constraint => {
                             tokens.next();
                             tokens.expect_type(TokenType::LeftBrace)?;
-                            let (constraint, _) = Expression::parse_value(
+                            let (constraint, right_brace) = Expression::parse_value(
                                 tokens,
                                 Terminator::Is(TokenType::RightBrace),
                             )?;

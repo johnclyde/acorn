@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod environment_test {
-    use acorn::environment::Environment;
+    use acorn::environment::{Environment, LineType};
     use acorn::project::Project;
 
     #[test]
@@ -1865,6 +1865,11 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
         "#,
         );
+        for (i, line_type) in env.line_types.iter().enumerate() {
+            println!("{}: {:?}", i, line_type);
+        }
+        assert!(matches!(env.get_line_type(6), Some(LineType::Node(_))));
+        assert!(matches!(env.get_line_type(7), Some(LineType::Node(_))));
     }
 
     #[test]
