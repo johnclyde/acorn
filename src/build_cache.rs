@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::module::ModuleRef;
+use crate::module::ModuleDescriptor;
 
 // Information stored about a single module in the cache.
 struct BuildCacheEntry {
@@ -15,7 +15,7 @@ struct BuildCacheEntry {
 // They can't be dependent on modules with errors, because the prover won't run at all with errors.
 #[derive(Clone)]
 pub struct BuildCache {
-    modules: Arc<DashMap<ModuleRef, BuildCacheEntry>>,
+    modules: Arc<DashMap<ModuleDescriptor, BuildCacheEntry>>,
 }
 
 impl BuildCache {
@@ -25,12 +25,12 @@ impl BuildCache {
         }
     }
 
-    pub fn insert(&self, module_id: ModuleRef, hash: u64, verified: Vec<(u32, u32)>) {
+    pub fn insert(&self, module_id: ModuleDescriptor, hash: u64, verified: Vec<(u32, u32)>) {
         self.modules
             .insert(module_id, BuildCacheEntry { hash, verified });
     }
 
-    pub fn get(&self, module_id: &ModuleRef, hash: u64) -> Option<Vec<(u32, u32)>> {
+    pub fn get(&self, module_id: &ModuleDescriptor, hash: u64) -> Option<Vec<(u32, u32)>> {
         self.modules.get(module_id).and_then(|entry| {
             if entry.hash == hash {
                 Some(entry.verified.clone())

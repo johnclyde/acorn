@@ -3,7 +3,7 @@ mod prover_test {
     use core::panic;
 
     use acorn::code_gen_error::CodeGenError;
-    use acorn::module::Module;
+    use acorn::module::LoadState;
     use acorn::project::Project;
     use acorn::prover::{Outcome, Prover};
 
@@ -55,8 +55,8 @@ mod prover_test {
         project.mock("/mock/main.ac", text);
         let module_id = project.load_module_by_name("main").expect("load failed");
         let env = match project.get_module_by_id(module_id) {
-            Module::Ok(env) => env,
-            Module::Error(e) => panic!("error: {}", e),
+            LoadState::Ok(env) => env,
+            LoadState::Error(e) => panic!("error: {}", e),
             _ => panic!("no module"),
         };
         for node in env.iter_goals() {

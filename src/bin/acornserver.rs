@@ -20,7 +20,7 @@ use acorn::interfaces::{
     DocumentProgress, InfoParams, InfoResponse, ProgressParams, ProgressResponse, SearchParams,
     SearchResponse, SearchStatus,
 };
-use acorn::module::{Module, ModuleRef};
+use acorn::module::{LoadState, ModuleDescriptor};
 use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
 
@@ -78,7 +78,7 @@ struct SearchTask {
     prover: Arc<RwLock<Prover>>,
 
     // The module that we're searching for a proof in
-    module_ref: ModuleRef,
+    descriptor: ModuleDescriptor,
 
     // The line in the document the user selected to kick off this task.
     selected_line: u32,
@@ -136,10 +136,10 @@ impl SearchTask {
         // This holds a read lock on the project the whole time.
         // It seems like we should be able to avoid this, but maybe it's just fine.
         let project = self.project.read().await;
-        let env = match project.get_env_by_ref(&self.module_ref) {
+        let env = match project.get_env(&self.descriptor) {
             Some(env) => env,
             None => {
-                log(&format!("no environment for {:?}", self.module_ref));
+                log(&format!("no environment for {:?}", self.descriptor));
                 return;
             }
         };
@@ -352,7 +352,7 @@ impl BuildInfo {
         if let Some(message) = &event.log_message {
             log(message);
         }
-        if let Some(url) = project.url_from_module_ref(&event.module) {
+        if let Some(url) = project.url_from_descriptor(&event.module) {
             if let Some((first_line, last_line)) = &event.verified {
                 self.with_doc(&url, |doc| {
                     doc.verify(*first_line, *last_line);
@@ -660,18 +660,18 @@ impl Backend {
                 );
             }
         }
-        let module_ref = match project.module_ref_from_path(&path) {
+        let descriptor = match project.descriptor_from_path(&path) {
             Ok(name) => name,
             Err(e) => {
-                return self.search_fail(params, &format!("module_ref_from_path failed: {:?}", e))
+                return self.search_fail(params, &format!("descriptor_from_path failed: {:?}", e))
             }
         };
-        let env = match project.get_module_by_ref(&module_ref) {
-            Module::Ok(env) => env,
+        let env = match project.get_module(&descriptor) {
+            LoadState::Ok(env) => env,
             _ => {
                 return self.search_fail(
                     params,
-                    &format!("could not load module from {:?}", module_ref),
+                    &format!("could not load module from {:?}", descriptor),
                 );
             }
         };
@@ -712,7 +712,7 @@ impl Backend {
             url: params.uri.clone(),
             version: doc.saved_version(),
             prover: Arc::new(RwLock::new(prover)),
-            module_ref,
+            descriptor,
             selected_line: params.selected_line,
             path,
             goal_name: goal_context.name.clone(),
@@ -758,7 +758,7 @@ impl Backend {
         }
         let project = self.project.read().await;
         let prover = task.prover.read().await;
-        let env = match project.get_env_by_ref(&task.module_ref) {
+        let env = match project.get_env(&task.descriptor) {
             Some(env) => env,
             None => {
                 return self.info_fail(params, "no environment available");

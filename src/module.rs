@@ -16,8 +16,8 @@ pub const SKOLEM: ModuleId = 0;
 // The regular module ids start here.
 pub const FIRST_NORMAL: ModuleId = 1;
 
-// The Module represents a module that can be in different states of being loaded.
-pub enum Module {
+// The LoadState describes the state of a module, loaded or not or in progress.
+pub enum LoadState {
     // There is no such module, not even an id for it
     None,
 
@@ -32,9 +32,9 @@ pub enum Module {
     Ok(Environment),
 }
 
-// ModuleRef enumerates the different ways a module user can specify a module.
+// A Descriptor expresses the different ways that a module user can specify a module.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
-pub enum ModuleRef {
+pub enum ModuleDescriptor {
     // Anything that can't be referred to
     Anonymous,
 
@@ -47,12 +47,12 @@ pub enum ModuleRef {
     File(PathBuf),
 }
 
-impl fmt::Display for ModuleRef {
+impl fmt::Display for ModuleDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            ModuleRef::Anonymous => write!(f, "<anonymous>"),
-            ModuleRef::Name(name) => write!(f, "{}", name),
-            ModuleRef::File(path) => write!(f, "{}", path.display()),
+            ModuleDescriptor::Anonymous => write!(f, "<anonymous>"),
+            ModuleDescriptor::Name(name) => write!(f, "{}", name),
+            ModuleDescriptor::File(path) => write!(f, "{}", path.display()),
         }
     }
 }

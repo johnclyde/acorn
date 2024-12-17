@@ -18,7 +18,7 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{Module, ModuleId, ModuleRef, FIRST_NORMAL};
+use crate::module::{LoadState, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -45,13 +45,13 @@ pub struct Project {
     // modules[module_id] is the (ref, Module, hash) for the given module id.
     // Built-in modules have no name.
     // Hashes only relate to the content of the module itself, not to its dependencies.
-    modules: Vec<(ModuleRef, Module, u64)>,
+    modules: Vec<(ModuleDescriptor, LoadState, u64)>,
 
-    // module_map maps from a module ref to its id
-    module_map: HashMap<ModuleRef, ModuleId>,
+    // module_map maps from a module's descriptor to its id
+    module_map: HashMap<ModuleDescriptor, ModuleId>,
 
     // The module names that we want to build.
-    targets: HashSet<ModuleRef>,
+    targets: HashSet<ModuleDescriptor>,
 
     pub build_cache: BuildCache,
 
@@ -76,10 +76,10 @@ impl fmt::Display for LoadError {
     }
 }
 
-fn new_modules() -> Vec<(ModuleRef, Module, u64)> {
+fn new_modules() -> Vec<(ModuleDescriptor, LoadState, u64)> {
     let mut modules = vec![];
     while modules.len() < FIRST_NORMAL as usize {
-        modules.push((ModuleRef::Anonymous, Module::None, 0));
+        modules.push((ModuleDescriptor::Anonymous, LoadState::None, 0));
     }
     modules
 }
@@ -191,21 +191,21 @@ impl Project {
 
     // Returns whether it loaded okay.
     // Either way, it's still added as a target.
-    fn add_target_by_ref(&mut self, module_ref: &ModuleRef) -> bool {
-        let answer = self.load_module_by_ref(module_ref).is_ok();
-        self.targets.insert(module_ref.clone());
+    fn add_target_by_descriptor(&mut self, descriptor: &ModuleDescriptor) -> bool {
+        let answer = self.load_module(descriptor).is_ok();
+        self.targets.insert(descriptor.clone());
         answer
     }
 
     // Returns whether it loaded okay.
     pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
-        self.add_target_by_ref(&ModuleRef::Name(module_name.to_string()))
+        self.add_target_by_descriptor(&ModuleDescriptor::Name(module_name.to_string()))
     }
 
     // Returns whether it loaded okay.
     pub fn add_target_by_path(&mut self, path: &Path) -> bool {
-        let module_ref = self.module_ref_from_path(path).unwrap();
-        self.add_target_by_ref(&module_ref)
+        let descriptor = self.descriptor_from_path(path).unwrap();
+        self.add_target_by_descriptor(&descriptor)
     }
 
     // Adds a target for all files in this directory.
@@ -265,8 +265,8 @@ impl Project {
             // No need to do anything
             return Ok(());
         }
-        let module_ref = self.module_ref_from_path(&path)?;
-        let mut reload_modules = vec![module_ref];
+        let descriptor = self.descriptor_from_path(&path)?;
+        let mut reload_modules = vec![descriptor];
         if self.open_files.contains_key(&path) {
             // We're changing the value of an existing file. This could invalidate
             // current modules.
@@ -278,8 +278,8 @@ impl Project {
             }
         }
         self.open_files.insert(path, (content.to_string(), version));
-        for module_ref in &reload_modules {
-            self.add_target_by_ref(module_ref);
+        for descriptor in &reload_modules {
+            self.add_target_by_descriptor(descriptor);
         }
         Ok(())
     }
@@ -290,12 +290,12 @@ impl Project {
             return Ok(());
         }
         self.open_files.remove(&path);
-        let module_ref = self.module_ref_from_path(&path)?;
+        let descriptor = self.descriptor_from_path(&path)?;
         self.drop_modules();
-        self.targets.remove(&module_ref);
+        self.targets.remove(&descriptor);
         let targets = self.targets.clone();
         for target in targets {
-            self.add_target_by_ref(&target);
+            self.add_target_by_descriptor(&target);
         }
         Ok(())
     }
@@ -324,13 +324,13 @@ impl Project {
         // If there are errors, we won't try to do proving.
         let mut envs = vec![];
         for target in &targets {
-            let module = self.get_module_by_ref(target);
+            let module = self.get_module(target);
             match module {
-                Module::Ok(env) => {
+                LoadState::Ok(env) => {
                     builder.module_loaded(&env);
                     envs.push(env);
                 }
-                Module::Error(e) => {
+                LoadState::Error(e) => {
                     if e.secondary {
                         // The real problem is in a different module.
                         // So we don't want to locate the error in this module.
@@ -339,11 +339,11 @@ impl Project {
                         builder.log_loading_error(target, e);
                     }
                 }
-                Module::None => {
+                LoadState::None => {
                     // Targets are supposed to be loaded already.
                     builder.log_info(format!("error: module {} is not loaded", target));
                 }
-                Module::Loading => {
+                LoadState::Loading => {
                     // Happens if there's a circular import. A more localized error should
                     // show up elsewhere, so let's just log.
                     builder.log_info(format!("error: module {} stuck in loading", target));
@@ -368,7 +368,7 @@ impl Project {
 
     // Verifies all goals within this target.
     // Returns the status for this file alone.
-    fn verify_target(&self, target: &ModuleRef, env: &Environment, builder: &mut Builder) {
+    fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let hash = self.get_hash(env.module_id);
 
         builder.module_proving_started(target, hash);
@@ -512,32 +512,32 @@ impl Project {
             .expect("mock file update failed");
     }
 
-    pub fn get_module_by_id(&self, module_id: ModuleId) -> &Module {
+    pub fn get_module_by_id(&self, module_id: ModuleId) -> &LoadState {
         match self.modules.get(module_id as usize) {
             Some((_, module, _)) => module,
-            None => &Module::None,
+            None => &LoadState::None,
         }
     }
 
-    pub fn get_module_by_ref(&self, module_ref: &ModuleRef) -> &Module {
-        match self.module_map.get(module_ref) {
+    pub fn get_module(&self, descriptor: &ModuleDescriptor) -> &LoadState {
+        match self.module_map.get(descriptor) {
             Some(id) => self.get_module_by_id(*id),
-            None => &Module::None,
+            None => &LoadState::None,
         }
     }
 
     pub fn get_env_by_id(&self, module_id: ModuleId) -> Option<&Environment> {
-        if let Module::Ok(env) = self.get_module_by_id(module_id) {
+        if let LoadState::Ok(env) = self.get_module_by_id(module_id) {
             Some(env)
         } else {
             None
         }
     }
 
-    // You have to use the canonical module ref, here. You can't use the path for a module
+    // You have to use the canonical descriptor, here. You can't use the path for a module
     // that can also be referenced by name.
-    pub fn get_env_by_ref(&self, module_ref: &ModuleRef) -> Option<&Environment> {
-        if let Some(module_id) = self.module_map.get(&module_ref) {
+    pub fn get_env(&self, descriptor: &ModuleDescriptor) -> Option<&Environment> {
+        if let Some(module_id) = self.module_map.get(&descriptor) {
             self.get_env_by_id(*module_id)
         } else {
             None
@@ -547,7 +547,7 @@ impl Project {
     pub fn errors(&self) -> Vec<(ModuleId, &compilation::Error)> {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
-            if let (_, Module::Error(e), _) = module {
+            if let (_, LoadState::Error(e), _) = module {
                 errors.push((module_id as ModuleId, e));
             }
         }
@@ -571,12 +571,12 @@ impl Project {
         }
     }
 
-    // Returns the canonical module ref for a path.
+    // Returns the canonical descriptor for a path.
     // Returns a load error if this isn't a valid path for an acorn file.
-    pub fn module_ref_from_path(&self, path: &Path) -> Result<ModuleRef, LoadError> {
+    pub fn descriptor_from_path(&self, path: &Path) -> Result<ModuleDescriptor, LoadError> {
         let relative = match path.strip_prefix(&self.library_root) {
             Ok(relative) => relative,
-            Err(_) => return Ok(ModuleRef::File(path.to_path_buf())),
+            Err(_) => return Ok(ModuleDescriptor::File(path.to_path_buf())),
         };
         let components: Vec<_> = relative
             .components()
@@ -602,7 +602,7 @@ impl Project {
             check_valid_module_part(&part, &name)?;
         }
 
-        Ok(ModuleRef::Name(name))
+        Ok(ModuleDescriptor::Name(name))
     }
 
     pub fn path_from_module_name(&self, module_name: &str) -> Result<PathBuf, LoadError> {
@@ -622,11 +622,11 @@ impl Project {
         Ok(path)
     }
 
-    pub fn path_from_module_ref(&self, module_ref: &ModuleRef) -> Option<PathBuf> {
-        let name = match module_ref {
-            ModuleRef::Name(name) => name,
-            ModuleRef::File(path) => return Some(path.clone()),
-            ModuleRef::Anonymous => return None,
+    pub fn path_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Option<PathBuf> {
+        let name = match descriptor {
+            ModuleDescriptor::Name(name) => name,
+            ModuleDescriptor::File(path) => return Some(path.clone()),
+            ModuleDescriptor::Anonymous => return None,
         };
 
         match self.path_from_module_name(&name) {
@@ -635,13 +635,13 @@ impl Project {
         }
     }
 
-    pub fn url_from_module_ref(&self, module_ref: &ModuleRef) -> Option<Url> {
-        let path = self.path_from_module_ref(module_ref)?;
+    pub fn url_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Option<Url> {
+        let path = self.path_from_descriptor(descriptor)?;
         Url::from_file_path(path).ok()
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
-        self.path_from_module_ref(&self.modules[module_id as usize].0)
+        self.path_from_descriptor(&self.modules[module_id as usize].0)
     }
 
     // Loads a module from cache if possible, or else from the filesystem.
@@ -653,37 +653,33 @@ impl Project {
     // If there is an error in the file, the load will return a module id, but the module
     // for the id will have an error.
     // If "open" is passed, then we cache this file's content in open files.
-    fn load_module_by_ref(&mut self, module_ref: &ModuleRef) -> Result<ModuleId, LoadError> {
-        if let Some(module_id) = self.module_map.get(&module_ref) {
+    fn load_module(&mut self, descriptor: &ModuleDescriptor) -> Result<ModuleId, LoadError> {
+        if let Some(module_id) = self.module_map.get(&descriptor) {
             if *module_id < FIRST_NORMAL {
                 panic!("module {} should not be loadable", module_id);
             }
-            if let Module::Loading = self.get_module_by_id(*module_id) {
-                return Err(LoadError(format!("circular import of {}", module_ref)));
+            if let LoadState::Loading = self.get_module_by_id(*module_id) {
+                return Err(LoadError(format!("circular import of {}", descriptor)));
             }
             return Ok(*module_id);
         }
 
-        let path = match self.path_from_module_ref(module_ref) {
+        let path = match self.path_from_descriptor(descriptor) {
             Some(path) => path,
-            None => {
-                return Err(LoadError(format!(
-                    "unloadable module ref: {:?}",
-                    module_ref
-                )))
-            }
+            None => return Err(LoadError(format!("unloadable module: {:?}", descriptor))),
         };
         let text = self.read_file(&path)?;
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
-        self.modules.push((module_ref.clone(), Module::Loading, 0));
-        self.module_map.insert(module_ref.clone(), module_id);
+        self.modules
+            .push((descriptor.clone(), LoadState::Loading, 0));
+        self.module_map.insert(descriptor.clone(), module_id);
 
         let mut env = Environment::new(module_id);
         let tokens = Token::scan(&text);
         if let Err(e) = env.add_tokens(self, tokens) {
-            self.modules[module_id as usize].1 = Module::Error(e);
+            self.modules[module_id as usize].1 = LoadState::Error(e);
             return Ok(module_id);
         }
 
@@ -696,14 +692,14 @@ impl Project {
         }
         let hash = hasher.finish();
 
-        self.modules[module_id as usize].1 = Module::Ok(env);
+        self.modules[module_id as usize].1 = LoadState::Ok(env);
         self.modules[module_id as usize].2 = hash;
         Ok(module_id)
     }
 
     pub fn load_module_by_name(&mut self, module_name: &str) -> Result<ModuleId, LoadError> {
-        let module_ref = ModuleRef::Name(module_name.to_string());
-        self.load_module_by_ref(&module_ref)
+        let descriptor = ModuleDescriptor::Name(module_name.to_string());
+        self.load_module(&descriptor)
     }
 
     // Appends all dependencies, including chains of direct dependencies.
@@ -729,7 +725,7 @@ impl Project {
         if !seen.insert(module_id) {
             return false;
         }
-        if let Module::Ok(env) = self.get_module_by_id(module_id) {
+        if let LoadState::Ok(env) = self.get_module_by_id(module_id) {
             for dep in env.bindings.direct_dependencies() {
                 if self.append_dependencies(seen, output, dep) {
                     output.push(dep);
@@ -740,7 +736,7 @@ impl Project {
     }
 
     pub fn get_bindings(&self, module_id: ModuleId) -> Option<&BindingMap> {
-        if let Module::Ok(env) = self.get_module_by_id(module_id) {
+        if let LoadState::Ok(env) = self.get_module_by_id(module_id) {
             Some(&env.bindings)
         } else {
             None
@@ -773,8 +769,8 @@ impl Project {
             // We are in a "from X import Y" statement.
             let name = parts[1];
             let partial = parts[3];
-            let module_ref = ModuleRef::Name(name.to_string());
-            let env = match self.get_env_by_ref(&module_ref) {
+            let descriptor = ModuleDescriptor::Name(name.to_string());
+            let env = match self.get_env(&descriptor) {
                 Some(env) => env,
                 None => {
                     // The module isn't loaded, so we don't know what names it has.
@@ -807,8 +803,8 @@ impl Project {
         }
 
         // Find the right environment
-        let module_ref = self.module_ref_from_path(&path).ok()?;
-        let env = match self.get_env_by_ref(&module_ref) {
+        let descriptor = self.descriptor_from_path(&path).ok()?;
+        let env = match self.get_env(&descriptor) {
             Some(env) => env,
             None => return None,
         };
@@ -831,8 +827,8 @@ impl Project {
     pub fn expect_ok(&mut self, module_name: &str) -> ModuleId {
         let module_id = self.load_module_by_name(module_name).expect("load failed");
         match self.get_module_by_id(module_id) {
-            Module::Ok(_) => module_id,
-            Module::Error(e) => panic!("error in {}: {}", module_name, e),
+            LoadState::Ok(_) => module_id,
+            LoadState::Error(e) => panic!("error in {}: {}", module_name, e),
             _ => panic!("logic error"),
         }
     }
@@ -847,7 +843,7 @@ impl Project {
     #[cfg(test)]
     fn expect_module_err(&mut self, module_name: &str) {
         let module_id = self.load_module_by_name(module_name).expect("load failed");
-        if let Module::Error(_) = self.get_module_by_id(module_id) {
+        if let LoadState::Error(_) = self.get_module_by_id(module_id) {
             // What we expected
         } else {
             panic!("expected error");
@@ -1290,7 +1286,7 @@ mod tests {
         );
 
         let env = p
-            .get_env_by_ref(&ModuleRef::Name("main".to_string()))
+            .get_env(&ModuleDescriptor::Name("main".to_string()))
             .unwrap();
 
         let mut fast_count = 0;
@@ -1342,7 +1338,7 @@ mod tests {
             "#,
         );
         let env = p
-            .get_env_by_ref(&ModuleRef::Name("main".to_string()))
+            .get_env(&ModuleDescriptor::Name("main".to_string()))
             .unwrap();
 
         // Make sure the indexes are what we expect

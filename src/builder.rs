@@ -9,7 +9,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
-use crate::module::ModuleRef;
+use crate::module::ModuleDescriptor;
 use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
@@ -29,7 +29,7 @@ pub struct BuildEvent {
     pub log_message: Option<String>,
 
     // The module that the build event is coming from.
-    pub module: ModuleRef,
+    pub module: ModuleDescriptor,
 
     // Whenever we run into a problem, report a diagnostic.
     pub diagnostic: Option<Diagnostic>,
@@ -85,7 +85,7 @@ impl BuildStatus {
 #[derive(Debug, Clone)]
 struct ModuleInfo {
     // The module that this information is about.
-    module_ref: ModuleRef,
+    descriptor: ModuleDescriptor,
 
     // Whether this module is error-free so far.
     good: bool,
@@ -182,10 +182,10 @@ impl<'a> Builder<'a> {
     }
 
     // Returns Anonymous while loading
-    fn module(&self) -> ModuleRef {
+    fn module(&self) -> ModuleDescriptor {
         match &self.current_module {
-            None => ModuleRef::Anonymous,
-            Some(m) => m.module_ref.clone(),
+            None => ModuleDescriptor::Anonymous,
+            Some(m) => m.descriptor.clone(),
         }
     }
 
@@ -220,7 +220,7 @@ impl<'a> Builder<'a> {
     }
 
     // Logs an error during the loading phase, that can be localized to a particular place.
-    pub fn log_loading_error(&mut self, module_ref: &ModuleRef, error: &Error) {
+    pub fn log_loading_error(&mut self, descriptor: &ModuleDescriptor, error: &Error) {
         let diagnostic = Diagnostic {
             range: error.range(),
             severity: Some(DiagnosticSeverity::ERROR),
@@ -229,7 +229,7 @@ impl<'a> Builder<'a> {
         };
         let event = BuildEvent {
             log_message: Some(format!("fatal error: {}", error)),
-            module: module_ref.clone(),
+            module: descriptor.clone(),
             diagnostic: Some(diagnostic),
             ..self.default_event()
         };
@@ -238,10 +238,10 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(&mut self, module_ref: &ModuleRef, hash: u64) {
+    pub fn module_proving_started(&mut self, descriptor: &ModuleDescriptor, hash: u64) {
         assert_ne!(hash, 0);
         self.current_module = Some(ModuleInfo {
-            module_ref: module_ref.clone(),
+            descriptor: descriptor.clone(),
             good: true,
             hash,
             verified: Vec::new(),
@@ -256,7 +256,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.cache.get(&current.module_ref, current.hash) {
+        let verified = match self.cache.get(&current.descriptor, current.hash) {
             None => return false,
             Some(v) => v,
         };
@@ -268,11 +268,11 @@ impl<'a> Builder<'a> {
         true
     }
 
-    pub fn module_proving_complete(&mut self, module: &ModuleRef) {
+    pub fn module_proving_complete(&mut self, module: &ModuleDescriptor) {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.cache.insert(info.module_ref, info.hash, info.verified);
+                self.cache.insert(info.descriptor, info.hash, info.verified);
             }
         });
     }
