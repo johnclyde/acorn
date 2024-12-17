@@ -22,10 +22,7 @@ pub struct DocumentProgress {
     pub verified: Vec<(u32, u32)>,
 }
 
-// The language server stores one progress struct, and returns it at any time.
-// 0/0 only occurs at initialization. It means "there have never been any progress bars".
-// Once we ever show a progress bar, we leave it at the previous finished state.
-// When progress is cancelled or interrupted, we should update this so that done = total.
+// The ProgressResponse reports the progress for a build overall.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressResponse {
