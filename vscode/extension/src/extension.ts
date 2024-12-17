@@ -93,6 +93,11 @@ class ProgressTracker {
 
   // Updates decorations for a particular editor.
   updateDecorations(editor: vscode.TextEditor) {
+    if (editor.document.languageId !== "acorn") {
+      // Not an Acorn file
+      return;
+    }
+
     let doc = this.docs[editor.document.uri.toString()];
     if (doc === undefined) {
       // We don't have any information for this document.
@@ -117,12 +122,17 @@ class ProgressTracker {
   }
 
   // Fetches the current build progress from the language server.
-  // Updates decorations accordingly.
-  async getProgress(): Promise<ProgressResponse> {
+  // Updates decorations if we get information from a new build.
+  async getProgress(previousBuildId): Promise<ProgressResponse> {
     let response = (await client.sendRequest(
       "acorn/progress",
       {}
     )) as ProgressResponse;
+
+    // No new progress
+    if (response.buildId === previousBuildId) {
+      return response;
+    }
 
     this.buildId = response.buildId;
     this.docs = response.docs;
@@ -159,13 +169,13 @@ class ProgressTracker {
   async trackHelper() {
     let initialBuildId = this.buildId;
 
-    let response: ProgressResponse = await this.getProgress();
+    let response: ProgressResponse = await this.getProgress(initialBuildId);
 
     while (response.buildId === initialBuildId) {
       // Maybe the next build just hasn't started yet.
       // Let's wait a bit and try again.
       await new Promise((resolve) => setTimeout(resolve, 100));
-      response = await this.getProgress();
+      response = await this.getProgress(initialBuildId);
 
       let elapsed = Date.now() - this.startTime;
       if (elapsed > 2000) {
@@ -187,15 +197,17 @@ class ProgressTracker {
           console.log("acorn verification progress bar canceled");
         });
 
-        while (response.total !== response.done) {
-          let percent = Math.floor((100 * response.done) / response.total);
-          let increment = percent - previousPercent;
-          progress.report({ increment });
-          previousPercent = percent;
+        while (!response.finished) {
+          if (response.total > 0) {
+            let percent = Math.floor((100 * response.done) / response.total);
+            let increment = percent - previousPercent;
+            progress.report({ increment });
+            previousPercent = percent;
+          }
 
-          // We have something to show, so we can wait a bit before updating.
+          // Wait a bit before updating.
           await new Promise((resolve) => setTimeout(resolve, 100));
-          response = await this.getProgress();
+          response = await this.getProgress(null);
         }
       }
     );

@@ -32,9 +32,12 @@ pub struct ProgressResponse {
     // Which build we are tracking progress for, if any.
     pub build_id: Option<u32>,
 
-    // Statistics about the progress of the build.
+    // How many goals the build has gotten through.
     pub done: i32,
     pub total: i32,
+
+    // Whether this build has finished.
+    pub finished: bool,
 
     // Per-document progress information.
     pub docs: HashMap<Url, DocumentProgress>,
@@ -46,6 +49,7 @@ impl ProgressResponse {
             build_id: None,
             done: 0,
             total: 0,
+            finished: false,
             docs: HashMap::new(),
         }
     }

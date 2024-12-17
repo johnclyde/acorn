@@ -10,6 +10,7 @@ interface ProgressResponse {
   buildId: number | null;
   done: number;
   total: number;
+  finished: boolean;
   docs: { [url: string]: DocumentProgress };
 }
 

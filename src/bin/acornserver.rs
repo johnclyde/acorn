@@ -251,6 +251,12 @@ struct BuildInfo {
     done: i32,
     total: i32,
 
+    // Whether the build is finished or not.
+    // Distinguishes the scenarios:
+    //   1. This build is 0/0 complete because it finished its zero goals
+    //   2. This build is 0/0 complete because it hasn't counted the goals yet
+    finished: bool,
+
     // Per-document information
     docs: HashMap<Url, DocumentBuildInfo>,
 }
@@ -262,6 +268,7 @@ impl BuildInfo {
             id: None,
             done: 0,
             total: 0,
+            finished: false,
             docs: HashMap::new(),
         }
     }
@@ -285,8 +292,13 @@ impl BuildInfo {
             build_id: self.id,
             done: self.done,
             total: self.total,
+            finished: self.finished,
             docs,
         }
+    }
+
+    fn finish(&mut self) {
+        self.finished = true;
     }
 
     // Take a function that modifies a DocumentBuildInfo and apply it to the document.
@@ -470,6 +482,8 @@ impl Backend {
                     .handle_event(&project, &client, &event)
                     .await;
             }
+
+            build.write().await.finish();
         });
     }
 
