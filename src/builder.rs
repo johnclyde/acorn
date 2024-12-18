@@ -247,8 +247,7 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.cache
-                    .insert(info.descriptor, hash.clone(), info.verified);
+                self.cache.insert(info.descriptor, hash.clone());
             }
         });
     }
