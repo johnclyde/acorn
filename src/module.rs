@@ -84,11 +84,8 @@ pub struct ModuleHash {
     // Each one hashes that line and all the lines before it.
     prefix_hashes: Vec<u64>,
 
-    // There is a single hash that represents all dependencies.
+    // This single hash represents all dependencies.
     dependency_hash: u64,
-
-    // Includes both prefix and dependency hashes.
-    pub total_hash: u64,
 }
 
 impl PartialEq for ModuleHash {
@@ -104,7 +101,6 @@ impl ModuleHash {
         ModuleHash {
             prefix_hashes: vec![prefix_hash],
             dependency_hash,
-            total_hash: prefix_hash ^ dependency_hash,
         }
     }
 }
