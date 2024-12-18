@@ -1,11 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::{fmt, io};
 
-use fxhash::FxHasher;
 use regex::Regex;
 use tower_lsp::lsp_types::{CompletionItem, Url};
 use walkdir::WalkDir;
@@ -18,7 +16,9 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{LoadState, Module, ModuleDescriptor, ModuleHash, ModuleId, FIRST_NORMAL};
+use crate::module::{
+    LoadState, Module, ModuleDescriptor, ModuleHash, ModuleHasher, ModuleId, FIRST_NORMAL,
+};
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -672,18 +672,12 @@ impl Project {
         }
 
         // Give this module a hash.
-        let mut hasher = FxHasher::default();
-        text.hash(&mut hasher);
-        let content_hash = hasher.finish();
-
-        // Make a dependency_hash for the ModuleHash
-        let mut hasher = FxHasher::default();
+        let mut hasher = ModuleHasher::new();
+        hasher.set_text(&text);
         for dependency_id in env.bindings.direct_dependencies() {
-            self.modules[dependency_id as usize].hash(&mut hasher);
+            hasher.add_dependency(&self.modules[dependency_id as usize]);
         }
-        let dependency_hash = hasher.finish();
-
-        let module_hash = ModuleHash::new(content_hash, dependency_hash);
+        let module_hash = hasher.finish();
         self.modules[module_id as usize].load_ok(env, module_hash);
         Ok(module_id)
     }
