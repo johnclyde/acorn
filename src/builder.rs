@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 
-use crate::build_cache::BuildCache;
 use crate::compilation::Error;
 use crate::dataset::Dataset;
 use crate::environment::Environment;
@@ -114,11 +113,8 @@ pub struct Builder<'a> {
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
 
-    // Information about the current module we are proving. Not set when we are loading.
+    // The current module we are proving, and a flag for whether it's error-free.
     current_module: Option<ModuleInfo>,
-
-    // The build cache that we are using for this build.
-    pub cache: BuildCache,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -144,7 +140,7 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(cache: BuildCache, event_handler: impl FnMut(BuildEvent) + 'a) -> Self {
+    pub fn new(event_handler: impl FnMut(BuildEvent) + 'a) -> Self {
         let event_handler = Box::new(event_handler);
         Builder {
             event_handler,
@@ -154,7 +150,6 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
-            cache,
             dataset: None,
             num_success: 0,
             num_activated: 0,

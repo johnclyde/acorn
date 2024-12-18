@@ -52,7 +52,8 @@ pub struct Project {
     // The module names that we want to build.
     targets: HashSet<ModuleDescriptor>,
 
-    pub build_cache: BuildCache,
+    // The cache contains a hash for each module from the last time it was successfully built.
+    build_cache: BuildCache,
 
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
@@ -292,7 +293,7 @@ impl Project {
 
     // Create a Builder object that will then handle the build.
     pub fn builder<'a>(&self, event_handler: impl FnMut(BuildEvent) + 'a) -> Builder<'a> {
-        Builder::new(self.build_cache.clone(), event_handler)
+        Builder::new(event_handler)
     }
 
     // Builds all open modules, logging build events.
