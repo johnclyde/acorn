@@ -34,20 +34,6 @@ impl BuildCache {
             .insert(module_id, BuildCacheValue { hash, verified });
     }
 
-    pub fn old_get(
-        &self,
-        module_id: &ModuleDescriptor,
-        hash: &ModuleHash,
-    ) -> Option<Vec<(u32, u32)>> {
-        self.modules.get(module_id).and_then(|entry| {
-            if entry.hash == *hash {
-                Some(entry.verified.clone())
-            } else {
-                None
-            }
-        })
-    }
-
     pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleHash> {
         self.modules
             .get(descriptor)
