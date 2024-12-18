@@ -238,12 +238,8 @@ impl Project {
         self.open_files.get(path).map(|(_, version)| *version)
     }
 
-    pub fn get_hash(&self, module_id: ModuleId) -> u64 {
-        if let Some(h) = &self.modules[module_id as usize].hash {
-            h.total_hash
-        } else {
-            0
-        }
+    pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleHash> {
+        self.modules[module_id as usize].hash.as_ref()
     }
 
     // Updating a file makes us treat it as "open". When a file is open, we use the
@@ -363,9 +359,8 @@ impl Project {
     // Verifies all goals within this target.
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
-        let hash = self.get_hash(env.module_id);
-
-        builder.module_proving_started(target, hash);
+        let hash = self.get_hash(env.module_id).unwrap().clone();
+        builder.module_proving_started(target.clone(), hash);
 
         if !builder.handle_current_module_from_cache() {
             // Fast and slow modes should be interchangeable here.

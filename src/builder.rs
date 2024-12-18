@@ -9,7 +9,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
-use crate::module::ModuleDescriptor;
+use crate::module::{ModuleDescriptor, ModuleHash};
 use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
@@ -91,7 +91,7 @@ struct ModuleInfo {
     good: bool,
 
     // A hash of the module's logical contents, including its dependencies.
-    hash: u64,
+    hash: ModuleHash,
 
     // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
     verified: Vec<(u32, u32)>,
@@ -238,10 +238,10 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(&mut self, descriptor: &ModuleDescriptor, hash: u64) {
-        assert_ne!(hash, 0);
+    pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor, hash: ModuleHash) {
+        assert_ne!(hash.total_hash, 0);
         self.current_module = Some(ModuleInfo {
-            descriptor: descriptor.clone(),
+            descriptor,
             good: true,
             hash,
             verified: Vec::new(),
@@ -256,7 +256,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.cache.get(&current.descriptor, current.hash) {
+        let verified = match self.cache.get(&current.descriptor, current.hash.total_hash) {
             None => return false,
             Some(v) => v,
         };
@@ -272,7 +272,8 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.cache.insert(info.descriptor, info.hash, info.verified);
+                self.cache
+                    .insert(info.descriptor, info.hash.total_hash, info.verified);
             }
         });
     }
