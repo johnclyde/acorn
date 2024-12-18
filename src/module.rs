@@ -94,10 +94,16 @@ impl ModuleHash {
         }
     }
 
-    pub fn matches_through_line(&self, other: &ModuleHash, line: usize) -> bool {
-        self.dependency_hash == other.dependency_hash
-            && line < self.prefix_hashes.len()
-            && self.prefix_hashes.get(line) == other.prefix_hashes.get(line)
+    pub fn matches_through_line(&self, other: &Option<ModuleHash>, line: u32) -> bool {
+        let line = line as usize;
+        match other {
+            Some(other) => {
+                self.dependency_hash == other.dependency_hash
+                    && line < self.prefix_hashes.len()
+                    && self.prefix_hashes.get(line) == other.prefix_hashes.get(line)
+            }
+            None => false,
+        }
     }
 }
 

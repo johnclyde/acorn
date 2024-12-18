@@ -51,7 +51,7 @@ pub struct GoalContext {
     // If it's not okay, we warn the user.
     pub inconsistency_okay: bool,
 
-    // This range includes the entire proof block, if there is one.
+    // This range includes the entire proof block for this goal, if there is one.
     pub first_line: u32,
     pub last_line: u32,
 }

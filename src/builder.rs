@@ -243,26 +243,6 @@ impl<'a> Builder<'a> {
         });
     }
 
-    // Handles the current module from the cache, if possible.
-    // Returns whether the module was handled from the cache.
-    pub fn handle_current_module_from_cache(&mut self, hash: &ModuleHash) -> bool {
-        let current = match self.current_module {
-            None => return false,
-            Some(ref m) => m,
-        };
-
-        let verified = match self.cache.old_get(&current.descriptor, &hash) {
-            None => return false,
-            Some(v) => v,
-        };
-
-        for (first_line, last_line) in verified {
-            self.goals_done += 1;
-            self.log_proving_success(first_line, last_line);
-        }
-        true
-    }
-
     pub fn module_proving_complete(&mut self, module: &ModuleDescriptor, hash: &ModuleHash) {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
@@ -313,10 +293,7 @@ impl<'a> Builder<'a> {
                                 &format!("took {}", elapsed_str),
                             );
                         } else {
-                            self.log_proving_success(
-                                goal_context.first_line,
-                                goal_context.last_line,
-                            );
+                            self.log_proving_success(goal_context);
                         }
                     }
 
@@ -356,8 +333,8 @@ impl<'a> Builder<'a> {
     }
 
     // Logs a successful proof.
-    fn log_proving_success(&mut self, first_line: u32, last_line: u32) {
-        let line_pair = (first_line, last_line);
+    fn log_proving_success(&mut self, goal_context: &GoalContext) {
+        let line_pair = (goal_context.first_line, goal_context.last_line);
         self.current_module.as_mut().map(|info| {
             info.verified.push(line_pair);
         });
@@ -371,9 +348,9 @@ impl<'a> Builder<'a> {
 
     // Logs a successful proof that was cached.
     // Call as an alternative to search_finished.
-    pub fn log_proving_success_cached(&mut self, first_line: u32, last_line: u32) {
+    pub fn log_proving_success_cached(&mut self, goal_context: &GoalContext) {
         self.goals_done += 1;
-        self.log_proving_success(first_line, last_line);
+        self.log_proving_success(goal_context);
     }
 
     // Create a build event for a proof that was other than successful.

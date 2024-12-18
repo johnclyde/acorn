@@ -360,17 +360,20 @@ impl Project {
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
-        let _cached_hash = self.build_cache.get(target);
+        let cached_hash = self.build_cache.get(target);
 
         builder.module_proving_started(target.clone());
 
-        if !builder.handle_current_module_from_cache(current_hash) {
-            // Fast and slow modes should be interchangeable here.
-            // If we run into a bug with fast mode, try using slow mode to debug.
-            self.for_each_prover_fast(env, &mut |prover, goal_context| {
+        // Fast and slow modes should be interchangeable here.
+        // If we run into a bug with fast mode, try using slow mode to debug.
+        self.for_each_prover_fast(env, &mut |prover, goal_context| {
+            if current_hash.matches_through_line(&cached_hash, goal_context.last_line) {
+                builder.log_proving_success_cached(&goal_context);
+                true
+            } else {
                 self.prove(prover, goal_context, builder)
-            });
-        }
+            }
+        });
 
         builder.module_proving_complete(target, current_hash);
     }
@@ -1393,14 +1396,14 @@ mod tests {
         assert_eq!(num_success, 0);
 
         // If we change main, we should only have to rebuild main
-        let touched_main = format!("{}\n// Touch", main_text);
+        let touched_main = format!("// Touch\n{}", main_text);
         p.update_file(PathBuf::from("/mock/main.ac"), &touched_main, 1)
             .expect("update failed");
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 1);
 
         // If we change lib, we should have to rebuild both
-        let touched_lib = format!("{}\n// Touch", lib_text);
+        let touched_lib = format!("// Touch\n{}", lib_text);
         p.update_file(PathBuf::from("/mock/lib.ac"), &touched_lib, 1)
             .expect("update failed");
         let num_success = p.expect_build_ok();
