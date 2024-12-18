@@ -369,6 +369,13 @@ impl<'a> Builder<'a> {
         (self.event_handler)(event);
     }
 
+    // Logs a successful proof that was cached.
+    // Call as an alternative to search_finished.
+    pub fn log_proving_success_cached(&mut self, first_line: u32, last_line: u32) {
+        self.goals_done += 1;
+        self.log_proving_success(first_line, last_line);
+    }
+
     // Create a build event for a proof that was other than successful.
     fn make_event(
         &mut self,

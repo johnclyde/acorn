@@ -48,10 +48,10 @@ impl BuildCache {
         })
     }
 
-    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<BuildCacheValue> {
+    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleHash> {
         self.modules
             .get(descriptor)
-            .map(|entry| entry.value().clone())
+            .map(|entry| entry.value().hash.clone())
     }
 
     #[cfg(test)]
