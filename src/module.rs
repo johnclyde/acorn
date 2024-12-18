@@ -106,8 +106,11 @@ pub struct ModuleHasher {
 impl ModuleHasher {
     pub fn new(text: &str) -> ModuleHasher {
         let mut line_hasher = FxHasher::default();
-        text.hash(&mut line_hasher);
-        let prefix_hashes = vec![line_hasher.finish()];
+        let mut prefix_hashes = vec![];
+        for line in text.lines() {
+            line.hash(&mut line_hasher);
+            prefix_hashes.push(line_hasher.finish());
+        }
 
         ModuleHasher {
             prefix_hashes,
