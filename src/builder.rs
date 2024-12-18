@@ -81,7 +81,7 @@ impl BuildStatus {
     }
 }
 
-// Information stored about a single module.
+// Information stored about how the build is going for a single module.
 #[derive(Debug, Clone)]
 struct ModuleInfo {
     // The module that this information is about.
@@ -89,9 +89,6 @@ struct ModuleInfo {
 
     // Whether this module is error-free so far.
     good: bool,
-
-    // A hash of the module's logical contents, including its dependencies.
-    hash: ModuleHash,
 
     // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
     verified: Vec<(u32, u32)>,
@@ -238,24 +235,23 @@ impl<'a> Builder<'a> {
     }
 
     // Called when we start proving a module.
-    pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor, hash: ModuleHash) {
+    pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor) {
         self.current_module = Some(ModuleInfo {
             descriptor,
             good: true,
-            hash,
             verified: Vec::new(),
         });
     }
 
     // Handles the current module from the cache, if possible.
     // Returns whether the module was handled from the cache.
-    pub fn handle_current_module_from_cache(&mut self) -> bool {
+    pub fn handle_current_module_from_cache(&mut self, hash: &ModuleHash) -> bool {
         let current = match self.current_module {
             None => return false,
             Some(ref m) => m,
         };
 
-        let verified = match self.cache.get(&current.descriptor, &current.hash) {
+        let verified = match self.cache.get(&current.descriptor, &hash) {
             None => return false,
             Some(v) => v,
         };
@@ -267,11 +263,12 @@ impl<'a> Builder<'a> {
         true
     }
 
-    pub fn module_proving_complete(&mut self, module: &ModuleDescriptor) {
+    pub fn module_proving_complete(&mut self, module: &ModuleDescriptor, hash: &ModuleHash) {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.cache.insert(info.descriptor, info.hash, info.verified);
+                self.cache
+                    .insert(info.descriptor, hash.clone(), info.verified);
             }
         });
     }
