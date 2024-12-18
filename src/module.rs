@@ -68,18 +68,6 @@ impl Module {
     }
 }
 
-impl Hash for Module {
-    // Used for hashing this module as a dependency.
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        if let Some(h) = &self.hash {
-            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
-                last_prefix_hash.hash(state);
-            }
-            h.dependency_hash.hash(state);
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ModuleHash {
     // There is one prefix hash per line in the file.
