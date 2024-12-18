@@ -80,16 +80,6 @@ impl BuildStatus {
     }
 }
 
-// Information stored about how the build is going for a single module.
-#[derive(Debug, Clone)]
-struct ModuleInfo {
-    // The module that this information is about.
-    descriptor: ModuleDescriptor,
-
-    // Whether this module is error-free so far.
-    good: bool,
-}
-
 // The Builder contains all the mutable state for a single build.
 // This is separate from the Project because you can read information from the Project from other
 // threads while a build is ongoing, but a Builder is only used by the build itself.
@@ -113,8 +103,12 @@ pub struct Builder<'a> {
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
 
-    // The current module we are proving, and a flag for whether it's error-free.
-    current_module: Option<ModuleInfo>,
+    // The current module we are proving.
+    current_module: Option<ModuleDescriptor>,
+
+    // Whether the current module has neither errors nor warnings.
+    // I guess if there is no current module, it's vacuously good.
+    current_module_good: bool,
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
@@ -150,6 +144,7 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             log_when_slow: false,
             current_module: None,
+            current_module_good: true,
             dataset: None,
             num_success: 0,
             num_activated: 0,
@@ -174,7 +169,7 @@ impl<'a> Builder<'a> {
     fn module(&self) -> ModuleDescriptor {
         match &self.current_module {
             None => ModuleDescriptor::Anonymous,
-            Some(m) => m.descriptor.clone(),
+            Some(m) => m.clone(),
         }
     }
 
@@ -228,19 +223,17 @@ impl<'a> Builder<'a> {
 
     // Called when we start proving a module.
     pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor) {
-        self.current_module = Some(ModuleInfo {
-            descriptor,
-            good: true,
-        });
+        self.current_module = Some(descriptor);
+        self.current_module_good = true;
     }
 
     // Returns whether the module completed without any errors or warnings.
     pub fn module_proving_complete(&mut self, module: &ModuleDescriptor) -> bool {
         assert_eq!(&self.module(), module);
-        match self.current_module.take() {
-            None => false,
-            Some(module_info) => module_info.good,
-        }
+        let answer = self.current_module_good;
+        self.current_module = None;
+        self.current_module_good = true;
+        answer
     }
 
     // Called when a single proof search completes.
@@ -380,9 +373,7 @@ impl<'a> Builder<'a> {
     fn log_proving_warning(&mut self, prover: &Prover, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(prover, goal_context, message, DiagnosticSeverity::WARNING);
         (self.event_handler)(event);
-        self.current_module.as_mut().map(|module_info| {
-            module_info.good = false;
-        });
+        self.current_module_good = false;
         self.status.warn();
     }
 
@@ -393,9 +384,7 @@ impl<'a> Builder<'a> {
         // Set progress as complete, because an error will halt the build
         event.progress = Some((self.goals_total, self.goals_total));
         (self.event_handler)(event);
-        self.current_module.as_mut().map(|module_info| {
-            module_info.good = false;
-        });
+        self.current_module_good = false;
         self.status = BuildStatus::Error;
     }
 
