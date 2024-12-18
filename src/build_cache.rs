@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::module::ModuleDescriptor;
+use crate::module::{ModuleDescriptor, ModuleHash};
 
 // Information stored about a single module in the cache.
 struct BuildCacheEntry {
-    hash: u64,
+    hash: ModuleHash,
     verified: Vec<(u32, u32)>,
 }
 
@@ -25,14 +25,14 @@ impl BuildCache {
         }
     }
 
-    pub fn insert(&self, module_id: ModuleDescriptor, hash: u64, verified: Vec<(u32, u32)>) {
+    pub fn insert(&self, module_id: ModuleDescriptor, hash: ModuleHash, verified: Vec<(u32, u32)>) {
         self.modules
             .insert(module_id, BuildCacheEntry { hash, verified });
     }
 
-    pub fn get(&self, module_id: &ModuleDescriptor, hash: u64) -> Option<Vec<(u32, u32)>> {
+    pub fn get(&self, module_id: &ModuleDescriptor, hash: &ModuleHash) -> Option<Vec<(u32, u32)>> {
         self.modules.get(module_id).and_then(|entry| {
-            if entry.hash == hash {
+            if entry.hash.total_hash == hash.total_hash {
                 Some(entry.verified.clone())
             } else {
                 None

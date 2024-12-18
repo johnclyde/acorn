@@ -256,7 +256,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.cache.get(&current.descriptor, current.hash.total_hash) {
+        let verified = match self.cache.get(&current.descriptor, &current.hash) {
             None => return false,
             Some(v) => v,
         };
@@ -272,8 +272,7 @@ impl<'a> Builder<'a> {
         assert_eq!(&self.module(), module);
         self.current_module.take().map(|info| {
             if info.good {
-                self.cache
-                    .insert(info.descriptor, info.hash.total_hash, info.verified);
+                self.cache.insert(info.descriptor, info.hash, info.verified);
             }
         });
     }
