@@ -78,14 +78,6 @@ pub struct ModuleHash {
     dependency_hash: u64,
 }
 
-impl PartialEq for ModuleHash {
-    // We don't need to check every prefix hash, just the last one.
-    fn eq(&self, other: &Self) -> bool {
-        self.dependency_hash == other.dependency_hash
-            && self.prefix_hashes.last() == other.prefix_hashes.last()
-    }
-}
-
 impl ModuleHash {
     pub fn new(prefix_hash: u64, dependency_hash: u64) -> ModuleHash {
         ModuleHash {
