@@ -1404,4 +1404,31 @@ mod tests {
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
     }
+
+    #[test]
+    fn test_build_cache_partial_rebuild() {
+        let mut p = Project::new_mock();
+        let mut lines = vec![
+            "theorem one {",
+            "    true = true",
+            "}",
+            "theorem two {",
+            "    true = true",
+            "}",
+            "theorem three {",
+            "    true = true",
+            "}",
+        ];
+        let filename = "/mock/main.ac";
+        p.mock(filename, &lines.join("\n"));
+        let num_success = p.expect_build_ok();
+        assert_eq!(num_success, 3);
+
+        // Change the middle theorem
+        lines[4] = "    false = false";
+        p.update_file(PathBuf::from(filename), &lines.join("\n"), 1)
+            .expect("update failed");
+        let num_success = p.expect_build_ok();
+        assert_eq!(num_success, 2);
+    }
 }
