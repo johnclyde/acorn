@@ -18,7 +18,7 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
+use crate::module::{LoadState, Module, ModuleDescriptor, ModuleHash, ModuleId, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -239,7 +239,11 @@ impl Project {
     }
 
     pub fn get_hash(&self, module_id: ModuleId) -> u64 {
-        self.modules[module_id as usize].hash
+        if let Some(h) = &self.modules[module_id as usize].hash {
+            h.total_hash
+        } else {
+            0
+        }
     }
 
     // Updating a file makes us treat it as "open". When a file is open, we use the
@@ -672,16 +676,20 @@ impl Project {
             return Ok(module_id);
         }
 
-        // Give this module a hash that depends on the hashes of all its dependencies.
+        // Give this module a hash.
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
-        for dependency_id in env.bindings.direct_dependencies() {
-            let dependency_hash = self.modules[dependency_id as usize].hash;
-            dependency_hash.hash(&mut hasher);
-        }
-        let hash = hasher.finish();
+        let content_hash = hasher.finish();
 
-        self.modules[module_id as usize].load_ok(env, hash);
+        // Make a dependency_hash for the ModuleHash
+        let mut hasher = FxHasher::default();
+        for dependency_id in env.bindings.direct_dependencies() {
+            self.modules[dependency_id as usize].hash(&mut hasher);
+        }
+        let dependency_hash = hasher.finish();
+
+        let module_hash = ModuleHash::new(content_hash, dependency_hash);
+        self.modules[module_id as usize].load_ok(env, module_hash);
         Ok(module_id)
     }
 

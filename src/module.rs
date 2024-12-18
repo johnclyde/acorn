@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use std::{fmt, path::PathBuf};
 
 use crate::compilation;
@@ -24,9 +25,8 @@ pub struct Module {
     pub state: LoadState,
 
     // The hash of the module's code.
-    // Zero before the module is loaded.
-    // This *does* include the module's dependencies.
-    pub hash: u64,
+    // None before the module is loaded.
+    pub hash: Option<ModuleHash>,
 }
 
 impl Module {
@@ -42,7 +42,7 @@ impl Module {
         Module {
             descriptor: ModuleDescriptor::Anonymous,
             state: LoadState::None,
-            hash: 0,
+            hash: None,
         }
     }
 
@@ -51,7 +51,7 @@ impl Module {
         Module {
             descriptor,
             state: LoadState::Loading,
-            hash: 0,
+            hash: None,
         }
     }
 
@@ -60,9 +60,52 @@ impl Module {
     }
 
     // Called when a module load succeeds.
-    pub fn load_ok(&mut self, env: Environment, hash: u64) {
+    pub fn load_ok(&mut self, env: Environment, hash: ModuleHash) {
         self.state = LoadState::Ok(env);
-        self.hash = hash;
+        self.hash = Some(hash);
+    }
+}
+
+impl Hash for Module {
+    // Used for hashing this module as a dependency.
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if let Some(h) = &self.hash {
+            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
+                last_prefix_hash.hash(state);
+            }
+            h.dependency_hash.hash(state);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleHash {
+    // There is one prefix hash per line in the file.
+    // Each one hashes that line and all the lines before it.
+    prefix_hashes: Vec<u64>,
+
+    // There is a single hash that represents all dependencies.
+    dependency_hash: u64,
+
+    // Includes both prefix and dependency hashes.
+    pub total_hash: u64,
+}
+
+impl PartialEq for ModuleHash {
+    // We don't need to check every prefix hash, just the last one.
+    fn eq(&self, other: &Self) -> bool {
+        self.dependency_hash == other.dependency_hash
+            && self.prefix_hashes.last() == other.prefix_hashes.last()
+    }
+}
+
+impl ModuleHash {
+    pub fn new(prefix_hash: u64, dependency_hash: u64) -> ModuleHash {
+        ModuleHash {
+            prefix_hashes: vec![prefix_hash],
+            dependency_hash,
+            total_hash: prefix_hash ^ dependency_hash,
+        }
     }
 }
 
