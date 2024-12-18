@@ -239,7 +239,6 @@ impl<'a> Builder<'a> {
 
     // Called when we start proving a module.
     pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor, hash: ModuleHash) {
-        assert_ne!(hash.total_hash, 0);
         self.current_module = Some(ModuleInfo {
             descriptor,
             good: true,

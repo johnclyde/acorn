@@ -32,7 +32,7 @@ impl BuildCache {
 
     pub fn get(&self, module_id: &ModuleDescriptor, hash: &ModuleHash) -> Option<Vec<(u32, u32)>> {
         self.modules.get(module_id).and_then(|entry| {
-            if entry.hash.total_hash == hash.total_hash {
+            if entry.hash == *hash {
                 Some(entry.verified.clone())
             } else {
                 None
