@@ -16,6 +16,56 @@ pub const SKOLEM: ModuleId = 0;
 // The regular module ids start here.
 pub const FIRST_NORMAL: ModuleId = 1;
 
+pub struct Module {
+    // The way the user can refer to this module.
+    pub descriptor: ModuleDescriptor,
+
+    // The state of the module, whether it's been loaded or not.
+    pub state: LoadState,
+
+    // The hash of the module's code.
+    // Zero before the module is loaded.
+    // This *does* include the module's dependencies.
+    pub hash: u64,
+}
+
+impl Module {
+    pub fn default_modules() -> Vec<Module> {
+        let mut modules = vec![];
+        while modules.len() < FIRST_NORMAL as usize {
+            modules.push(Module::anonymous());
+        }
+        modules
+    }
+
+    pub fn anonymous() -> Module {
+        Module {
+            descriptor: ModuleDescriptor::Anonymous,
+            state: LoadState::None,
+            hash: 0,
+        }
+    }
+
+    // New modules start in the Loading state.
+    pub fn new(descriptor: ModuleDescriptor) -> Module {
+        Module {
+            descriptor,
+            state: LoadState::Loading,
+            hash: 0,
+        }
+    }
+
+    pub fn load_error(&mut self, error: compilation::Error) {
+        self.state = LoadState::Error(error);
+    }
+
+    // Called when a module load succeeds.
+    pub fn load_ok(&mut self, env: Environment, hash: u64) {
+        self.state = LoadState::Ok(env);
+        self.hash = hash;
+    }
+}
+
 // The LoadState describes the state of a module, loaded or not or in progress.
 pub enum LoadState {
     // There is no such module, not even an id for it

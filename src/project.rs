@@ -18,7 +18,7 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{LoadState, ModuleDescriptor, ModuleId, FIRST_NORMAL};
+use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -44,8 +44,7 @@ pub struct Project {
 
     // modules[module_id] is the (ref, Module, hash) for the given module id.
     // Built-in modules have no name.
-    // Hashes only relate to the content of the module itself, not to its dependencies.
-    modules: Vec<(ModuleDescriptor, LoadState, u64)>,
+    modules: Vec<Module>,
 
     // module_map maps from a module's descriptor to its id
     module_map: HashMap<ModuleDescriptor, ModuleId>,
@@ -76,14 +75,6 @@ impl fmt::Display for LoadError {
     }
 }
 
-fn new_modules() -> Vec<(ModuleDescriptor, LoadState, u64)> {
-    let mut modules = vec![];
-    while modules.len() < FIRST_NORMAL as usize {
-        modules.push((ModuleDescriptor::Anonymous, LoadState::None, 0));
-    }
-    modules
-}
-
 fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
     if s.is_empty() {
         return Err(LoadError(format!("empty module part: {}", error_name)));
@@ -111,7 +102,7 @@ impl Project {
             library_root,
             use_filesystem: true,
             open_files: HashMap::new(),
-            modules: new_modules(),
+            modules: Module::default_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
             build_cache: BuildCache::new(),
@@ -165,7 +156,7 @@ impl Project {
     // Dropping existing modules lets you update the project for new data.
     // TODO: do this incrementally instead of dropping everything.
     fn drop_modules(&mut self) {
-        self.modules = new_modules();
+        self.modules = Module::default_modules();
         self.module_map = HashMap::new();
     }
 
@@ -248,8 +239,7 @@ impl Project {
     }
 
     pub fn get_hash(&self, module_id: ModuleId) -> u64 {
-        let (_, _, hash) = self.modules[module_id as usize];
-        hash
+        self.modules[module_id as usize].hash
     }
 
     // Updating a file makes us treat it as "open". When a file is open, we use the
@@ -514,7 +504,7 @@ impl Project {
 
     pub fn get_module_by_id(&self, module_id: ModuleId) -> &LoadState {
         match self.modules.get(module_id as usize) {
-            Some((_, module, _)) => module,
+            Some(module) => &module.state,
             None => &LoadState::None,
         }
     }
@@ -547,7 +537,7 @@ impl Project {
     pub fn errors(&self) -> Vec<(ModuleId, &compilation::Error)> {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
-            if let (_, LoadState::Error(e), _) = module {
+            if let LoadState::Error(e) = &module.state {
                 errors.push((module_id as ModuleId, e));
             }
         }
@@ -641,7 +631,7 @@ impl Project {
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
-        self.path_from_descriptor(&self.modules[module_id as usize].0)
+        self.path_from_descriptor(&self.modules[module_id as usize].descriptor)
     }
 
     // Loads a module from cache if possible, or else from the filesystem.
@@ -672,14 +662,13 @@ impl Project {
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
-        self.modules
-            .push((descriptor.clone(), LoadState::Loading, 0));
+        self.modules.push(Module::new(descriptor.clone()));
         self.module_map.insert(descriptor.clone(), module_id);
 
         let mut env = Environment::new(module_id);
         let tokens = Token::scan(&text);
         if let Err(e) = env.add_tokens(self, tokens) {
-            self.modules[module_id as usize].1 = LoadState::Error(e);
+            self.modules[module_id as usize].load_error(e);
             return Ok(module_id);
         }
 
@@ -687,13 +676,12 @@ impl Project {
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
         for dependency_id in env.bindings.direct_dependencies() {
-            let (_, _, dependency_hash) = self.modules[dependency_id as usize];
+            let dependency_hash = self.modules[dependency_id as usize].hash;
             dependency_hash.hash(&mut hasher);
         }
         let hash = hasher.finish();
 
-        self.modules[module_id as usize].1 = LoadState::Ok(env);
-        self.modules[module_id as usize].2 = hash;
+        self.modules[module_id as usize].load_ok(env, hash);
         Ok(module_id)
     }
 
