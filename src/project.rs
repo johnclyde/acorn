@@ -357,7 +357,6 @@ impl Project {
     }
 
     // Verifies all goals within this target.
-    // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
         let cached_hash = self.build_cache.get(target);
@@ -375,7 +374,10 @@ impl Project {
             }
         });
 
-        builder.module_proving_complete(target, current_hash);
+        if builder.module_proving_complete(target) {
+            self.build_cache
+                .insert(target.clone(), current_hash.clone());
+        }
     }
 
     // Create a prover for each goal in this environment, and call the callback on it.

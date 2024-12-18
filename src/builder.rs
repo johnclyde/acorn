@@ -9,7 +9,7 @@ use crate::dataset::Dataset;
 use crate::environment::Environment;
 use crate::features::Features;
 use crate::goal::GoalContext;
-use crate::module::{ModuleDescriptor, ModuleHash};
+use crate::module::ModuleDescriptor;
 use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
@@ -239,13 +239,13 @@ impl<'a> Builder<'a> {
         });
     }
 
-    pub fn module_proving_complete(&mut self, module: &ModuleDescriptor, hash: &ModuleHash) {
+    // Returns whether the module completed without any errors or warnings.
+    pub fn module_proving_complete(&mut self, module: &ModuleDescriptor) -> bool {
         assert_eq!(&self.module(), module);
-        self.current_module.take().map(|info| {
-            if info.good {
-                self.cache.insert(info.descriptor, hash.clone());
-            }
-        });
+        match self.current_module.take() {
+            None => false,
+            Some(module_info) => module_info.good,
+        }
     }
 
     // Called when a single proof search completes.

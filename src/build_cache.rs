@@ -19,7 +19,7 @@ impl BuildCache {
         }
     }
 
-    pub fn insert(&mut self, module_id: ModuleDescriptor, hash: ModuleHash) {
+    pub fn insert(&self, module_id: ModuleDescriptor, hash: ModuleHash) {
         self.modules.insert(module_id, hash);
     }
 
