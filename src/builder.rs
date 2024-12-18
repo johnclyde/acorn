@@ -251,7 +251,7 @@ impl<'a> Builder<'a> {
             Some(ref m) => m,
         };
 
-        let verified = match self.cache.get(&current.descriptor, &hash) {
+        let verified = match self.cache.old_get(&current.descriptor, &hash) {
             None => return false,
             Some(v) => v,
         };
