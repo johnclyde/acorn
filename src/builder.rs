@@ -89,9 +89,6 @@ struct ModuleInfo {
 
     // Whether this module is error-free so far.
     good: bool,
-
-    // The lines that each verified goal covers. Like the `verified` field in `BuildEvent`.
-    verified: Vec<(u32, u32)>,
 }
 
 // The Builder contains all the mutable state for a single build.
@@ -239,7 +236,6 @@ impl<'a> Builder<'a> {
         self.current_module = Some(ModuleInfo {
             descriptor,
             good: true,
-            verified: Vec::new(),
         });
     }
 
@@ -334,9 +330,6 @@ impl<'a> Builder<'a> {
     // Logs a successful proof.
     fn log_proving_success(&mut self, goal_context: &GoalContext) {
         let line_pair = (goal_context.first_line, goal_context.last_line);
-        self.current_module.as_mut().map(|info| {
-            info.verified.push(line_pair);
-        });
         let event = BuildEvent {
             progress: Some((self.goals_done, self.goals_total)),
             verified: Some(line_pair),
