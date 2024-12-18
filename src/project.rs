@@ -672,8 +672,7 @@ impl Project {
         }
 
         // Give this module a hash.
-        let mut hasher = ModuleHasher::new();
-        hasher.set_text(&text);
+        let mut hasher = ModuleHasher::new(&text);
         for dependency_id in env.bindings.direct_dependencies() {
             hasher.add_dependency(&self.modules[dependency_id as usize]);
         }
