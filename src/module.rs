@@ -1,6 +1,8 @@
 use std::hash::{Hash, Hasher};
 use std::{fmt, path::PathBuf};
 
+use fxhash::FxHasher;
+
 use crate::compilation;
 use crate::environment::Environment;
 
@@ -101,6 +103,51 @@ impl ModuleHash {
         ModuleHash {
             prefix_hashes: vec![prefix_hash],
             dependency_hash,
+        }
+    }
+}
+
+pub struct ModuleHasher {
+    // Will become part of the ModuleHash
+    prefix_hashes: Vec<u64>,
+
+    // For hashing the lines of code in the module
+    line_hasher: FxHasher,
+
+    // For hashing the dependencies of the module
+    dependency_hasher: FxHasher,
+}
+
+impl ModuleHasher {
+    pub fn new() -> ModuleHasher {
+        ModuleHasher {
+            prefix_hashes: vec![],
+            line_hasher: FxHasher::default(),
+            dependency_hasher: FxHasher::default(),
+        }
+    }
+
+    // Can only be called once.
+    pub fn set_text(&mut self, text: &str) {
+        assert!(self.prefix_hashes.is_empty());
+        text.hash(&mut self.line_hasher);
+        self.prefix_hashes.push(self.line_hasher.finish());
+    }
+
+    // Should be called in an order that's consistent across different hashes of the same module
+    pub fn add_dependency(&mut self, module: &Module) {
+        if let Some(h) = &module.hash {
+            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
+                last_prefix_hash.hash(&mut self.dependency_hasher);
+            }
+            h.dependency_hash.hash(&mut self.dependency_hasher);
+        }
+    }
+
+    pub fn finish(self) -> ModuleHash {
+        ModuleHash {
+            prefix_hashes: self.prefix_hashes,
+            dependency_hash: self.dependency_hasher.finish(),
         }
     }
 }
