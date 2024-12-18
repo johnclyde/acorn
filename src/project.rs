@@ -359,10 +359,12 @@ impl Project {
     // Verifies all goals within this target.
     // Returns the status for this file alone.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
-        let hash = self.get_hash(env.module_id).unwrap();
+        let current_hash = self.get_hash(env.module_id).unwrap();
+        let _cached_hash = self.build_cache.get(target);
+
         builder.module_proving_started(target.clone());
 
-        if !builder.handle_current_module_from_cache(hash) {
+        if !builder.handle_current_module_from_cache(current_hash) {
             // Fast and slow modes should be interchangeable here.
             // If we run into a bug with fast mode, try using slow mode to debug.
             self.for_each_prover_fast(env, &mut |prover, goal_context| {
@@ -370,7 +372,7 @@ impl Project {
             });
         }
 
-        builder.module_proving_complete(target, hash);
+        builder.module_proving_complete(target, current_hash);
     }
 
     // Create a prover for each goal in this environment, and call the callback on it.

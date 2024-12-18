@@ -93,6 +93,12 @@ impl ModuleHash {
             dependency_hash,
         }
     }
+
+    pub fn matches_through_line(&self, other: &ModuleHash, line: usize) -> bool {
+        self.dependency_hash == other.dependency_hash
+            && line < self.prefix_hashes.len()
+            && self.prefix_hashes.get(line) == other.prefix_hashes.get(line)
+    }
 }
 
 pub struct ModuleHasher {
