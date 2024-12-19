@@ -32,6 +32,10 @@
       "name": "keyword.constant"
     },
     {
+      "match": "\\bself\\b",
+      "name": "variable.language"
+    },
+    {
       "match": "\\b[0-9]+\\b",
       "name": "constant.numeric"
     },
