@@ -2,7 +2,7 @@
   "name": "acorn",
   "displayName": "Acorn",
   "version": "0.0.1",
-  "description": "Acorn language support, including an interactive theorem prover.",
+  "description": "The Acorn theorem prover, including an AI assistant and general language support.",
   "engines": {
     "vscode": "^1.75.0"
   },
