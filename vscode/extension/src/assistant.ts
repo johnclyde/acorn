@@ -37,12 +37,14 @@ export class Assistant implements Disposable {
     this.currentSearchId = 0;
     this.wasShown = false;
     this.disposables = [
-      commands.registerTextEditorCommand("acorn.showAssistant", (editor) =>
-        this.show(editor)
+      commands.registerTextEditorCommand(
+        "acornprover.showAssistant",
+        (editor) => this.show(editor)
       ),
 
-      commands.registerTextEditorCommand("acorn.toggleAssistant", (editor) =>
-        this.toggle(editor)
+      commands.registerTextEditorCommand(
+        "acornprover.toggleAssistant",
+        (editor) => this.toggle(editor)
       ),
       window.onDidChangeTextEditorSelection(async (e) => {
         if (

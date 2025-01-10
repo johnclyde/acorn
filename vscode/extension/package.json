@@ -1,6 +1,6 @@
 {
-  "name": "acorn",
-  "displayName": "Acorn",
+  "name": "acornprover",
+  "displayName": "Acorn Prover",
   "version": "0.0.1",
   "description": "The Acorn theorem prover, including an AI assistant and general language support.",
   "engines": {
@@ -35,18 +35,18 @@
     "commands": [
       {
         "category": "Acorn",
-        "command": "acorn.newFile",
+        "command": "acornprover.newFile",
         "title": "New Acorn File"
       },
       {
         "category": "Acorn",
-        "command": "acorn.clearBinaryCache",
+        "command": "acornprover.clearBinaryCache",
         "title": "Clear Binary Cache",
         "description": "Force a re-download of the Acorn language server binary."
       },
       {
         "category": "Acorn",
-        "command": "acorn.showAssistant",
+        "command": "acornprover.showAssistant",
         "title": "Show Assistant",
         "description": "Show the Acorn Assistant.",
         "icon": {
@@ -56,20 +56,20 @@
       },
       {
         "category": "Acorn",
-        "command": "acorn.toggleAssistant",
+        "command": "acornprover.toggleAssistant",
         "title": "Toggle Assistant",
         "description": "Toggle whether the Acorn Assistant is displayed."
       }
     ],
     "keybindings": [
       {
-        "command": "acorn.toggleAssistant",
+        "command": "acornprover.toggleAssistant",
         "key": "ctrl+shift+enter",
         "mac": "cmd+shift+enter",
         "when": "editorTextFocus && editorLangId == acorn"
       },
       {
-        "command": "acorn.toggleAssistant",
+        "command": "acornprover.toggleAssistant",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
         "when": "editorTextFocus && editorLangId == acorn"
@@ -78,7 +78,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "acorn.showAssistant",
+          "command": "acornprover.showAssistant",
           "group": "navigation",
           "when": "editorLangId == acorn"
         }
