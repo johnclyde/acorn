@@ -25,7 +25,7 @@ cargo install --locked cargo-zigbuild
 
 Windows builds only work on Windows.
 
-For releases we need to statically link the Acorn language server.
+Use the Developer PowerShell that ships with Visual Studio. If you use the wrong shell, the script won't be able to find all the tools it needs.
 
 Download `onnxruntime` to your home directory, then build it from the `onnxruntime` directory with:
 
@@ -38,6 +38,8 @@ Then do the release build from the `acorn` directory with:
 ```powershell
 ./winbuild.bat
 ```
+
+The release build should statically link the Acorn language server.
 
 ## The whole release process
 
