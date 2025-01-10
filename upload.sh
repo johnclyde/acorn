@@ -60,5 +60,5 @@ cd ../..
 cd vscode/extension
 npm run build
 vsce package
-gh release upload $TAG acorn-$VERSION.vsix $CLOBBER
+gh release upload $TAG acornprover-$VERSION.vsix $CLOBBER
 cd ../..
