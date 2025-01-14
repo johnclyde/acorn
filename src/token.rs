@@ -62,6 +62,7 @@ pub enum TokenType {
     Match,
     Todo,
     Constraint,
+    Implies,
 }
 
 // Add a new token here if there's an alphabetical name for it.
@@ -98,6 +99,7 @@ pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
             ("match", TokenType::Match),
             ("todo", TokenType::Todo),
             ("constraint", TokenType::Constraint),
+            ("implies", TokenType::Implies),
         ])
     })
 }
@@ -356,6 +358,7 @@ impl TokenType {
             TokenType::Match => "match",
             TokenType::Todo => "todo",
             TokenType::Constraint => "constraint",
+            TokenType::Implies => "implies",
         }
     }
 
@@ -502,7 +505,8 @@ impl Token {
             | TokenType::Inductive
             | TokenType::Match
             | TokenType::Todo
-            | TokenType::Constraint => Some(SemanticTokenType::KEYWORD),
+            | TokenType::Constraint
+            | TokenType::Implies => Some(SemanticTokenType::KEYWORD),
 
             TokenType::NewLine => {
                 // Comments are encoded as newlines because syntactically they act like newlines.
