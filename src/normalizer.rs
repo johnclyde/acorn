@@ -343,15 +343,15 @@ impl Normalizer {
     // Converts a value to CNF, then to a Normalization.
     // Does not handle the "definition" sorts of values.
     fn convert_then_normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
-        // println!("\nXXX normalizing: {}", value);
+        // println!("\nnormalizing: {}", value);
         let value = value.replace_function_equality(0);
         let value = value.expand_lambdas(0);
         let value = value.replace_if();
         let value = value.replace_match();
         let value = value.move_negation_inwards(true, false);
-        // println!("XXX negin'd: {}", value);
+        // println!("negin'd: {}", value);
         let value = self.skolemize(&vec![], value);
-        // println!("XXX skolemized: {}", value);
+        // println!("skolemized: {}", value);
 
         self.normalize_cnf(value, local)
     }
