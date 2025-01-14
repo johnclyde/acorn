@@ -507,7 +507,7 @@ impl AcornValue {
     }
 
     // Normalizes a boolean expression by moving all negations inwards.
-    // If 'allow_bool_eq' is set then it's okay to return something like
+    // If 'allow_bool_eq' is set then it's okay to return boolean equalities, like
     //   <bool expr> = <bool expr>
     // This is useful because it allows rewrites.
     // If 'negate' is set then we also negate this expression.

@@ -191,7 +191,7 @@ impl Normalizer {
     // Constructs a new term from an AcornValue
     // Returns an error if it's inconvertible.
     // The "local" flag here and elsewhere controls whether any newly discovered variables
-    // are local variables.
+    // are local variables, ie, whether they are represented as a local or global Atom.
     pub fn term_from_value(&mut self, value: &AcornValue, local: bool) -> Result<Term> {
         match value {
             AcornValue::Variable(i, var_type) => {
@@ -343,15 +343,15 @@ impl Normalizer {
     // Converts a value to CNF, then to a Normalization.
     // Does not handle the "definition" sorts of values.
     fn convert_then_normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
-        // println!("\nnormalizing: {}", value);
+        // println!("\nXXX normalizing: {}", value);
         let value = value.replace_function_equality(0);
         let value = value.expand_lambdas(0);
         let value = value.replace_if();
         let value = value.replace_match();
         let value = value.move_negation_inwards(true, false);
-        // println!("negin'd: {}", value);
+        // println!("XXX negin'd: {}", value);
         let value = self.skolemize(&vec![], value);
-        // println!("skolemized: {}", value);
+        // println!("XXX skolemized: {}", value);
 
         self.normalize_cnf(value, local)
     }

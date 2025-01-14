@@ -2,6 +2,9 @@
 //
 // This is the CLI equivalent of what the IDE runs when you save.
 //
+// By default, this will verify every module in the project, and output verification metrics.
+// It's a good idea to run this for complicated changes.
+//
 // Try:
 //   cargo build --release --bin=verify; time ~/acorn/target/release/verify
 

@@ -1581,4 +1581,22 @@ mod prover_test {
         "#;
         verify_fails(text);
     }
+
+    #[test]
+    fn test_proving_boolean_equality() {
+        let text = r#"
+        let a: Bool = axiom
+        let b: Bool = axiom
+        axiom {
+            a -> b
+        }
+        axiom {
+            b -> a
+        }
+        theorem goal {
+            a = b
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }

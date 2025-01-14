@@ -20,7 +20,7 @@ pub struct ConstantMap {
     // The AtomId -> ConstantKey lookup direction.
     global_constants: Vec<Option<ConstantKey>>,
 
-    // For lobal constant i in the prover, local_constants[i] is the corresponding ConstantKey.
+    // For local constant i in the prover, local_constants[i] is the corresponding ConstantKey.
     // The AtomId -> ConstantKey lookup direction.
     local_constants: Vec<Option<ConstantKey>>,
 
@@ -40,6 +40,7 @@ impl ConstantMap {
     }
 
     // Assigns an id to this (module, name) pair if it doesn't already have one.
+    // local determines whether the constant will be represented as a local or global atom.
     pub fn add_constant(&mut self, module: ModuleId, name: &str, local: bool) -> Atom {
         if module == SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
