@@ -198,9 +198,7 @@ impl ActiveSet {
         let neg_clause = &neg_step.clause;
         assert!(!neg_clause.literals[neg_index].positive);
 
-        // We want to only do resolution when the shorter clause can be entirely eliminated.
-        // Thus, we check that all the literals in the shorter clause are either duplicates of
-        // literals in the longer clause, or being canceled in the resolution.
+        // Figure out which of the positive and negative clauses are long and short.
         let (short_id, short_step, short_index, long_id, long_step, long_index) =
             if pos_clause.len() < neg_clause.len() {
                 (pos_id, pos_step, pos_index, neg_id, neg_step, neg_index)
@@ -208,15 +206,21 @@ impl ActiveSet {
                 (neg_id, neg_step, neg_index, pos_id, pos_step, pos_index)
             };
         let short_clause = &short_step.clause;
+        let long_clause = &long_step.clause;
 
-        // Experimental.
-        // TODO: if we can really skip out here, we might be able to make our data structures
-        // more efficient elsewhere.
+        // Do some heuristic filtering before trying unification, because unification is expensive.
+
+        // We need only the simplest form of two-long-clause resolution.
+        // Concluding from "A or B" and "not A or B" that "B" is true.
+        // So let's allow that case, and return None otherwise.
         if short_clause.len() > 1 {
-            return None;
+            if short_clause.len() != 2 || long_clause.len() != 2 {
+                return None;
+            }
         }
 
-        let long_clause = &long_step.clause;
+        // Check the non-matching short literal.
+        // This code would support short clauses longer than two literals, if we wanted.
         for (i, literal) in short_clause.literals.iter().enumerate() {
             if i == short_index {
                 continue;
@@ -224,12 +228,21 @@ impl ActiveSet {
             if literal.has_any_variable() {
                 return None;
             }
-            if long_clause.literals.contains(literal) {
+            if let Some(index) = long_clause.literals.iter().position(|lit| lit == literal) {
+                if index == long_index {
+                    // This is a weird case. Two different literals in the short clause
+                    // match the same literal in the long clause.
+                    return None;
+                }
+
+                // This is the good case, where the other parts of the short clause match
+                // things already in the long clause, thus we can ignore them
                 continue;
             }
             return None;
         }
 
+        // Heuristics done. Let's unify.
         let mut unifier = Unifier::new();
 
         // The short clause is "left" scope and the long clause is "right" scope.
