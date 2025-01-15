@@ -168,6 +168,7 @@ impl TokenType {
             TokenType::Asterisk => true,
             TokenType::Percent => true,
             TokenType::Slash => true,
+            TokenType::Implies => true,
             _ => false,
         }
     }
@@ -203,6 +204,7 @@ impl TokenType {
             TokenType::And => 5,
             TokenType::LeftRightArrow => 4,
             TokenType::RightArrow => 3,
+            TokenType::Implies => 3,
             TokenType::Colon => 2,
             TokenType::Comma => 1,
             _ => 0,

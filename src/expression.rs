@@ -1140,4 +1140,9 @@ mod tests {
         check_value("-a * b");
         check_value("-(a * b)");
     }
+
+    #[test]
+    fn test_implies_expression() {
+        check_value("a implies b");
+    }
 }
