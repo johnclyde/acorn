@@ -1201,7 +1201,7 @@ impl BindingMap {
                 },
             },
             Expression::Binary(left, token, right) => match token.token_type {
-                TokenType::RightArrow => {
+                TokenType::RightArrow | TokenType::Implies => {
                     check_type(token, expected_type, &AcornType::Bool)?;
                     let left_value = self.evaluate_value_with_stack(
                         stack,

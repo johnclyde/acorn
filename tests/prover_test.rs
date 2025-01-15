@@ -1599,4 +1599,18 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_implies_keyword() {
+        let text = r#"
+        let a: Bool = axiom
+        theorem {
+            a implies a
+        }
+        theorem {
+            not a implies not a
+        }
+        "#;
+        verify_succeeds(text);
+    }
 }

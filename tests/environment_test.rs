@@ -1890,4 +1890,26 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         );
         assert_eq!(env.iter_goals().count(), 2);
     }
+
+    #[test]
+    fn test_implies_keyword_in_env() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            theorem {
+                true implies true
+            }
+        "#,
+        );
+        env.bad(
+            r#"
+            type Foo {
+                axiom
+            }
+            theorem(f: Foo) {
+                f implies f
+            }
+            "#,
+        );
+    }
 }
