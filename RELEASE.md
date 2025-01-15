@@ -97,4 +97,8 @@ All commands are run from `~/acorn`.
 
 7. Publish the extension to the Visual Studio Marketplace.
 
-   TODO: do this, and explain this, and link the extension from the readme.
+   From the acorn/vscode/extension directory, after uploading:
+
+   ```bash
+   vsce publish
+   ```
