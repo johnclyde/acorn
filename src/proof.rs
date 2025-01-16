@@ -95,7 +95,10 @@ struct ProofNode<'a> {
 impl<'a> ProofNode<'a> {
     // Returns true if this node is the start of a proof by reduction.
     fn starts_reduction(&self) -> bool {
-        !self.consequences.is_empty() && self.premises.is_empty() && self.sources.is_empty()
+        !self.negated
+            && !self.consequences.is_empty()
+            && self.premises.is_empty()
+            && self.sources.is_empty()
     }
 
     // Instead of removing nodes from the graph, we isolate them by removing all premises and

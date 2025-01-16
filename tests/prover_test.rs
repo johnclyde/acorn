@@ -1622,6 +1622,9 @@ mod prover_test {
     #[test]
     fn test_code_gen_not_losing_conclusion() {
         // Reproducing a bug found by Dan.
+        // This confused the code generator because the final step of the proof
+        // uses only a single source, so when you reverse it, it has no premise.
+        // (It's using equality resolution to go from "x0 != constant" to a contradiction.)
         let text = r#"
             type Foo: axiom
             let zero: Foo = axiom
@@ -1642,6 +1645,6 @@ mod prover_test {
                 threeven(zero)
             }
             "#;
-        expect_proof(text, "goal", &[]);
+        expect_proof(text, "goal", &["exists(k0: Foo) { zero = k0 }"]);
     }
 }
