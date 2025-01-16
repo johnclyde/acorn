@@ -17,7 +17,12 @@ mod prover_test {
         let module_id = project
             .load_module_by_name(module_name)
             .expect("load failed");
-        let env = project.get_env_by_id(module_id).unwrap();
+        let load_state = project.get_module_by_id(module_id);
+        let env = match load_state {
+            LoadState::Ok(env) => env,
+            LoadState::Error(e) => panic!("module loading error: {}", e),
+            _ => panic!("no module"),
+        };
         let node = env.get_node_by_name(goal_name);
         let facts = node.usable_facts(project);
         let goal_context = node.goal_context().unwrap();
@@ -1612,5 +1617,31 @@ mod prover_test {
         }
         "#;
         verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_code_gen_not_losing_conclusion() {
+        // Reproducing a bug found by Dan.
+        let text = r#"
+            type Foo: axiom
+            let zero: Foo = axiom
+            let three: Foo = axiom
+            let mul: (Foo, Foo) -> Foo = axiom
+
+            define threeven(n: Foo) -> Bool {
+                exists(d: Foo) {
+                    mul(three, d) = n
+                }
+            }
+
+            axiom mul_zero_right(a: Foo, b: Foo) {
+                b = zero -> mul(a, b) = zero
+            }
+
+            theorem goal {
+                threeven(zero)
+            }
+            "#;
+        expect_proof(text, "goal", &[]);
     }
 }
