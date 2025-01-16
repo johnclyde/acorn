@@ -212,7 +212,7 @@ impl<'a> Builder<'a> {
             ..Diagnostic::default()
         };
         let event = BuildEvent {
-            log_message: Some(format!("fatal error: {}", error)),
+            log_message: Some(format!("compilation error: {}", error)),
             module: descriptor.clone(),
             diagnostic: Some(diagnostic),
             ..self.default_event()
