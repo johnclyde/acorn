@@ -1,0 +1,30 @@
+name: Build ONNX Runtime
+
+on:
+  workflow_dispatch:
+
+env:
+  ONNXRUNTIME_VERSION: v1.20.1
+
+jobs:
+  build-onnxruntime:
+    runs-on: windows-2022
+
+    steps:
+      - name: Clone ONNX Runtime
+        run: |
+          cd $Env:USERPROFILE
+          git clone https://github.com/microsoft/onnxruntime.git
+          cd onnxruntime
+          git checkout $Env:ONNXRUNTIME_VERSION
+
+      - name: Cache ONNX Runtime Build
+        uses: actions/cache@v3
+        with:
+          path: $Env:USERPROFILE\onnxruntime\build
+          key: ${{ runner.os }}-onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Build ONNX Runtime
+        run: |
+          cd $Env:USERPROFILE\onnxruntime
+          .\build.bat --config Release --parallel --skip_tests --enable_msvc_static_runtime --cmake_generator "Visual Studio 17 2022"
