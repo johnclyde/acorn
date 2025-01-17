@@ -53,6 +53,8 @@ All commands are run from `~/acorn`.
    ./python/version.py 0.0.1
    ```
 
+   Commit all changes and merge them upstream.
+
 2. Do the cross-platform build.
 
    ```bash
@@ -60,8 +62,6 @@ All commands are run from `~/acorn`.
    ```
 
 3. Make a tag for the new language server release, "v" plus the version.
-
-   First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
 
    Then:
 
