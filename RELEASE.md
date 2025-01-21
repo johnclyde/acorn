@@ -70,6 +70,8 @@ All commands are run from `~/acorn`.
    git push upstream v0.0.1
    ```
 
+   TODO: this should automatically trigger a Windows build of the language server.
+
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
 5. Upload the language server binaries to GitHub
