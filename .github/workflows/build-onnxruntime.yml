@@ -11,20 +11,19 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: Clone ONNX Runtime
-        run: |
-          cd $Env:USERPROFILE
-          git clone https://github.com/microsoft/onnxruntime.git
-          cd onnxruntime
-          git checkout $Env:ONNXRUNTIME_VERSION
-
-      - name: Cache ONNX Runtime Build
-        uses: actions/cache@v3
+      - uses: actions/checkout@v3
         with:
-          path: $Env:USERPROFILE\onnxruntime\build
+          repository: microsoft/onnxruntime
+          ref: ${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Cache ONNX Runtime
+        uses: actions/cache@v4
+        with:
+          path: onnxruntime\build\Windows
           key: ${{ runner.os }}-onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
 
       - name: Build ONNX Runtime
-        run: |
-          cd $Env:USERPROFILE\onnxruntime
-          .\build.bat --config Release --parallel --skip_tests --enable_msvc_static_runtime --cmake_generator "Visual Studio 17 2022"
+        run: .\build.bat --build_dir onnxruntime\build\Windows ^
+          --config Release --parallel --skip_tests ^
+          --enable_msvc_static_runtime ^
+          --cmake_generator "Visual Studio 17 2022"
