@@ -35,6 +35,11 @@ jobs:
           echo "Cache for ONNX Runtime not found"
           exit 1
 
+      - name: Show ONNX Runtime files
+        run: |
+          echo ORT_LIB_LOCATION: ${{ env.ORT_LIB_LOCATION }}
+          Get-ChildItem -Path ${{ env.ORT_LIB_LOCATION }} -Recurse
+
       - name: Cache Cargo Build
         uses: actions/cache@v4
         with:
