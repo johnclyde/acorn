@@ -60,7 +60,7 @@ jobs:
         run: cargo test
 
       - name: Authenticate GitHub CLI
-        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+        run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
 
       - name: Build Language Server
         run: ./winbuild.bat
