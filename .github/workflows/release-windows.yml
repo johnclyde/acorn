@@ -17,18 +17,22 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: Load ONNX Runtime from cache
-        id: load-onnxruntime
-        uses: actions/cache@v4
+      - name: Restore ONNX Runtime from cache
+        id: restore-onnxruntime
+        uses: actions/cache/restore@v4
         with:
-          path: $HOME\onnxruntime
+          path: onnxruntime
           key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
 
       - name: Check if ONNX Runtime cache is missing
-        if: steps.load-onnxruntime.outputs.cache-hit != 'true'
+        if: steps.restore-onnxruntime.outputs.cache-hit != 'true'
         run: |
           echo "Cache for ONNX Runtime not found"
           exit 1
+
+      - name: Move ONNX Runtime
+        run: |
+          mv onnxruntime ~
 
       - uses: actions/checkout@v4
         with:
