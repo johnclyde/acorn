@@ -11,6 +11,7 @@ if /I not "%~dp0" == "%cd%\" (
 cmd /c "exit /b 1"
 
 if not defined ORT_LIB_LOCATION (
+    echo no ORT_LIB_LOCATION defined. inferring
     set "ORT_LIB_LOCATION=%USERPROFILE%\onnxruntime\build\Windows\Release"
 )
 

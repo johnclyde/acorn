@@ -11,6 +11,7 @@ on:
 
 env:
   ONNXRUNTIME_VERSION: v1.20.1
+  ORT_LIB_LOCATION: ${GITHUB_WORKSPACE}\onnxruntime\build\Windows\Release
 
 jobs:
   release-windows:
@@ -55,4 +56,4 @@ jobs:
         run: cargo test
 
       - name: Build Language Server
-        run: $env:ORT_LIB_LOCATION = "$PWD\onnxruntime\build\Windows\Release" & ./winbuild.bat
+        run: ./winbuild.bat
