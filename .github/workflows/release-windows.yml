@@ -2,16 +2,14 @@ name: Release (Windows)
 # This builds the Windows language server binary and uploads it to GitHub Releases.
 
 on:
-  workflow_dispatch:
-
-# Once we're ready.
-#   push:
-#     tags:
-#       - "v[0-9]+.[0-9]+.[0-9]+*"
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
 
 env:
   ONNXRUNTIME_VERSION: v1.20.1
   ORT_LIB_LOCATION: ${{ github.workspace }}\onnxruntime\build\Windows\Release
+  TAG: ${{ github.ref }}
 
 jobs:
   release-windows:
@@ -60,6 +58,9 @@ jobs:
 
       - name: Run Tests
         run: cargo test
+
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Build Language Server
         run: ./winbuild.bat

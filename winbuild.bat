@@ -36,11 +36,16 @@ if not exist "files\release" mkdir "files\release"
 set /p version=<VERSION
 set "tag=v%version%"
 
+if "%tag%" neq "%TAG%" (
+    echo ERROR: the tag in the code (%tag%) does not match the tag that triggered this build (%TAG%).
+    exit /b 1
+)
+
 rem Set the destination path with the versioned name
 set "releaseBin=files\release\acornserver-%version%-win32-x64.exe"
 
 copy "%buildBin%" "%releaseBin%"
 
 echo Build for %tag% successful.
-echo To upload to GitHub, run:
-echo gh release upload %tag% %releaseBin% [--clobber]
+echo Uploading %releaseBin% to GitHub:
+gh release upload %tag% %releaseBin%
