@@ -32,7 +32,7 @@ jobs:
 
       - name: Move ONNX Runtime
         run: |
-          mv onnxruntime ~
+          robocopy onnxruntime ~ /E /MOVE
 
       - uses: actions/checkout@v4
         with:
