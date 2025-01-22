@@ -32,7 +32,9 @@ jobs:
 
       - name: Move ONNX Runtime
         run: |
-          robocopy onnxruntime ~ /E /MOVE
+          echo home: "$HOME"
+          mkdir $HOME/onnxruntime
+          robocopy onnxruntime $HOME/onnxruntime /E /MOVE
 
       - uses: actions/checkout@v4
         with:
