@@ -53,6 +53,7 @@ All commands are run from `~/acorn`.
    This should automatically trigger a Windows release build of the language server.
 
    Check that the [GitHub Action](https://github.com/acornprover/acorn/actions) succeeds.
+   It might take 7-8 minutes.
 
 4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
 
