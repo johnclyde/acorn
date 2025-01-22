@@ -21,7 +21,7 @@ jobs:
         id: load-onnxruntime
         uses: actions/cache@v4
         with:
-          path: onnxruntime
+          path: $HOME\onnxruntime
           key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
 
       - name: Check if ONNX Runtime cache is missing

@@ -13,6 +13,7 @@ cmd /c "exit /b 1"
 set "ORT_LIB_LOCATION=%USERPROFILE%\onnxruntime\build\Windows\Release"
 
 if not exist "%ORT_LIB_LOCATION%\" (
+    echo Checked "%ORT_LIB_LOCATION%" but found no onnxruntime build.
     echo Please build onnxruntime locally before running this script.
     exit /b 1
 )
