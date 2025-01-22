@@ -27,8 +27,9 @@ cargo build --release --bin acornserver --target x86_64-pc-windows-msvc || exit 
 rem Set the path to the built binary
 set "buildBin=.\target\x86_64-pc-windows-msvc\release\acornserver.exe"
 
-echo DLLs used by the acornserver binary:
-dumpbin /imports "%buildBin%" | findstr /i ".dll"
+rem Commented out due to trouble using dumpbin in GitHub Actions.
+rem echo DLLs used by the acornserver binary:
+rem dumpbin /imports "%buildBin%" | findstr /i ".dll"
 
 if not exist "files\release" mkdir "files\release"
 

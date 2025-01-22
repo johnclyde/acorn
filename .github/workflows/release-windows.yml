@@ -22,9 +22,6 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Dumpbin
-        uses: lorenalexm/install-dumpbin-action@main
-
       - name: Restore ONNX Runtime from cache
         id: restore-onnxruntime
         uses: actions/cache/restore@v4
