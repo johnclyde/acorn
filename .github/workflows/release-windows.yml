@@ -11,7 +11,7 @@ on:
 
 env:
   ONNXRUNTIME_VERSION: v1.20.1
-  ORT_LIB_LOCATION: ${GITHUB_WORKSPACE}\onnxruntime\build\Windows\Release
+  ORT_LIB_LOCATION: ${{ github.workspace }}\onnxruntime\build\Windows\Release
 
 jobs:
   release-windows:
