@@ -17,6 +17,10 @@ jobs:
     runs-on: windows-2022
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Restore ONNX Runtime from cache
         id: restore-onnxruntime
         uses: actions/cache/restore@v4
@@ -29,16 +33,6 @@ jobs:
         run: |
           echo "Cache for ONNX Runtime not found"
           exit 1
-
-      - name: Move ONNX Runtime
-        run: |
-          echo home: "$HOME"
-          mkdir $HOME/onnxruntime
-          robocopy onnxruntime "$HOME\\onnxruntime" /E /MOVE
-
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Cache Cargo Build
         uses: actions/cache@v4
@@ -61,4 +55,4 @@ jobs:
         run: cargo test
 
       - name: Build Language Server
-        run: ./winbuild.bat
+        run: $env:ORT_LIB_LOCATION = "$PWD\onnxruntime\build\Windows\Release" & ./winbuild.bat
