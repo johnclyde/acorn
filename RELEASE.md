@@ -53,11 +53,11 @@ All commands are run from `~/acorn`.
    This should automatically trigger a Windows release build of the language server.
 
    Check that the [GitHub Action](https://github.com/acornprover/acorn/actions) succeeds.
-   It might take 7-8 minutes.
+   It might take 7-8 minutes. At the end of it, a GitHub release should be created automatically.
 
-4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
+4. Edit the release description [here](https://github.com/acornprover/acorn/releases).
 
-5. Upload the language server binaries to GitHub
+5. Upload the Linux and Mac language server binaries to GitHub
 
    ```bash
    ./upload.sh
