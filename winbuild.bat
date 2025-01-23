@@ -37,7 +37,7 @@ set /p version=<VERSION
 set "tag=v%version%"
 
 if "%tag%" neq "%TAG%" (
-    echo ERROR: the tag in the code (%tag%) does not match the tag that triggered this build (%TAG%).
+    echo ERROR: the tag "%tag%" in the code does not match the tag "%TAG%" that triggered this build.
     exit /b 1
 )
 
