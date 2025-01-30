@@ -201,6 +201,34 @@ pub struct MatchStatement {
     pub cases: Vec<(Expression, Body)>,
 }
 
+// A typeclass theorem is a theorem that must be proven for an instance type, to show
+// that it belongs to the typeclass.
+pub struct TypeclassTheorem {
+    pub name: String,
+    pub args: Vec<Declaration>,
+    pub claim: Expression,
+}
+
+// A typeclass statement defines a typeclass. It can contain some constants that must be
+// specified, and theorems that must be proven.
+pub struct TypeclassStatement {
+    // The definition of the typeclass uses a named instance type.
+    // Like Self in Rust, but "Self" would be weird mathematically.
+    pub instance_type: Token,
+
+    // The name of the typeclass.
+    pub name: Token,
+
+    // Each instance type in the typeclass has a list of constants that must be defined.
+    // This is a list of (name, type) pairs.
+    // The type may refer to the instance type itself.
+    // For example, all groups must define the identity, of the type of the group elements.
+    pub constants: Vec<(Token, Expression)>,
+
+    // Theorems that must be proven for the typeclass to be valid.
+    pub theorems: Vec<TypeclassTheorem>,
+}
+
 // Acorn is a statement-based language. There are several types.
 // Each type has its own struct.
 pub struct Statement {
