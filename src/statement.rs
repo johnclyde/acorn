@@ -897,6 +897,14 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     })
 }
 
+fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+    let instance_type = tokens.expect_type_name()?;
+    tokens.expect_type(TokenType::Colon)?;
+    let name = tokens.expect_type_name()?;
+    tokens.expect_type(TokenType::LeftBrace)?;
+    todo!();
+}
+
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
@@ -1222,6 +1230,11 @@ impl Statement {
                     TokenType::Match => {
                         let keyword = tokens.next().unwrap();
                         let s = parse_match_statement(keyword, tokens)?;
+                        return Ok((Some(s), None));
+                    }
+                    TokenType::Typeclass => {
+                        let keyword = tokens.next().unwrap();
+                        let s = parse_typeclass_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     _ => {
@@ -1769,15 +1782,42 @@ mod tests {
     }
 
     #[test]
-    fn test_parsing_typeclass_statement() {
+    fn test_parsing_typeclass_statement_constants() {
         ok(indoc! {"
         typeclass F: Foo {
             bar: (F, F) -> Bool
-            some_bar(x: F) {
-                exists(y: F) {
-                  x.bar(y)
-                }
-            }
+            baz: F
+            qux: Bool
         }"});
     }
+
+    // #[test]
+    // fn test_parsing_typeclass_statement_theorems() {
+    //     ok(indoc! {"
+    //     typeclass T: MyTypeclass {
+    //         two_nonequal {
+    //             exists(x: T, y: T) {
+    //               x != y
+    //             }
+    //         }
+    //         always_a_third(x: T, y: Y) {
+    //             exists(z: T) {
+    //               x != z and y != z
+    //             }
+    //         }
+    //     }"});
+    // }
+
+    // #[test]
+    // fn test_parsing_typeclass_statement_general() {
+    //     ok(indoc! {"
+    //     typeclass F: Foo {
+    //         bar: (F, F) -> Bool
+    //         some_bar(x: F) {
+    //             exists(y: F) {
+    //               x.bar(y)
+    //             }
+    //         }
+    //     }"});
+    // }
 }
