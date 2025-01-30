@@ -1767,4 +1767,17 @@ mod tests {
             1 > 0
         }"});
     }
+
+    #[test]
+    fn test_parsing_typeclass_statement() {
+        ok(indoc! {"
+        typeclass F: Foo {
+            bar: (F, F) -> Bool
+            some_bar(x: F) {
+                exists(y: F) {
+                  x.bar(y)
+                }
+            }
+        }"});
+    }
 }
