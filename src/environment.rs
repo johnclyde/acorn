@@ -1515,6 +1515,10 @@ impl Environment {
                     .scrutinee
                     .error("not all cases are covered in match statement"))
             }
+
+            StatementInfo::Typeclass(_ts) => {
+                todo!("handle typeclass statement");
+            }
         }
     }
 

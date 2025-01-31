@@ -262,6 +262,7 @@ pub enum StatementInfo {
     Solve(SolveStatement),
     Problem(Body),
     Match(MatchStatement),
+    Typeclass(TypeclassStatement),
 }
 
 const ONE_INDENT: &str = "    ";
@@ -901,8 +902,40 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     let instance_type = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
     let name = tokens.expect_type_name()?;
+    let mut constants = vec![];
+    let mut theorems = vec![];
     tokens.expect_type(TokenType::LeftBrace)?;
-    todo!();
+    while let Some(token) = tokens.peek() {
+        match token.token_type {
+            TokenType::NewLine => {
+                tokens.next();
+            }
+            TokenType::RightBrace => {
+                if constants.is_empty() && theorems.is_empty() {
+                    return Err(token.error("typeclasses must have some constants or theorems"));
+                }
+                let right_brace = tokens.next().unwrap();
+
+                return Ok(Statement {
+                    first_token: keyword,
+                    last_token: right_brace,
+                    statement: StatementInfo::Typeclass(TypeclassStatement {
+                        instance_type,
+                        name,
+                        constants,
+                        theorems,
+                    }),
+                });
+            }
+            TokenType::Identifier => {
+                todo!("handle identifiers in typeclass statement");
+            }
+            _ => {
+                return Err(token.error("unexpected token in typeclass statement"));
+            }
+        }
+    }
+    Err(keyword.error("unterminated typeclass statement"))
 }
 
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
@@ -1104,6 +1137,18 @@ impl Statement {
                     write_block(f, &body.statements, &new_indentation)?;
                 }
                 write!(f, "\n{}}}", indentation)
+            }
+
+            StatementInfo::Typeclass(ts) => {
+                let new_indentation = add_indent(indentation);
+                write!(f, "typeclass {}: {} {{\n", ts.instance_type, ts.name)?;
+                for (name, type_expr) in &ts.constants {
+                    write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
+                }
+                for theorem in &ts.theorems {
+                    write!(f, "{}{} (TODO)\n", new_indentation, theorem.name)?;
+                }
+                write!(f, "{}}}", indentation)
             }
         }
     }
