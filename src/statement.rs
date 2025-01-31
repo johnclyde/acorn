@@ -204,7 +204,7 @@ pub struct MatchStatement {
 // A typeclass theorem is a theorem that must be proven for an instance type, to show
 // that it belongs to the typeclass.
 pub struct TypeclassTheorem {
-    pub name: String,
+    pub name: Token,
     pub args: Vec<Declaration>,
     pub claim: Expression,
 }
@@ -901,34 +901,65 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
 fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let instance_type = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
-    let name = tokens.expect_type_name()?;
+    let typeclass_name = tokens.expect_type_name()?;
     let mut constants = vec![];
     let mut theorems = vec![];
     tokens.expect_type(TokenType::LeftBrace)?;
-    while let Some(token) = tokens.peek() {
+    while let Some(token) = tokens.next() {
         match token.token_type {
             TokenType::NewLine => {
-                tokens.next();
+                continue;
             }
             TokenType::RightBrace => {
                 if constants.is_empty() && theorems.is_empty() {
                     return Err(token.error("typeclasses must have some constants or theorems"));
                 }
-                let right_brace = tokens.next().unwrap();
 
                 return Ok(Statement {
                     first_token: keyword,
-                    last_token: right_brace,
+                    last_token: token,
                     statement: StatementInfo::Typeclass(TypeclassStatement {
                         instance_type,
-                        name,
+                        name: typeclass_name,
                         constants,
                         theorems,
                     }),
                 });
             }
             TokenType::Identifier => {
-                todo!("handle identifiers in typeclass statement");
+                let next_type = tokens.peek_type();
+                match next_type {
+                    Some(TokenType::LeftParen) => {
+                        let (type_params, args, _) = parse_args(tokens, TokenType::LeftBrace)?;
+                        if type_params.len() > 0 {
+                            panic!("type params not supported here");
+                        }
+                        let (claim, _) =
+                            Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
+                        let theorem = TypeclassTheorem {
+                            name: token,
+                            args,
+                            claim,
+                        };
+                        theorems.push(theorem);
+                    }
+                    Some(TokenType::Colon) => {
+                        tokens.next();
+                        let (type_expr, t) = Expression::parse_type(
+                            tokens,
+                            Terminator::Or(TokenType::NewLine, TokenType::RightBrace),
+                        )?;
+                        if t.token_type == TokenType::RightBrace {
+                            return Err(t.error("typeclass declarations must end with a newline"));
+                        }
+                        constants.push((token, type_expr));
+                    }
+                    _ => {
+                        return Err(
+                            token.error("expected ':' or '(' after name in typeclass statement")
+                        );
+                    }
+                }
             }
             _ => {
                 return Err(token.error("unexpected token in typeclass statement"));
