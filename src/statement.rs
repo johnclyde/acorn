@@ -968,6 +968,21 @@ fn write_args(f: &mut fmt::Formatter, args: &[Declaration]) -> fmt::Result {
     Ok(())
 }
 
+// Writes everything after the name of the theorem.
+fn write_theorem(
+    f: &mut fmt::Formatter,
+    indentation: &str,
+    type_params: &[Token],
+    args: &[Declaration],
+    claim: &Expression,
+) -> fmt::Result {
+    let new_indentation = add_indent(indentation);
+    write_type_params(f, type_params)?;
+    write_args(f, args)?;
+    write!(f, " {{\n{}{}\n{}}}", new_indentation, claim, indentation)?;
+    Ok(())
+}
+
 impl Statement {
     fn fmt_helper(&self, f: &mut fmt::Formatter, indentation: &str) -> fmt::Result {
         write!(f, "{}", indentation)?;
@@ -989,18 +1004,15 @@ impl Statement {
             }
 
             StatementInfo::Theorem(ts) => {
-                let new_indentation = add_indent(indentation);
                 if ts.axiomatic {
                     write!(f, "axiom")?;
                 } else {
                     write!(f, "theorem")?;
                 }
                 if let Some(name) = &ts.name {
-                    write!(f, " {}", name)?;
+                    write!(f, " {}", &name)?;
                 }
-                write_type_params(f, &ts.type_params)?;
-                write_args(f, &ts.args)?;
-                write!(f, " {{\n{}{}\n{}}}", new_indentation, ts.claim, indentation)?;
+                write_theorem(f, indentation, &ts.type_params, &ts.args, &ts.claim)?;
                 if let Some(body) = &ts.body {
                     write!(f, " by")?;
                     write_block(f, &body.statements, indentation)?;
@@ -1146,7 +1158,8 @@ impl Statement {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }
                 for theorem in &ts.theorems {
-                    write!(f, "{}{} (TODO)\n", new_indentation, theorem.name)?;
+                    write!(f, "{}{}", new_indentation, theorem.name)?;
+                    write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
                 }
                 write!(f, "{}}}", indentation)
             }
