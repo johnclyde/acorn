@@ -49,7 +49,7 @@ impl RewriteTree {
 
     // Inserts one direction.
     // NOTE: The input term's variable ids must be normalized.
-    pub fn insert_terms(
+    fn insert_terms(
         &mut self,
         pattern_id: usize,
         input_term: &Term,
