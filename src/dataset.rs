@@ -7,7 +7,10 @@ use ndarray_npy::NpzWriter;
 use crate::common;
 use crate::features::Features;
 
-// Data tracked from a build to use for training
+// The dataset is created from a verification run.
+// The dataset tracks which activated proof steps are used in the proof.
+// features is the features for a particular proof step.
+// label is true if the proof step is used in the proof, and false if it is not.
 pub struct Dataset {
     pub features: Vec<Features>,
     pub labels: Vec<bool>,
@@ -26,12 +29,11 @@ impl Dataset {
         self.labels.push(label);
     }
 
-    // This doesn't mess with the filename, but it would make sense to add npz.
+    // Saves the dataset to the files/datasets directory.
     pub fn save_with_name(
         &self,
         relative_filename: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Always save to the logs directory
         let mut d = common::files_dir();
         d.push("datasets");
         d.push(relative_filename);
@@ -45,15 +47,19 @@ impl Dataset {
         Ok(())
     }
 
-    // Pick a default name and die on errors.
-    pub fn save(&self) {
+    pub fn save_with_tag(&self, tag: &str) {
         let now = Local::now();
-        let filename = now.format("dataset-%Y-%m-%d-%H:%M:%S.npz").to_string();
+        let suffix = now.format("%Y-%m-%d-%H:%M:%S.npz").to_string();
+        let filename = format!("{}-{}", tag, suffix);
         println!(
             "Saving dataset with {} items to {}",
             self.features.len(),
             filename
         );
         self.save_with_name(&filename).unwrap();
+    }
+
+    pub fn save(&self) {
+        self.save_with_tag("dataset");
     }
 }

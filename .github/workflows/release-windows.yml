@@ -1,0 +1,68 @@
+name: Release (Windows)
+# This builds the Windows language server binary and uploads it to GitHub Releases.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+env:
+  ONNXRUNTIME_VERSION: v1.20.1
+  ORT_LIB_LOCATION: ${{ github.workspace }}\onnxruntime\build\Windows\Release
+  TAG: ${{ github.ref }}
+
+jobs:
+  release-windows:
+    runs-on: windows-2022
+    permissions:
+      contents: write # for creating releases
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Restore ONNX Runtime from cache
+        id: restore-onnxruntime
+        uses: actions/cache/restore@v4
+        with:
+          path: onnxruntime
+          key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Check if ONNX Runtime cache is missing
+        if: steps.restore-onnxruntime.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache for ONNX Runtime not found"
+          exit 1
+
+      # For debugging, if ONNX stuff isn't working.
+      # - name: Show ONNX Runtime files
+      #   run: |
+      #     echo ORT_LIB_LOCATION: ${{ env.ORT_LIB_LOCATION }}
+      #     Get-ChildItem -Path ${{ env.ORT_LIB_LOCATION }} -Recurse
+
+      - name: Cache Cargo Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run Tests
+        run: cargo test
+
+      - name: Authenticate GitHub CLI
+        run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+
+      - name: Build Language Server
+        run: ./winbuild.bat

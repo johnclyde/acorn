@@ -201,6 +201,34 @@ pub struct MatchStatement {
     pub cases: Vec<(Expression, Body)>,
 }
 
+// A typeclass theorem is a theorem that must be proven for an instance type, to show
+// that it belongs to the typeclass.
+pub struct TypeclassTheorem {
+    pub name: Token,
+    pub args: Vec<Declaration>,
+    pub claim: Expression,
+}
+
+// A typeclass statement defines a typeclass. It can contain some constants that must be
+// specified, and theorems that must be proven.
+pub struct TypeclassStatement {
+    // The definition of the typeclass uses a named instance type.
+    // Like Self in Rust, but "Self" would be weird mathematically.
+    pub instance_type: Token,
+
+    // The name of the typeclass.
+    pub name: Token,
+
+    // Each instance type in the typeclass has a list of constants that must be defined.
+    // This is a list of (name, type) pairs.
+    // The type may refer to the instance type itself.
+    // For example, all groups must define the identity, of the type of the group elements.
+    pub constants: Vec<(Token, Expression)>,
+
+    // Theorems that must be proven for the typeclass to be valid.
+    pub theorems: Vec<TypeclassTheorem>,
+}
+
 // Acorn is a statement-based language. There are several types.
 // Each type has its own struct.
 pub struct Statement {
@@ -234,6 +262,7 @@ pub enum StatementInfo {
     Solve(SolveStatement),
     Problem(Body),
     Match(MatchStatement),
+    Typeclass(TypeclassStatement),
 }
 
 const ONE_INDENT: &str = "    ";
@@ -869,6 +898,77 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     })
 }
 
+fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+    let instance_type = tokens.expect_type_name()?;
+    tokens.expect_type(TokenType::Colon)?;
+    let typeclass_name = tokens.expect_type_name()?;
+    let mut constants = vec![];
+    let mut theorems = vec![];
+    tokens.expect_type(TokenType::LeftBrace)?;
+    while let Some(token) = tokens.next() {
+        match token.token_type {
+            TokenType::NewLine => {
+                continue;
+            }
+            TokenType::RightBrace => {
+                if constants.is_empty() && theorems.is_empty() {
+                    return Err(token.error("typeclasses must have some constants or theorems"));
+                }
+
+                return Ok(Statement {
+                    first_token: keyword,
+                    last_token: token,
+                    statement: StatementInfo::Typeclass(TypeclassStatement {
+                        instance_type,
+                        name: typeclass_name,
+                        constants,
+                        theorems,
+                    }),
+                });
+            }
+            TokenType::Identifier => {
+                let next_type = tokens.peek_type();
+                match next_type {
+                    Some(TokenType::LeftParen) => {
+                        let (type_params, args, _) = parse_args(tokens, TokenType::LeftBrace)?;
+                        if type_params.len() > 0 {
+                            panic!("type params not supported here");
+                        }
+                        let (claim, _) =
+                            Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
+                        let theorem = TypeclassTheorem {
+                            name: token,
+                            args,
+                            claim,
+                        };
+                        theorems.push(theorem);
+                    }
+                    Some(TokenType::Colon) => {
+                        tokens.next();
+                        let (type_expr, t) = Expression::parse_type(
+                            tokens,
+                            Terminator::Or(TokenType::NewLine, TokenType::RightBrace),
+                        )?;
+                        if t.token_type == TokenType::RightBrace {
+                            return Err(t.error("typeclass declarations must end with a newline"));
+                        }
+                        constants.push((token, type_expr));
+                    }
+                    _ => {
+                        return Err(
+                            token.error("expected ':' or '(' after name in typeclass statement")
+                        );
+                    }
+                }
+            }
+            _ => {
+                return Err(token.error("unexpected token in typeclass statement"));
+            }
+        }
+    }
+    Err(keyword.error("unterminated typeclass statement"))
+}
+
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
@@ -899,6 +999,21 @@ fn write_args(f: &mut fmt::Formatter, args: &[Declaration]) -> fmt::Result {
     Ok(())
 }
 
+// Writes everything after the name of the theorem.
+fn write_theorem(
+    f: &mut fmt::Formatter,
+    indentation: &str,
+    type_params: &[Token],
+    args: &[Declaration],
+    claim: &Expression,
+) -> fmt::Result {
+    let new_indentation = add_indent(indentation);
+    write_type_params(f, type_params)?;
+    write_args(f, args)?;
+    write!(f, " {{\n{}{}\n{}}}", new_indentation, claim, indentation)?;
+    Ok(())
+}
+
 impl Statement {
     fn fmt_helper(&self, f: &mut fmt::Formatter, indentation: &str) -> fmt::Result {
         write!(f, "{}", indentation)?;
@@ -920,18 +1035,15 @@ impl Statement {
             }
 
             StatementInfo::Theorem(ts) => {
-                let new_indentation = add_indent(indentation);
                 if ts.axiomatic {
                     write!(f, "axiom")?;
                 } else {
                     write!(f, "theorem")?;
                 }
                 if let Some(name) = &ts.name {
-                    write!(f, " {}", name)?;
+                    write!(f, " {}", &name)?;
                 }
-                write_type_params(f, &ts.type_params)?;
-                write_args(f, &ts.args)?;
-                write!(f, " {{\n{}{}\n{}}}", new_indentation, ts.claim, indentation)?;
+                write_theorem(f, indentation, &ts.type_params, &ts.args, &ts.claim)?;
                 if let Some(body) = &ts.body {
                     write!(f, " by")?;
                     write_block(f, &body.statements, indentation)?;
@@ -1069,6 +1181,19 @@ impl Statement {
                 }
                 write!(f, "\n{}}}", indentation)
             }
+
+            StatementInfo::Typeclass(ts) => {
+                let new_indentation = add_indent(indentation);
+                write!(f, "typeclass {}: {} {{\n", ts.instance_type, ts.name)?;
+                for (name, type_expr) in &ts.constants {
+                    write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
+                }
+                for theorem in &ts.theorems {
+                    write!(f, "{}{}", new_indentation, theorem.name)?;
+                    write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
+                }
+                write!(f, "{}}}", indentation)
+            }
         }
     }
 
@@ -1194,6 +1319,11 @@ impl Statement {
                     TokenType::Match => {
                         let keyword = tokens.next().unwrap();
                         let s = parse_match_statement(keyword, tokens)?;
+                        return Ok((Some(s), None));
+                    }
+                    TokenType::Typeclass => {
+                        let keyword = tokens.next().unwrap();
+                        let s = parse_typeclass_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     _ => {
@@ -1739,4 +1869,44 @@ mod tests {
             1 > 0
         }"});
     }
+
+    #[test]
+    fn test_parsing_typeclass_statement_constants() {
+        ok(indoc! {"
+        typeclass F: Foo {
+            bar: (F, F) -> Bool
+            baz: F
+            qux: Bool
+        }"});
+    }
+
+    // #[test]
+    // fn test_parsing_typeclass_statement_theorems() {
+    //     ok(indoc! {"
+    //     typeclass T: MyTypeclass {
+    //         two_nonequal {
+    //             exists(x: T, y: T) {
+    //               x != y
+    //             }
+    //         }
+    //         always_a_third(x: T, y: Y) {
+    //             exists(z: T) {
+    //               x != z and y != z
+    //             }
+    //         }
+    //     }"});
+    // }
+
+    // #[test]
+    // fn test_parsing_typeclass_statement_general() {
+    //     ok(indoc! {"
+    //     typeclass F: Foo {
+    //         bar: (F, F) -> Bool
+    //         some_bar(x: F) {
+    //             exists(y: F) {
+    //               x.bar(y)
+    //             }
+    //         }
+    //     }"});
+    // }
 }

@@ -1,7 +1,7 @@
 # The release process
 
-To do a full release, you'll need both a Linux machine and a Windows machine. Yes, it would
-be nice to do this all via GitHub action.
+To do a full release, you'll need to do the Linux/Mac build on a Linux machine, and then
+GitHub Actions will handle the Windows build.
 
 ## Linux/Mac release builds
 
@@ -21,26 +21,6 @@ snap install zig --classic --beta
 cargo install --locked cargo-zigbuild
 ```
 
-## Windows release builds
-
-Windows builds only work on Windows.
-
-Use the Developer PowerShell that ships with Visual Studio. If you use the wrong shell, the script won't be able to find all the tools it needs.
-
-Download `onnxruntime` to your home directory, then build it from the `onnxruntime` directory with:
-
-```powershell
-./build.bat --config Release --parallel --skip_tests --enable_msvc_static_runtime --cmake_generator "Visual Studio 17 2022"
-```
-
-Then do the release build from the `acorn` directory with:
-
-```powershell
-./winbuild.bat
-```
-
-The release build should statically link the Acorn language server.
-
 ## The whole release process
 
 When we create a new release, we release a new language server, and then a new VSCode extension.
@@ -53,6 +33,8 @@ All commands are run from `~/acorn`.
    ./python/version.py 0.0.1
    ```
 
+   Commit all changes and merge them upstream.
+
 2. Do the cross-platform build.
 
    ```bash
@@ -61,8 +43,6 @@ All commands are run from `~/acorn`.
 
 3. Make a tag for the new language server release, "v" plus the version.
 
-   First, make sure all your local changes are merged upstream, so that the tag picks up the right files.
-
    Then:
 
    ```bash
@@ -70,9 +50,14 @@ All commands are run from `~/acorn`.
    git push upstream v0.0.1
    ```
 
-4. Write a release description [here](https://github.com/acornprover/acorn/releases/new).
+   This should automatically trigger a Windows release build of the language server.
 
-5. Upload the language server binaries to GitHub
+   Check that the [GitHub Action](https://github.com/acornprover/acorn/actions) succeeds.
+   It might take 7-8 minutes. At the end of it, a GitHub release should be created automatically.
+
+4. Edit the release description [here](https://github.com/acornprover/acorn/releases).
+
+5. Upload the Linux and Mac language server binaries to GitHub
 
    ```bash
    ./upload.sh
@@ -91,11 +76,7 @@ All commands are run from `~/acorn`.
    code --install-extension acorn-<version>.vsix
    ```
 
-6. Upload the Windows binary to GitHub
-
-   Follow the instructions in the previous section to do a Windows release build. It will give you a `gh` command to run to publish the resulting binary to GitHub.
-
-7. Publish the extension to the Visual Studio Marketplace.
+6. Publish the extension to the Visual Studio Marketplace.
 
    From the acorn/vscode/extension directory, after uploading:
 

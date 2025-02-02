@@ -59,7 +59,7 @@ struct DisplayLiteral<'a> {
 }
 
 impl DisplayLiteral<'_> {
-    fn term<'a>(&'a self, term: &'a Term) -> DisplayTerm {
+    fn term<'a>(&'a self, term: &'a Term) -> DisplayTerm<'a> {
         DisplayTerm {
             term,
             normalizer: self.normalizer,

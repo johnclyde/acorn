@@ -76,10 +76,6 @@
     });
   }
 
-  function spaces(n: number): string {
-    return "\u00A0".repeat(n);
-  }
-
   function clauseClick(id: number) {
     if (searchResponse === null) {
       return;
@@ -109,6 +105,10 @@
     let word = n === 1 ? noun : noun + "s";
     return `${n} ${word}`;
   }
+
+  function spaces(n: number): string {
+    return "\u00A0".repeat(n);
+  }
 </script>
 
 <main>
@@ -135,28 +135,35 @@
     <hr />
     <br />
     {#if searchResponse.status.outcome === null}
-      <pre>Working...</pre>
+      Working...
     {:else if searchResponse.status.outcome === "Inconsistent"}
-      <pre>Local assumptions are inconsistent.</pre>
-      <pre>If this is a proof by contradiction, put a `false` at the end of this block.</pre>
-      <pre>If there shouldn't be a contradiction, please report a bug!</pre>
+      Local assumptions are inconsistent.
+      <br />
+      If this is a proof by contradiction, put a `false` at the end of this block.
+      <br />
+      If there shouldn't be a contradiction, please report a bug!
     {:else if searchResponse.status.steps === null}
-      <pre>We could not find a proof.</pre>
+      We could not find a proof.
     {:else if searchResponse.status.code === null}
-      <pre>Error during code generation:</pre>
-      <pre>    {searchResponse.status.codeError}</pre>
+      Error during code generation:
+      <br />
+      {spaces(4)}{searchResponse.status.codeError}
     {:else if !searchResponse.status.needsSimplification}
-      <pre>The proposition follows trivially.</pre>
+      The proposition follows trivially.
     {:else if searchResponse.status.code.length === 0}
-      <pre>We found a proof, but it needs to be simplified, and we couldn't
-           decide how to simplify it. Sorry!</pre>
+      We found a proof, but it needs to be simplified, and we couldn't decide
+      how to simplify it. Sorry!
     {:else}
-      <pre>{["The proof needs to be simplified. Try this:\n"]
-          .concat(searchResponse.status.code)
-          .join("\n\t")
-          .replace(/\t/g, spaces(4))}</pre>
+      The proof needs to be simplified. Try this:
+      <br />
+      {#each searchResponse.status.code as code}
+        <br />
+        {spaces(4)}{code}
+      {/each}
+      <br /><br />
       <button on:click={insertProof}>Insert code</button>
     {/if}
+    <br />
 
     {#if searchResponse.status.steps !== null}
       <div class="block">

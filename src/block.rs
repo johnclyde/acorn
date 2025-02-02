@@ -33,8 +33,11 @@ pub struct Block {
     // Externally, these arguments are variables.
     args: Vec<(String, AcornType)>,
 
+    // Sometimes the user specifies a goal for a block, that must be proven.
     // The goal for a block is relative to its internal environment.
     // Everything in the block can be used to achieve this goal.
+    // If there is no goal for the block, we can still use its conclusion externally,
+    // but we let the conclusion be determined by the code in the block.
     pub goal: Option<Goal>,
 
     // The environment created inside the block.
