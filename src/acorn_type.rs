@@ -67,6 +67,13 @@ impl FunctionType {
     }
 }
 
+// Typeclasses are represented by the module they were defined in, and their name.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct Typeclass {
+    pub module_id: ModuleId,
+    pub name: String,
+}
+
 // Every AcornValue has an AcornType.
 // This is the "richer" form of a type. The environment uses these types; the prover uses ids.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -84,12 +91,29 @@ pub enum AcornType {
     // Function types are defined by their inputs and output.
     Function(FunctionType),
 
-    // Type parameters can be used inside polymorphic expressions.
-    Parameter(String),
+    // Type variables and arbitrary types are similar, but different.
+    // Type variables are not monomorphic. Arbitrary types are monomorphic.
+    //
+    // For example, in:
+    //
+    // theorem reverse_twice<T>(list: List<T>) {
+    //     // Imagine some proof here.
+    //     list.reverse.reverse = list
+    // }
+    //
+    // To an external user of this theorem, T is a type variable. You can apply it to any type.
+    // To use this theorem, we need to instantiate T to a concrete type, like Nat or Int.
+    //
+    // To the internal proof, T is an arbitrary type. It's fixed for the duration of the proof.
+    // To prove this theorem, we *don't* need to instantiate T to a monomorphic type.
 
-    // Usually before proving we monomorphize everything.
-    // When we don't have a specific type to monomorphize to, we use a placeholder type.
-    Placeholder(String),
+    // A type variable exists inside a parametrized expression.
+    // It represents an unknown type, possibly belonging to a particular typeclass.
+    Variable(String, Option<Typeclass>),
+
+    // An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
+    // but we don't know anything else about it.
+    Arbitrary(String, Option<Typeclass>),
 }
 
 impl AcornType {
@@ -155,12 +179,12 @@ impl AcornType {
             }
             AcornType::Bool => true,
             AcornType::Data(_, _) => true,
-            AcornType::Parameter(_) => {
-                // Parametric types should be monomorphized before passing them the prover
+            AcornType::Variable(..) => {
+                // Type variables should be monomorphized before passing them the prover
                 false
             }
             AcornType::Empty => true,
-            AcornType::Placeholder(_) => true,
+            AcornType::Arbitrary(..) => true,
         }
     }
 
@@ -209,7 +233,7 @@ impl AcornType {
             ),
             AcornType::Data(ns, name) => {
                 if *ns == module_id && type_names.contains(name) {
-                    AcornType::Parameter(name.clone())
+                    AcornType::Variable(name.clone(), None)
                 } else {
                     self.clone()
                 }
@@ -221,7 +245,7 @@ impl AcornType {
     // Replaces type parameters in the provided list with the corresponding type.
     pub fn specialize(&self, params: &[(String, AcornType)]) -> AcornType {
         match self {
-            AcornType::Parameter(name) => {
+            AcornType::Variable(name, None) => {
                 for (param_name, param_type) in params {
                     if name == param_name {
                         return param_type.clone();
@@ -252,7 +276,7 @@ impl AcornType {
         mapping: &mut HashMap<String, AcornType>,
     ) -> bool {
         match (self, specialized) {
-            (AcornType::Parameter(name), _) => {
+            (AcornType::Variable(name, _), _) => {
                 if let Some(t) = mapping.get(name) {
                     // This parametric type is already mapped
                     return t == specialized;
@@ -284,8 +308,8 @@ impl AcornType {
             AcornType::Bool
             | AcornType::Data(_, _)
             | AcornType::Empty
-            | AcornType::Placeholder(_) => false,
-            AcornType::Parameter(_) => true,
+            | AcornType::Arbitrary(..) => false,
+            AcornType::Variable(..) => true,
             AcornType::Function(ftype) => {
                 for arg_type in &ftype.arg_types {
                     if arg_type.is_parametric() {
@@ -300,7 +324,7 @@ impl AcornType {
     // Converts type parameters to placeholder types
     pub fn to_placeholder(&self) -> AcornType {
         match self {
-            AcornType::Parameter(name) => AcornType::Placeholder(name.to_string()),
+            AcornType::Variable(name, tc) => AcornType::Arbitrary(name.to_string(), tc.clone()),
             AcornType::Function(ftype) => AcornType::new_functional(
                 ftype.arg_types.iter().map(|t| t.to_placeholder()).collect(),
                 ftype.return_type.to_placeholder(),
@@ -322,10 +346,15 @@ impl fmt::Display for AcornType {
         match self {
             AcornType::Bool => write!(f, "Bool"),
             AcornType::Data(_, name) => write!(f, "{}", name),
-            AcornType::Parameter(name) => write!(f, "{}", name),
             AcornType::Function(function_type) => write!(f, "{}", function_type),
             AcornType::Empty => write!(f, "empty"),
-            AcornType::Placeholder(name) => write!(f, "{}", name),
+            AcornType::Variable(name, tc) | AcornType::Arbitrary(name, tc) => {
+                write!(f, "{}", name)?;
+                if let Some(tc) = tc {
+                    write!(f, ": {}", tc.name)?;
+                }
+                Ok(())
+            }
         }
     }
 }

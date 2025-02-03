@@ -189,7 +189,7 @@ impl Environment {
         } else {
             let params = param_names
                 .into_iter()
-                .map(|n| (n.clone(), AcornType::Parameter(n)))
+                .map(|name| (name.clone(), AcornType::Variable(name, None)))
                 .collect();
             AcornValue::Specialized(
                 self.module_id,
