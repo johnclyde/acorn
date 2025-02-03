@@ -163,6 +163,8 @@ impl Normalizer {
             | AcornValue::Unresolved(_, _, _, _)
             | AcornValue::Bool(_) => value,
 
+            AcornValue::Constant(_, _, _, ref params) if params.is_empty() => value,
+
             _ => panic!(
                 "moving negation inwards should have eliminated this node: {:?}",
                 value
@@ -199,6 +201,7 @@ impl Normalizer {
                 Ok(Term::new(type_id, type_id, Atom::Variable(*i), vec![]))
             }
             AcornValue::Unresolved(module, name, t, params) => {
+                // XXX: reject this
                 assert!(params.is_empty());
                 let type_id = self.type_map.add_type(t);
                 let constant_atom = if *module == SKOLEM {
@@ -212,9 +215,22 @@ impl Normalizer {
             AcornValue::Application(application) => {
                 Ok(self.term_from_application(application, local)?)
             }
-            AcornValue::Constant(module, name, _, parameters) => Ok(self
-                .type_map
-                .term_from_monomorph(*module, name, parameters, value.get_type())),
+            AcornValue::Constant(module, name, t, params) => {
+                if params.is_empty() {
+                    let type_id = self.type_map.add_type(t);
+                    let constant_atom = if *module == SKOLEM {
+                        // Hacky. Turn the s-name back to an int
+                        Atom::Skolem(name[1..].parse().unwrap())
+                    } else {
+                        self.constant_map.add_constant(*module, name, local)
+                    };
+                    Ok(Term::new(type_id, type_id, constant_atom, vec![]))
+                } else {
+                    Ok(self
+                        .type_map
+                        .term_from_monomorph(*module, name, params, value.get_type()))
+                }
+            }
             AcornValue::Bool(true) => Ok(Term::new_true()),
             _ => Err(NormalizationError(format!(
                 "Cannot convert {} to term",
@@ -228,7 +244,9 @@ impl Normalizer {
     // to do rewrite-type lookups, on the larger literal first.
     fn literal_from_value(&mut self, value: &AcornValue, local: bool) -> Result<Literal> {
         match value {
-            AcornValue::Variable(_, _) | AcornValue::Unresolved(_, _, _, _) => {
+            AcornValue::Variable(_, _)
+            | AcornValue::Unresolved(_, _, _, _)
+            | AcornValue::Constant(_, _, _, _) => {
                 Ok(Literal::positive(self.term_from_value(value, local)?))
             }
             AcornValue::Application(app) => {
@@ -360,17 +378,17 @@ impl Normalizer {
     pub fn normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
         if let AcornValue::Binary(BinaryOp::Equals, left, right) = &value {
             // Check for defining one constant to equal another constant.
-            if let AcornValue::Unresolved(left_module, left_name, _, _) = left.as_ref() {
-                if let AcornValue::Unresolved(right_module, right_name, _, _) = right.as_ref() {
-                    if self.constant_map.has_constant(*right_module, &right_name)
-                        && !self.constant_map.has_constant(*left_module, &left_name)
+            if let Some((left_module, left_name)) = left.as_simple_constant() {
+                if let Some((right_module, right_name)) = right.as_simple_constant() {
+                    if self.constant_map.has_constant(right_module, &right_name)
+                        && !self.constant_map.has_constant(left_module, &left_name)
                     {
                         // Yep, this is defining one constant to be another one.
                         // We can handle this in the constant map.
                         self.constant_map.add_alias(
-                            *left_module,
+                            left_module,
                             &left_name,
-                            *right_module,
+                            right_module,
                             &right_name,
                         );
                         return Normalization::Clauses(vec![]);

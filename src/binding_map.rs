@@ -403,7 +403,6 @@ impl BindingMap {
     }
 
     // Type variables should get removed when they go out of scope.
-    // XXX: check that this is actually a type variable that we're removing.
     fn remove_type_variable(&mut self, name: &str) {
         match self.type_names.remove(name) {
             Some(t) => {
