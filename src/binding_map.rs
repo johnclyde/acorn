@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
 use crate::acorn_type::{AcornType, TypeClass};
-use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
+use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource};
@@ -1394,61 +1394,15 @@ impl BindingMap {
                     return Ok(value);
                 }
 
+                // Simple, no-type-inference-necessary construction
                 let mut args = vec![];
-                let mut mapping = HashMap::new();
                 for (i, arg_expr) in arg_exprs.iter().enumerate() {
                     let arg_type: &AcornType = &function_type.arg_types[i];
-                    let arg_value =
-                        self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
-                    if !arg_type.match_specialized(&arg_value.get_type(), &mut mapping) {
-                        return Err(arg_expr.error(&format!(
-                            "expected type {}, but got {}",
-                            arg_type,
-                            arg_value.get_type()
-                        )));
-                    }
-                    args.push(arg_value);
+                    let arg =
+                        self.evaluate_value_with_stack(stack, project, arg_expr, Some(arg_type))?;
+                    args.push(arg);
                 }
-                let applied_type = function_type.applied_type(arg_exprs.len());
-
-                // For non-polymorphic functions we are done
-                if mapping.is_empty() {
-                    check_type(&**function_expr, expected_type, &applied_type)?;
-                    return Ok(AcornValue::new_apply(function, args));
-                }
-
-                // Templated functions have to just be constants
-                let (c_module, c_name, c_type, c_params) =
-                    if let AcornValue::Unresolved(c_module, c_name, c_type, c_params) = function {
-                        (c_module, c_name, c_type, c_params)
-                    } else {
-                        return Err(
-                            function_expr.error("a non-constant function cannot be a template")
-                        );
-                    };
-
-                let mut params = vec![];
-                for param_name in &c_params {
-                    match mapping.get(param_name) {
-                        Some(t) => params.push((param_name.clone(), t.clone())),
-                        None => {
-                            return Err(function_expr
-                                .error(&format!("parameter {} could not be inferred", param_name)))
-                        }
-                    }
-                }
-
-                if expected_type.is_some() {
-                    // Check the applied type
-                    let specialized_type = applied_type.specialize(&params);
-                    check_type(&**function_expr, expected_type, &specialized_type)?;
-                }
-
-                let specialized = AcornValue::Constant(c_module, c_name, c_type, params);
-                Ok(AcornValue::Application(FunctionApplication {
-                    function: Box::new(specialized),
-                    args,
-                }))
+                Ok(AcornValue::new_apply(function, args))
             }
             Expression::Grouping(_, e, _) => {
                 self.evaluate_value_with_stack(stack, project, e, expected_type)
