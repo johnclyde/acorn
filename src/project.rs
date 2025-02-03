@@ -1166,7 +1166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_imported_numbers_codegen() {
+    fn test_imported_numbers_codegen_basic() {
         let mut p = Project::new_mock();
         p.mock(
             "/mock/nat.ac",

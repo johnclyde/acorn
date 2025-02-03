@@ -155,7 +155,7 @@ impl fmt::Display for Subvalue<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.value {
             AcornValue::Variable(i, _) => write!(f, "x{}", i),
-            AcornValue::Unresolved(_, name, _, _) => write!(f, "{}", name),
+            AcornValue::Unresolved(_, name, _, _) => write!(f, "{}<..>", name),
             AcornValue::Application(a) => a.fmt_helper(f, self.stack_size),
             AcornValue::Lambda(args, body) => {
                 fmt_binder(f, "function", args, body, self.stack_size)
@@ -175,6 +175,9 @@ impl fmt::Display for Subvalue<'_> {
             AcornValue::ForAll(args, body) => fmt_binder(f, "forall", args, body, self.stack_size),
             AcornValue::Exists(args, body) => fmt_binder(f, "exists", args, body, self.stack_size),
             AcornValue::Constant(_, name, _, params) => {
+                if params.is_empty() {
+                    return write!(f, "{}", name);
+                }
                 let types: Vec<_> = params.iter().map(|(_, t)| t.to_string()).collect();
                 write!(f, "{}<{}>", name, types.join(", "))
             }
@@ -1305,7 +1308,15 @@ impl AcornValue {
                 let new_value = value.replace_constants_with_vars(module, constants);
                 AcornValue::Exists(quants.clone(), Box::new(new_value))
             }
-            AcornValue::Constant(_, _, _, _) => panic!("can this happen?"),
+            AcornValue::Constant(m, name, t, params) => {
+                if *m == module {
+                    if let Some(i) = constants.get(name) {
+                        assert!(params.is_empty());
+                        return AcornValue::Variable(*i, t.clone());
+                    }
+                }
+                self.clone()
+            }
             AcornValue::Bool(_) => self.clone(),
             AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
                 Box::new(cond.replace_constants_with_vars(module, constants)),
@@ -1765,7 +1776,8 @@ impl AcornValue {
     // If this value is a member function or member variable of the given type, return its name.
     pub fn is_member(&self, class: &AcornType) -> Option<String> {
         match &self {
-            AcornValue::Unresolved(module_id, name, _, _) => {
+            AcornValue::Unresolved(module_id, name, _, _)
+            | AcornValue::Constant(module_id, name, _, _) => {
                 let parts = name.split('.').collect::<Vec<_>>();
                 if parts.len() != 2 {
                     return None;

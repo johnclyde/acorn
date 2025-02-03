@@ -270,13 +270,14 @@ impl BindingMap {
     }
 
     // Returns an AcornValue representing this name, if there is one.
+    // This can return an unresolved value.
     // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<AcornValue> {
         let constant_type = self.identifier_types.get(name)?.clone();
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(AcornValue::Unresolved(
+            return Some(AcornValue::Constant(
                 *canonical_module,
                 canonical_name.clone(),
                 constant_type,
@@ -285,12 +286,22 @@ impl BindingMap {
         }
 
         // Constants defined here
-        Some(AcornValue::Unresolved(
-            self.module,
-            name.to_string(),
-            constant_type,
-            self.constants.get(name)?.params.clone(),
-        ))
+        let params = self.constants.get(name)?.params.clone();
+        if params.is_empty() {
+            Some(AcornValue::Constant(
+                self.module,
+                name.to_string(),
+                constant_type,
+                vec![],
+            ))
+        } else {
+            Some(AcornValue::Unresolved(
+                self.module,
+                name.to_string(),
+                constant_type,
+                params,
+            ))
+        }
     }
 
     // Gets the type for an identifier, not for a type name.
