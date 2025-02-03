@@ -1799,6 +1799,7 @@ impl AcornValue {
     }
 
     pub fn as_simple_constant(&self) -> Option<(ModuleId, &str)> {
+        // XXX: stop allowing Unresolved
         match self {
             AcornValue::Constant(module, name, _, params) => {
                 if params.is_empty() {

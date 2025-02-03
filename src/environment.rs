@@ -349,12 +349,17 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        if let Some(AcornValue::Unresolved(canonical_module, canonical_name, acorn_type, _)) = value
-        {
-            // 'let x = y' creates an alias for y, not a new constant.
-            self.bindings
-                .add_alias(&name, canonical_module, canonical_name, acorn_type);
-            return Ok(());
+        if let Some(value) = &value {
+            if let Some((canonical_module, canonical_name)) = value.as_simple_constant() {
+                // 'let x = y' creates an alias for y, not a new constant.
+                self.bindings.add_alias(
+                    &name,
+                    canonical_module,
+                    canonical_name.to_string(),
+                    value.get_type(),
+                );
+                return Ok(());
+            }
         }
 
         self.bindings
@@ -803,7 +808,7 @@ impl Environment {
                 self.bindings
                     .add_constant(&fss.name, vec![], function_type.clone(), None, None);
                 let function_constant =
-                    AcornValue::Unresolved(self.module_id, fss.name.clone(), function_type, vec![]);
+                    AcornValue::Constant(self.module_id, fss.name.clone(), function_type, vec![]);
                 let function_term = AcornValue::new_apply(
                     function_constant.clone(),
                     arg_types
