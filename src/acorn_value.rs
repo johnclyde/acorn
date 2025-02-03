@@ -1350,11 +1350,7 @@ impl AcornValue {
 
     fn validate_against_stack(&self, stack: &mut Vec<AcornType>) -> Result<(), String> {
         match self {
-            AcornValue::Unresolved(_, _, _, params) => {
-                // XXX Take out this case. Just always error.
-                if params.is_empty() {
-                    return Ok(());
-                }
+            AcornValue::Unresolved(..) => {
                 Err("there should be no unresolved values during validation".to_string())
             }
             AcornValue::Variable(i, var_type) => match stack.get(*i as usize) {
@@ -1811,7 +1807,6 @@ impl AcornValue {
     }
 
     pub fn as_simple_constant(&self) -> Option<(ModuleId, &str)> {
-        // XXX: stop allowing Unresolved
         match self {
             AcornValue::Constant(module, name, _, params) => {
                 if params.is_empty() {
@@ -1820,7 +1815,6 @@ impl AcornValue {
                     None
                 }
             }
-            AcornValue::Unresolved(module, name, _, _) => Some((*module, name)),
             _ => None,
         }
     }
