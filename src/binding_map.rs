@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, TypeClass};
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -261,6 +261,14 @@ impl BindingMap {
         self.insert_type_name(name.to_string(), acorn_type);
     }
 
+    fn add_type_variable(&mut self, name: &str, typeclass: Option<TypeClass>) {
+        if self.name_in_use(name) {
+            panic!("type variable {} already bound", name);
+        }
+        let acorn_type = AcornType::Variable(name.to_string(), typeclass);
+        self.identifier_types.insert(name.to_string(), acorn_type);
+    }
+
     // Returns an AcornValue representing this name, if there is one.
     // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<AcornValue> {
@@ -394,8 +402,9 @@ impl BindingMap {
         self.theorems.contains(name)
     }
 
-    // Data types that come from type parameters get removed when they go out of scope.
-    pub fn remove_data_type(&mut self, name: &str) {
+    // Type variables should get removed when they go out of scope.
+    // XXX: check that this is actually a type variable that we're removing.
+    fn remove_type_variable(&mut self, name: &str) {
         match self.type_names.remove(name) {
             Some(t) => {
                 self.reverse_type_names.remove(&t);
@@ -1535,16 +1544,14 @@ impl BindingMap {
         Option<AcornValue>,
         AcornType,
     )> {
-        // "Specific" types are types that can refer to these parameters bound as opaque types.
-        // "Generic" types are types where those have been replaced with AcornType::Generic types.
-
         // Bind all the type parameters and arguments
         let mut type_param_names: Vec<String> = vec![];
         for token in type_param_tokens {
             if self.type_names.contains_key(token.text()) {
                 return Err(token.error("cannot redeclare a type in a generic type list"));
             }
-            // XXX - are we supposed to be adding a data type here?
+            // XXX - can we just make these type variables rather than using data types and
+            // then replacing the data types with type variables?
             self.add_data_type(token.text());
             type_param_names.push(token.text().to_string());
         }
@@ -1553,8 +1560,7 @@ impl BindingMap {
             self.bind_args(&mut stack, project, args, class_name)?;
 
         // Check for possible errors in the specification.
-        // Each type has to be used by some argument so that we know how to
-        // monomorphize the template.
+        // Each type has to be used by some argument (although you can imagine lifting this rule).
         for (i, type_param_name) in type_param_names.iter().enumerate() {
             if !specific_arg_types
                 .iter()
@@ -1619,7 +1625,7 @@ impl BindingMap {
 
         // Reset the bindings
         for name in type_param_names.iter().rev() {
-            self.remove_data_type(&name);
+            self.remove_type_variable(&name);
         }
         if let Some(function_name) = function_name {
             self.remove_constant(&function_name);

@@ -69,7 +69,7 @@ impl FunctionType {
 
 // Typeclasses are represented by the module they were defined in, and their name.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct Typeclass {
+pub struct TypeClass {
     pub module_id: ModuleId,
     pub name: String,
 }
@@ -111,11 +111,11 @@ pub enum AcornType {
 
     // A type variable exists inside a parametrized expression.
     // It represents an unknown type, possibly belonging to a particular typeclass.
-    Variable(String, Option<Typeclass>),
+    Variable(String, Option<TypeClass>),
 
     // An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
     // but we don't know anything else about it.
-    Arbitrary(String, Option<Typeclass>),
+    Arbitrary(String, Option<TypeClass>),
 }
 
 impl AcornType {
