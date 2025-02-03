@@ -258,6 +258,7 @@ impl TermComponent {
 
 // A pattern tree is a "perfect discrimination tree" specifically designed to rewrite
 // terms into simplified versions.
+// It's a tree full of patterns.
 // Each path from the root to a leaf is a series of edges that represents a term or a literal.
 // The first edge determines the type, and literal vs term.
 //
