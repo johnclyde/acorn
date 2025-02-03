@@ -1371,7 +1371,6 @@ impl BindingMap {
                         }
                         args.push(arg_value);
                     }
-                    let applied_type = function_type.applied_type(arg_exprs.len());
 
                     // Extract the parameters for the unresolved function
                     let mut params = vec![];
@@ -1387,17 +1386,12 @@ impl BindingMap {
                         }
                     }
 
+                    let instance_fn = AcornValue::Constant(c_module, c_name, c_type, params);
+                    let value = AcornValue::new_apply(instance_fn, args);
                     if expected_type.is_some() {
-                        // Check the applied type
-                        let specialized_type = applied_type.specialize(&params);
-                        check_type(&**function_expr, expected_type, &specialized_type)?;
+                        check_type(&**function_expr, expected_type, &value.get_type())?;
                     }
-
-                    let specialized = AcornValue::Constant(c_module, c_name, c_type, params);
-                    return Ok(AcornValue::Application(FunctionApplication {
-                        function: Box::new(specialized),
-                        args,
-                    }));
+                    return Ok(value);
                 }
 
                 let mut args = vec![];
