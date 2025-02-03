@@ -179,25 +179,17 @@ impl Environment {
         let constant_type_clone = self.bindings.get_type_for_identifier(name).unwrap().clone();
         let param_names = self.bindings.get_params(name);
 
-        let constant = if param_names.is_empty() {
-            AcornValue::Unresolved(
-                self.module_id,
-                name.to_string(),
-                constant_type_clone,
-                vec![],
-            )
-        } else {
-            let params = param_names
-                .into_iter()
-                .map(|name| (name.clone(), AcornType::Variable(name, None)))
-                .collect();
-            AcornValue::Constant(
-                self.module_id,
-                name.to_string(),
-                constant_type_clone,
-                params,
-            )
-        };
+        let params = param_names
+            .into_iter()
+            .map(|name| (name.clone(), AcornType::Variable(name, None)))
+            .collect();
+        let constant = AcornValue::Constant(
+            self.module_id,
+            name.to_string(),
+            constant_type_clone,
+            params,
+        );
+
         let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
             let args: Vec<_> = acorn_types
                 .iter()
