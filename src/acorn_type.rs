@@ -93,6 +93,8 @@ pub enum AcornType {
 
     // Type variables and arbitrary types are similar, but different.
     // Type variables are not monomorphic. Arbitrary types are monomorphic.
+    // They do share the same namespace; you shouldn't have type variables and arbitrary types
+    // inside the same type that have the same name.
     //
     // For example, in:
     //
@@ -302,8 +304,8 @@ impl AcornType {
         }
     }
 
-    // A type is parametric if any of its components are typed with type parameters.
-    pub fn is_parametric(&self) -> bool {
+    // A type is generic if it has any type variables within it.
+    pub fn is_generic(&self) -> bool {
         match self {
             AcornType::Bool
             | AcornType::Data(_, _)
@@ -312,22 +314,22 @@ impl AcornType {
             AcornType::Variable(..) => true,
             AcornType::Function(ftype) => {
                 for arg_type in &ftype.arg_types {
-                    if arg_type.is_parametric() {
+                    if arg_type.is_generic() {
                         return true;
                     }
                 }
-                ftype.return_type.is_parametric()
+                ftype.return_type.is_generic()
             }
         }
     }
 
-    // Converts type parameters to placeholder types
-    pub fn to_placeholder(&self) -> AcornType {
+    // Converts all type variables to arbitrary types.
+    pub fn to_arbitrary(&self) -> AcornType {
         match self {
             AcornType::Variable(name, tc) => AcornType::Arbitrary(name.to_string(), tc.clone()),
             AcornType::Function(ftype) => AcornType::new_functional(
-                ftype.arg_types.iter().map(|t| t.to_placeholder()).collect(),
-                ftype.return_type.to_placeholder(),
+                ftype.arg_types.iter().map(|t| t.to_arbitrary()).collect(),
+                ftype.return_type.to_arbitrary(),
             ),
             _ => self.clone(),
         }

@@ -398,7 +398,7 @@ impl Environment {
 
         // Calculate the function value
         let (param_names, _, arg_types, unbound_value, value_type) =
-            self.bindings.evaluate_subvalue(
+            self.bindings.evaluate_scoped_value(
                 project,
                 &ds.type_params,
                 &ds.args,
@@ -508,7 +508,7 @@ impl Environment {
                 }
 
                 let (type_params, arg_names, arg_types, value, _) =
-                    self.bindings.evaluate_subvalue(
+                    self.bindings.evaluate_scoped_value(
                         project,
                         &ts.type_params,
                         &ts.args,
@@ -763,7 +763,7 @@ impl Environment {
                     .insert(fss.name.clone(), definition_range);
 
                 let (_, mut arg_names, mut arg_types, condition, _) =
-                    self.bindings.evaluate_subvalue(
+                    self.bindings.evaluate_scoped_value(
                         project,
                         &[],
                         &fss.declarations,

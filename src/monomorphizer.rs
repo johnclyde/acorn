@@ -32,7 +32,7 @@ impl ParamList {
 
     fn assert_monomorph(&self) {
         for (name, t) in &self.params {
-            if t.is_parametric() {
+            if t.is_generic() {
                 panic!("bad monomorphization: {} = {}", name, t);
             }
         }
@@ -87,7 +87,7 @@ impl Monomorphizer {
         fact.value.find_parametric(&mut instances);
         if instances.is_empty() {
             if let AcornValue::ForAll(args, _) = &fact.value {
-                if args.iter().any(|arg| arg.is_parametric()) {
+                if args.iter().any(|arg| arg.is_generic()) {
                     // This is a polymorphic fact with no polymorphic functions.
                     // It could be something trivial and purely propositional, like
                     // forall(x: T) { x = x }

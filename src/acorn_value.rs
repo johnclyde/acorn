@@ -1573,24 +1573,22 @@ impl AcornValue {
     // Whether anything in this value has unbound type parameters.
     pub fn is_parametric(&self) -> bool {
         match self {
-            AcornValue::Variable(_, t) => t.is_parametric(),
-            AcornValue::Constant(_, _, t, _) => t.is_parametric(),
+            AcornValue::Variable(_, t) => t.is_generic(),
+            AcornValue::Constant(_, _, t, _) => t.is_generic(),
             AcornValue::Application(app) => {
                 app.function.is_parametric() || app.args.iter().any(|x| x.is_parametric())
             }
             AcornValue::Lambda(args, value)
             | AcornValue::ForAll(args, value)
             | AcornValue::Exists(args, value) => {
-                args.iter().any(|x| x.is_parametric()) || value.is_parametric()
+                args.iter().any(|x| x.is_generic()) || value.is_parametric()
             }
             AcornValue::Binary(_, left, right) => left.is_parametric() || right.is_parametric(),
             AcornValue::IfThenElse(cond, if_value, else_value) => {
                 cond.is_parametric() || if_value.is_parametric() || else_value.is_parametric()
             }
             AcornValue::Not(x) => x.is_parametric(),
-            AcornValue::Specialized(_, _, _, params) => {
-                params.iter().any(|(_, t)| t.is_parametric())
-            }
+            AcornValue::Specialized(_, _, _, params) => params.iter().any(|(_, t)| t.is_generic()),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
                 scrutinee.is_parametric()
@@ -1636,7 +1634,7 @@ impl AcornValue {
             AcornValue::Not(x) => x.find_parametric(output),
             AcornValue::Specialized(module, name, _, params) => {
                 for (_, t) in params {
-                    if t.is_parametric() {
+                    if t.is_generic() {
                         let key = ConstantKey {
                             module: *module,
                             name: name.clone(),
@@ -1681,7 +1679,7 @@ impl AcornValue {
             AcornValue::Not(x) => x.find_monomorphs(output),
             AcornValue::Specialized(module, name, _, params) => {
                 for (_, t) in params {
-                    if t.is_parametric() {
+                    if t.is_generic() {
                         // This is not a monomorphization
                         return;
                     }
@@ -1699,26 +1697,24 @@ impl AcornValue {
     // Converts all the parametrized types to placeholder types.
     pub fn to_placeholder(&self) -> AcornValue {
         match self {
-            AcornValue::Variable(i, var_type) => {
-                AcornValue::Variable(*i, var_type.to_placeholder())
-            }
+            AcornValue::Variable(i, var_type) => AcornValue::Variable(*i, var_type.to_arbitrary()),
             AcornValue::Constant(module, name, t, params) => {
-                AcornValue::Constant(*module, name.clone(), t.to_placeholder(), params.clone())
+                AcornValue::Constant(*module, name.clone(), t.to_arbitrary(), params.clone())
             }
             AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
                 function: Box::new(app.function.to_placeholder()),
                 args: app.args.iter().map(|x| x.to_placeholder()).collect(),
             }),
             AcornValue::Lambda(args, value) => AcornValue::Lambda(
-                args.iter().map(|x| x.to_placeholder()).collect(),
+                args.iter().map(|x| x.to_arbitrary()).collect(),
                 Box::new(value.to_placeholder()),
             ),
             AcornValue::ForAll(args, value) => AcornValue::ForAll(
-                args.iter().map(|x| x.to_placeholder()).collect(),
+                args.iter().map(|x| x.to_arbitrary()).collect(),
                 Box::new(value.to_placeholder()),
             ),
             AcornValue::Exists(args, value) => AcornValue::Exists(
-                args.iter().map(|x| x.to_placeholder()).collect(),
+                args.iter().map(|x| x.to_arbitrary()).collect(),
                 Box::new(value.to_placeholder()),
             ),
             AcornValue::Binary(op, left, right) => AcornValue::Binary(

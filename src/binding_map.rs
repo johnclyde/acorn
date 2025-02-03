@@ -1491,9 +1491,12 @@ impl BindingMap {
         }
     }
 
-    // Evaluate an expression that is scoped inside a bunch of variable declarations.
-    // type_params is a list of tokens for the parametrized types in this value.
-    // arg_exprs is a list of "<varname>: <typename>" expressions for the arguments.
+    // Evaluate an expression that creates a new scope for the value inside it.
+    // It has declarations, introducing new variables and types that exist just for this value,
+    // and it has the value itself, which can use those declarations.
+    //
+    // type_params is a list of tokens for the generic types introduced for this scope.
+    // args is a list of the new variables declared for this scope.
     // value_type_expr is an optional expression for the type of the value.
     //   (None means expect a boolean value.)
     // value_expr is the expression for the value itself.
@@ -1508,14 +1511,15 @@ impl BindingMap {
     //   an optional unbound value. (None means axiom.)
     //   the value type
     //
-    // Both the argument types and the value can be polymorphic, with the ith type parameter
-    // represented as AcornType::Generic(i).
+    // Wherever the argument types and the value type include the type parameters, they will
+    // be type variables.
+    //
     // class_name should be provided if this is the definition of a member function.
     //
     // The return value is "unbound" in the sense that it has variable atoms that are not
     // bound within any lambda, exists, or forall value. It also may have references to a
     // recursive function that is not yet defined.
-    pub fn evaluate_subvalue(
+    pub fn evaluate_scoped_value(
         &mut self,
         project: &Project,
         type_param_tokens: &[Token],
@@ -1540,6 +1544,7 @@ impl BindingMap {
             if self.type_names.contains_key(token.text()) {
                 return Err(token.error("cannot redeclare a type in a generic type list"));
             }
+            // XXX - are we supposed to be adding a data type here?
             self.add_data_type(token.text());
             type_param_names.push(token.text().to_string());
         }
