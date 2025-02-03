@@ -1354,11 +1354,11 @@ impl AcornValue {
     fn validate_against_stack(&self, stack: &mut Vec<AcornType>) -> Result<(), String> {
         match self {
             AcornValue::Unresolved(_, _, _, params) => {
-                if !params.is_empty() {
-                    Err("should be no polymorphs during validation".to_string())
-                } else {
-                    Ok(())
+                // XXX Take out this case. Just always error.
+                if params.is_empty() {
+                    return Ok(());
                 }
+                Err("there should be no unresolved values during validation".to_string())
             }
             AcornValue::Variable(i, var_type) => match stack.get(*i as usize) {
                 Some(t) => {
