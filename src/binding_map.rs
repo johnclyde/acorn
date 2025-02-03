@@ -1353,6 +1353,53 @@ impl BindingMap {
                     )));
                 }
 
+                // Check if we have to do type inference.
+                if let AcornValue::Unresolved(c_module, c_name, c_type, c_params) = function {
+                    // Do the actual inference
+                    let mut args = vec![];
+                    let mut mapping = HashMap::new();
+                    for (i, arg_expr) in arg_exprs.iter().enumerate() {
+                        let arg_type: &AcornType = &function_type.arg_types[i];
+                        let arg_value =
+                            self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
+                        if !arg_type.match_specialized(&arg_value.get_type(), &mut mapping) {
+                            return Err(arg_expr.error(&format!(
+                                "expected type {}, but got {}",
+                                arg_type,
+                                arg_value.get_type()
+                            )));
+                        }
+                        args.push(arg_value);
+                    }
+                    let applied_type = function_type.applied_type(arg_exprs.len());
+
+                    // Extract the parameters for the unresolved function
+                    let mut params = vec![];
+                    for param_name in &c_params {
+                        match mapping.get(param_name) {
+                            Some(t) => params.push((param_name.clone(), t.clone())),
+                            None => {
+                                return Err(function_expr.error(&format!(
+                                    "parameter {} could not be inferred",
+                                    param_name
+                                )))
+                            }
+                        }
+                    }
+
+                    if expected_type.is_some() {
+                        // Check the applied type
+                        let specialized_type = applied_type.specialize(&params);
+                        check_type(&**function_expr, expected_type, &specialized_type)?;
+                    }
+
+                    let specialized = AcornValue::Constant(c_module, c_name, c_type, params);
+                    return Ok(AcornValue::Application(FunctionApplication {
+                        function: Box::new(specialized),
+                        args,
+                    }));
+                }
+
                 let mut args = vec![];
                 let mut mapping = HashMap::new();
                 for (i, arg_expr) in arg_exprs.iter().enumerate() {
