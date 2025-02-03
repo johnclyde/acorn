@@ -333,20 +333,6 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
-    // Make a Constant or a Specialized depending on whether we have params.
-    pub fn new_specialized(
-        module: ModuleId,
-        name: String,
-        constant_type: AcornType,
-        params: Vec<(String, AcornType)>,
-    ) -> AcornValue {
-        if params.is_empty() {
-            AcornValue::Unresolved(module, name, constant_type, vec![])
-        } else {
-            AcornValue::Constant(module, name, constant_type, params)
-        }
-    }
-
     pub fn is_lambda(&self) -> bool {
         match self {
             AcornValue::Lambda(_, _) => true,
