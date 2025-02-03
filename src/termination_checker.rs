@@ -37,8 +37,8 @@ impl TerminationChecker {
             AcornValue::Variable(..) | AcornValue::Bool(..) => {
                 // These values can't contain function calls within them, so they don't matter.
             }
-            AcornValue::Constant(module, name, _, _)
-            | AcornValue::Specialized(module, name, _, _) => {
+            AcornValue::Unresolved(module, name, _, _)
+            | AcornValue::Constant(module, name, _, _) => {
                 if module == &self.module && name == &self.function_name {
                     // We are using the recursive function without calling it, so we can't
                     // really say that any of its arguments are always strict any more.

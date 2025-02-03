@@ -180,7 +180,7 @@ impl Environment {
         let param_names = self.bindings.get_params(name);
 
         let constant = if param_names.is_empty() {
-            AcornValue::Constant(
+            AcornValue::Unresolved(
                 self.module_id,
                 name.to_string(),
                 constant_type_clone,
@@ -191,7 +191,7 @@ impl Environment {
                 .into_iter()
                 .map(|name| (name.clone(), AcornType::Variable(name, None)))
                 .collect();
-            AcornValue::Specialized(
+            AcornValue::Constant(
                 self.module_id,
                 name.to_string(),
                 constant_type_clone,
@@ -357,7 +357,8 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        if let Some(AcornValue::Constant(canonical_module, canonical_name, acorn_type, _)) = value {
+        if let Some(AcornValue::Unresolved(canonical_module, canonical_name, acorn_type, _)) = value
+        {
             // 'let x = y' creates an alias for y, not a new constant.
             self.bindings
                 .add_alias(&name, canonical_module, canonical_name, acorn_type);
@@ -810,7 +811,7 @@ impl Environment {
                 self.bindings
                     .add_constant(&fss.name, vec![], function_type.clone(), None, None);
                 let function_constant =
-                    AcornValue::Constant(self.module_id, fss.name.clone(), function_type, vec![]);
+                    AcornValue::Unresolved(self.module_id, fss.name.clone(), function_type, vec![]);
                 let function_term = AcornValue::new_apply(
                     function_constant.clone(),
                     arg_types

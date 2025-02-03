@@ -266,7 +266,7 @@ impl BindingMap {
             panic!("type variable {} already bound", name);
         }
         let acorn_type = AcornType::Variable(name.to_string(), typeclass);
-        self.identifier_types.insert(name.to_string(), acorn_type);
+        self.insert_type_name(name.to_string(), acorn_type);
     }
 
     // Returns an AcornValue representing this name, if there is one.
@@ -276,7 +276,7 @@ impl BindingMap {
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(AcornValue::Constant(
+            return Some(AcornValue::Unresolved(
                 *canonical_module,
                 canonical_name.clone(),
                 constant_type,
@@ -285,7 +285,7 @@ impl BindingMap {
         }
 
         // Constants defined here
-        Some(AcornValue::Constant(
+        Some(AcornValue::Unresolved(
             self.module,
             name.to_string(),
             constant_type,
@@ -721,7 +721,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
         let info = match value {
-            AcornValue::Constant(module, name, _, _) => {
+            AcornValue::Unresolved(module, name, _, _) => {
                 let bindings = if *module == self.module {
                     &self
                 } else {
@@ -1139,7 +1139,7 @@ impl BindingMap {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 match value {
-                    AcornValue::Constant(ext_module, ext_name, acorn_type, _) => {
+                    AcornValue::Unresolved(ext_module, ext_name, acorn_type, _) => {
                         self.add_alias(&name_token.text(), ext_module, ext_name, acorn_type);
                     }
                     _ => {
@@ -1366,7 +1366,7 @@ impl BindingMap {
 
                 // Templated functions have to just be constants
                 let (c_module, c_name, c_type, c_params) =
-                    if let AcornValue::Constant(c_module, c_name, c_type, c_params) = function {
+                    if let AcornValue::Unresolved(c_module, c_name, c_type, c_params) = function {
                         (c_module, c_name, c_type, c_params)
                     } else {
                         return Err(
@@ -1391,7 +1391,7 @@ impl BindingMap {
                     check_type(&**function_expr, expected_type, &specialized_type)?;
                 }
 
-                let specialized = AcornValue::Specialized(c_module, c_name, c_type, params);
+                let specialized = AcornValue::Constant(c_module, c_name, c_type, params);
                 Ok(AcornValue::Application(FunctionApplication {
                     function: Box::new(specialized),
                     args,
@@ -1500,7 +1500,9 @@ impl BindingMap {
         }
     }
 
-    // Evaluate an expression that creates a new scope for the value inside it.
+    // Evaluate an expression that creates a new scope for a single value inside it.
+    // This could be the statement of a theorem, the definition of a function, or other similar things.
+    //
     // It has declarations, introducing new variables and types that exist just for this value,
     // and it has the value itself, which can use those declarations.
     //
@@ -1550,21 +1552,18 @@ impl BindingMap {
             if self.type_names.contains_key(token.text()) {
                 return Err(token.error("cannot redeclare a type in a generic type list"));
             }
-            // XXX - can we just make these type variables rather than using data types and
-            // then replacing the data types with type variables?
-            self.add_data_type(token.text());
+            self.add_type_variable(token.text(), None);
             type_param_names.push(token.text().to_string());
         }
         let mut stack = Stack::new();
-        let (arg_names, specific_arg_types) =
-            self.bind_args(&mut stack, project, args, class_name)?;
+        let (arg_names, arg_types) = self.bind_args(&mut stack, project, args, class_name)?;
 
         // Check for possible errors in the specification.
         // Each type has to be used by some argument (although you can imagine lifting this rule).
         for (i, type_param_name) in type_param_names.iter().enumerate() {
-            if !specific_arg_types
+            if !arg_types
                 .iter()
-                .any(|a| a.refers_to(self.module, &type_param_name))
+                .any(|a| a.has_type_variable(&type_param_name))
             {
                 return Err(type_param_tokens[i].error(&format!(
                     "type parameter {} is not used in the function arguments",
@@ -1574,53 +1573,37 @@ impl BindingMap {
         }
 
         // Figure out types.
-        let specific_value_type = match value_type_expr {
+        let value_type = match value_type_expr {
             Some(e) => self.evaluate_type(project, e)?,
             None => AcornType::Bool,
         };
-        let generic_value_type = specific_value_type.parametrize(self.module, &type_param_names);
-        let generic_arg_types: Vec<AcornType> = specific_arg_types
-            .iter()
-            .map(|t| t.parametrize(self.module, &type_param_names))
-            .collect();
+
         if let Some(function_name) = function_name {
-            let generic_fn_type =
-                AcornType::new_functional(generic_arg_types.clone(), generic_value_type.clone());
-            self.add_constant(
-                function_name,
-                type_param_names.clone(),
-                generic_fn_type,
-                None,
-                None,
-            );
+            let fn_type = AcornType::new_functional(arg_types.clone(), value_type.clone());
+            self.add_constant(function_name, type_param_names.clone(), fn_type, None, None);
         }
 
         // Evaluate the inner value using our modified bindings
-        let generic_value = if value_expr.is_axiom() {
+        let value = if value_expr.is_axiom() {
             None
         } else {
-            let specific_value = self.evaluate_value_with_stack(
-                &mut stack,
-                project,
-                value_expr,
-                Some(&specific_value_type),
-            )?;
+            let value =
+                self.evaluate_value_with_stack(&mut stack, project, value_expr, Some(&value_type))?;
 
             if let Some(function_name) = function_name {
                 let mut checker = TerminationChecker::new(
                     self.module,
                     function_name.to_string(),
-                    specific_arg_types.len(),
+                    arg_types.len(),
                 );
-                if !checker.check(&specific_value) {
+                if !checker.check(&value) {
                     return Err(
                         value_expr.error("the compiler thinks this looks like an infinite loop")
                     );
                 }
             }
 
-            let generic_value = specific_value.parametrize(self.module, &type_param_names);
-            Some(generic_value)
+            Some(value)
         };
 
         // Reset the bindings
@@ -1631,13 +1614,7 @@ impl BindingMap {
             self.remove_constant(&function_name);
         }
 
-        Ok((
-            type_param_names,
-            arg_names,
-            generic_arg_types,
-            generic_value,
-            generic_value_type,
-        ))
+        Ok((type_param_names, arg_names, arg_types, value, value_type))
     }
 
     // Finds the names of all constants that are in this module but unknown to this binding map.
@@ -1649,8 +1626,8 @@ impl BindingMap {
     ) {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
-            AcornValue::Constant(module, name, t, _)
-            | AcornValue::Specialized(module, name, t, _) => {
+            AcornValue::Unresolved(module, name, t, _)
+            | AcornValue::Constant(module, name, t, _) => {
                 if *module == self.module && !self.constants.contains_key(name) {
                     answer.insert(name.to_string(), t.clone());
                 }
@@ -1884,7 +1861,7 @@ impl BindingMap {
             AcornValue::Variable(i, _) => {
                 Ok(Expression::generate_identifier(&var_names[*i as usize]))
             }
-            AcornValue::Constant(module, name, _, _) => self.name_to_expr(*module, name),
+            AcornValue::Unresolved(module, name, _, _) => self.name_to_expr(*module, name),
             AcornValue::Application(fa) => {
                 let mut args = vec![];
                 for arg in &fa.args {
@@ -1985,7 +1962,7 @@ impl BindingMap {
                 };
                 Ok(Expression::Singleton(token))
             }
-            AcornValue::Specialized(module, name, _, _) => {
+            AcornValue::Constant(module, name, _, _) => {
                 // Here we are assuming that the context will be enough to disambiguate
                 // the type of the templated name.
                 // I'm not sure if this is a good assumption.

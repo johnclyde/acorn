@@ -129,20 +129,17 @@ impl AcornType {
         }
     }
 
-    // Whether this type refers to the other type.
-    // For example, (Nat, Int) -> Rat refers to all of Nat, Int, and Rat.
-    pub fn refers_to(&self, module_id: ModuleId, name: &str) -> bool {
-        if self.equals_data_type(module_id, name) {
-            return true;
-        }
+    // Whether this type contains the given type variable within it somewhere.
+    pub fn has_type_variable(&self, name: &str) -> bool {
         match self {
+            AcornType::Variable(vname, _) => vname == name,
             AcornType::Function(function_type) => {
                 for arg_type in &function_type.arg_types {
-                    if arg_type.refers_to(module_id, name) {
+                    if arg_type.has_type_variable(name) {
                         return true;
                     }
                 }
-                function_type.return_type.refers_to(module_id, name)
+                function_type.return_type.has_type_variable(name)
             }
             _ => false,
         }
