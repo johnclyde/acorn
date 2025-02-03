@@ -719,16 +719,16 @@ impl BindingMap {
         value: &AcornValue,
         source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
-        let info = match value {
-            AcornValue::Unresolved(module, name, _, _) => {
-                let bindings = if *module == self.module {
+        let info = match value.as_simple_constant() {
+            Some((module, name)) => {
+                let bindings = if module == self.module {
                     &self
                 } else {
-                    project.get_bindings(*module).unwrap()
+                    project.get_bindings(module).unwrap()
                 };
                 bindings.constants.get(name).unwrap()
             }
-            _ => return Err(source.error("invalid pattern")),
+            None => return Err(source.error("invalid pattern")),
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
@@ -1137,16 +1137,18 @@ impl BindingMap {
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
-                match value {
-                    AcornValue::Unresolved(ext_module, ext_name, acorn_type, _) => {
-                        self.add_alias(&name_token.text(), ext_module, ext_name, acorn_type);
-                    }
-                    _ => {
-                        // I don't see how this branch can be reached.
-                        return Err(name_token.error("cannot import non-constant values"));
-                    }
+                if let Some((ext_module, ext_name)) = value.as_simple_constant() {
+                    self.add_alias(
+                        &name_token.text(),
+                        ext_module,
+                        ext_name.to_string(),
+                        value.get_type(),
+                    );
+                    Ok(())
+                } else {
+                    // I don't see how this branch can be reached.
+                    return Err(name_token.error("cannot import non-constant values"));
                 }
-                Ok(())
             }
             NamedEntity::Type(acorn_type) => {
                 self.add_type_alias(&name_token.text(), acorn_type);
