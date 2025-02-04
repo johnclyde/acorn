@@ -277,7 +277,7 @@ impl BindingMap {
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(AcornValue::Constant(
+            return Some(AcornValue::new_constant(
                 *canonical_module,
                 canonical_name.clone(),
                 constant_type,
@@ -288,7 +288,7 @@ impl BindingMap {
         // Constants defined here
         let params = self.constants.get(name)?.params.clone();
         if params.is_empty() {
-            Some(AcornValue::Constant(
+            Some(AcornValue::new_constant(
                 self.module,
                 name.to_string(),
                 constant_type,
@@ -1386,7 +1386,7 @@ impl BindingMap {
                         }
                     }
 
-                    let instance_fn = AcornValue::Constant(c_module, c_name, c_type, params);
+                    let instance_fn = AcornValue::new_constant(c_module, c_name, c_type, params);
                     let value = AcornValue::new_apply(instance_fn, args);
                     if expected_type.is_some() {
                         check_type(&**function_expr, expected_type, &value.get_type())?;
@@ -1633,12 +1633,17 @@ impl BindingMap {
     ) {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
-            AcornValue::Unresolved(module, name, t, _)
-            | AcornValue::Constant(module, name, t, _) => {
+            AcornValue::Unresolved(module, name, t, _) => {
                 if *module == self.module && !self.constants.contains_key(name) {
                     answer.insert(name.to_string(), t.clone());
                 }
             }
+            AcornValue::Constant(c) => {
+                if c.module_id == self.module && !self.constants.contains_key(&c.name) {
+                    answer.insert(c.name.to_string(), c.generic_type.clone());
+                }
+            }
+
             AcornValue::Application(app) => {
                 self.find_unknown_local_constants(&app.function, answer);
                 for arg in &app.args {
@@ -1969,11 +1974,11 @@ impl BindingMap {
                 };
                 Ok(Expression::Singleton(token))
             }
-            AcornValue::Constant(module, name, _, _) => {
+            AcornValue::Constant(c) => {
                 // Here we are assuming that the context will be enough to disambiguate
                 // the type of the templated name.
                 // I'm not sure if this is a good assumption.
-                self.name_to_expr(*module, name)
+                self.name_to_expr(c.module_id, &c.name)
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
                 let condition = self.value_to_expr(condition, var_names, next_x, next_k)?;

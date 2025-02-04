@@ -84,6 +84,20 @@ impl fmt::Display for BinaryOp {
     }
 }
 
+// An instance of a constant. Could be generic or not.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ConstantInstance {
+    pub module_id: ModuleId,
+    pub name: String,
+
+    // The original type before any instantiation.
+    pub generic_type: AcornType,
+
+    // The parameters that this constant was instantiated with.
+    // Can be empty.
+    pub params: Vec<(String, AcornType)>,
+}
+
 // Two AcornValue compare to equal if they are structurally identical.
 // Comparison doesn't do any evaluations.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -101,13 +115,7 @@ pub enum AcornValue {
     // the constant itself. Otherwise we would not be able to infer them.
     Unresolved(ModuleId, String, AcornType, Vec<String>),
 
-    // An instance of a polymorphic constant.
-    // (module, constant name, unresolved type, (type parameter, type) mapping)
-    // The type is the original type of the constant, the unresolved one.
-    // The vector parameter maps parameter names to types they were replaced with.
-    // This map should be parallel to the type parameters of the corresponding constant.
-    // The parameters cannot be empty - that should just be a Constant.
-    Constant(ModuleId, String, AcornType, Vec<(String, AcornType)>),
+    Constant(ConstantInstance),
 
     Application(FunctionApplication),
 
@@ -174,12 +182,12 @@ impl fmt::Display for Subvalue<'_> {
             }
             AcornValue::ForAll(args, body) => fmt_binder(f, "forall", args, body, self.stack_size),
             AcornValue::Exists(args, body) => fmt_binder(f, "exists", args, body, self.stack_size),
-            AcornValue::Constant(_, name, _, params) => {
-                if params.is_empty() {
-                    return write!(f, "{}", name);
+            AcornValue::Constant(c) => {
+                if c.params.is_empty() {
+                    return write!(f, "{}", c.name);
                 }
-                let types: Vec<_> = params.iter().map(|(_, t)| t.to_string()).collect();
-                write!(f, "{}<{}>", name, types.join(", "))
+                let types: Vec<_> = c.params.iter().map(|(_, t)| t.to_string()).collect();
+                write!(f, "{}<{}>", c.name, types.join(", "))
             }
             AcornValue::Bool(b) => write!(f, "{}", b),
             AcornValue::IfThenElse(cond, if_value, else_value) => write!(
@@ -264,7 +272,7 @@ impl AcornValue {
             AcornValue::Not(_) => AcornType::Bool,
             AcornValue::ForAll(_, _) => AcornType::Bool,
             AcornValue::Exists(_, _) => AcornType::Bool,
-            AcornValue::Constant(_, _, c_type, params) => c_type.instantiate(&params),
+            AcornValue::Constant(c) => c.generic_type.instantiate(&c.params),
             AcornValue::Bool(_) => AcornType::Bool,
             AcornValue::IfThenElse(_, if_value, _) => if_value.get_type(),
             AcornValue::Match(_, cases) => {
@@ -336,6 +344,21 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
+    pub fn new_constant(
+        module_id: ModuleId,
+        name: String,
+        generic_type: AcornType,
+        params: Vec<(String, AcornType)>,
+    ) -> AcornValue {
+        let ci = ConstantInstance {
+            module_id,
+            name,
+            generic_type,
+            params,
+        };
+        AcornValue::Constant(ci)
+    }
+
     pub fn is_lambda(&self) -> bool {
         match self {
             AcornValue::Lambda(_, _) => true,
@@ -357,7 +380,7 @@ impl AcornValue {
             AcornValue::Not(_) => false,
             AcornValue::ForAll(_, _) => false,
             AcornValue::Exists(_, _) => false,
-            AcornValue::Constant(_, _, _, _) => true,
+            AcornValue::Constant(_) => true,
 
             // Bit of a weird case. "true" is a term but "false" is not.
             AcornValue::Bool(value) => *value,
@@ -692,9 +715,9 @@ impl AcornValue {
                     .collect();
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
-            AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_, _, _, _)
-            | AcornValue::Bool(_) => self,
+            AcornValue::Unresolved(_, _, _, _) | AcornValue::Constant(_) | AcornValue::Bool(_) => {
+                self
+            }
         }
     }
 
@@ -758,9 +781,9 @@ impl AcornValue {
                     .collect();
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
-            AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_, _, _, _)
-            | AcornValue::Bool(_) => self,
+            AcornValue::Unresolved(_, _, _, _) | AcornValue::Constant(_) | AcornValue::Bool(_) => {
+                self
+            }
         }
     }
 
@@ -887,7 +910,7 @@ impl AcornValue {
             }
             AcornValue::Variable(_, _)
             | AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_, _, _, _)
+            | AcornValue::Constant(_)
             | AcornValue::Bool(_) => self.clone(),
         }
     }
@@ -959,7 +982,7 @@ impl AcornValue {
             }
             AcornValue::Variable(_, _)
             | AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_, _, _, _)
+            | AcornValue::Constant(_)
             | AcornValue::Bool(_) => self,
         }
     }
@@ -1044,7 +1067,7 @@ impl AcornValue {
             | AcornValue::Lambda(_, _)
             | AcornValue::Variable(_, _)
             | AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_, _, _, _)
+            | AcornValue::Constant(_)
             | AcornValue::Match(..) => None,
         }
     }
@@ -1227,10 +1250,10 @@ impl AcornValue {
                     .replace_constants_with_values(stack_size + quants.len() as AtomId, replacer);
                 AcornValue::Exists(quants.clone(), Box::new(new_value))
             }
-            AcornValue::Constant(module, name, _, params) => {
-                if let Some(replacement) = replacer(*module, name) {
+            AcornValue::Constant(c) => {
+                if let Some(replacement) = replacer(c.module_id, &c.name) {
                     // We do need to replace this
-                    replacement.instantiate(params)
+                    replacement.instantiate(&c.params)
                 } else {
                     // We don't need to replace this
                     self.clone()
@@ -1308,11 +1331,11 @@ impl AcornValue {
                 let new_value = value.replace_constants_with_vars(module, constants);
                 AcornValue::Exists(quants.clone(), Box::new(new_value))
             }
-            AcornValue::Constant(m, name, t, params) => {
-                if *m == module {
-                    if let Some(i) = constants.get(name) {
-                        assert!(params.is_empty());
-                        return AcornValue::Variable(*i, t.clone());
+            AcornValue::Constant(c) => {
+                if c.module_id == module {
+                    if let Some(i) = constants.get(&c.name) {
+                        assert!(c.params.is_empty());
+                        return AcornValue::Variable(*i, c.generic_type.clone());
                     }
                 }
                 self.clone()
@@ -1404,7 +1427,7 @@ impl AcornValue {
                 Ok(())
             }
             AcornValue::Not(x) => x.validate_against_stack(stack),
-            AcornValue::Constant(_, _, _, _) | AcornValue::Bool(_) => Ok(()),
+            AcornValue::Constant(_) | AcornValue::Bool(_) => Ok(()),
         }
     }
 
@@ -1465,12 +1488,19 @@ impl AcornValue {
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.instantiate(params))),
-            AcornValue::Constant(module, name, base_type, in_params) => {
-                let out_params: Vec<_> = in_params
+            AcornValue::Constant(c) => {
+                let out_params: Vec<_> = c
+                    .params
                     .iter()
-                    .map(|(name, t)| (name.clone(), t.instantiate(params)))
+                    .map(|(name, t)| (name.to_string(), t.instantiate(&params)))
                     .collect();
-                AcornValue::Constant(*module, name.clone(), base_type.clone(), out_params)
+                let out_instance = ConstantInstance {
+                    module_id: c.module_id,
+                    name: c.name.clone(),
+                    generic_type: c.generic_type.clone(),
+                    params: out_params,
+                };
+                AcornValue::Constant(out_instance)
             }
             AcornValue::Bool(_) => self.clone(),
         }
@@ -1494,7 +1524,7 @@ impl AcornValue {
                 cond.is_generic() || if_value.is_generic() || else_value.is_generic()
             }
             AcornValue::Not(x) => x.is_generic(),
-            AcornValue::Constant(_, _, _, params) => params.iter().any(|(_, t)| t.is_generic()),
+            AcornValue::Constant(c) => c.params.iter().any(|(_, t)| t.is_generic()),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
                 scrutinee.is_generic()
@@ -1541,14 +1571,14 @@ impl AcornValue {
                 }
             }
             AcornValue::Not(x) => x.find_generic_constants(output),
-            AcornValue::Constant(module, name, _, params) => {
-                for (_, t) in params {
+            AcornValue::Constant(c) => {
+                for (_, t) in &c.params {
                     if t.is_generic() {
                         let key = ConstantKey {
-                            module: *module,
-                            name: name.clone(),
+                            module: c.module_id,
+                            name: c.name.clone(),
                         };
-                        output.push((key, params.clone()));
+                        output.push((key, c.params.clone()));
                         break;
                     }
                 }
@@ -1589,18 +1619,18 @@ impl AcornValue {
                 }
             }
             AcornValue::Not(x) => x.find_monomorphic_constants(output),
-            AcornValue::Constant(module, name, _, params) => {
-                for (_, t) in params {
+            AcornValue::Constant(c) => {
+                for (_, t) in &c.params {
                     if t.is_generic() {
                         // This is not a monomorphization
                         return;
                     }
                 }
                 let key = ConstantKey {
-                    module: *module,
-                    name: name.clone(),
+                    module: c.module_id,
+                    name: c.name.clone(),
                 };
-                output.push((key, params.clone()));
+                output.push((key, c.params.clone()));
             }
             AcornValue::Bool(_) => {}
         }
@@ -1654,7 +1684,7 @@ impl AcornValue {
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_arbitrary())),
-            AcornValue::Constant(_, _, _, _) | AcornValue::Bool(_) => self.clone(),
+            AcornValue::Constant(_) | AcornValue::Bool(_) => self.clone(),
         }
     }
 
@@ -1689,10 +1719,10 @@ impl AcornValue {
     }
 
     // If this value is a member function or member variable of the given type, return its name.
+    // XXX do we need both?
     pub fn is_member(&self, class: &AcornType) -> Option<String> {
         match &self {
-            AcornValue::Unresolved(module_id, name, _, _)
-            | AcornValue::Constant(module_id, name, _, _) => {
+            AcornValue::Unresolved(module_id, name, _, _) => {
                 let parts = name.split('.').collect::<Vec<_>>();
                 if parts.len() != 2 {
                     return None;
@@ -1706,6 +1736,20 @@ impl AcornValue {
                     None
                 }
             }
+            AcornValue::Constant(c) => {
+                let parts = c.name.split('.').collect::<Vec<_>>();
+                if parts.len() != 2 {
+                    return None;
+                }
+                let type_name = parts[0];
+                let member_name = parts[1];
+                let type_id = AcornType::Data(c.module_id, type_name.to_string());
+                if type_id == *class {
+                    Some(member_name.to_string())
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
@@ -1713,7 +1757,7 @@ impl AcornValue {
     pub fn as_name(&self) -> Option<(ModuleId, &str)> {
         match &self {
             AcornValue::Unresolved(module, name, _, _) => Some((*module, name)),
-            AcornValue::Constant(module, name, _, _) => Some((*module, name)),
+            AcornValue::Constant(c) => Some((c.module_id, &c.name)),
             _ => None,
         }
     }
@@ -1727,9 +1771,9 @@ impl AcornValue {
 
     pub fn as_simple_constant(&self) -> Option<(ModuleId, &str)> {
         match self {
-            AcornValue::Constant(module, name, _, params) => {
-                if params.is_empty() {
-                    Some((*module, name))
+            AcornValue::Constant(c) => {
+                if c.params.is_empty() {
+                    Some((c.module_id, &c.name))
                 } else {
                     None
                 }

@@ -183,7 +183,7 @@ impl Environment {
             .into_iter()
             .map(|name| (name.clone(), AcornType::Variable(name, None)))
             .collect();
-        let constant = AcornValue::Constant(
+        let constant = AcornValue::new_constant(
             self.module_id,
             name.to_string(),
             constant_type_clone,
@@ -807,8 +807,12 @@ impl Environment {
                 let function_type = AcornType::new_functional(arg_types.clone(), return_type);
                 self.bindings
                     .add_constant(&fss.name, vec![], function_type.clone(), None, None);
-                let function_constant =
-                    AcornValue::Constant(self.module_id, fss.name.clone(), function_type, vec![]);
+                let function_constant = AcornValue::new_constant(
+                    self.module_id,
+                    fss.name.clone(),
+                    function_type,
+                    vec![],
+                );
                 let function_term = AcornValue::new_apply(
                     function_constant.clone(),
                     arg_types
