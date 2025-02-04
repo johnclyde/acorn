@@ -205,7 +205,7 @@ impl Normalizer {
             }
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    let type_id = self.type_map.add_type(&c.old_generic_type);
+                    let type_id = self.type_map.add_type(&c.instance_type);
                     let constant_atom = if c.module_id == SKOLEM {
                         // Hacky. Turn the s-name back to an int
                         Atom::Skolem(c.name[1..].parse().unwrap())

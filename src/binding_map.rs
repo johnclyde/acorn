@@ -1632,7 +1632,7 @@ impl BindingMap {
     }
 
     // Finds the names of all constants that are in this module but unknown to this binding map.
-    // Does not deduplicate
+    // Does not deduplicate.
     pub fn find_unknown_local_constants(
         &self,
         value: &AcornValue,
