@@ -104,12 +104,13 @@ impl TypeMap {
         }
     }
 
+    // The provided constant instance should be monomorphized.
     pub fn term_from_monomorph(
         &mut self,
         module: ModuleId,
         name: &str,
         parameters: &Vec<(String, AcornType)>,
-        monomorph_type: AcornType,
+        monomorph_type: &AcornType,
     ) -> Term {
         let key = MonomorphKey {
             module,

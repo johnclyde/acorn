@@ -218,7 +218,7 @@ impl Normalizer {
                         c.module_id,
                         &c.name,
                         &c.old_params,
-                        value.get_type(),
+                        &c.instance_type,
                     ))
                 }
             }
