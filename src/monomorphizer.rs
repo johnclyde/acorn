@@ -33,22 +33,14 @@ impl FactInstantiation {
         assert!(!params.is_empty());
         FactInstantiation { params }
     }
-
-    // Checks that this partial instantiation is a full instantiation, replacing all type variables.
-    fn assert_full(&self) {
-        for (name, t) in &self.params {
-            if t.is_generic() {
-                panic!("bad monomorphization: {} = {}", name, t);
-            }
-        }
-    }
 }
 
 // The instantiation of a constant.
 // Ordered the same way as the constant's parameters.
 // XXX: Can this be a partial instantiation?
+#[derive(PartialEq, Eq, Clone)]
 struct ConstantInstantiation {
-    params: Vec<AcornType>,
+    params: Vec<(String, AcornType)>,
 }
 
 impl fmt::Display for ConstantInstantiation {
@@ -57,14 +49,14 @@ impl fmt::Display for ConstantInstantiation {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}", name)?;
+            write!(f, "{}", name.1)?;
         }
         Ok(())
     }
 }
 
 impl ConstantInstantiation {
-    fn new(params: Vec<AcornType>) -> ConstantInstantiation {
+    fn new(params: Vec<(String, AcornType)>) -> ConstantInstantiation {
         assert!(!params.is_empty());
         ConstantInstantiation { params }
     }
@@ -72,7 +64,7 @@ impl ConstantInstantiation {
     // Checks that this is a full instantiation, replacing all type variables.
     fn assert_full(&self) {
         for t in &self.params {
-            if t.is_generic() {
+            if t.1.is_generic() {
                 panic!("bad monomorphization: {}", self);
             }
         }
@@ -97,12 +89,12 @@ pub struct Monomorphizer {
 
     // The instantiations we have done each constant.
     // Indexed by constant id.
-    instantiations_for_constant: HashMap<ConstantKey, Vec<FactInstantiation>>,
+    instantiations_for_constant: HashMap<ConstantKey, Vec<ConstantInstantiation>>,
 
-    // An index tracking wherever a generic constant is used in the generic facts.
+    // An index tracking wherever a generic constant is instantiated in the generic facts.
     // This is updated whenever we add a fact.
-    // Lists (index in generic_facts, params for the constant) for each occurrence.
-    generic_constants: HashMap<ConstantKey, Vec<(usize, FactInstantiation)>>,
+    // Lists (index in generic_facts, instantiation for the constant) for each occurrence.
+    generic_constants: HashMap<ConstantKey, Vec<(usize, ConstantInstantiation)>>,
 }
 
 impl Monomorphizer {
@@ -147,7 +139,7 @@ impl Monomorphizer {
 
         // Store a reference to our generic constants in the index
         for (constant_key, params) in generic_constants.clone() {
-            let params = FactInstantiation::new(params);
+            let params = ConstantInstantiation::new(params);
             self.generic_constants
                 .entry(constant_key)
                 .or_insert(vec![])
@@ -156,7 +148,7 @@ impl Monomorphizer {
 
         // Check how this new generic fact should be monomorphized
         for (constant_key, params) in generic_constants {
-            let instance_params = FactInstantiation::new(params);
+            let instance_params = ConstantInstantiation::new(params);
             if let Some(monomorphs) = self.instantiations_for_constant.get(&constant_key) {
                 for monomorph_params in monomorphs.clone() {
                     self.try_monomorphize(i, &monomorph_params, &instance_params);
@@ -178,7 +170,7 @@ impl Monomorphizer {
             if params.is_empty() {
                 continue;
             }
-            self.monomorphize_constant(&constant_key, &FactInstantiation::new(params));
+            self.monomorphize_constant(&constant_key, &ConstantInstantiation::new(params));
         }
     }
 
@@ -188,7 +180,7 @@ impl Monomorphizer {
     fn monomorphize_constant(
         &mut self,
         constant_key: &ConstantKey,
-        monomorph_params: &FactInstantiation,
+        monomorph_params: &ConstantInstantiation,
     ) {
         monomorph_params.assert_full();
         let monomorphs = self
@@ -222,8 +214,8 @@ impl Monomorphizer {
     fn try_monomorphize(
         &mut self,
         fact_id: usize,
-        monomorph_params: &FactInstantiation,
-        instance_params: &FactInstantiation,
+        monomorph_params: &ConstantInstantiation,
+        instance_params: &ConstantInstantiation,
     ) {
         // Our goal is to find the "fact params", a way in which we can instantiate
         // the whole fact so that the instance params become the monomorph params.
