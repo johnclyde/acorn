@@ -203,11 +203,7 @@ impl fmt::Display for Subvalue<'_> {
             AcornValue::ForAll(args, body) => fmt_binder(f, "forall", args, body, self.stack_size),
             AcornValue::Exists(args, body) => fmt_binder(f, "exists", args, body, self.stack_size),
             AcornValue::Constant(c) => {
-                if c.old_params.is_empty() {
-                    return write!(f, "{}", c.name);
-                }
-                let types: Vec<_> = c.old_params.iter().map(|(_, t)| t.to_string()).collect();
-                write!(f, "{}<{}>", c.name, types.join(", "))
+                write!(f, "{}", c)
             }
             AcornValue::Bool(b) => write!(f, "{}", b),
             AcornValue::IfThenElse(cond, if_value, else_value) => write!(
@@ -292,7 +288,7 @@ impl AcornValue {
             AcornValue::Not(_) => AcornType::Bool,
             AcornValue::ForAll(_, _) => AcornType::Bool,
             AcornValue::Exists(_, _) => AcornType::Bool,
-            AcornValue::Constant(c) => c.old_generic_type.instantiate(&c.old_params),
+            AcornValue::Constant(c) => c.instance_type.clone(),
             AcornValue::Bool(_) => AcornType::Bool,
             AcornValue::IfThenElse(_, if_value, _) => if_value.get_type(),
             AcornValue::Match(_, cases) => {

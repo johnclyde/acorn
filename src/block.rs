@@ -360,6 +360,7 @@ impl Node {
             assert!(block.is_none());
         }
 
+        // Expand theorems in the proposition.
         let value = proposition
             .value
             .replace_constants_with_values(0, &|module_id, name| {
@@ -377,6 +378,7 @@ impl Node {
                     None
                 }
             });
+
         let claim = proposition.with_value(value);
         Node {
             structural,
