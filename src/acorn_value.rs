@@ -92,7 +92,7 @@ pub struct ConstantInstance {
     // The parameters that this constant was instantiated with.
     // Can be empty.
     // XXX remove
-    old_params: Vec<(String, AcornType)>,
+    pub old_params: Vec<(String, AcornType)>,
 
     // The type parameters that this constant was instantiated with, if any.
     // Ordered the same way as in the definition.
@@ -125,6 +125,17 @@ impl ConstantInstance {
                 .collect(),
             params: self.params.iter().map(|t| t.instantiate(params)).collect(),
             instance_type: self.instance_type.instantiate(params),
+        }
+    }
+
+    pub fn is_generic(&self) -> bool {
+        self.params.iter().any(|t| t.is_generic())
+    }
+
+    pub fn key(&self) -> ConstantKey {
+        ConstantKey {
+            module: self.module_id,
+            name: self.name.clone(),
         }
     }
 }
@@ -1444,7 +1455,7 @@ impl AcornValue {
                 cond.is_generic() || if_value.is_generic() || else_value.is_generic()
             }
             AcornValue::Not(x) => x.is_generic(),
-            AcornValue::Constant(c) => c.params.iter().any(|t| t.is_generic()),
+            AcornValue::Constant(c) => c.is_generic(),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
                 scrutinee.is_generic()
@@ -1455,10 +1466,10 @@ impl AcornValue {
         }
     }
 
-    // Finds all constants in this value that have a generic type.
-    pub fn find_generic_constants(
+    pub fn find_constants(
         &self,
-        output: &mut Vec<(ConstantKey, Vec<(String, AcornType)>)>,
+        filter: &impl Fn(&ConstantInstance) -> bool,
+        output: &mut Vec<ConstantInstance>,
     ) {
         match self {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
@@ -1466,41 +1477,34 @@ impl AcornValue {
                 panic!("unexpected unresolved value");
             }
             AcornValue::Application(app) => {
-                app.function.find_generic_constants(output);
+                app.function.find_constants(filter, output);
                 for arg in &app.args {
-                    arg.find_generic_constants(output);
+                    arg.find_constants(filter, output);
                 }
             }
             AcornValue::Lambda(_, value)
             | AcornValue::ForAll(_, value)
-            | AcornValue::Exists(_, value) => value.find_generic_constants(output),
+            | AcornValue::Exists(_, value) => value.find_constants(filter, output),
             AcornValue::Binary(_, left, right) => {
-                left.find_generic_constants(output);
-                right.find_generic_constants(output);
+                left.find_constants(filter, output);
+                right.find_constants(filter, output);
             }
             AcornValue::IfThenElse(cond, if_value, else_value) => {
-                cond.find_generic_constants(output);
-                if_value.find_generic_constants(output);
-                else_value.find_generic_constants(output);
+                cond.find_constants(filter, output);
+                if_value.find_constants(filter, output);
+                else_value.find_constants(filter, output);
             }
             AcornValue::Match(scrutinee, cases) => {
-                scrutinee.find_generic_constants(output);
+                scrutinee.find_constants(filter, output);
                 for (_, pattern, result) in cases {
-                    pattern.find_generic_constants(output);
-                    result.find_generic_constants(output);
+                    pattern.find_constants(filter, output);
+                    result.find_constants(filter, output);
                 }
             }
-            AcornValue::Not(x) => x.find_generic_constants(output),
+            AcornValue::Not(x) => x.find_constants(filter, output),
             AcornValue::Constant(c) => {
-                for t in &c.params {
-                    if t.is_generic() {
-                        let key = ConstantKey {
-                            module: c.module_id,
-                            name: c.name.clone(),
-                        };
-                        output.push((key, c.old_params.clone()));
-                        break;
-                    }
+                if filter(c) {
+                    output.push(c.clone());
                 }
             }
         }
