@@ -1632,7 +1632,7 @@ impl BindingMap {
     }
 
     // Finds the names of all constants that are in this module but unknown to this binding map.
-    // Does not deduplicate.
+    // The unknown constants may not be polymorphic.
     pub fn find_unknown_local_constants(
         &self,
         value: &AcornValue,
@@ -1647,7 +1647,8 @@ impl BindingMap {
             }
             AcornValue::Constant(c) => {
                 if c.module_id == self.module && !self.constants.contains_key(&c.name) {
-                    answer.insert(c.name.to_string(), c.old_generic_type.clone());
+                    assert!(c.params.is_empty());
+                    answer.insert(c.name.to_string(), c.instance_type.clone());
                 }
             }
 
