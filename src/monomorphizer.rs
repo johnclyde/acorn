@@ -5,6 +5,7 @@ use crate::acorn_type::AcornType;
 use crate::acorn_value::AcornValue;
 use crate::constant_map::ConstantKey;
 use crate::fact::Fact;
+use crate::proof_step::Truthiness;
 
 // A parameter list corresponds to a monomorphization.
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -79,7 +80,10 @@ impl Monomorphizer {
 
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
-        self.match_constants(&fact.value);
+        if fact.truthiness != Truthiness::Factual {
+            // We don't match to global facts because that would combinatorially explode.
+            self.match_constants(&fact.value);
+        }
 
         let i = self.generic_facts.len();
         let mut instances = vec![];
@@ -199,8 +203,6 @@ impl Monomorphizer {
         }
         self.monomorphs_for_fact[fact_id].push(fact_params);
 
-        // This monomorphization might have created new monomorphs, that in turn we need to match.
-        self.match_constants(&monomorphic_fact.value);
         self.monomorphic_facts.push(monomorphic_fact);
     }
 
