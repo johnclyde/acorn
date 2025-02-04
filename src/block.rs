@@ -361,23 +361,21 @@ impl Node {
         }
 
         // Expand theorems in the proposition.
-        let value = proposition
-            .value
-            .replace_constants_with_values(0, &|module_id, name| {
-                let bindings = if env.module_id == module_id {
-                    &env.bindings
-                } else {
-                    &project
-                        .get_env_by_id(module_id)
-                        .expect("missing module during add_proposition")
-                        .bindings
-                };
-                if bindings.is_theorem(name) {
-                    bindings.get_definition(name).clone()
-                } else {
-                    None
-                }
-            });
+        let value = proposition.value.replace_constants(0, &|module_id, name| {
+            let bindings = if env.module_id == module_id {
+                &env.bindings
+            } else {
+                &project
+                    .get_env_by_id(module_id)
+                    .expect("missing module during add_proposition")
+                    .bindings
+            };
+            if bindings.is_theorem(name) {
+                bindings.get_definition(name).clone()
+            } else {
+                None
+            }
+        });
 
         let claim = proposition.with_value(value);
         Node {
