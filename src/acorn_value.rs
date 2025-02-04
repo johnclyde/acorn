@@ -89,11 +89,6 @@ pub struct ConstantInstance {
     pub module_id: ModuleId,
     pub name: String,
 
-    // The parameters that this constant was instantiated with.
-    // Can be empty.
-    // XXX remove
-    pub old_params: Vec<(String, AcornType)>,
-
     // The type parameters that this constant was instantiated with, if any.
     // Ordered the same way as in the definition.
     pub params: Vec<AcornType>,
@@ -118,11 +113,6 @@ impl ConstantInstance {
         ConstantInstance {
             module_id: self.module_id,
             name: self.name.clone(),
-            old_params: self
-                .old_params
-                .iter()
-                .map(|(n, t)| (n.clone(), t.instantiate(params)))
-                .collect(),
             params: self.params.iter().map(|t| t.instantiate(params)).collect(),
             instance_type: self.instance_type.instantiate(params),
         }
@@ -393,7 +383,6 @@ impl AcornValue {
         let ci = ConstantInstance {
             module_id,
             name,
-            old_params,
             params,
             instance_type,
         };
