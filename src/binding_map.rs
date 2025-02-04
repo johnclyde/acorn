@@ -1640,7 +1640,7 @@ impl BindingMap {
             }
             AcornValue::Constant(c) => {
                 if c.module_id == self.module && !self.constants.contains_key(&c.name) {
-                    answer.insert(c.name.to_string(), c.generic_type.clone());
+                    answer.insert(c.name.to_string(), c.old_generic_type.clone());
                 }
             }
 

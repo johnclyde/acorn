@@ -163,7 +163,7 @@ impl Normalizer {
             | AcornValue::Unresolved(_, _, _, _)
             | AcornValue::Bool(_) => value,
 
-            AcornValue::Constant(ref c) if c.params.is_empty() => value,
+            AcornValue::Constant(ref c) if c.old_params.is_empty() => value,
 
             _ => panic!(
                 "moving negation inwards should have eliminated this node: {:?}",
@@ -204,8 +204,8 @@ impl Normalizer {
                 Ok(self.term_from_application(application, local)?)
             }
             AcornValue::Constant(c) => {
-                if c.params.is_empty() {
-                    let type_id = self.type_map.add_type(&c.generic_type);
+                if c.old_params.is_empty() {
+                    let type_id = self.type_map.add_type(&c.old_generic_type);
                     let constant_atom = if c.module_id == SKOLEM {
                         // Hacky. Turn the s-name back to an int
                         Atom::Skolem(c.name[1..].parse().unwrap())
@@ -217,7 +217,7 @@ impl Normalizer {
                     Ok(self.type_map.term_from_monomorph(
                         c.module_id,
                         &c.name,
-                        &c.params,
+                        &c.old_params,
                         value.get_type(),
                     ))
                 }
