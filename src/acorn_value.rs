@@ -96,6 +96,9 @@ pub struct ConstantInstance {
     // The parameters that this constant was instantiated with.
     // Can be empty.
     pub params: Vec<(String, AcornType)>,
+
+    // The type of the instance, after instantiation.
+    pub instance_type: AcornType,
 }
 
 // Two AcornValue compare to equal if they are structurally identical.
@@ -350,11 +353,13 @@ impl AcornValue {
         generic_type: AcornType,
         params: Vec<(String, AcornType)>,
     ) -> AcornValue {
+        let instance_type = generic_type.instantiate(&params);
         let ci = ConstantInstance {
             module_id,
             name,
             generic_type,
             params,
+            instance_type,
         };
         AcornValue::Constant(ci)
     }
@@ -1494,13 +1499,12 @@ impl AcornValue {
                     .iter()
                     .map(|(name, t)| (name.to_string(), t.instantiate(&params)))
                     .collect();
-                let out_instance = ConstantInstance {
-                    module_id: c.module_id,
-                    name: c.name.clone(),
-                    generic_type: c.generic_type.clone(),
-                    params: out_params,
-                };
-                AcornValue::Constant(out_instance)
+                AcornValue::new_constant(
+                    c.module_id,
+                    c.name.clone(),
+                    c.generic_type.clone(),
+                    out_params,
+                )
             }
             AcornValue::Bool(_) => self.clone(),
         }
