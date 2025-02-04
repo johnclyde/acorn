@@ -37,10 +37,10 @@ impl FactParams {
 
 // The instantiation of a constant.
 // Ordered the same way as the constant's parameters.
-// XXX: Can this be a partial instantiation?
+// XXX: Can this be a partial instantiation? If so, what are the types?
 #[derive(PartialEq, Eq, Clone)]
 struct ConstantParams {
-    params: Vec<(String, AcornType)>,
+    params: Vec<AcornType>,
 }
 
 impl fmt::Display for ConstantParams {
@@ -49,14 +49,14 @@ impl fmt::Display for ConstantParams {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}", name.1)?;
+            write!(f, "{}", name)?;
         }
         Ok(())
     }
 }
 
 impl ConstantParams {
-    fn new(params: Vec<(String, AcornType)>) -> ConstantParams {
+    fn new(params: Vec<AcornType>) -> ConstantParams {
         assert!(!params.is_empty());
         ConstantParams { params }
     }
@@ -64,7 +64,7 @@ impl ConstantParams {
     // Checks that this is a full instantiation, replacing all type variables.
     fn assert_full(&self) {
         for t in &self.params {
-            if t.1.is_generic() {
+            if t.is_generic() {
                 panic!("bad monomorphization: {}", self);
             }
         }
@@ -141,7 +141,7 @@ impl Monomorphizer {
         // Store a reference to our generic constants in the index
         for c in generic_constants.clone() {
             let key = c.key();
-            let params = ConstantParams::new(c.old_params);
+            let params = ConstantParams::new(c.params);
             self.generic_constants
                 .entry(key)
                 .or_insert(vec![])
@@ -151,7 +151,7 @@ impl Monomorphizer {
         // Check how this new generic fact should be monomorphized
         for c in generic_constants {
             let key = c.key();
-            let instance_params = ConstantParams::new(c.old_params);
+            let instance_params = ConstantParams::new(c.params);
             if let Some(monomorphs) = self.instantiations_for_constant.get(&key) {
                 for monomorph_params in monomorphs.clone() {
                     self.try_monomorphize(i, &monomorph_params, &instance_params);
@@ -173,7 +173,7 @@ impl Monomorphizer {
             if c.params.is_empty() {
                 continue;
             }
-            self.monomorphize_constant(&c.key(), &ConstantParams::new(c.old_params));
+            self.monomorphize_constant(&c.key(), &ConstantParams::new(c.params));
         }
     }
 
@@ -204,8 +204,8 @@ impl Monomorphizer {
         }
     }
 
-    // Try to monomorphize the given fact so that the given params match.
-    // The instance params are the way this constant is instantiated in the given fact.
+    // Try to monomorphize the given fact to turn the generic params into the monomorph params.
+    // The generic params are the way this constant is instantiated in the given fact.
     //
     // TODO: But shouldn't it depend on what the constant was?
     //
@@ -218,19 +218,18 @@ impl Monomorphizer {
         &mut self,
         fact_id: usize,
         monomorph_params: &ConstantParams,
-        instance_params: &ConstantParams,
+        generic_params: &ConstantParams,
     ) {
         // Our goal is to find the "fact params", a way in which we can instantiate
         // the whole fact so that the instance params become the monomorph params.
-        assert_eq!(instance_params.params.len(), monomorph_params.params.len());
+        assert_eq!(generic_params.params.len(), monomorph_params.params.len());
         let mut fact_params = HashMap::new();
-        for ((i_name, instance_type), (m_name, monomorph_type)) in instance_params
+        for (generic_type, monomorph_type) in generic_params
             .params
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            assert_eq!(i_name, m_name);
-            instance_type.match_instance(monomorph_type, &mut fact_params);
+            generic_type.match_instance(monomorph_type, &mut fact_params);
         }
 
         // We sort because there's no inherently canonical order.
