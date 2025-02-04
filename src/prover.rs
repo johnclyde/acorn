@@ -193,7 +193,7 @@ impl Prover {
         match &goal_context.goal {
             Goal::Prove(prop) => {
                 // Negate the goal and add it as a counterfactual assumption.
-                let (hypo, counter) = prop.value.to_placeholder().negate_goal();
+                let (hypo, counter) = prop.value.to_arbitrary().negate_goal();
                 if let Some(hypo) = hypo {
                     self.add_monomorphic_fact(Fact::new(
                         prop.with_value(hypo),

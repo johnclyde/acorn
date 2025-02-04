@@ -264,7 +264,7 @@ impl AcornValue {
             AcornValue::Not(_) => AcornType::Bool,
             AcornValue::ForAll(_, _) => AcornType::Bool,
             AcornValue::Exists(_, _) => AcornType::Bool,
-            AcornValue::Constant(_, _, c_type, params) => c_type.specialize(&params),
+            AcornValue::Constant(_, _, c_type, params) => c_type.instantiate(&params),
             AcornValue::Bool(_) => AcornType::Bool,
             AcornValue::IfThenElse(_, if_value, _) => if_value.get_type(),
             AcornValue::Match(_, cases) => {
@@ -1412,7 +1412,7 @@ impl AcornValue {
     pub fn specialize(&self, params: &[(String, AcornType)]) -> AcornValue {
         match self {
             AcornValue::Variable(i, var_type) => {
-                AcornValue::Variable(*i, var_type.specialize(params))
+                AcornValue::Variable(*i, var_type.instantiate(params))
             }
             AcornValue::Unresolved(_, _, _, c_params) => {
                 assert!(c_params.is_empty());
@@ -1424,19 +1424,19 @@ impl AcornValue {
             }),
             AcornValue::Lambda(args, value) => AcornValue::Lambda(
                 args.iter()
-                    .map(|x| x.specialize(params))
+                    .map(|x| x.instantiate(params))
                     .collect::<Vec<_>>(),
                 Box::new(value.specialize(params)),
             ),
             AcornValue::ForAll(args, value) => AcornValue::ForAll(
                 args.iter()
-                    .map(|x| x.specialize(params))
+                    .map(|x| x.instantiate(params))
                     .collect::<Vec<_>>(),
                 Box::new(value.specialize(params)),
             ),
             AcornValue::Exists(args, value) => AcornValue::Exists(
                 args.iter()
-                    .map(|x| x.specialize(params))
+                    .map(|x| x.instantiate(params))
                     .collect::<Vec<_>>(),
                 Box::new(value.specialize(params)),
             ),
@@ -1456,7 +1456,7 @@ impl AcornValue {
                     .iter()
                     .map(|(vars, pattern, result)| {
                         (
-                            vars.iter().map(|t| t.specialize(params)).collect(),
+                            vars.iter().map(|t| t.instantiate(params)).collect(),
                             pattern.specialize(params),
                             result.specialize(params),
                         )
@@ -1468,7 +1468,7 @@ impl AcornValue {
             AcornValue::Constant(module, name, base_type, in_params) => {
                 let out_params: Vec<_> = in_params
                     .iter()
-                    .map(|(name, t)| (name.clone(), t.specialize(params)))
+                    .map(|(name, t)| (name.clone(), t.instantiate(params)))
                     .collect();
                 AcornValue::Constant(*module, name.clone(), base_type.clone(), out_params)
             }
@@ -1476,118 +1476,31 @@ impl AcornValue {
         }
     }
 
-    // parametrize should only be called on concrete types.
-    // It replaces every data type with the given module and name with a type parameter.
-    pub fn parametrize(&self, module: ModuleId, type_names: &[String]) -> AcornValue {
-        let output = match self {
-            AcornValue::Variable(i, var_type) => {
-                AcornValue::Variable(*i, var_type.parametrize(module, type_names))
-            }
-            AcornValue::Unresolved(cmod, cname, ctype, params) => {
-                if !params.is_empty() {
-                    panic!("we should only be parametrizing concrete values");
-                }
-                // We need to parametrize constants because recursive functions are
-                // represented as constants and need to have their types parametrized.
-                AcornValue::Unresolved(
-                    *cmod,
-                    cname.to_string(),
-                    ctype.parametrize(module, type_names),
-                    vec![],
-                )
-            }
-            AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
-                function: Box::new(app.function.parametrize(module, type_names)),
-                args: app
-                    .args
-                    .iter()
-                    .map(|x| x.parametrize(module, type_names))
-                    .collect(),
-            }),
-            AcornValue::Lambda(args, value) => AcornValue::Lambda(
-                args.iter()
-                    .map(|x| x.parametrize(module, type_names))
-                    .collect(),
-                Box::new(value.parametrize(module, type_names)),
-            ),
-            AcornValue::ForAll(args, value) => AcornValue::ForAll(
-                args.iter()
-                    .map(|x| x.parametrize(module, type_names))
-                    .collect(),
-                Box::new(value.parametrize(module, type_names)),
-            ),
-            AcornValue::Exists(args, value) => AcornValue::Exists(
-                args.iter()
-                    .map(|x| x.parametrize(module, type_names))
-                    .collect(),
-                Box::new(value.parametrize(module, type_names)),
-            ),
-            AcornValue::Binary(op, left, right) => AcornValue::Binary(
-                *op,
-                Box::new(left.parametrize(module, type_names)),
-                Box::new(right.parametrize(module, type_names)),
-            ),
-            AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
-                Box::new(cond.parametrize(module, type_names)),
-                Box::new(if_value.parametrize(module, type_names)),
-                Box::new(else_value.parametrize(module, type_names)),
-            ),
-            AcornValue::Match(scrutinee, cases) => {
-                let new_scrutinee = scrutinee.parametrize(module, type_names);
-                let new_cases = cases
-                    .iter()
-                    .map(|(new_vars, pattern, result)| {
-                        (
-                            new_vars
-                                .iter()
-                                .map(|t| t.parametrize(module, type_names))
-                                .collect(),
-                            pattern.parametrize(module, type_names),
-                            result.parametrize(module, type_names),
-                        )
-                    })
-                    .collect();
-                AcornValue::Match(Box::new(new_scrutinee), new_cases)
-            }
-            AcornValue::Not(x) => AcornValue::Not(Box::new(x.parametrize(module, type_names))),
-            AcornValue::Constant(c_module, c_name, c_type, params) => {
-                // New way
-                let mut out_params = vec![];
-                for (param_name, t) in params {
-                    out_params.push((param_name.clone(), t.parametrize(module, type_names)));
-                }
-                AcornValue::Constant(*c_module, c_name.clone(), c_type.clone(), out_params)
-            }
-            AcornValue::Bool(_) => self.clone(),
-        };
-        output
-    }
-
-    // Whether anything in this value has unbound type parameters.
-    pub fn is_parametric(&self) -> bool {
+    // A value is generic if anything within it has type variables.
+    pub fn is_generic(&self) -> bool {
         match self {
             AcornValue::Variable(_, t) => t.is_generic(),
-            AcornValue::Unresolved(_, _, t, _) => t.is_generic(),
+            AcornValue::Unresolved(..) => true,
             AcornValue::Application(app) => {
-                app.function.is_parametric() || app.args.iter().any(|x| x.is_parametric())
+                app.function.is_generic() || app.args.iter().any(|x| x.is_generic())
             }
             AcornValue::Lambda(args, value)
             | AcornValue::ForAll(args, value)
             | AcornValue::Exists(args, value) => {
-                args.iter().any(|x| x.is_generic()) || value.is_parametric()
+                args.iter().any(|x| x.is_generic()) || value.is_generic()
             }
-            AcornValue::Binary(_, left, right) => left.is_parametric() || right.is_parametric(),
+            AcornValue::Binary(_, left, right) => left.is_generic() || right.is_generic(),
             AcornValue::IfThenElse(cond, if_value, else_value) => {
-                cond.is_parametric() || if_value.is_parametric() || else_value.is_parametric()
+                cond.is_generic() || if_value.is_generic() || else_value.is_generic()
             }
-            AcornValue::Not(x) => x.is_parametric(),
+            AcornValue::Not(x) => x.is_generic(),
             AcornValue::Constant(_, _, _, params) => params.iter().any(|(_, t)| t.is_generic()),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
-                scrutinee.is_parametric()
-                    || cases.iter().any(|(_, pattern, result)| {
-                        pattern.is_parametric() || result.is_parametric()
-                    })
+                scrutinee.is_generic()
+                    || cases
+                        .iter()
+                        .any(|(_, pattern, result)| pattern.is_generic() || result.is_generic())
             }
         }
     }
@@ -1687,54 +1600,54 @@ impl AcornValue {
         }
     }
 
-    // Converts all the parametrized types to placeholder types.
-    pub fn to_placeholder(&self) -> AcornValue {
+    // Converts all the type variables to arbitrary types.
+    pub fn to_arbitrary(&self) -> AcornValue {
         match self {
             AcornValue::Variable(i, var_type) => AcornValue::Variable(*i, var_type.to_arbitrary()),
             AcornValue::Unresolved(module, name, t, params) => {
                 AcornValue::Unresolved(*module, name.clone(), t.to_arbitrary(), params.clone())
             }
             AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
-                function: Box::new(app.function.to_placeholder()),
-                args: app.args.iter().map(|x| x.to_placeholder()).collect(),
+                function: Box::new(app.function.to_arbitrary()),
+                args: app.args.iter().map(|x| x.to_arbitrary()).collect(),
             }),
             AcornValue::Lambda(args, value) => AcornValue::Lambda(
                 args.iter().map(|x| x.to_arbitrary()).collect(),
-                Box::new(value.to_placeholder()),
+                Box::new(value.to_arbitrary()),
             ),
             AcornValue::ForAll(args, value) => AcornValue::ForAll(
                 args.iter().map(|x| x.to_arbitrary()).collect(),
-                Box::new(value.to_placeholder()),
+                Box::new(value.to_arbitrary()),
             ),
             AcornValue::Exists(args, value) => AcornValue::Exists(
                 args.iter().map(|x| x.to_arbitrary()).collect(),
-                Box::new(value.to_placeholder()),
+                Box::new(value.to_arbitrary()),
             ),
             AcornValue::Binary(op, left, right) => AcornValue::Binary(
                 *op,
-                Box::new(left.to_placeholder()),
-                Box::new(right.to_placeholder()),
+                Box::new(left.to_arbitrary()),
+                Box::new(right.to_arbitrary()),
             ),
             AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
-                Box::new(cond.to_placeholder()),
-                Box::new(if_value.to_placeholder()),
-                Box::new(else_value.to_placeholder()),
+                Box::new(cond.to_arbitrary()),
+                Box::new(if_value.to_arbitrary()),
+                Box::new(else_value.to_arbitrary()),
             ),
             AcornValue::Match(scrutinee, cases) => {
-                let new_scrutinee = scrutinee.to_placeholder();
+                let new_scrutinee = scrutinee.to_arbitrary();
                 let new_cases = cases
                     .iter()
                     .map(|(new_vars, pattern, result)| {
                         (
                             new_vars.clone(),
-                            pattern.to_placeholder(),
-                            result.to_placeholder(),
+                            pattern.to_arbitrary(),
+                            result.to_arbitrary(),
                         )
                     })
                     .collect();
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
-            AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_placeholder())),
+            AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_arbitrary())),
             AcornValue::Constant(_, _, _, _) | AcornValue::Bool(_) => self.clone(),
         }
     }

@@ -27,7 +27,7 @@ impl Fact {
     // Specializes a templated fact.
     pub fn specialize(&self, params: &[(String, AcornType)]) -> Fact {
         let value = self.value.specialize(params);
-        if value.is_parametric() {
+        if value.is_generic() {
             panic!("monomorph {} is still parametric", value);
         }
         let source = match &self.source.source_type {

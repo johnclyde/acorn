@@ -21,11 +21,6 @@ use crate::token::Token;
 // proved, along with helper statements to express those propositions, but they are not
 // visible to the outside world.
 pub struct Block {
-    // The generic types that this block is polymorphic over.
-    // Internally to the block, these are opaque data types.
-    // Externally, these are generic data types.
-    type_params: Vec<String>,
-
     // The arguments to this block.
     // They can either be "forall" arguments, or the arguments to a theorem.
     // This does not include pattern-matched variables because those have additional constraints.
@@ -100,7 +95,7 @@ impl Block {
     ) -> compilation::Result<Block> {
         let mut subenv = env.child(first_line, body.is_none());
 
-        // Inside the block, the type parameters are opaque data types.
+        // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params
             .iter()
             .map(|s| (s.clone(), subenv.bindings.add_data_type(&s)))
@@ -108,7 +103,7 @@ impl Block {
 
         // Inside the block, the arguments are constants.
         for (arg_name, generic_arg_type) in &args {
-            let specific_arg_type = generic_arg_type.specialize(&param_pairs);
+            let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
             subenv
                 .bindings
                 .add_constant(&arg_name, vec![], specific_arg_type, None, None);
@@ -227,7 +222,6 @@ impl Block {
             }
         };
         Ok(Block {
-            type_params,
             args,
             env: subenv,
             goal,
@@ -277,11 +271,11 @@ impl Block {
         // Replace all of the constants that only exist in the inside environment
         let replaced = inner_value.clone().insert_stack(0, shift_amount);
         let replaced = replaced.replace_constants_with_vars(outer_env.module_id, &map);
-        let replaced = replaced.parametrize(self.env.module_id, &self.type_params);
         AcornValue::new_forall(forall_types, AcornValue::new_exists(exists_types, replaced))
     }
 
     // Returns a claim usable in the outer environment, and a range where it comes from.
+    // Note that this will not generalize arbitrary types.
     pub fn export_last_claim(
         &self,
         outer_env: &Environment,

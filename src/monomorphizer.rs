@@ -174,7 +174,7 @@ impl Monomorphizer {
             .zip(monomorph_params.params.iter())
         {
             assert_eq!(i_name, m_name);
-            instance_type.match_specialized(monomorph_type, &mut fact_params);
+            instance_type.match_instance(monomorph_type, &mut fact_params);
         }
 
         // We sort because there's no inherently canonical order.
@@ -188,7 +188,7 @@ impl Monomorphizer {
         }
 
         let monomorphic_fact = self.polymorphic_facts[fact_id].specialize(&fact_params.params);
-        if monomorphic_fact.value.is_parametric() {
+        if monomorphic_fact.value.is_generic() {
             // This is a little awkward. Completely monomorphizing this instance
             // still doesn't monomorphize the whole fact.
             // TODO: instead of bailing out, partially monomorphize, and continue.

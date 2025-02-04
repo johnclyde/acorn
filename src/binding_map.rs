@@ -1362,7 +1362,7 @@ impl BindingMap {
                         let arg_type: &AcornType = &function_type.arg_types[i];
                         let arg_value =
                             self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
-                        if !arg_type.match_specialized(&arg_value.get_type(), &mut mapping) {
+                        if !arg_type.match_instance(&arg_value.get_type(), &mut mapping) {
                             return Err(arg_expr.error(&format!(
                                 "expected type {}, but got {}",
                                 arg_type,
