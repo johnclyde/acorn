@@ -168,12 +168,12 @@ impl Monomorphizer {
     // Make sure that we are generating any monomorphizations that are used in this value.
     pub fn match_constants(&mut self, value: &AcornValue) {
         let mut monomorphs = vec![];
-        value.find_monomorphic_constants(&mut monomorphs);
-        for (constant_key, params) in monomorphs {
-            if params.is_empty() {
+        value.find_constants(&|c| !c.is_generic(), &mut monomorphs);
+        for c in monomorphs {
+            if c.params.is_empty() {
                 continue;
             }
-            self.monomorphize_constant(&constant_key, &ConstantInstantiation::new(params));
+            self.monomorphize_constant(&c.key(), &ConstantInstantiation::new(c.old_params));
         }
     }
 

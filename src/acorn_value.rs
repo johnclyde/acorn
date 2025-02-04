@@ -1510,56 +1510,6 @@ impl AcornValue {
         }
     }
 
-    // Finds all non-generic constants in this value.
-    pub fn find_monomorphic_constants(
-        &self,
-        output: &mut Vec<(ConstantKey, Vec<(String, AcornType)>)>,
-    ) {
-        match self {
-            AcornValue::Variable(_, _) | AcornValue::Unresolved(_, _, _, _) => {}
-            AcornValue::Application(app) => {
-                app.function.find_monomorphic_constants(output);
-                for arg in &app.args {
-                    arg.find_monomorphic_constants(output);
-                }
-            }
-            AcornValue::Lambda(_, value)
-            | AcornValue::ForAll(_, value)
-            | AcornValue::Exists(_, value) => value.find_monomorphic_constants(output),
-            AcornValue::Binary(_, left, right) => {
-                left.find_monomorphic_constants(output);
-                right.find_monomorphic_constants(output);
-            }
-            AcornValue::IfThenElse(cond, if_value, else_value) => {
-                cond.find_monomorphic_constants(output);
-                if_value.find_monomorphic_constants(output);
-                else_value.find_monomorphic_constants(output);
-            }
-            AcornValue::Match(scrutinee, cases) => {
-                scrutinee.find_monomorphic_constants(output);
-                for (_, pattern, result) in cases {
-                    pattern.find_monomorphic_constants(output);
-                    result.find_monomorphic_constants(output);
-                }
-            }
-            AcornValue::Not(x) => x.find_monomorphic_constants(output),
-            AcornValue::Constant(c) => {
-                for t in &c.params {
-                    if t.is_generic() {
-                        // This is not a monomorphization
-                        return;
-                    }
-                }
-                let key = ConstantKey {
-                    module: c.module_id,
-                    name: c.name.clone(),
-                };
-                output.push((key, c.old_params.clone()));
-            }
-            AcornValue::Bool(_) => {}
-        }
-    }
-
     // Converts all the type variables to arbitrary types.
     pub fn to_arbitrary(&self) -> AcornValue {
         match self {
@@ -1643,7 +1593,7 @@ impl AcornValue {
     }
 
     // If this value is a member function or member variable of the given type, return its name.
-    // XXX do we need both?
+    // XXX do we need the unresolved branch?
     pub fn is_member(&self, class: &AcornType) -> Option<String> {
         match &self {
             AcornValue::Unresolved(module_id, name, _, _) => {
