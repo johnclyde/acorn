@@ -91,7 +91,7 @@ pub struct ConstantInstance {
 
     // The original type before any instantiation.
     // XXX remove
-    pub old_generic_type: AcornType,
+    old_generic_type: AcornType,
 
     // The parameters that this constant was instantiated with.
     // Can be empty.
@@ -114,6 +114,23 @@ impl fmt::Display for ConstantInstance {
             write!(f, "<{}>", types.join(", "))?;
         }
         Ok(())
+    }
+}
+
+impl ConstantInstance {
+    pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
+        ConstantInstance {
+            module_id: self.module_id,
+            name: self.name.clone(),
+            old_generic_type: self.old_generic_type.instantiate(params),
+            old_params: self
+                .old_params
+                .iter()
+                .map(|(n, t)| (n.clone(), t.instantiate(params)))
+                .collect(),
+            params: self.params.iter().map(|t| t.instantiate(params)).collect(),
+            instance_type: self.instance_type.instantiate(params),
+        }
     }
 }
 
@@ -359,7 +376,7 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
-    pub fn new_constant(
+    pub fn old_new_constant(
         module_id: ModuleId,
         name: String,
         old_generic_type: AcornType,
@@ -1416,7 +1433,7 @@ impl AcornValue {
                     .iter()
                     .map(|(name, t)| (name.to_string(), t.instantiate(&params)))
                     .collect();
-                AcornValue::new_constant(
+                AcornValue::old_new_constant(
                     c.module_id,
                     c.name.clone(),
                     c.old_generic_type.clone(),

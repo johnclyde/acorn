@@ -277,7 +277,7 @@ impl BindingMap {
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(AcornValue::new_constant(
+            return Some(AcornValue::old_new_constant(
                 *canonical_module,
                 canonical_name.clone(),
                 constant_type,
@@ -288,7 +288,7 @@ impl BindingMap {
         // Constants defined here
         let params = self.constants.get(name)?.params.clone();
         if params.is_empty() {
-            Some(AcornValue::new_constant(
+            Some(AcornValue::old_new_constant(
                 self.module,
                 name.to_string(),
                 constant_type,
@@ -1393,7 +1393,8 @@ impl BindingMap {
                         }
                     }
 
-                    let instance_fn = AcornValue::new_constant(c_module, c_name, c_type, params);
+                    let instance_fn =
+                        AcornValue::old_new_constant(c_module, c_name, c_type, params);
                     let value = AcornValue::new_apply(instance_fn, args);
                     if expected_type.is_some() {
                         check_type(&**function_expr, expected_type, &value.get_type())?;
