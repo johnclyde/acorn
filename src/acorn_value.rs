@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::acorn_type::AcornType;
@@ -1278,82 +1277,6 @@ impl AcornValue {
                             new_vars.clone(),
                             pattern.replace_constants(new_stack_size, replacer),
                             result.replace_constants(new_stack_size, replacer),
-                        )
-                    })
-                    .collect();
-                AcornValue::Match(Box::new(new_scrutinee), new_cases)
-            }
-        }
-    }
-
-    // For constants in this module, replace them with a variable id if they are in the constants map.
-    // Polymorphic constants can't be used here.
-    pub fn replace_constants_with_vars(
-        &self,
-        module: ModuleId,
-        constants: &HashMap<String, AtomId>,
-    ) -> AcornValue {
-        match self {
-            AcornValue::Variable(_, _) => self.clone(),
-            AcornValue::Unresolved(_, name, _, _) => {
-                panic!("Unresolved value {} should have been resolved by now", name)
-            }
-            AcornValue::Application(fa) => {
-                let new_function = fa.function.replace_constants_with_vars(module, constants);
-                let new_args = fa
-                    .args
-                    .iter()
-                    .map(|x| x.replace_constants_with_vars(module, constants))
-                    .collect();
-                AcornValue::Application(FunctionApplication {
-                    function: Box::new(new_function),
-                    args: new_args,
-                })
-            }
-            AcornValue::Lambda(arg_types, value) => {
-                let new_value = value.replace_constants_with_vars(module, constants);
-                AcornValue::Lambda(arg_types.clone(), Box::new(new_value))
-            }
-            AcornValue::Binary(op, left, right) => {
-                let new_left = left.replace_constants_with_vars(module, constants);
-                let new_right = right.replace_constants_with_vars(module, constants);
-                AcornValue::Binary(*op, Box::new(new_left), Box::new(new_right))
-            }
-            AcornValue::Not(x) => {
-                AcornValue::Not(Box::new(x.replace_constants_with_vars(module, constants)))
-            }
-            AcornValue::ForAll(quants, value) => {
-                let new_value = value.replace_constants_with_vars(module, constants);
-                AcornValue::ForAll(quants.clone(), Box::new(new_value))
-            }
-            AcornValue::Exists(quants, value) => {
-                let new_value = value.replace_constants_with_vars(module, constants);
-                AcornValue::Exists(quants.clone(), Box::new(new_value))
-            }
-            AcornValue::Constant(c) => {
-                if c.module_id == module {
-                    if let Some(i) = constants.get(&c.name) {
-                        assert!(c.params.is_empty());
-                        return AcornValue::Variable(*i, c.instance_type.clone());
-                    }
-                }
-                self.clone()
-            }
-            AcornValue::Bool(_) => self.clone(),
-            AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
-                Box::new(cond.replace_constants_with_vars(module, constants)),
-                Box::new(if_value.replace_constants_with_vars(module, constants)),
-                Box::new(else_value.replace_constants_with_vars(module, constants)),
-            ),
-            AcornValue::Match(scrutinee, cases) => {
-                let new_scrutinee = scrutinee.replace_constants_with_vars(module, constants);
-                let new_cases = cases
-                    .into_iter()
-                    .map(|(new_vars, pattern, result)| {
-                        (
-                            new_vars.clone(),
-                            pattern.replace_constants_with_vars(module, constants),
-                            result.replace_constants_with_vars(module, constants),
                         )
                     })
                     .collect();
