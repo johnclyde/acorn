@@ -6,20 +6,12 @@ use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
-use crate::module::ModuleId;
 use crate::term::Term;
 
 pub type TypeId = u16;
 
 pub const EMPTY: TypeId = 0;
 pub const BOOL: TypeId = 1;
-
-#[derive(Hash, Debug, Eq, PartialEq, Clone)]
-struct MonomorphKey {
-    module: ModuleId,
-    name: String,
-    parameters: Vec<(String, AcornType)>,
-}
 
 // The Acorn language allows a rich variety of types, where each value has an AcornType, and where
 // functions can be polymorphic.
@@ -35,10 +27,10 @@ pub struct TypeMap {
     types: Vec<AcornType>,
 
     // One entry for each monomorphization
-    monomorph_map: HashMap<MonomorphKey, AtomId>,
+    monomorph_map: HashMap<ConstantInstance, AtomId>,
 
     // For each monomorphization, store how it was created and its type.
-    monomorph_info: Vec<(MonomorphKey, TypeId)>,
+    monomorph_info: Vec<(ConstantInstance, TypeId)>,
 }
 
 impl TypeMap {
@@ -107,20 +99,15 @@ impl TypeMap {
 
     // The provided constant instance should be monomorphized.
     pub fn term_from_monomorph(&mut self, c: &ConstantInstance) -> Term {
-        let key = MonomorphKey {
-            module: c.module_id,
-            name: c.name.to_string(),
-            parameters: c.old_params.clone(),
-        };
-        let (monomorph_id, type_id) = if let Some(monomorph_id) = self.monomorph_map.get(&key) {
+        let (monomorph_id, type_id) = if let Some(monomorph_id) = self.monomorph_map.get(&c) {
             let (_, type_id) = self.monomorph_info[*monomorph_id as usize];
             (*monomorph_id, type_id)
         } else {
             // Construct an atom and appropriate entries for this monomorph
             let type_id = self.add_type(&c.instance_type);
             let monomorph_id = self.monomorph_info.len() as AtomId;
-            self.monomorph_info.push((key.clone(), type_id));
-            self.monomorph_map.insert(key, monomorph_id);
+            self.monomorph_info.push((c.clone(), type_id));
+            self.monomorph_map.insert(c.clone(), monomorph_id);
             (monomorph_id, type_id)
         };
 
@@ -132,9 +119,8 @@ impl TypeMap {
         }
     }
 
-    pub fn get_monomorph_info(&self, id: AtomId) -> (ModuleId, &str, &Vec<(String, AcornType)>) {
-        let (key, _) = &self.monomorph_info[id as usize];
-        (key.module, &key.name, &key.parameters)
+    pub fn get_monomorph(&self, id: AtomId) -> &ConstantInstance {
+        &self.monomorph_info[id as usize].0
     }
 }
 

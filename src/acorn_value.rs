@@ -85,7 +85,7 @@ impl fmt::Display for BinaryOp {
 }
 
 // An instance of a constant. Could be generic or not.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ConstantInstance {
     pub module_id: ModuleId,
     pub name: String,
@@ -105,6 +105,17 @@ pub struct ConstantInstance {
 
     // The type of the instance, after instantiation.
     pub instance_type: AcornType,
+}
+
+impl fmt::Display for ConstantInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name)?;
+        if !self.params.is_empty() {
+            let types: Vec<_> = self.params.iter().map(|t| t.to_string()).collect();
+            write!(f, "<{}>", types.join(", "))?;
+        }
+        Ok(())
+    }
 }
 
 // Two AcornValue compare to equal if they are structurally identical.

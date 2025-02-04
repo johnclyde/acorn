@@ -413,10 +413,7 @@ impl Normalizer {
                 let (module, name) = self.constant_map.get_local_info(*i);
                 AcornValue::new_constant(module, name.to_string(), acorn_type, vec![])
             }
-            Atom::Monomorph(i) => {
-                let (module, name, params) = self.type_map.get_monomorph_info(*i);
-                AcornValue::new_constant(module, name.to_string(), acorn_type, params.clone())
-            }
+            Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {
                 let index = *i as usize;
                 if index < var_types.len() {
@@ -489,9 +486,7 @@ impl Normalizer {
                 name.to_string()
             }
             Atom::Monomorph(i) => {
-                let (_, name, params) = self.type_map.get_monomorph_info(*i);
-                let param_names: Vec<_> = params.iter().map(|(name, _)| name.clone()).collect();
-                format!("{}<{}>", name, param_names.join(", "))
+                format!("{}", self.type_map.get_monomorph(*i))
             }
             Atom::Variable(i) => format!("x{}", i),
             Atom::Skolem(i) => format!("s{}", i),
