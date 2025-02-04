@@ -1212,10 +1212,11 @@ impl AcornValue {
 
     // Replaces some constants in this value with other values.
     // 'replacer' tells us what value a constant should be replaced with, or None to not replace it.
+    // This function doesn't alter any types. Replacer should always return something of
+    // the same type that it received.
+    //
     // stack_size is how many variables are already on the stack, that we should not use when
     // constructing replacements.
-    //
-    // XXX: explain how this works with generic types.
     pub fn replace_constants(
         &self,
         stack_size: AtomId,
@@ -1261,15 +1262,7 @@ impl AcornValue {
                     value.replace_constants(stack_size + quants.len() as AtomId, replacer);
                 AcornValue::Exists(quants.clone(), Box::new(new_value))
             }
-            AcornValue::Constant(c) => {
-                if let Some(replacement) = replacer(&c) {
-                    // We do need to replace this
-                    replacement
-                } else {
-                    // We don't need to replace this
-                    self.clone()
-                }
-            }
+            AcornValue::Constant(c) => replacer(&c).unwrap_or_else(|| self.clone()),
             AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
                 Box::new(cond.replace_constants(stack_size, replacer)),
                 Box::new(if_value.replace_constants(stack_size, replacer)),
