@@ -122,7 +122,7 @@ impl ConstantInstance {
         ConstantInstance {
             module_id: self.module_id,
             name: self.name.clone(),
-            old_generic_type: self.old_generic_type.instantiate(params),
+            old_generic_type: self.old_generic_type.clone(),
             old_params: self
                 .old_params
                 .iter()
