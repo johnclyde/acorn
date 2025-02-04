@@ -89,10 +89,6 @@ pub struct ConstantInstance {
     pub module_id: ModuleId,
     pub name: String,
 
-    // The original type before any instantiation.
-    // XXX remove
-    old_generic_type: AcornType,
-
     // The parameters that this constant was instantiated with.
     // Can be empty.
     // XXX remove
@@ -122,7 +118,6 @@ impl ConstantInstance {
         ConstantInstance {
             module_id: self.module_id,
             name: self.name.clone(),
-            old_generic_type: self.old_generic_type.clone(),
             old_params: self
                 .old_params
                 .iter()
@@ -387,7 +382,6 @@ impl AcornValue {
         let ci = ConstantInstance {
             module_id,
             name,
-            old_generic_type,
             old_params,
             params,
             instance_type,
