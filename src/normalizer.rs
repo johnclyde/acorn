@@ -214,12 +214,7 @@ impl Normalizer {
                     };
                     Ok(Term::new(type_id, type_id, constant_atom, vec![]))
                 } else {
-                    Ok(self.type_map.term_from_monomorph(
-                        c.module_id,
-                        &c.name,
-                        &c.old_params,
-                        &c.instance_type,
-                    ))
+                    Ok(self.type_map.term_from_monomorph(&c))
                 }
             }
             AcornValue::Bool(true) => Ok(Term::new_true()),

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::acorn_type::AcornType;
 
+use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
@@ -105,24 +106,18 @@ impl TypeMap {
     }
 
     // The provided constant instance should be monomorphized.
-    pub fn term_from_monomorph(
-        &mut self,
-        module: ModuleId,
-        name: &str,
-        parameters: &Vec<(String, AcornType)>,
-        monomorph_type: &AcornType,
-    ) -> Term {
+    pub fn term_from_monomorph(&mut self, c: &ConstantInstance) -> Term {
         let key = MonomorphKey {
-            module,
-            name: name.to_string(),
-            parameters: parameters.clone(),
+            module: c.module_id,
+            name: c.name.to_string(),
+            parameters: c.old_params.clone(),
         };
         let (monomorph_id, type_id) = if let Some(monomorph_id) = self.monomorph_map.get(&key) {
             let (_, type_id) = self.monomorph_info[*monomorph_id as usize];
             (*monomorph_id, type_id)
         } else {
             // Construct an atom and appropriate entries for this monomorph
-            let type_id = self.add_type(&monomorph_type);
+            let type_id = self.add_type(&c.instance_type);
             let monomorph_id = self.monomorph_info.len() as AtomId;
             self.monomorph_info.push((key.clone(), type_id));
             self.monomorph_map.insert(key, monomorph_id);
