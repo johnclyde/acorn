@@ -1216,10 +1216,10 @@ impl AcornValue {
     // constructing replacements.
     //
     // XXX: explain how this works with generic types.
-    pub fn replace_constants<'a>(
+    pub fn replace_constants(
         &self,
         stack_size: AtomId,
-        replacer: &impl Fn(ModuleId, &str) -> Option<&'a AcornValue>,
+        replacer: &impl Fn(&ConstantInstance) -> Option<AcornValue>,
     ) -> AcornValue {
         match self {
             AcornValue::Unresolved(_, name, _, _) => {
@@ -1262,9 +1262,9 @@ impl AcornValue {
                 AcornValue::Exists(quants.clone(), Box::new(new_value))
             }
             AcornValue::Constant(c) => {
-                if let Some(replacement) = replacer(c.module_id, &c.name) {
+                if let Some(replacement) = replacer(&c) {
                     // We do need to replace this
-                    replacement.instantiate(&c.old_params)
+                    replacement
                 } else {
                     // We don't need to replace this
                     self.clone()

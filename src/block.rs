@@ -361,17 +361,23 @@ impl Node {
         }
 
         // Expand theorems in the proposition.
-        let value = proposition.value.replace_constants(0, &|module_id, name| {
-            let bindings = if env.module_id == module_id {
+        let value = proposition.value.replace_constants(0, &|c| {
+            let bindings = if env.module_id == c.module_id {
                 &env.bindings
             } else {
                 &project
-                    .get_env_by_id(module_id)
+                    .get_env_by_id(c.module_id)
                     .expect("missing module during add_proposition")
                     .bindings
             };
-            if bindings.is_theorem(name) {
-                bindings.get_definition(name).clone()
+            if bindings.is_theorem(&c.name) {
+                match bindings.get_definition_and_params(&c.name) {
+                    Some((def, params)) => {
+                        let pairs: Vec<_> = params.iter().cloned().zip(c.params.clone()).collect();
+                        Some(def.instantiate(&pairs))
+                    }
+                    None => None,
+                }
             } else {
                 None
             }
