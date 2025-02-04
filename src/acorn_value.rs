@@ -92,7 +92,7 @@ pub struct ConstantInstance {
     // The parameters that this constant was instantiated with.
     // Can be empty.
     // XXX remove
-    pub old_params: Vec<(String, AcornType)>,
+    old_params: Vec<(String, AcornType)>,
 
     // The type parameters that this constant was instantiated with, if any.
     // Ordered the same way as in the definition.
@@ -1444,7 +1444,7 @@ impl AcornValue {
                 cond.is_generic() || if_value.is_generic() || else_value.is_generic()
             }
             AcornValue::Not(x) => x.is_generic(),
-            AcornValue::Constant(c) => c.old_params.iter().any(|(_, t)| t.is_generic()),
+            AcornValue::Constant(c) => c.params.iter().any(|t| t.is_generic()),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
                 scrutinee.is_generic()
@@ -1492,7 +1492,7 @@ impl AcornValue {
             }
             AcornValue::Not(x) => x.find_generic_constants(output),
             AcornValue::Constant(c) => {
-                for (_, t) in &c.old_params {
+                for t in &c.params {
                     if t.is_generic() {
                         let key = ConstantKey {
                             module: c.module_id,
@@ -1540,7 +1540,7 @@ impl AcornValue {
             }
             AcornValue::Not(x) => x.find_monomorphic_constants(output),
             AcornValue::Constant(c) => {
-                for (_, t) in &c.old_params {
+                for t in &c.params {
                     if t.is_generic() {
                         // This is not a monomorphization
                         return;
@@ -1692,7 +1692,7 @@ impl AcornValue {
     pub fn as_simple_constant(&self) -> Option<(ModuleId, &str)> {
         match self {
             AcornValue::Constant(c) => {
-                if c.old_params.is_empty() {
+                if c.params.is_empty() {
                     Some((c.module_id, &c.name))
                 } else {
                     None
