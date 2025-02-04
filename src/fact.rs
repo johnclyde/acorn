@@ -24,15 +24,15 @@ impl Fact {
         self.truthiness != Truthiness::Factual
     }
 
-    // Specializes a templated fact.
-    pub fn specialize(&self, params: &[(String, AcornType)]) -> Fact {
-        let value = self.value.specialize(params);
+    // Instantiates a generic fact.
+    pub fn instantiate(&self, params: &[(String, AcornType)]) -> Fact {
+        let value = self.value.instantiate(params);
         if value.is_generic() {
-            panic!("monomorph {} is still parametric", value);
+            panic!("tried to instantiate but {} is still generic", value);
         }
         let source = match &self.source.source_type {
             SourceType::ConstantDefinition(v) => {
-                let new_type = SourceType::ConstantDefinition(v.specialize(params));
+                let new_type = SourceType::ConstantDefinition(v.instantiate(params));
                 Source {
                     module: self.source.module,
                     range: self.source.range.clone(),

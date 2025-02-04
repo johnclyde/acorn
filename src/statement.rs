@@ -1736,7 +1736,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parametric_theorem() {
+    fn test_theorem_with_type_parameter() {
         ok(indoc! {"
         axiom recursion_base<T>(f: T -> T, a: T) {
             recursion(f, a, 0) = a
@@ -1744,7 +1744,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parametric_definition() {
+    fn test_definition_with_type_parameter() {
         ok(indoc! {"
         define recursion<T>(f: T -> T, a: T, n: Nat) -> Nat {
             axiom

@@ -109,8 +109,8 @@ pub enum AcornType {
     // To the internal proof, T is an arbitrary type. It's fixed for the duration of the proof.
     // To prove this theorem, we *don't* need to instantiate T to a monomorphic type.
 
-    // A type variable exists inside a parametrized expression.
-    // It represents an unknown type, possibly belonging to a particular typeclass.
+    // A type variable represents an unknown type, possibly belonging to a particular typeclass.
+    // Expressions with type variables can be instantiated to particular types.
     Variable(String, Option<TypeClass>),
 
     // An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
@@ -216,29 +216,6 @@ impl AcornType {
             result.push_str(&format!("x{}: {}", i + stack_size, dec_type));
         }
         result
-    }
-
-    // parametrize should only be called on concrete types.
-    // It replaces every data type with the given module and name with a type parameter.
-    pub fn parametrize(&self, module_id: ModuleId, type_names: &[String]) -> AcornType {
-        match self {
-            AcornType::Function(function_type) => AcornType::new_functional(
-                function_type
-                    .arg_types
-                    .iter()
-                    .map(|t| t.parametrize(module_id, type_names))
-                    .collect(),
-                function_type.return_type.parametrize(module_id, type_names),
-            ),
-            AcornType::Data(ns, name) => {
-                if *ns == module_id && type_names.contains(name) {
-                    AcornType::Variable(name.clone(), None)
-                } else {
-                    self.clone()
-                }
-            }
-            _ => self.clone(),
-        }
     }
 
     // Replaces type variables in the provided list with the corresponding type.

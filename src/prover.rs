@@ -182,10 +182,10 @@ impl Prover {
         assert!(self.goal.is_none());
 
         // Add any monomorphic facts needed to match the goal.
-        // We don't need to add the goal as as polymorphic fact since goals themselves
-        // cannot be polymorphic.
+        // We don't need to add the goal as a generic fact since goals themselves
+        // cannot be generic.
         self.monomorphizer
-            .match_monomorphs(&goal_context.goal.value());
+            .match_constants(&goal_context.goal.value());
         for fact in self.monomorphizer.take_facts() {
             self.add_monomorphic_fact(fact);
         }
