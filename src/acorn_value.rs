@@ -1427,25 +1427,7 @@ impl AcornValue {
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.instantiate(params))),
-            AcornValue::Constant(c) => {
-                let in_params = &params;
-                let out_params: Vec<_> = c
-                    .old_params
-                    .iter()
-                    .map(|(name, t)| (name.to_string(), t.instantiate(in_params)))
-                    .collect();
-                let params: Vec<_> = out_params.iter().map(|(_, t)| t.clone()).collect();
-                let instance_type = c.old_generic_type.instantiate(&out_params);
-                let ci = ConstantInstance {
-                    module_id: c.module_id,
-                    name: c.name.to_string(),
-                    old_generic_type: c.old_generic_type.clone(),
-                    old_params: out_params,
-                    params,
-                    instance_type,
-                };
-                AcornValue::Constant(ci)
-            }
+            AcornValue::Constant(c) => AcornValue::Constant(c.instantiate(&params)),
             AcornValue::Bool(_) => self.clone(),
         }
     }
