@@ -41,7 +41,6 @@ impl ParamList {
 }
 
 // A helper structure to determine which monomorphs are necessary.
-// XXX: This only handles a single type variable. We need more!
 #[derive(Clone)]
 pub struct Monomorphizer {
     // Facts that have some type variable in them.
@@ -132,6 +131,15 @@ impl Monomorphizer {
         std::mem::take(&mut self.monomorphic_facts)
     }
 
+    // Make sure that we are generating any monomorphizations that are used in this value.
+    pub fn match_constants(&mut self, value: &AcornValue) {
+        let mut monomorphs = vec![];
+        value.find_monomorphic_constants(&mut monomorphs);
+        for (constant_key, params) in monomorphs {
+            self.monomorphize_constant(&constant_key, &ParamList::new(params));
+        }
+    }
+
     // Monomorphizes a generic constant.
     // For every fact that uses this constant, we want to monomorphize the fact to use this
     // form of the generic constant.
@@ -204,14 +212,5 @@ impl Monomorphizer {
         self.monomorphs_for_fact[fact_id].push(fact_params);
 
         self.monomorphic_facts.push(monomorphic_fact);
-    }
-
-    // Make sure that we are generating any monomorphizations that are used in this value.
-    pub fn match_constants(&mut self, value: &AcornValue) {
-        let mut monomorphs = vec![];
-        value.find_monomorphic_constants(&mut monomorphs);
-        for (constant_key, params) in monomorphs {
-            self.monomorphize_constant(&constant_key, &ParamList::new(params));
-        }
     }
 }
