@@ -7,18 +7,16 @@ use crate::constant_map::ConstantKey;
 use crate::fact::Fact;
 use crate::proof_step::Truthiness;
 
-// A partial instantiation is a way to instantiate a generic type,
-// which may or may not have all its type variables filled in.
-#[derive(PartialEq, Eq, Hash, Clone)]
-struct Instantiation {
-    // The strings are the names of the generic types, relative to a particular fact or constant.
-    // For facts, they are sorted. For constants, they are in the same order as in the definition.
-    // The AcornType is whatever the generic type is instantiated to.
-    // XXX: What about when it isn't instantiated yet?
+// The type variables used in a generic fact, along with the types they map to.
+// Can be a partial instantiation.
+// If it isn't fully instantiated, the strings map to generic types.
+// Should always be sorted by string.
+#[derive(PartialEq, Eq, Clone)]
+struct FactInstantiation {
     params: Vec<(String, AcornType)>,
 }
 
-impl fmt::Display for Instantiation {
+impl fmt::Display for FactInstantiation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (i, (name, t)) in self.params.iter().enumerate() {
             if i > 0 {
@@ -30,10 +28,10 @@ impl fmt::Display for Instantiation {
     }
 }
 
-impl Instantiation {
-    fn new(params: Vec<(String, AcornType)>) -> Instantiation {
+impl FactInstantiation {
+    fn new(params: Vec<(String, AcornType)>) -> FactInstantiation {
         assert!(!params.is_empty());
-        Instantiation { params }
+        FactInstantiation { params }
     }
 
     // Checks that this partial instantiation is a full instantiation, replacing all type variables.
@@ -41,6 +39,41 @@ impl Instantiation {
         for (name, t) in &self.params {
             if t.is_generic() {
                 panic!("bad monomorphization: {} = {}", name, t);
+            }
+        }
+    }
+}
+
+// The instantiation of a constant.
+// Ordered the same way as the constant's parameters.
+// XXX: Can this be a partial instantiation?
+struct ConstantInstantiation {
+    params: Vec<AcornType>,
+}
+
+impl fmt::Display for ConstantInstantiation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for (i, name) in self.params.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", name)?;
+        }
+        Ok(())
+    }
+}
+
+impl ConstantInstantiation {
+    fn new(params: Vec<AcornType>) -> ConstantInstantiation {
+        assert!(!params.is_empty());
+        ConstantInstantiation { params }
+    }
+
+    // Checks that this is a full instantiation, replacing all type variables.
+    fn assert_full(&self) {
+        for t in &self.params {
+            if t.is_generic() {
+                panic!("bad monomorphization: {}", self);
             }
         }
     }
@@ -60,16 +93,16 @@ pub struct Monomorphizer {
     // The instantiations that we have already created for each fact.
     // XXX: does this have the "identity instantiation"?
     // Parallel to generic_facts.
-    instantiations_for_fact: Vec<Vec<Instantiation>>,
+    instantiations_for_fact: Vec<Vec<FactInstantiation>>,
 
     // The instantiations we have done each constant.
     // Indexed by constant id.
-    instantiations_for_constant: HashMap<ConstantKey, Vec<Instantiation>>,
+    instantiations_for_constant: HashMap<ConstantKey, Vec<FactInstantiation>>,
 
     // An index tracking wherever a generic constant is used in the generic facts.
     // This is updated whenever we add a fact.
     // Lists (index in generic_facts, params for the constant) for each occurrence.
-    generic_constants: HashMap<ConstantKey, Vec<(usize, Instantiation)>>,
+    generic_constants: HashMap<ConstantKey, Vec<(usize, FactInstantiation)>>,
 }
 
 impl Monomorphizer {
@@ -114,7 +147,7 @@ impl Monomorphizer {
 
         // Store a reference to our generic constants in the index
         for (constant_key, params) in generic_constants.clone() {
-            let params = Instantiation::new(params);
+            let params = FactInstantiation::new(params);
             self.generic_constants
                 .entry(constant_key)
                 .or_insert(vec![])
@@ -123,7 +156,7 @@ impl Monomorphizer {
 
         // Check how this new generic fact should be monomorphized
         for (constant_key, params) in generic_constants {
-            let instance_params = Instantiation::new(params);
+            let instance_params = FactInstantiation::new(params);
             if let Some(monomorphs) = self.instantiations_for_constant.get(&constant_key) {
                 for monomorph_params in monomorphs.clone() {
                     self.try_monomorphize(i, &monomorph_params, &instance_params);
@@ -145,7 +178,7 @@ impl Monomorphizer {
             if params.is_empty() {
                 continue;
             }
-            self.monomorphize_constant(&constant_key, &Instantiation::new(params));
+            self.monomorphize_constant(&constant_key, &FactInstantiation::new(params));
         }
     }
 
@@ -155,7 +188,7 @@ impl Monomorphizer {
     fn monomorphize_constant(
         &mut self,
         constant_key: &ConstantKey,
-        monomorph_params: &Instantiation,
+        monomorph_params: &FactInstantiation,
     ) {
         monomorph_params.assert_full();
         let monomorphs = self
@@ -189,8 +222,8 @@ impl Monomorphizer {
     fn try_monomorphize(
         &mut self,
         fact_id: usize,
-        monomorph_params: &Instantiation,
-        instance_params: &Instantiation,
+        monomorph_params: &FactInstantiation,
+        instance_params: &FactInstantiation,
     ) {
         // Our goal is to find the "fact params", a way in which we can instantiate
         // the whole fact so that the instance params become the monomorph params.
@@ -208,7 +241,7 @@ impl Monomorphizer {
         // We sort because there's no inherently canonical order.
         let mut fact_params: Vec<_> = fact_params.into_iter().collect();
         fact_params.sort();
-        let fact_params = Instantiation::new(fact_params);
+        let fact_params = FactInstantiation::new(fact_params);
 
         if self.instantiations_for_fact[fact_id].contains(&fact_params) {
             // We already have this monomorph
