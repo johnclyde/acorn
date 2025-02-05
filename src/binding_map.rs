@@ -110,27 +110,38 @@ pub struct BindingMap {
     theorems: HashSet<String>,
 }
 
-// A constant that has been described by name, but we might not know the precise type of it yet.
-pub enum NamedConstant {
-    // (module, constant name, type, type parameters)
+// A generic constant that we don't know the type of yet.
+pub struct UnresolvedConstant {
+    module_id: ModuleId,
+
     // The name can have a dot in it, indicating this value is <typename>.<constantname>.
-    //
+    name: String,
+
     // The type parameters are all the type variables used in the definition of this constant,
     // in their canonical order. Each of these type parameters should be referenced in the type of
     // the constant itself. Otherwise we would not be able to infer them.
-    Unresolved(ModuleId, String, AcornType, Vec<String>),
+    params: Vec<String>,
+
+    // The generic type uses the params.
+    generic_type: AcornType,
+}
+
+// A constant that has been described by name, but we might not know the precise type of it yet.
+pub enum NamedConstant {
+    // (module, constant name, type, type parameters)
+    Unresolved(UnresolvedConstant),
 
     // Something that we do know the type of.
-    Constant(AcornValue),
+    Resolved(AcornValue),
 }
 
 impl NamedConstant {
     pub fn force_value(self) -> AcornValue {
         match self {
-            NamedConstant::Unresolved(_, name, _, _) => {
-                panic!("tried to force unresolved constant {}", name);
+            NamedConstant::Unresolved(u) => {
+                panic!("tried to force unresolved constant {}", u.name);
             }
-            NamedConstant::Constant(c) => c,
+            NamedConstant::Resolved(c) => c,
         }
     }
 }
@@ -184,6 +195,9 @@ enum NamedEntity {
     Value(AcornValue),
     Type(AcornType),
     Module(ModuleId),
+
+    // A constant that we don't know the type of yet.
+    Unresolved(UnresolvedConstant),
 }
 
 impl NamedEntity {
@@ -203,6 +217,9 @@ impl NamedEntity {
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a value"))
             }
+            NamedEntity::Unresolved(u) => {
+                Err(source.error(&format!("name {} has unresolved type", u.name)))
+            }
         }
     }
 
@@ -214,6 +231,9 @@ impl NamedEntity {
             NamedEntity::Type(t) => Ok(t),
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
+            }
+            NamedEntity::Unresolved(u) => {
+                Err(source.error(&format!("name {} has unresolved type", u.name)))
             }
         }
     }
@@ -337,7 +357,7 @@ impl BindingMap {
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(NamedConstant::Constant(AcornValue::new_constant(
+            return Some(NamedConstant::Resolved(AcornValue::new_constant(
                 *canonical_module,
                 canonical_name.clone(),
                 vec![],
@@ -348,19 +368,19 @@ impl BindingMap {
         // Constants defined here
         let params = self.constants.get(name)?.params.clone();
         if params.is_empty() {
-            Some(NamedConstant::Constant(AcornValue::new_constant(
+            Some(NamedConstant::Resolved(AcornValue::new_constant(
                 self.module,
                 name.to_string(),
                 vec![],
                 constant_type,
             )))
         } else {
-            Some(NamedConstant::Unresolved(
-                self.module,
-                name.to_string(),
-                constant_type,
+            Some(NamedConstant::Unresolved(UnresolvedConstant {
+                module_id: self.module,
+                name: name.to_string(),
                 params,
-            ))
+                generic_type: constant_type,
+            }))
         }
     }
 
@@ -576,6 +596,9 @@ impl BindingMap {
                 NamedEntity::Value(v) => {
                     let t = v.get_type();
                     return self.get_member_completions(project, &t, partial);
+                }
+                NamedEntity::Unresolved(u) => {
+                    return self.get_member_completions(project, &u.generic_type, partial);
                 }
             }
         }
@@ -1036,6 +1059,9 @@ impl BindingMap {
                     Err(name_token.error("could not load bindings for module"))
                 }
             }
+            Some(NamedEntity::Unresolved(_)) => {
+                Err(name_token.error("cannot access members of unresolved types"))
+            }
             None => {
                 match name_token.token_type {
                     TokenType::Identifier => {
@@ -1233,6 +1259,9 @@ impl BindingMap {
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
+
+            // TODO: we *should* be able to import unresolved types.
+            NamedEntity::Unresolved(_) => Err(name_token.error("cannot import unresolved types")),
         }
     }
 
