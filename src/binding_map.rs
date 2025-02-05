@@ -917,8 +917,13 @@ impl BindingMap {
         type_name: &str,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if let Some(value) = self.evaluate_class_variable(project, module, type_name, s) {
-            return Ok(value);
+        if let Some(nc) = self.evaluate_class_variable(project, module, type_name, s) {
+            match nc {
+                NamedConstant::Resolved(value) => return Ok(value),
+                NamedConstant::Unresolved(_) => {
+                    return Err(token.error(&format!("{}.{} has unresolved type", type_name, s)));
+                }
+            }
         }
 
         if s.len() == 1 {
@@ -932,7 +937,10 @@ impl BindingMap {
         let initial_num =
             self.evaluate_number_with_type(token, project, module, type_name, initial_str)?;
         let read_fn = match self.evaluate_class_variable(project, module, type_name, "read") {
-            Some(f) => f,
+            Some(NamedConstant::Resolved(f)) => f,
+            Some(NamedConstant::Unresolved(_)) => {
+                return Err(token.error(&format!("{}.read has unresolved type", type_name)))
+            }
             None => {
                 return Err(token.error(&format!(
                     "{}.read must be defined to read numeric literals",
@@ -951,14 +959,14 @@ impl BindingMap {
         module: ModuleId,
         type_name: &str,
         var_name: &str,
-    ) -> Option<AcornValue> {
+    ) -> Option<NamedConstant> {
         let bindings = if module == self.module {
             &self
         } else {
             project.get_bindings(module).unwrap()
         };
         let constant_name = format!("{}.{}", type_name, var_name);
-        bindings.old_get_constant_value(&constant_name)
+        bindings.get_constant_value(&constant_name)
     }
 
     // Evaluates an expression that is supposed to describe a value, with an empty stack.
@@ -1044,7 +1052,8 @@ impl BindingMap {
                         return Ok(NamedEntity::Value(value));
                     }
                     match self.evaluate_class_variable(project, module, &type_name, name) {
-                        Some(value) => Ok(NamedEntity::Value(value)),
+                        Some(NamedConstant::Resolved(value)) => Ok(NamedEntity::Value(value)),
+                        Some(NamedConstant::Unresolved(u)) => Ok(NamedEntity::Unresolved(u)),
                         None => Err(name_token
                             .error(&format!("{} has no member named '{}'", type_name, name))),
                     }
