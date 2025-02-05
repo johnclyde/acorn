@@ -111,6 +111,7 @@ pub struct BindingMap {
 }
 
 // A generic constant that we don't know the type of yet.
+// It's more of a "constant with unresolved type" than an "unresolved constant".
 pub struct UnresolvedConstant {
     module_id: ModuleId,
 
@@ -1350,6 +1351,7 @@ impl BindingMap {
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.
+    // This must resolve to a completed value, with all types inferred.
     pub fn evaluate_value_with_stack(
         &self,
         stack: &mut Stack,
@@ -1357,19 +1359,20 @@ impl BindingMap {
         expression: &Expression,
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
-        self.evaluate_potential_value(stack, project, expression, expected_type)
+        let potential = self.evaluate_potential_value(stack, project, expression, expected_type)?;
+        potential.value(expression)
     }
 
     // Evaluates an expression that could describe a value, but could also describe
-    // an unresolved constant.
+    // a constant with an unresolved type.
     fn evaluate_potential_value(
         &self,
         stack: &mut Stack,
         project: &Project,
         expression: &Expression,
         expected_type: Option<&AcornType>,
-    ) -> compilation::Result<AcornValue> {
-        match expression {
+    ) -> compilation::Result<PotentialValue> {
+        let value = match expression {
             Expression::Singleton(token) => match token.token_type {
                 TokenType::Axiom => panic!("axiomatic values should be handled elsewhere"),
                 TokenType::ForAll | TokenType::Exists | TokenType::Function => {
@@ -1377,16 +1380,18 @@ impl BindingMap {
                 }
                 TokenType::True | TokenType::False => {
                     check_type(token, expected_type, &AcornType::Bool)?;
-                    Ok(AcornValue::Bool(token.token_type == TokenType::True))
+                    AcornValue::Bool(token.token_type == TokenType::True)
                 }
                 TokenType::Identifier | TokenType::Numeral | TokenType::SelfToken => {
                     let entity = self.evaluate_name(token, project, stack, None)?;
-                    Ok(entity.expect_value(expected_type, token)?)
+                    entity.expect_value(expected_type, token)?
                 }
-                token_type => Err(token.error(&format!(
-                    "identifier expression has token type {:?}",
-                    token_type
-                ))),
+                token_type => {
+                    return Err(token.error(&format!(
+                        "identifier expression has token type {:?}",
+                        token_type
+                    )))
+                }
             },
             Expression::Unary(token, expr) => match token.token_type {
                 TokenType::Not => {
@@ -1397,7 +1402,7 @@ impl BindingMap {
                         expr,
                         Some(&AcornType::Bool),
                     )?;
-                    Ok(AcornValue::Not(Box::new(value)))
+                    AcornValue::Not(Box::new(value))
                 }
                 token_type => match token_type.to_prefix_magic_method_name() {
                     Some(name) => {
@@ -1406,9 +1411,11 @@ impl BindingMap {
                         let value =
                             self.evaluate_instance_variable(token, project, subvalue, name)?;
                         check_type(token, expected_type, &value.get_type())?;
-                        Ok(value)
+                        value
                     }
-                    None => Err(token.error("unexpected unary operator in value expression")),
+                    None => {
+                        return Err(token.error("unexpected unary operator in value expression"))
+                    }
                 },
             },
             Expression::Binary(left, token, right) => match token.token_type {
@@ -1427,11 +1434,11 @@ impl BindingMap {
                         Some(&AcornType::Bool),
                     )?;
 
-                    Ok(AcornValue::Binary(
+                    AcornValue::Binary(
                         BinaryOp::Implies,
                         Box::new(left_value),
                         Box::new(right_value),
-                    ))
+                    )
                 }
                 TokenType::Equals => {
                     check_type(token, expected_type, &AcornType::Bool)?;
@@ -1442,11 +1449,11 @@ impl BindingMap {
                         right,
                         Some(&left_value.get_type()),
                     )?;
-                    Ok(AcornValue::Binary(
+                    AcornValue::Binary(
                         BinaryOp::Equals,
                         Box::new(left_value),
                         Box::new(right_value),
-                    ))
+                    )
                 }
                 TokenType::NotEquals => {
                     check_type(token, expected_type, &AcornType::Bool)?;
@@ -1457,11 +1464,11 @@ impl BindingMap {
                         right,
                         Some(&left_value.get_type()),
                     )?;
-                    Ok(AcornValue::Binary(
+                    AcornValue::Binary(
                         BinaryOp::NotEquals,
                         Box::new(left_value),
                         Box::new(right_value),
-                    ))
+                    )
                 }
                 TokenType::And => {
                     check_type(token, expected_type, &AcornType::Bool)?;
@@ -1477,11 +1484,7 @@ impl BindingMap {
                         right,
                         Some(&AcornType::Bool),
                     )?;
-                    Ok(AcornValue::Binary(
-                        BinaryOp::And,
-                        Box::new(left_value),
-                        Box::new(right_value),
-                    ))
+                    AcornValue::Binary(BinaryOp::And, Box::new(left_value), Box::new(right_value))
                 }
                 TokenType::Or => {
                     check_type(token, expected_type, &AcornType::Bool)?;
@@ -1497,15 +1500,11 @@ impl BindingMap {
                         right,
                         Some(&AcornType::Bool),
                     )?;
-                    Ok(AcornValue::Binary(
-                        BinaryOp::Or,
-                        Box::new(left_value),
-                        Box::new(right_value),
-                    ))
+                    AcornValue::Binary(BinaryOp::Or, Box::new(left_value), Box::new(right_value))
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
-                    Ok(entity.expect_value(expected_type, token)?)
+                    entity.expect_value(expected_type, token)?
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => self.evaluate_infix(
@@ -1517,8 +1516,12 @@ impl BindingMap {
                         right,
                         name,
                         expected_type,
-                    ),
-                    None => Err(expression.error("unhandled binary operator in value expression")),
+                    )?,
+                    None => {
+                        return Err(
+                            expression.error("unhandled binary operator in value expression")
+                        )
+                    }
                 },
             },
             Expression::Apply(function_expr, args_expr) => {
@@ -1551,28 +1554,32 @@ impl BindingMap {
                         generic_type: c_type,
                         params: c_params,
                     };
-                    return self.infer_and_apply(
+                    self.infer_and_apply(
                         stack,
                         project,
                         expression,
                         unresolved,
                         arg_exprs,
                         expected_type,
-                    );
+                    )?
+                } else {
+                    // Simple, no-type-inference-necessary construction
+                    let mut args = vec![];
+                    for (i, arg_expr) in arg_exprs.iter().enumerate() {
+                        let arg_type: &AcornType = &function_type.arg_types[i];
+                        let arg = self.evaluate_value_with_stack(
+                            stack,
+                            project,
+                            arg_expr,
+                            Some(arg_type),
+                        )?;
+                        args.push(arg);
+                    }
+                    AcornValue::new_apply(function, args)
                 }
-
-                // Simple, no-type-inference-necessary construction
-                let mut args = vec![];
-                for (i, arg_expr) in arg_exprs.iter().enumerate() {
-                    let arg_type: &AcornType = &function_type.arg_types[i];
-                    let arg =
-                        self.evaluate_value_with_stack(stack, project, arg_expr, Some(arg_type))?;
-                    args.push(arg);
-                }
-                Ok(AcornValue::new_apply(function, args))
             }
             Expression::Grouping(_, e, _) => {
-                self.evaluate_value_with_stack(stack, project, e, expected_type)
+                self.evaluate_value_with_stack(stack, project, e, expected_type)?
             }
             Expression::Binder(token, args, body, _) => {
                 if args.len() < 1 {
@@ -1603,7 +1610,7 @@ impl BindingMap {
                     // It seems theoretically faster but I'm not sure if there's any reason to.
                     check_type(token, expected_type, &ret_val.as_ref().unwrap().get_type())?;
                 }
-                ret_val
+                ret_val?
             }
             Expression::IfThenElse(_, cond_exp, if_exp, else_exp, _) => {
                 let cond = self.evaluate_value_with_stack(
@@ -1620,11 +1627,7 @@ impl BindingMap {
                     else_exp,
                     Some(&if_value.get_type()),
                 )?;
-                Ok(AcornValue::IfThenElse(
-                    Box::new(cond),
-                    Box::new(if_value),
-                    Box::new(else_value),
-                ))
+                AcornValue::IfThenElse(Box::new(cond), Box::new(if_value), Box::new(else_value))
             }
             Expression::Match(_, scrutinee_exp, case_exps, _) => {
                 let mut expected_type: Option<AcornType> = expected_type.cloned();
@@ -1669,9 +1672,10 @@ impl BindingMap {
                 if !all_cases {
                     return Err(expression.error("not all constructors are covered in this match"));
                 }
-                Ok(AcornValue::Match(Box::new(scrutinee), cases))
+                AcornValue::Match(Box::new(scrutinee), cases)
             }
-        }
+        };
+        Ok(PotentialValue::Resolved(value))
     }
 
     // Evaluate an expression that creates a new scope for a single value inside it.
