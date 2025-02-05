@@ -1274,6 +1274,71 @@ impl BindingMap {
         }
     }
 
+    // Apply a name to arguments.
+    // This infers the type of an unresolved function.
+    fn infer_application(
+        &self,
+        stack: &mut Stack,
+        project: &Project,
+        source: &dyn ErrorSource,
+        unresolved: UnresolvedConstant,
+        arg_exprs: Vec<&Expression>,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<AcornValue> {
+        let unresolved_function_type = match &unresolved.generic_type {
+            AcornType::Function(f) => f,
+            _ => {
+                return Err(source.error("expected a function"));
+            }
+        };
+
+        // Do type inference
+        let mut args = vec![];
+        let mut mapping = HashMap::new();
+        for (i, arg_expr) in arg_exprs.iter().enumerate() {
+            let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
+            let arg_value = self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
+            if !arg_type.match_instance(&arg_value.get_type(), &mut mapping) {
+                return Err(arg_expr.error(&format!(
+                    "expected type {}, but got {}",
+                    arg_type,
+                    arg_value.get_type()
+                )));
+            }
+            args.push(arg_value);
+        }
+
+        // Determine the parameters for the instance function
+        let mut named_params = vec![];
+        let mut instance_params = vec![];
+        for param_name in &unresolved.params {
+            match mapping.get(param_name) {
+                Some(t) => {
+                    named_params.push((param_name.clone(), t.clone()));
+                    instance_params.push(t.clone());
+                }
+                None => {
+                    return Err(
+                        source.error(&format!("parameter {} could not be inferred", param_name))
+                    )
+                }
+            }
+        }
+        let resolved_function_type = unresolved.generic_type.instantiate(&named_params);
+
+        let instance_fn = AcornValue::new_constant(
+            unresolved.module_id,
+            unresolved.name,
+            instance_params,
+            resolved_function_type,
+        );
+        let value = AcornValue::new_apply(instance_fn, args);
+        if expected_type.is_some() {
+            check_type(source, expected_type, &value.get_type())?;
+        }
+        Ok(value)
+    }
+
     // Evaluates an expression that describes a value, with a stack given as context.
     // A value expression could be either a value or an argument list.
     // Returns the value along with its type.
