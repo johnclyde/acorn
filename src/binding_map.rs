@@ -1379,11 +1379,15 @@ impl BindingMap {
                         args.push(arg_value);
                     }
 
-                    // Extract the parameters for the unresolved function
-                    let mut params = vec![];
+                    // Determine the parameters for the instance function
+                    let mut named_params = vec![];
+                    let mut instance_params = vec![];
                     for param_name in &c_params {
                         match mapping.get(param_name) {
-                            Some(t) => params.push((param_name.clone(), t.clone())),
+                            Some(t) => {
+                                named_params.push((param_name.clone(), t.clone()));
+                                instance_params.push(t.clone());
+                            }
                             None => {
                                 return Err(function_expr.error(&format!(
                                     "parameter {} could not be inferred",
@@ -1392,9 +1396,10 @@ impl BindingMap {
                             }
                         }
                     }
+                    let resolved_type = c_type.instantiate(&named_params);
 
                     let instance_fn =
-                        AcornValue::old_new_constant(c_module, c_name, c_type, params);
+                        AcornValue::new_constant(c_module, c_name, instance_params, resolved_type);
                     let value = AcornValue::new_apply(instance_fn, args);
                     if expected_type.is_some() {
                         check_type(&**function_expr, expected_type, &value.get_type())?;

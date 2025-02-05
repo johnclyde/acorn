@@ -372,23 +372,6 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
-    pub fn old_new_constant(
-        module_id: ModuleId,
-        name: String,
-        old_generic_type: AcornType,
-        old_params: Vec<(String, AcornType)>,
-    ) -> AcornValue {
-        let params: Vec<_> = old_params.iter().map(|(_, t)| t.clone()).collect();
-        let instance_type = old_generic_type.instantiate(&old_params);
-        let ci = ConstantInstance {
-            module_id,
-            name,
-            params,
-            instance_type,
-        };
-        AcornValue::Constant(ci)
-    }
-
     pub fn new_constant(
         module_id: ModuleId,
         name: String,
