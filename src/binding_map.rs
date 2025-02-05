@@ -126,8 +126,8 @@ pub struct UnresolvedConstant {
     generic_type: AcornType,
 }
 
-// A constant that has been described by name, but we might not know the precise type of it yet.
-pub enum NamedConstant {
+// Could be a value, but could also be an unresolved constant.
+pub enum PotentialValue {
     // (module, constant name, type, type parameters)
     Unresolved(UnresolvedConstant),
 
@@ -135,13 +135,13 @@ pub enum NamedConstant {
     Resolved(AcornValue),
 }
 
-impl NamedConstant {
+impl PotentialValue {
     pub fn force_value(self) -> AcornValue {
         match self {
-            NamedConstant::Unresolved(u) => {
+            PotentialValue::Unresolved(u) => {
                 panic!("tried to force unresolved constant {}", u.name);
             }
-            NamedConstant::Resolved(c) => c,
+            PotentialValue::Resolved(c) => c,
         }
     }
 }
@@ -352,12 +352,12 @@ impl BindingMap {
     // Returns an AcornValue representing this name, if there is one.
     // This can return an unresolved value.
     // Returns None if this name does not refer to a constant.
-    pub fn get_constant_value(&self, name: &str) -> Option<NamedConstant> {
+    pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
         let constant_type = self.identifier_types.get(name)?.clone();
 
         // Aliases
         if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(NamedConstant::Resolved(AcornValue::new_constant(
+            return Some(PotentialValue::Resolved(AcornValue::new_constant(
                 *canonical_module,
                 canonical_name.clone(),
                 vec![],
@@ -368,14 +368,14 @@ impl BindingMap {
         // Constants defined here
         let params = self.constants.get(name)?.params.clone();
         if params.is_empty() {
-            Some(NamedConstant::Resolved(AcornValue::new_constant(
+            Some(PotentialValue::Resolved(AcornValue::new_constant(
                 self.module,
                 name.to_string(),
                 vec![],
                 constant_type,
             )))
         } else {
-            Some(NamedConstant::Unresolved(UnresolvedConstant {
+            Some(PotentialValue::Unresolved(UnresolvedConstant {
                 module_id: self.module,
                 name: name.to_string(),
                 params,
@@ -919,8 +919,8 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         if let Some(nc) = self.evaluate_class_variable(project, module, type_name, s) {
             match nc {
-                NamedConstant::Resolved(value) => return Ok(value),
-                NamedConstant::Unresolved(_) => {
+                PotentialValue::Resolved(value) => return Ok(value),
+                PotentialValue::Unresolved(_) => {
                     return Err(token.error(&format!("{}.{} has unresolved type", type_name, s)));
                 }
             }
@@ -937,8 +937,8 @@ impl BindingMap {
         let initial_num =
             self.evaluate_number_with_type(token, project, module, type_name, initial_str)?;
         let read_fn = match self.evaluate_class_variable(project, module, type_name, "read") {
-            Some(NamedConstant::Resolved(f)) => f,
-            Some(NamedConstant::Unresolved(_)) => {
+            Some(PotentialValue::Resolved(f)) => f,
+            Some(PotentialValue::Unresolved(_)) => {
                 return Err(token.error(&format!("{}.read has unresolved type", type_name)))
             }
             None => {
@@ -959,7 +959,7 @@ impl BindingMap {
         module: ModuleId,
         type_name: &str,
         var_name: &str,
-    ) -> Option<NamedConstant> {
+    ) -> Option<PotentialValue> {
         let bindings = if module == self.module {
             &self
         } else {
@@ -1052,8 +1052,8 @@ impl BindingMap {
                         return Ok(NamedEntity::Value(value));
                     }
                     match self.evaluate_class_variable(project, module, &type_name, name) {
-                        Some(NamedConstant::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                        Some(NamedConstant::Unresolved(u)) => Ok(NamedEntity::Unresolved(u)),
+                        Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
+                        Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::Unresolved(u)),
                         None => Err(name_token
                             .error(&format!("{} has no member named '{}'", type_name, name))),
                     }
