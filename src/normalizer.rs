@@ -407,11 +407,11 @@ impl Normalizer {
             Atom::True => AcornValue::Bool(true),
             Atom::GlobalConstant(i) => {
                 let (module, name) = self.constant_map.get_global_info(*i);
-                AcornValue::old_new_constant(module, name.to_string(), acorn_type, vec![])
+                AcornValue::new_constant(module, name.to_string(), vec![], acorn_type)
             }
             Atom::LocalConstant(i) => {
                 let (module, name) = self.constant_map.get_local_info(*i);
-                AcornValue::old_new_constant(module, name.to_string(), acorn_type, vec![])
+                AcornValue::new_constant(module, name.to_string(), vec![], acorn_type)
             }
             Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {
@@ -427,7 +427,7 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                AcornValue::old_new_constant(SKOLEM, format!("s{}", i), acorn_type, vec![])
+                AcornValue::new_constant(SKOLEM, format!("s{}", i), vec![], acorn_type)
             }
         }
     }

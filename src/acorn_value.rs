@@ -389,6 +389,21 @@ impl AcornValue {
         AcornValue::Constant(ci)
     }
 
+    pub fn new_constant(
+        module_id: ModuleId,
+        name: String,
+        params: Vec<AcornType>,
+        instance_type: AcornType,
+    ) -> AcornValue {
+        let ci = ConstantInstance {
+            module_id,
+            name,
+            params,
+            instance_type,
+        };
+        AcornValue::Constant(ci)
+    }
+
     pub fn is_lambda(&self) -> bool {
         match self {
             AcornValue::Lambda(_, _) => true,
