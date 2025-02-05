@@ -122,7 +122,7 @@ impl Block {
             BlockParams::Theorem(theorem_name, theorem_range, premise, unbound_goal) => {
                 let arg_values = args
                     .iter()
-                    .map(|(name, _)| subenv.bindings.get_constant_value(name).unwrap())
+                    .map(|(name, _)| subenv.bindings.old_get_constant_value(name).unwrap())
                     .collect::<Vec<_>>();
 
                 if let Some(name) = theorem_name {
@@ -159,7 +159,7 @@ impl Block {
                 // In the block, we need to prove this goal in bound form, so bind args to it.
                 let arg_values = args
                     .iter()
-                    .map(|(name, _)| subenv.bindings.get_constant_value(name).unwrap())
+                    .map(|(name, _)| subenv.bindings.old_get_constant_value(name).unwrap())
                     .collect::<Vec<_>>();
                 // The partial goal has variables 0..args.len() bound to the block's args,
                 // but there is one last variable that needs to be existentially quantified.
@@ -175,7 +175,7 @@ impl Block {
                     subenv
                         .bindings
                         .add_constant(&arg_name, vec![], arg_type, None, None);
-                    arg_values.push(subenv.bindings.get_constant_value(&arg_name).unwrap());
+                    arg_values.push(subenv.bindings.old_get_constant_value(&arg_name).unwrap());
                 }
                 // Inside the block, we can assume the pattern matches.
                 let applied = AcornValue::new_apply(constructor, arg_values);

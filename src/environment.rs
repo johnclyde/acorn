@@ -911,7 +911,11 @@ impl Environment {
                         AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
                     self.bindings
                         .add_constant(&member_fn_name, vec![], member_fn_type, None, None);
-                    member_fns.push(self.bindings.get_constant_value(&member_fn_name).unwrap());
+                    member_fns.push(
+                        self.bindings
+                            .old_get_constant_value(&member_fn_name)
+                            .unwrap(),
+                    );
                 }
 
                 // A "new" function to create one of these struct types.
@@ -925,7 +929,7 @@ impl Environment {
                     None,
                     Some((struct_type.clone(), 0, 1)),
                 );
-                let new_fn = self.bindings.get_constant_value(&new_fn_name).unwrap();
+                let new_fn = self.bindings.old_get_constant_value(&new_fn_name).unwrap();
 
                 // Each object of this new type has certain properties.
                 let object_var = AcornValue::Variable(0, struct_type.clone());
@@ -1083,8 +1087,11 @@ impl Environment {
                         None,
                         Some((inductive_type.clone(), i, total)),
                     );
-                    constructor_fns
-                        .push(self.bindings.get_constant_value(constructor_name).unwrap());
+                    constructor_fns.push(
+                        self.bindings
+                            .old_get_constant_value(constructor_name)
+                            .unwrap(),
+                    );
                 }
 
                 // The "no confusion" property. Different constructors give different results.
