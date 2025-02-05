@@ -1339,9 +1339,19 @@ impl BindingMap {
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.
-    // A value expression could be either a value or an argument list.
-    // Returns the value along with its type.
     pub fn evaluate_value_with_stack(
+        &self,
+        stack: &mut Stack,
+        project: &Project,
+        expression: &Expression,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<AcornValue> {
+        self.evaluate_potential_value(stack, project, expression, expected_type)
+    }
+
+    // Evaluates an expression that could describe a value, but could also describe
+    // an unresolved constant.
+    fn evaluate_potential_value(
         &self,
         stack: &mut Stack,
         project: &Project,
