@@ -1274,9 +1274,8 @@ impl BindingMap {
         }
     }
 
-    // Apply a name to arguments.
-    // This infers the type of an unresolved function.
-    fn infer_application(
+    // Apply an unresolved name to arguments, inferring the types.
+    fn infer_and_apply(
         &self,
         stack: &mut Stack,
         project: &Project,
@@ -1525,49 +1524,20 @@ impl BindingMap {
 
                 // Check if we have to do type inference.
                 if let AcornValue::Unresolved(c_module, c_name, c_type, c_params) = function {
-                    // Do the actual inference
-                    let mut args = vec![];
-                    let mut mapping = HashMap::new();
-                    for (i, arg_expr) in arg_exprs.iter().enumerate() {
-                        let arg_type: &AcornType = &function_type.arg_types[i];
-                        let arg_value =
-                            self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
-                        if !arg_type.match_instance(&arg_value.get_type(), &mut mapping) {
-                            return Err(arg_expr.error(&format!(
-                                "expected type {}, but got {}",
-                                arg_type,
-                                arg_value.get_type()
-                            )));
-                        }
-                        args.push(arg_value);
-                    }
-
-                    // Determine the parameters for the instance function
-                    let mut named_params = vec![];
-                    let mut instance_params = vec![];
-                    for param_name in &c_params {
-                        match mapping.get(param_name) {
-                            Some(t) => {
-                                named_params.push((param_name.clone(), t.clone()));
-                                instance_params.push(t.clone());
-                            }
-                            None => {
-                                return Err(function_expr.error(&format!(
-                                    "parameter {} could not be inferred",
-                                    param_name
-                                )))
-                            }
-                        }
-                    }
-                    let resolved_type = c_type.instantiate(&named_params);
-
-                    let instance_fn =
-                        AcornValue::new_constant(c_module, c_name, instance_params, resolved_type);
-                    let value = AcornValue::new_apply(instance_fn, args);
-                    if expected_type.is_some() {
-                        check_type(&**function_expr, expected_type, &value.get_type())?;
-                    }
-                    return Ok(value);
+                    let unresolved = UnresolvedConstant {
+                        module_id: c_module,
+                        name: c_name,
+                        generic_type: c_type,
+                        params: c_params,
+                    };
+                    return self.infer_and_apply(
+                        stack,
+                        project,
+                        expression,
+                        unresolved,
+                        arg_exprs,
+                        expected_type,
+                    );
                 }
 
                 // Simple, no-type-inference-necessary construction
