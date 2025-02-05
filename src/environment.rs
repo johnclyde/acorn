@@ -807,11 +807,11 @@ impl Environment {
                 let function_type = AcornType::new_functional(arg_types.clone(), return_type);
                 self.bindings
                     .add_constant(&fss.name, vec![], function_type.clone(), None, None);
-                let function_constant = AcornValue::old_new_constant(
+                let function_constant = AcornValue::new_constant(
                     self.module_id,
                     fss.name.clone(),
-                    function_type,
                     vec![],
+                    function_type,
                 );
                 let function_term = AcornValue::new_apply(
                     function_constant.clone(),

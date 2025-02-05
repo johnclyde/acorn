@@ -85,7 +85,7 @@ impl Normalizer {
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
         let name = format!("s{}", skolem_index);
-        AcornValue::old_new_constant(SKOLEM, name, acorn_type, vec![])
+        AcornValue::new_constant(SKOLEM, name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
