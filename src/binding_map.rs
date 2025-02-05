@@ -136,12 +136,23 @@ pub enum PotentialValue {
 }
 
 impl PotentialValue {
+    // Convert this to a value, panicking if it's unresolved.
     pub fn force_value(self) -> AcornValue {
         match self {
             PotentialValue::Unresolved(u) => {
                 panic!("tried to force unresolved constant {}", u.name);
             }
             PotentialValue::Resolved(c) => c,
+        }
+    }
+
+    // Convert this to a value, or return an error if it's unresolved.
+    pub fn value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
+        match self {
+            PotentialValue::Unresolved(u) => {
+                Err(source.error(&format!("name {} has unresolved type", u.name)))
+            }
+            PotentialValue::Resolved(c) => Ok(c),
         }
     }
 }
