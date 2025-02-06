@@ -21,7 +21,7 @@ enum ExpressionType {
 #[derive(Debug)]
 pub enum Expression {
     // A singleton expression is one that consists of just a single token.
-    // This includes true, false, numeric literals, and "axiom".
+    // This includes identifiers, true, false, numeric literals, and "axiom".
     Singleton(Token),
 
     // A unary operator applied to another expression.
@@ -30,10 +30,12 @@ pub enum Expression {
     // An infix binary operator, with the left and right expressions.
     Binary(Box<Expression>, Token, Box<Expression>),
 
-    // The application of a function. The second expression must be an arg list.
+    // Expressions you get by placing two expressions next to each other.
+    // Typically the application of a function.
+    // The second parameter can either be an argument list or a type parameter list.
     Apply(Box<Expression>, Box<Expression>),
 
-    // A grouping like ( <expr> ) or { <expr> }.
+    // A grouping like ( <expr> ) or { <expr> } or < <expr> >.
     // The tokens of the bracey things that delimit the grouping are included.
     Grouping(Token, Box<Expression>, Token),
 
@@ -604,6 +606,45 @@ impl ErrorSource for PartialExpression {
     }
 }
 
+// After a '<' has been consumed, check if the following tokens look like a param list.
+// I.e., something like "T, U, V>".
+// If it doesn't look like parameters, just return an empty vector.
+fn parse_params(less_than: &Token, tokens: &mut TokenIter) -> Result<Option<Expression>> {
+    match tokens.peek() {
+        Some(t) => {
+            if !t.is_type_name() {
+                return Ok(None);
+            }
+        }
+        None => {
+            return Ok(None);
+        }
+    }
+
+    let mut expr = Expression::Singleton(tokens.next().unwrap());
+
+    loop {
+        let token = tokens.expect_token()?;
+        match token.token_type {
+            TokenType::Comma => {
+                let next_type = tokens.expect_type_name()?;
+                expr = Expression::Binary(
+                    Box::new(expr),
+                    token,
+                    Box::new(Expression::Singleton(next_type)),
+                );
+            }
+            TokenType::GreaterThan => {
+                let grouping = Expression::Grouping(less_than.clone(), Box::new(expr), token);
+                return Ok(Some(grouping));
+            }
+            _ => {
+                return Err(token.error("expected ',' or '>'"));
+            }
+        }
+    }
+}
+
 // Create partial expressions from tokens.
 // termination determines what tokens are allowed to be the terminator.
 // Consumes the terminating token from the iterator and returns it.
@@ -1144,5 +1185,15 @@ mod tests {
     #[test]
     fn test_implies_expression() {
         check_value("a implies b");
+    }
+
+    #[test]
+    fn test_type_params_in_expressions() {
+        check_value("foo<T>");
+        check_value("List<T>.new");
+        check_value("map(add<Int>, myList)");
+        check_value("is_surjective(identity<T>)");
+
+        // check_value("foo.bar<T>");
     }
 }

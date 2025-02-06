@@ -669,17 +669,27 @@ impl Token {
         false
     }
 
-    pub fn validate_type_name(&self) -> Result<()> {
+    pub fn is_type_name(&self) -> bool {
+        if self.token_type != TokenType::Identifier {
+            return false;
+        }
         for (i, char) in self.text().chars().enumerate() {
             if i == 0 {
                 if !char.is_ascii_uppercase() {
-                    return Err(self.error("type names must start with an uppercase letter"));
+                    return false;
                 }
             } else {
                 if !char.is_alphanumeric() {
-                    return Err(self.error("type names must be alphanumeric"));
+                    return false;
                 }
             }
+        }
+        true
+    }
+
+    pub fn expect_type_name(&self) -> Result<()> {
+        if !self.is_type_name() {
+            return Err(self.error("expected a type name"));
         }
         Ok(())
     }
@@ -763,7 +773,7 @@ impl TokenIter {
     // Pops off one token, expecting it to be a type name.
     pub fn expect_type_name(&mut self) -> Result<Token> {
         let name_token = self.expect_type(TokenType::Identifier)?;
-        name_token.validate_type_name()?;
+        name_token.expect_type_name()?;
         Ok(name_token)
     }
 
