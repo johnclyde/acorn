@@ -40,6 +40,10 @@ impl fmt::Display for Error {
                 write!(f, "^")?;
             }
         }
+        if self.first_token.start as usize >= self.first_token.line.len() {
+            // The error is at the end of the line.
+            write!(f, "^")?;
+        }
         write!(f, "\n")
     }
 }

@@ -721,7 +721,8 @@ impl TokenIter {
 
     // Pops off one token, expecting it to be there.
     pub fn expect_token(&mut self) -> Result<Token> {
-        self.next().ok_or(self.error("unexpected end of file"))
+        self.next()
+            .ok_or_else(|| self.error("unexpected end of file"))
     }
 
     // Pops off one token, expecting it to be of a known type.
