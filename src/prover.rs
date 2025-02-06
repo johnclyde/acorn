@@ -185,7 +185,7 @@ impl Prover {
         // We don't need to add the goal as a generic fact since goals themselves
         // cannot be generic.
         self.monomorphizer
-            .match_constants(&goal_context.goal.value());
+            .add_monomorphs(&goal_context.goal.value());
         for fact in self.monomorphizer.take_facts() {
             self.add_monomorphic_fact(fact);
         }
