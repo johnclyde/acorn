@@ -1725,20 +1725,6 @@ impl BindingMap {
         let mut stack = Stack::new();
         let (arg_names, arg_types) = self.bind_args(&mut stack, project, args, class_name)?;
 
-        // Check for possible errors in the specification.
-        // Each type has to be used by some argument (although you can imagine lifting this rule).
-        for (i, type_param_name) in type_param_names.iter().enumerate() {
-            if !arg_types
-                .iter()
-                .any(|a| a.has_type_variable(&type_param_name))
-            {
-                return Err(type_param_tokens[i].error(&format!(
-                    "type parameter {} is not used in the function arguments",
-                    type_param_names[i]
-                )));
-            }
-        }
-
         // Figure out types.
         let value_type = match value_type_expr {
             Some(e) => self.evaluate_type(project, e)?,

@@ -419,18 +419,6 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_parametric_types_required_in_function_args() {
-        let mut env = Environment::new_test();
-        env.bad("define foo<T>(a: Bool) -> Bool { a }");
-    }
-
-    #[test]
-    fn test_parametric_types_required_in_theorem_args() {
-        let mut env = Environment::new_test();
-        env.bad("theorem foo<T>(a: Bool) { a or not a }");
-    }
-
-    #[test]
     fn test_template_typechecking() {
         let mut env = Environment::new_test();
         env.add("type Nat: axiom");
