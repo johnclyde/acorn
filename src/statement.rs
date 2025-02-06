@@ -521,9 +521,6 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
 fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_variable_name(false)?;
     let (type_params, args, _) = parse_args(tokens, TokenType::RightArrow)?;
-    if type_params.len() > 1 {
-        return Err(type_params[1].error("only one type parameter is supported"));
-    }
     let (return_type, _) = Expression::parse_type(tokens, Terminator::Is(TokenType::LeftBrace))?;
     let (return_value, last_token) =
         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
