@@ -1200,7 +1200,6 @@ mod tests {
         check_value("List<T>.new");
         check_value("map(add<Int>, myList)");
         check_value("is_surjective(identity<T>)");
-
-        // check_value("foo.bar<T>");
+        check_value("foo.bar<T>");
     }
 }
