@@ -122,6 +122,15 @@ impl ConstantInstance {
         self.params.iter().any(|t| t.is_generic())
     }
 
+    pub fn to_arbitrary(&self) -> ConstantInstance {
+        ConstantInstance {
+            module_id: self.module_id,
+            name: self.name.clone(),
+            params: self.params.iter().map(|t| t.to_arbitrary()).collect(),
+            instance_type: self.instance_type.to_arbitrary(),
+        }
+    }
+
     pub fn key(&self) -> ConstantKey {
         ConstantKey {
             module: self.module_id,
@@ -1507,7 +1516,8 @@ impl AcornValue {
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_arbitrary())),
-            AcornValue::Constant(_) | AcornValue::Bool(_) => self.clone(),
+            AcornValue::Constant(c) => AcornValue::Constant(c.to_arbitrary()),
+            AcornValue::Bool(_) => self.clone(),
         }
     }
 
