@@ -35,8 +35,8 @@ pub enum Expression {
     // The second parameter can either be an argument list or a type parameter list.
     Apply(Box<Expression>, Box<Expression>),
 
-    // A grouping like ( <expr> ) or { <expr> } or < <expr> >.
-    // The tokens of the bracey things that delimit the grouping are included.
+    // A grouping like ( <expr> ) or < <expr> >.
+    // The tokens that delimit the grouping are included.
     Grouping(Token, Box<Expression>, Token),
 
     // A binder is an expression that binds variables, like a forall/exists/function.
@@ -100,8 +100,8 @@ impl fmt::Display for Expression {
             Expression::Apply(left, right) => {
                 write!(f, "{}{}", left, right)
             }
-            Expression::Grouping(_, e, _) => {
-                write!(f, "({})", e)
+            Expression::Grouping(left, e, right) => {
+                write!(f, "{}{}{}", left, e, right)
             }
             Expression::Binder(token, args, sub, _) => {
                 write!(f, "{}", token)?;
@@ -657,6 +657,13 @@ fn parse_partial_expressions(
     while let Some(token) = tokens.next() {
         if termination.matches(&token.token_type) {
             return Ok((partials, token));
+        }
+        if token.token_type == TokenType::LessThan {
+            // Check for type parameters
+            if let Some(params) = parse_params(&token, tokens)? {
+                partials.push_back(PartialExpression::Expression(params));
+                continue;
+            }
         }
         if token.token_type.is_binary() {
             match (expected_type, token.token_type) {
