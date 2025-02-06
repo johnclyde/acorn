@@ -1650,6 +1650,9 @@ mod prover_test {
 
     #[test]
     fn test_proving_identity_is_surjective() {
+        // To prove this, the monomorphizer needs to instantiate the definitions of:
+        // is_surjective<V, V>
+        // identity<V>
         let text = r#"
             define is_surjective<T, U>(f: T -> U) -> Bool {
                 forall(y: U) {
@@ -1663,8 +1666,8 @@ mod prover_test {
                 x
             }
 
-            theorem identity_is_surjective<T> {
-                is_surjective(identity<T>)
+            theorem identity_is_surjective<V> {
+                is_surjective(identity<V>)
             }
         "#;
         verify_succeeds(text);
