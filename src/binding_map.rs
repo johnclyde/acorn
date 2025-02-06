@@ -1530,8 +1530,42 @@ impl BindingMap {
                     }
                 };
 
+                // Handle the case where the "args" are actually type parameters.
                 let arg_exprs = match args_expr.as_ref() {
-                    Expression::Grouping(_, e, _) => e.flatten_comma_separated_list(),
+                    Expression::Grouping(left_delimiter, e, _) => {
+                        let exprs = e.flatten_comma_separated_list();
+                        if left_delimiter.token_type == TokenType::LessThan {
+                            // This is a type parameter list
+                            if let PotentialValue::Unresolved(unresolved) = function {
+                                if exprs.len() != unresolved.params.len() {
+                                    return Err(left_delimiter.error(&format!(
+                                        "expected {} type parameters, but got {}",
+                                        unresolved.params.len(),
+                                        exprs.len()
+                                    )));
+                                }
+                                let mut named_params = vec![];
+                                let mut instance_params = vec![];
+                                for (name, expr) in unresolved.params.iter().zip(exprs.iter()) {
+                                    let type_param = self.evaluate_type(project, expr)?;
+                                    instance_params.push(type_param.clone());
+                                    named_params.push((name.clone(), type_param));
+                                }
+                                let resolved_type =
+                                    unresolved.generic_type.instantiate(&named_params);
+                                let resolved = AcornValue::new_constant(
+                                    unresolved.module_id,
+                                    unresolved.name,
+                                    instance_params,
+                                    resolved_type,
+                                );
+                                return Ok(PotentialValue::Resolved(resolved));
+                            }
+                            return Err(left_delimiter.error("unexpected type parameter list"));
+                        } else {
+                            exprs
+                        }
+                    }
                     _ => return Err(args_expr.error("expected a comma-separated list")),
                 };
 
