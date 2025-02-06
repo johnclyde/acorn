@@ -1793,11 +1793,6 @@ impl BindingMap {
     ) {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
-            AcornValue::Unresolved(module, name, t, _) => {
-                if *module == self.module && !self.constants.contains_key(name) {
-                    answer.insert(name.to_string(), t.clone());
-                }
-            }
             AcornValue::Constant(c) => {
                 if c.module_id == self.module && !self.constants.contains_key(&c.name) {
                     assert!(c.params.is_empty());
@@ -2034,7 +2029,6 @@ impl BindingMap {
             AcornValue::Variable(i, _) => {
                 Ok(Expression::generate_identifier(&var_names[*i as usize]))
             }
-            AcornValue::Unresolved(module, name, _, _) => self.name_to_expr(*module, name),
             AcornValue::Application(fa) => {
                 let mut args = vec![];
                 for arg in &fa.args {

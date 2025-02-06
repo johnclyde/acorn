@@ -160,7 +160,6 @@ impl Normalizer {
             | AcornValue::Not(_)
             | AcornValue::Binary(_, _, _)
             | AcornValue::Variable(_, _)
-            | AcornValue::Unresolved(_, _, _, _)
             | AcornValue::Bool(_) => value,
 
             AcornValue::Constant(ref c) if c.params.is_empty() => value,
@@ -230,9 +229,9 @@ impl Normalizer {
     // to do rewrite-type lookups, on the larger literal first.
     fn literal_from_value(&mut self, value: &AcornValue, local: bool) -> Result<Literal> {
         match value {
-            AcornValue::Variable(_, _)
-            | AcornValue::Unresolved(_, _, _, _)
-            | AcornValue::Constant(_) => Ok(Literal::positive(self.term_from_value(value, local)?)),
+            AcornValue::Variable(_, _) | AcornValue::Constant(_) => {
+                Ok(Literal::positive(self.term_from_value(value, local)?))
+            }
             AcornValue::Application(app) => {
                 Ok(Literal::positive(self.term_from_application(app, local)?))
             }
