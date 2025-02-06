@@ -182,10 +182,11 @@ impl Prover {
         assert!(self.goal.is_none());
 
         // Add any monomorphic facts needed to match the goal.
-        // We don't need to add the goal as a generic fact since goals themselves
+        // We shouldn't need to add the goal as a generic fact since goals themselves
         // cannot be generic.
-        self.monomorphizer
-            .add_monomorphs(&goal_context.goal.value());
+        let goal_value = goal_context.goal.value();
+        assert!(!goal_value.is_generic());
+        self.monomorphizer.add_monomorphs(&goal_value);
         for fact in self.monomorphizer.take_facts() {
             self.add_monomorphic_fact(fact);
         }
