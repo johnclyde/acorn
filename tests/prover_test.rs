@@ -539,7 +539,7 @@ mod prover_test {
     }
 
     #[test]
-    fn test_proving_parametric_theorem() {
+    fn test_proving_parametric_theorem_basic() {
         let text = r#"
             theorem goal<T>(a: T, b: T, c: T) {
                 a = b and b = c -> a = c
@@ -1646,5 +1646,27 @@ mod prover_test {
             }
             "#;
         expect_proof(text, "goal", &["exists(k0: Foo) { zero = k0 }"]);
+    }
+
+    #[test]
+    fn test_function_with_multiple_parameters() {
+        let text = r#"
+            define is_surjective<T, U>(f: T -> U) -> Bool {
+                forall(y: U) {
+                    exists(x: T) {
+                        f(x) = y
+                    }
+                }
+            }
+
+            define identity<T>(x: T) -> T {
+                x
+            }
+
+            theorem identity_is_surjective<T> {
+                is_surjective(identity<T>)
+            }
+        "#;
+        verify_succeeds(text);
     }
 }
