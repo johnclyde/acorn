@@ -344,41 +344,6 @@ impl BindingMap {
     // Returns an AcornValue representing this name, if there is one.
     // This can return an unresolved value.
     // Returns None if this name does not refer to a constant.
-    pub fn old_get_constant_value(&self, name: &str) -> Option<AcornValue> {
-        let constant_type = self.identifier_types.get(name)?.clone();
-
-        // Aliases
-        if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(AcornValue::new_constant(
-                *canonical_module,
-                canonical_name.clone(),
-                vec![],
-                constant_type,
-            ));
-        }
-
-        // Constants defined here
-        let params = self.constants.get(name)?.params.clone();
-        if params.is_empty() {
-            Some(AcornValue::new_constant(
-                self.module,
-                name.to_string(),
-                vec![],
-                constant_type,
-            ))
-        } else {
-            Some(AcornValue::Unresolved(
-                self.module,
-                name.to_string(),
-                constant_type,
-                params,
-            ))
-        }
-    }
-
-    // Returns an AcornValue representing this name, if there is one.
-    // This can return an unresolved value.
-    // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
         let constant_type = self.identifier_types.get(name)?.clone();
 
@@ -1023,8 +988,11 @@ impl BindingMap {
                 project.get_bindings(module).unwrap()
             };
             let constant_name = format!("{}.{}", type_name, name);
-            let function = match bindings.old_get_constant_value(&constant_name) {
-                Some(value) => value,
+            let function = match bindings.get_constant_value(&constant_name) {
+                Some(PotentialValue::Resolved(value)) => value,
+                Some(PotentialValue::Unresolved(_)) => {
+                    return Err(source.error(&format!("{}.{} has unresolved type", type_name, name)))
+                }
                 None => {
                     return Err(
                         source.error(&format!("unknown instance variable '{}'", constant_name))
