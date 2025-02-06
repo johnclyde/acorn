@@ -1649,7 +1649,7 @@ mod prover_test {
     }
 
     #[test]
-    fn test_function_with_multiple_parameters() {
+    fn test_proving_identity_is_surjective() {
         let text = r#"
             define is_surjective<T, U>(f: T -> U) -> Bool {
                 forall(y: U) {

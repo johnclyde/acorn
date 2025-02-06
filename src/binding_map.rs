@@ -1530,7 +1530,10 @@ impl BindingMap {
                     }
                 };
 
-                let arg_exprs = args_expr.flatten_list(false)?;
+                let arg_exprs = match args_expr.as_ref() {
+                    Expression::Grouping(_, e, _) => e.flatten_comma_separated_list(),
+                    _ => return Err(args_expr.error("expected a comma-separated list")),
+                };
 
                 if function_type.arg_types.len() < arg_exprs.len() {
                     return Err(args_expr.error(&format!(
