@@ -340,21 +340,14 @@ fn parse_params(tokens: &mut TokenIter) -> Result<Vec<Token>> {
     Ok(params)
 }
 
-// Parse some arguments.
-// The first element is an optional template. For example, the <T> in:
-// <T>(a: T, f: T -> T)
-// The second element is an optional parenthesized list of arguments.
-// Finally we have the terminator token. This should appear after the closing paren.
-// Returns the type params, the arguments, and the terminator token.
-fn parse_args(
-    tokens: &mut TokenIter,
-    terminator: TokenType,
-) -> Result<(Vec<Token>, Vec<Declaration>, Token)> {
-    let params = parse_params(tokens)?;
+// Parse some optional arguments.
+// The tokens should either be "(args) terminator", or just the terminator.
+// Returns the arguments, and the terminator token.
+fn parse_args(tokens: &mut TokenIter, terminator: TokenType) -> Result<(Vec<Declaration>, Token)> {
     let token = tokens.expect_token()?;
 
     if token.token_type == terminator {
-        return Ok((params, vec![], token));
+        return Ok((vec![], token));
     }
 
     if token.token_type != TokenType::LeftParen {
@@ -364,7 +357,7 @@ fn parse_args(
     // Parse the arguments list
     let declarations = Declaration::parse_list(tokens)?;
     let terminator = tokens.expect_type(terminator)?;
-    return Ok((params, declarations, terminator));
+    return Ok((declarations, terminator));
 }
 
 // Parses a by block if that's the next thing in the token stream.
@@ -411,8 +404,8 @@ fn parse_theorem_statement(
         Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => None,
         _ => Some(tokens.expect_variable_name(false)?.text().to_string()),
     };
-    // XXX should accept both params and args
-    let (type_params, args, _) = parse_args(tokens, TokenType::LeftBrace)?;
+    let type_params = parse_params(tokens)?;
+    let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
     if type_params.len() > 1 {
         return Err(type_params[1].error("only one type parameter is supported"));
     }
@@ -466,8 +459,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
         Some(token) => {
             if token.token_type == TokenType::LeftParen {
                 // This is a parenthesized let..satisfy.
-                // XXX should not take params!
-                let (_, declarations, _) = parse_args(tokens, TokenType::Satisfy)?;
+                let (declarations, _) = parse_args(tokens, TokenType::Satisfy)?;
                 return complete_variable_satisfy(keyword, tokens, declarations);
             }
         }
@@ -533,8 +525,8 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
 // Parses a define statement where the "define" keyword has already been found.
 fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_variable_name(false)?;
-    // XXX both
-    let (type_params, args, _) = parse_args(tokens, TokenType::RightArrow)?;
+    let type_params = parse_params(tokens)?;
+    let (args, _) = parse_args(tokens, TokenType::RightArrow)?;
     let (return_type, _) = Expression::parse_type(tokens, Terminator::Is(TokenType::LeftBrace))?;
     let (return_value, last_token) =
         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
@@ -575,8 +567,7 @@ fn parse_type_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
 
 // Parses a forall statement where the "forall" keyword has already been found.
 fn parse_forall_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
-    // XXX should not accept params
-    let (_, quantifiers, left_brace) = parse_args(tokens, TokenType::LeftBrace)?;
+    let (quantifiers, left_brace) = parse_args(tokens, TokenType::LeftBrace)?;
     let (statements, right_brace) = parse_block(tokens)?;
     let body = Body {
         left_brace,
@@ -942,11 +933,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 let next_type = tokens.peek_type();
                 match next_type {
                     Some(TokenType::LeftParen) => {
-                        // XXX should not accept params
-                        let (type_params, args, _) = parse_args(tokens, TokenType::LeftBrace)?;
-                        if type_params.len() > 0 {
-                            panic!("type params not supported here");
-                        }
+                        let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
                         let (claim, _) =
                             Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
                         let theorem = TypeclassTheorem {
