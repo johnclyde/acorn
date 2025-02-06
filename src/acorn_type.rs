@@ -162,36 +162,6 @@ impl AcornType {
         }
     }
 
-    // A normalized type is something the theorem prover can use.
-    pub fn is_normalized(&self) -> bool {
-        match self {
-            AcornType::Function(function_type) => {
-                if function_type.arg_types.len() == 0 {
-                    // A function type with no arguments, not normal
-                    return false;
-                }
-                for arg_type in &function_type.arg_types {
-                    if !arg_type.is_normalized() {
-                        return false;
-                    }
-                }
-                if function_type.return_type.is_functional() {
-                    // A function type with a function return type, not normal
-                    return false;
-                }
-                function_type.return_type.is_normalized()
-            }
-            AcornType::Bool => true,
-            AcornType::Data(_, _) => true,
-            AcornType::Variable(..) => {
-                // Type variables should be monomorphized before passing them the prover
-                false
-            }
-            AcornType::Empty => true,
-            AcornType::Arbitrary(..) => true,
-        }
-    }
-
     pub fn equals_data_type(&self, data_type_module_id: ModuleId, data_type_name: &str) -> bool {
         match self {
             AcornType::Data(module_id, name) => {

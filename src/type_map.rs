@@ -51,9 +51,6 @@ impl TypeMap {
         if let Some(type_id) = self.type_map.get(acorn_type) {
             return *type_id;
         }
-        if !acorn_type.is_normalized() {
-            panic!("Type {} is not normalized", acorn_type);
-        }
         self.types.push(acorn_type.clone());
         let id = (self.types.len() - 1) as TypeId;
         self.type_map.insert(acorn_type.clone(), id);
