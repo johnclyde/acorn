@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::acorn_type::AcornType;
-use crate::acorn_value::AcornValue;
+use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::constant_map::ConstantKey;
 use crate::fact::Fact;
 use crate::proof_step::Truthiness;
@@ -182,35 +182,31 @@ impl Monomorphizer {
             if c.params.is_empty() {
                 continue;
             }
-            self.monomorphize_matching_facts(&c.key(), &ConstantParams::new(c.params));
+            self.monomorphize_matching_facts(&c);
         }
     }
 
     // Monomorphizes our facts to create this particular monomorphic constant wherever possible.
     // This is idempotent, because we only need to do each particular monomorphization once.
-    // XXX take the ConstantInstance as an arg?
-    fn monomorphize_matching_facts(
-        &mut self,
-        constant_key: &ConstantKey,
-        monomorph_params: &ConstantParams,
-    ) {
-        monomorph_params.assert_full();
+    fn monomorphize_matching_facts(&mut self, constant: &ConstantInstance) {
+        let params = ConstantParams::new(constant.params.clone());
+        params.assert_full();
         let monomorphs = self
             .instantiations_for_constant
-            .entry(constant_key.clone())
+            .entry(constant.key())
             .or_insert(vec![]);
-        if monomorphs.contains(&monomorph_params) {
+        if monomorphs.contains(&params) {
             // We already have this monomorph
             return;
         }
 
         // This is a new monomorph. Add it to the list.
-        monomorphs.push(monomorph_params.clone());
+        monomorphs.push(params.clone());
 
         // For every fact that mentions this constant, try to monomorphize the fact to match it.
-        if let Some(generic_constant) = self.generic_constants.get(&constant_key) {
+        if let Some(generic_constant) = self.generic_constants.get(&constant.key()) {
             for (fact_id, generic_params) in generic_constant.clone() {
-                self.try_to_monomorphize_fact(fact_id, &generic_params, monomorph_params);
+                self.try_to_monomorphize_fact(fact_id, &generic_params, &params);
             }
         }
     }
