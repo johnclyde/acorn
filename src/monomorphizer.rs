@@ -208,28 +208,27 @@ impl Monomorphizer {
         monomorphs.push(monomorph_params.clone());
 
         // For every fact that mentions this constant, try to monomorphize the fact to match it.
-        if let Some(instances) = self.generic_constants.get(&constant_key) {
-            for (fact_id, instance_params) in instances.clone() {
-                self.try_to_monomorphize_fact(fact_id, monomorph_params, &instance_params);
+        if let Some(generic_constant) = self.generic_constants.get(&constant_key) {
+            for (fact_id, generic_params) in generic_constant.clone() {
+                self.try_to_monomorphize_fact(fact_id, &generic_params, monomorph_params);
             }
         }
     }
 
     // Try to monomorphize the given fact to turn the generic params into the monomorph params.
     // The generic params are the way this constant is instantiated in the given fact.
-    //
-    // TODO: But shouldn't it depend on what the constant was?
+    // The generic params do have to be generic.
     //
     // The monomorph params are how we would like to instantiate the constant.
     // It may or may not be possible to match them up.
-    // For example, this may be a fact about foo<bool, T>, and our goal
+    // For example, this may be a fact about foo<Bool, T>, and our goal
     // is saying something about foo<Nat, Nat>.
     // Then we can't match them up.
     fn try_to_monomorphize_fact(
         &mut self,
         fact_id: usize,
-        monomorph_params: &ConstantParams,
         generic_params: &ConstantParams,
+        monomorph_params: &ConstantParams,
     ) {
         // Our goal is to find the "fact params", a way in which we can instantiate
         // the whole fact so that the instance params become the monomorph params.
