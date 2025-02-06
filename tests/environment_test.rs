@@ -1900,4 +1900,25 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_nested_functional_values() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            define both(f: Bool -> Bool) -> Bool {
+                f(true) and f(false)
+            }
+
+            let both2: (Bool -> Bool) -> Bool = both
+
+            define or2(a: Bool, b: Bool) -> Bool {
+                a or b
+            }
+
+            let or3: (Bool, Bool) -> Bool = or2
+            // let or4: Bool -> Bool -> Bool = or3
+        "#,
+        );
+    }
 }
