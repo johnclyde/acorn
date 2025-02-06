@@ -1552,7 +1552,7 @@ impl BindingMap {
             },
             Expression::Apply(function_expr, args_expr) => {
                 let function =
-                    self.evaluate_value_with_stack(stack, project, function_expr, None)?;
+                    self.evaluate_potential_value(stack, project, function_expr, None)?;
                 let function_type = function.get_type();
 
                 let function_type = match function_type {
@@ -1573,35 +1573,30 @@ impl BindingMap {
                 }
 
                 // Check if we have to do type inference.
-                if let AcornValue::Unresolved(c_module, c_name, c_type, c_params) = function {
-                    let unresolved = UnresolvedConstant {
-                        module_id: c_module,
-                        name: c_name,
-                        generic_type: c_type,
-                        params: c_params,
-                    };
-                    self.infer_and_apply(
+                match function {
+                    PotentialValue::Unresolved(unresolved) => self.infer_and_apply(
                         stack,
                         project,
                         expression,
                         unresolved,
                         arg_exprs,
                         expected_type,
-                    )?
-                } else {
-                    // Simple, no-type-inference-necessary construction
-                    let mut args = vec![];
-                    for (i, arg_expr) in arg_exprs.iter().enumerate() {
-                        let arg_type: &AcornType = &function_type.arg_types[i];
-                        let arg = self.evaluate_value_with_stack(
-                            stack,
-                            project,
-                            arg_expr,
-                            Some(arg_type),
-                        )?;
-                        args.push(arg);
+                    )?,
+                    PotentialValue::Resolved(function) => {
+                        // Simple, no-type-inference-necessary construction
+                        let mut args = vec![];
+                        for (i, arg_expr) in arg_exprs.iter().enumerate() {
+                            let arg_type: &AcornType = &function_type.arg_types[i];
+                            let arg = self.evaluate_value_with_stack(
+                                stack,
+                                project,
+                                arg_expr,
+                                Some(arg_type),
+                            )?;
+                            args.push(arg);
+                        }
+                        AcornValue::new_apply(function, args)
                     }
-                    AcornValue::new_apply(function, args)
                 }
             }
             Expression::Grouping(_, e, _) => {
