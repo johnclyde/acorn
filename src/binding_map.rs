@@ -156,6 +156,21 @@ impl PotentialValue {
             PotentialValue::Resolved(c) => Ok(c),
         }
     }
+
+    fn to_named_entity(self) -> NamedEntity {
+        match self {
+            PotentialValue::Unresolved(u) => NamedEntity::Unresolved(u),
+            PotentialValue::Resolved(v) => NamedEntity::Value(v),
+        }
+    }
+
+    // If this is an unresolved value, it will have a generic type.
+    pub fn get_type(&self) -> AcornType {
+        match &self {
+            PotentialValue::Unresolved(u) => u.generic_type.clone(),
+            PotentialValue::Resolved(v) => v.get_type(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -1099,8 +1114,8 @@ impl BindingMap {
                         } else if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
-                        } else if let Some(value) = self.old_get_constant_value(name) {
-                            Ok(NamedEntity::Value(value))
+                        } else if let Some(potential) = self.get_constant_value(name) {
+                            Ok(potential.to_named_entity())
                         } else {
                             Err(name_token.error(&format!("unknown identifier '{}'", name)))
                         }
@@ -1384,7 +1399,18 @@ impl BindingMap {
                 }
                 TokenType::Identifier | TokenType::Numeral | TokenType::SelfToken => {
                     let entity = self.evaluate_name(token, project, stack, None)?;
-                    entity.expect_value(expected_type, token)?
+                    match entity {
+                        NamedEntity::Value(value) => {
+                            check_type(expression, expected_type, &value.get_type())?;
+                            value
+                        }
+                        NamedEntity::Type(_) | NamedEntity::Module(_) => {
+                            return Err(token.error("expected a value"));
+                        }
+                        NamedEntity::Unresolved(u) => {
+                            return Ok(PotentialValue::Unresolved(u));
+                        }
+                    }
                 }
                 token_type => {
                     return Err(token.error(&format!(
