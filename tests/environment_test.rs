@@ -1921,4 +1921,27 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_param_looking_thing() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Nat: axiom
+
+            class Nat {
+                let 0: Nat = axiom
+                let 1: Nat = axiom
+                let from_bool: Bool -> Nat = axiom
+                define lt(self, other: Nat) -> Bool {
+                    axiom
+                }
+            }
+
+            theorem foo {
+                Nat.from_bool(false) < Nat.from_bool(true)
+            }
+        "#,
+        );
+    }
 }
