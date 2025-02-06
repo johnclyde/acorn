@@ -10,7 +10,7 @@ use crate::proof_step::Truthiness;
 // The type variables used in a generic fact, along with the types they map to.
 // Can be a partial instantiation.
 // If it isn't fully instantiated, the strings map to generic types.
-// Should always be sorted by string.
+// Should always be sorted by string, so that we have some canonical order.
 #[derive(PartialEq, Eq, Clone)]
 struct FactParams {
     params: Vec<(String, AcornType)>,
@@ -29,15 +29,16 @@ impl fmt::Display for FactParams {
 }
 
 impl FactParams {
-    fn new(params: Vec<(String, AcornType)>) -> FactParams {
+    fn new(params: impl IntoIterator<Item = (String, AcornType)>) -> FactParams {
+        let mut params: Vec<_> = params.into_iter().collect();
         assert!(!params.is_empty());
+        params.sort();
         FactParams { params }
     }
 }
 
 // The instantiation of a constant.
 // Ordered the same way as the constant's parameters.
-// XXX: Can this be a partial instantiation? If so, what are the types?
 #[derive(PartialEq, Eq, Clone)]
 struct ConstantParams {
     params: Vec<AcornType>,
@@ -241,10 +242,6 @@ impl Monomorphizer {
         {
             generic_type.match_instance(monomorph_type, &mut fact_params);
         }
-
-        // We sort because there's no inherently canonical order.
-        let mut fact_params: Vec<_> = fact_params.into_iter().collect();
-        fact_params.sort();
         let fact_params = FactParams::new(fact_params);
 
         if self.instantiations_for_fact[fact_id].contains(&fact_params) {
