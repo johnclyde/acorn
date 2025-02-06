@@ -30,6 +30,7 @@ pub struct Block {
 
     // Sometimes the user specifies a goal for a block, that must be proven.
     // The goal for a block is relative to its internal environment.
+    // TODO: the goal can be generic. Should we be making it arbitrary, instead?
     // Everything in the block can be used to achieve this goal.
     // If there is no goal for the block, we can still use its conclusion externally,
     // but we let the conclusion be determined by the code in the block.
