@@ -824,10 +824,14 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
     }
 }
 
-// Checks if this looks like a type parameter list, with the '<' already taken.
+// Checks if this looks like a type parameter list.
+// index is the index of the first partial expression after a '<'.
 // If so, returns the closing '>' along with its index.
-fn looks_like_type_params(partials: &VecDeque<PartialExpression>) -> Option<(Token, usize)> {
-    for (i, partial) in partials.iter().enumerate() {
+fn looks_like_type_params(
+    partials: &VecDeque<PartialExpression>,
+    index: usize,
+) -> Option<(Token, usize)> {
+    for (i, partial) in partials.iter().enumerate().skip(index) {
         match partial {
             PartialExpression::Binary(token) => {
                 if token.token_type == TokenType::Comma {
@@ -931,7 +935,7 @@ fn combine_partial_expressions(
             PartialExpression::Binary(token) => {
                 if token.token_type == TokenType::LessThan {
                     // See if right_partials appears to be type params.
-                    if let Some((closing, i)) = looks_like_type_params(&right_partials) {
+                    if let Some((closing, i)) = looks_like_type_params(&right_partials, 0) {
                         let far_right_partials = right_partials.split_off(i + 1);
                         right_partials.pop_back();
                         let params = combine_partial_expressions(
