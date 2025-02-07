@@ -1250,5 +1250,6 @@ mod tests {
         check_value("is_surjective(identity<T>)");
         check_value("foo.bar<T>");
         check_value("maps_to<Bool, Bool>(not2, false)");
+        check_value("List<List<T>>");
     }
 }
