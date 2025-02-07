@@ -550,6 +550,14 @@ impl Expression {
         Expression::parse(tokens, ExpressionType::Type, terminator)
     }
 
+    // Whether this expression is a type.
+    pub fn is_type(&self) -> bool {
+        match self {
+            Expression::Singleton(token) => token.is_type_name(),
+            _ => false,
+        }
+    }
+
     fn expect_parse(input: &str, expected_type: ExpressionType) -> Expression {
         let tokens = Token::scan(input);
         let mut tokens = TokenIter::new(tokens);
@@ -824,23 +832,20 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
     }
 }
 
-// Checks if this looks like a type parameter list.
+// Checks if this "looks like" a type parameter list.
+// It only has to find the innermost one when they are nested.
 // index is the index of the first partial expression after a '<'.
 // If so, returns the index of the closing '>'.
 fn looks_like_type_params(partials: &VecDeque<PartialExpression>, index: usize) -> Option<usize> {
     for (i, partial) in partials.iter().enumerate().skip(index) {
         match partial {
-            PartialExpression::Binary(token) => {
-                if token.token_type == TokenType::Comma {
-                    continue;
-                }
-                if token.token_type == TokenType::GreaterThan {
-                    return Some(i);
-                }
-                return None;
-            }
-            PartialExpression::Expression(Expression::Singleton(token)) => {
-                if token.is_type_name() {
+            PartialExpression::Binary(token) => match token.token_type {
+                TokenType::Comma => continue,
+                TokenType::GreaterThan => return Some(i),
+                _ => return None,
+            },
+            PartialExpression::Expression(expr) => {
+                if expr.is_type() {
                     continue;
                 }
                 return None;
