@@ -552,10 +552,18 @@ impl Expression {
 
     // Whether this expression is a type.
     pub fn is_type(&self) -> bool {
-        match self {
+        let answer = match self {
             Expression::Singleton(token) => token.is_type_name(),
+            Expression::Grouping(_, e, _) => e.is_type(),
+            Expression::Binary(left, op, right) => match op.token_type {
+                TokenType::Comma | TokenType::RightArrow => left.is_type() && right.is_type(),
+                TokenType::Dot => right.is_type(),
+                _ => false,
+            },
+            Expression::Apply(left, right) => left.is_type() && right.is_type(),
             _ => false,
-        }
+        };
+        answer
     }
 
     fn expect_parse(input: &str, expected_type: ExpressionType) -> Expression {
@@ -641,7 +649,9 @@ fn parse_partial_expressions(
                 }
                 (ExpressionType::Type, TokenType::Comma)
                 | (ExpressionType::Type, TokenType::RightArrow)
-                | (ExpressionType::Type, TokenType::Dot) => {
+                | (ExpressionType::Type, TokenType::Dot)
+                | (ExpressionType::Type, TokenType::LessThan)
+                | (ExpressionType::Type, TokenType::GreaterThan) => {
                     // These are okay in types
                 }
                 (ExpressionType::Type, _) => {
@@ -1022,7 +1032,11 @@ mod tests {
     use super::*;
 
     fn expect_optimal(input: &str, expected_type: ExpressionType) {
-        let output = Expression::expect_parse(input, expected_type).to_string();
+        let expr = Expression::expect_parse(input, expected_type);
+        if expected_type == ExpressionType::Type {
+            assert!(expr.is_type());
+        }
+        let output = expr.to_string();
         assert_eq!(input, output);
     }
 
@@ -1248,6 +1262,11 @@ mod tests {
     }
 
     #[test]
+    fn test_generic_types() {
+        check_type("List<List<T>>");
+    }
+
+    #[test]
     fn test_type_params_in_expressions() {
         check_value("foo<T>");
         check_value("List<T>.new");
@@ -1255,6 +1274,5 @@ mod tests {
         check_value("is_surjective(identity<T>)");
         check_value("foo.bar<T>");
         check_value("maps_to<Bool, Bool>(not2, false)");
-        check_value("List<List<T>>");
     }
 }
