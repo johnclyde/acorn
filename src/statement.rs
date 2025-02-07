@@ -73,7 +73,7 @@ pub struct PropStatement {
     pub claim: Expression,
 }
 
-// Type statements associate a name with a type expression
+// Type statements declare a name as an alias to a type expression.
 pub struct TypeStatement {
     pub name: String,
     pub type_expr: Expression,
@@ -135,6 +135,7 @@ pub struct FunctionSatisfyStatement {
 pub struct StructureStatement {
     pub name: String,
     pub name_token: Token,
+    pub type_params: Vec<Token>,
 
     // Each field contains a field name-token and a type expression
     pub fields: Vec<(Token, Expression)>,
@@ -640,8 +641,9 @@ fn parse_if_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statemen
 // Parses a structure statement where the "structure" keyword has already been found.
 fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
+    let type_params = parse_params(tokens)?;
     tokens.expect_type(TokenType::LeftBrace)?;
-    let mut fields = Vec::new();
+    let mut fields = vec![];
     while let Some(token) = tokens.peek() {
         match token.token_type {
             TokenType::NewLine => {
@@ -678,6 +680,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     statement: StatementInfo::Structure(StructureStatement {
                         name: name_token.to_string(),
                         name_token,
+                        type_params,
                         fields,
                         first_right_brace,
                         constraint,
@@ -1108,7 +1111,9 @@ impl Statement {
 
             StatementInfo::Structure(ss) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "structure {} {{\n", ss.name)?;
+                write!(f, "structure {}", ss.name)?;
+                write_type_params(f, &ss.type_params)?;
+                write!(f, " {{\n")?;
                 for (name, type_expr) in &ss.fields {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }
@@ -1877,6 +1882,15 @@ mod tests {
             bar: (F, F) -> Bool
             baz: F
             qux: Bool
+        }"});
+    }
+
+    #[test]
+    fn test_parsing_structure_with_type_params() {
+        ok(indoc! {"
+        structure Pair<T, U> {
+            first: T
+            second: U
         }"});
     }
 
