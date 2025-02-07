@@ -1512,9 +1512,9 @@ impl BindingMap {
                         expected_type,
                     )?,
                     None => {
-                        return Err(
-                            expression.error("unhandled binary operator in value expression")
-                        )
+                        let message =
+                            &format!("unexpected operator '{}' in value expression", token);
+                        return Err(expression.error(message));
                     }
                 },
             },

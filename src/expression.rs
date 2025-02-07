@@ -1211,5 +1211,6 @@ mod tests {
         check_value("map(add<Int>, myList)");
         check_value("is_surjective(identity<T>)");
         check_value("foo.bar<T>");
+        check_value("maps_to<Bool, Bool>(not2, false)");
     }
 }
