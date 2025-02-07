@@ -524,7 +524,9 @@ impl Expression {
         expected_type: ExpressionType,
         termination: Terminator,
     ) -> Result<(Expression, Token)> {
-        let (partials, terminator) = parse_partial_expressions(tokens, expected_type, termination)?;
+        let (mut partials, terminator) =
+            parse_partial_expressions(tokens, expected_type, termination)?;
+        group_type_parameters(&mut partials)?;
         check_partial_expressions(&partials)?;
         let expression = combine_partial_expressions(partials, expected_type, &terminator)?;
         Ok((expression, terminator))
@@ -822,6 +824,39 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
     }
 }
 
+// Checks if this looks like a type parameter list, with the '<' already taken.
+// If so, returns the closing '>' along with its index.
+fn looks_like_type_params(partials: &VecDeque<PartialExpression>) -> Option<(Token, usize)> {
+    for (i, partial) in partials.iter().enumerate() {
+        match partial {
+            PartialExpression::Binary(token) => {
+                if token.token_type == TokenType::Comma {
+                    continue;
+                }
+                if token.token_type == TokenType::GreaterThan {
+                    return Some((token.clone(), i));
+                }
+                return None;
+            }
+            PartialExpression::Expression(Expression::Singleton(token)) => {
+                if token.is_type_name() {
+                    continue;
+                }
+                return None;
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
+// Checks if there are any type parameters in this list of partial expressions.
+// If so, it combines them into a single Grouping expression.
+fn group_type_parameters(partials: &mut VecDeque<PartialExpression>) -> Result<()> {
+    // XXX
+    Ok(())
+}
+
 // Checks to see if the partial expressions are valid.
 // This is not necessary for correctness. But we can generate a nicer error message here than
 // in the depths of a recursion.
@@ -850,32 +885,6 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
         }
     }
     Ok(())
-}
-
-// Checks if this looks like a type parameter list, with the '<' already taken.
-// If so, returns the closing '>' along with its index.
-fn looks_like_type_params(partials: &VecDeque<PartialExpression>) -> Option<(Token, usize)> {
-    for (i, partial) in partials.iter().enumerate() {
-        match partial {
-            PartialExpression::Binary(token) => {
-                if token.token_type == TokenType::Comma {
-                    continue;
-                }
-                if token.token_type == TokenType::GreaterThan {
-                    return Some((token.clone(), i));
-                }
-                return None;
-            }
-            PartialExpression::Expression(Expression::Singleton(token)) => {
-                if token.is_type_name() {
-                    continue;
-                }
-                return None;
-            }
-            _ => return None,
-        }
-    }
-    None
 }
 
 // Combines partial expressions into a single expression.
