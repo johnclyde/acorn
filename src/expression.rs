@@ -826,11 +826,8 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
 
 // Checks if this looks like a type parameter list.
 // index is the index of the first partial expression after a '<'.
-// If so, returns the closing '>' along with its index.
-fn looks_like_type_params(
-    partials: &VecDeque<PartialExpression>,
-    index: usize,
-) -> Option<(Token, usize)> {
+// If so, returns the index of the closing '>'.
+fn looks_like_type_params(partials: &VecDeque<PartialExpression>, index: usize) -> Option<usize> {
     for (i, partial) in partials.iter().enumerate().skip(index) {
         match partial {
             PartialExpression::Binary(token) => {
@@ -838,7 +835,7 @@ fn looks_like_type_params(
                     continue;
                 }
                 if token.token_type == TokenType::GreaterThan {
-                    return Some((token.clone(), i));
+                    return Some(i);
                 }
                 return None;
             }
@@ -854,7 +851,21 @@ fn looks_like_type_params(
     None
 }
 
+// Checks if anything in this list of partial expressions is actually type parameters.
+// Returns the indices of the '<' and '>' if so.
 fn find_type_params(partials: &VecDeque<PartialExpression>) -> Option<(usize, usize)> {
+    for (i, partial) in partials.iter().enumerate() {
+        match partial {
+            PartialExpression::Binary(token) => {
+                if token.token_type == TokenType::LessThan {
+                    if let Some(j) = looks_like_type_params(partials, i + 1) {
+                        return Some((i, j));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
     None
 }
 
@@ -965,24 +976,6 @@ fn combine_partial_expressions(
 
         return match partial {
             PartialExpression::Binary(token) => {
-                if token.token_type == TokenType::LessThan {
-                    // See if right_partials appears to be type params.
-                    if let Some((closing, i)) = looks_like_type_params(&right_partials, 0) {
-                        let far_right_partials = right_partials.split_off(i + 1);
-                        right_partials.pop_back();
-                        let params = combine_partial_expressions(
-                            right_partials,
-                            ExpressionType::Type,
-                            source,
-                        )?;
-                        let grouped =
-                            Expression::Grouping(token.clone(), Box::new(params), closing);
-                        partials.push_back(PartialExpression::Expression(grouped));
-                        partials.extend(far_right_partials);
-                        return combine_partial_expressions(partials, expected_type, source);
-                    }
-                }
-
                 let left = combine_partial_expressions(partials, expected_type, source)?;
                 let right = combine_partial_expressions(right_partials, expected_type, source)?;
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
