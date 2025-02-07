@@ -31,7 +31,6 @@ pub struct Block {
     // Sometimes the user specifies a goal for a block, that must be proven.
     // The goal for a block is relative to its internal environment.
     // In particular, the goal should not be generic. It should use arbitrary fixed types instead.
-    // XXX make that actually true!
     //
     // Everything in the block can be used to achieve this goal.
     // If there is no goal for the block, we can still use its conclusion externally,
