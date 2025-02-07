@@ -190,13 +190,13 @@ impl TokenType {
     // Function application implicitly has the same precedence as dot.
     pub fn binary_precedence(&self) -> i8 {
         match self {
-            TokenType::Dot => 13,
-            TokenType::Asterisk => 11,
-            TokenType::Slash => 11,
-            TokenType::Plus => 10,
-            TokenType::Minus => 10,
-            TokenType::Percent => 9,
-            TokenType::GreaterThan => 8,
+            TokenType::Dot => 14,
+            TokenType::Asterisk => 12,
+            TokenType::Slash => 12,
+            TokenType::Plus => 11,
+            TokenType::Minus => 11,
+            TokenType::Percent => 10,
+            TokenType::GreaterThan => 9,
             TokenType::LessThan => 8,
             TokenType::GreaterThanOrEquals => 8,
             TokenType::LessThanOrEquals => 8,
@@ -217,7 +217,7 @@ impl TokenType {
     pub fn unary_precedence(&self) -> i8 {
         match self {
             TokenType::Not => 6,
-            TokenType::Minus => 12,
+            TokenType::Minus => 13,
             _ => 0,
         }
     }

@@ -577,6 +577,8 @@ enum PartialExpression {
 
     // Tokens that are only part of an expression
     Unary(Token),
+
+    // Binary includes < and > which might be used for type parameters.
     Binary(Token),
 
     // An implicit apply, like "f(x)". It's located between the f and the (x).
@@ -606,45 +608,6 @@ impl ErrorSource for PartialExpression {
     }
 }
 
-// After a '<' has been consumed, check if the following tokens look like a param list.
-// I.e., something like "T, U, V>".
-// If it doesn't look like parameters, just return an empty vector.
-fn parse_params(less_than: &Token, tokens: &mut TokenIter) -> Result<Option<Expression>> {
-    match tokens.peek() {
-        Some(t) => {
-            if !t.is_type_name() {
-                return Ok(None);
-            }
-        }
-        None => {
-            return Ok(None);
-        }
-    }
-
-    let mut expr = Expression::Singleton(tokens.next().unwrap());
-
-    loop {
-        let token = tokens.expect_token()?;
-        match token.token_type {
-            TokenType::Comma => {
-                let next_type = tokens.expect_type_name()?;
-                expr = Expression::Binary(
-                    Box::new(expr),
-                    token,
-                    Box::new(Expression::Singleton(next_type)),
-                );
-            }
-            TokenType::GreaterThan => {
-                let grouping = Expression::Grouping(less_than.clone(), Box::new(expr), token);
-                return Ok(Some(grouping));
-            }
-            _ => {
-                return Err(token.error("expected ',' or '>'"));
-            }
-        }
-    }
-}
-
 // Create partial expressions from tokens.
 // termination determines what tokens are allowed to be the terminator.
 // Consumes the terminating token from the iterator and returns it.
@@ -657,13 +620,6 @@ fn parse_partial_expressions(
     while let Some(token) = tokens.next() {
         if termination.matches(&token.token_type) {
             return Ok((partials, token));
-        }
-        if token.token_type == TokenType::LessThan {
-            // Check for type parameters
-            if let Some(params) = parse_params(&token, tokens)? {
-                partials.push_back(PartialExpression::Expression(params));
-                continue;
-            }
         }
         if token.token_type.is_binary() {
             match (expected_type, token.token_type) {
@@ -874,6 +830,12 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
         // Iterate over all pairs
         for i in 0..(partials.len() - 1) {
             let left = &partials[i];
+            if let PartialExpression::Binary(t) = left {
+                if t.token_type == TokenType::GreaterThan {
+                    // Our sanity checks don't work for type parameters.
+                    continue;
+                }
+            }
             let right = &partials[i + 1];
             match (left, right) {
                 (PartialExpression::Binary(a), PartialExpression::Binary(b))
@@ -890,9 +852,36 @@ fn check_partial_expressions(partials: &VecDeque<PartialExpression>) -> Result<(
     Ok(())
 }
 
+// Checks if this looks like a type parameter list, with the '<' already taken.
+// If so, returns the closing '>' along with its index.
+fn looks_like_type_params(partials: &VecDeque<PartialExpression>) -> Option<(Token, usize)> {
+    for (i, partial) in partials.iter().enumerate() {
+        match partial {
+            PartialExpression::Binary(token) => {
+                if token.token_type == TokenType::Comma {
+                    continue;
+                }
+                if token.token_type == TokenType::GreaterThan {
+                    return Some((token.clone(), i));
+                }
+                return None;
+            }
+            PartialExpression::Expression(Expression::Singleton(token)) => {
+                if token.is_type_name() {
+                    continue;
+                }
+                return None;
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
 // Combines partial expressions into a single expression.
 // Operators work in precedence order, and left-to-right within a single precedence.
 // This algorithm is quadratic, so perhaps we should improve it at some point.
+// XXX iter -> source
 fn combine_partial_expressions(
     mut partials: VecDeque<PartialExpression>,
     expected_type: ExpressionType,
@@ -928,6 +917,24 @@ fn combine_partial_expressions(
 
         return match partial {
             PartialExpression::Binary(token) => {
+                if token.token_type == TokenType::LessThan {
+                    // See if right_partials appears to be type params.
+                    if let Some((closing, i)) = looks_like_type_params(&right_partials) {
+                        let far_right_partials = right_partials.split_off(i + 1);
+                        right_partials.pop_back();
+                        let params = combine_partial_expressions(
+                            right_partials,
+                            ExpressionType::Type,
+                            iter,
+                        )?;
+                        let grouped =
+                            Expression::Grouping(token.clone(), Box::new(params), closing);
+                        partials.push_back(PartialExpression::Expression(grouped));
+                        partials.extend(far_right_partials);
+                        return combine_partial_expressions(partials, expected_type, iter);
+                    }
+                }
+
                 let left = combine_partial_expressions(partials, expected_type, iter)?;
                 let right = combine_partial_expressions(right_partials, expected_type, iter)?;
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
