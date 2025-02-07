@@ -1944,4 +1944,28 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_params_with_arg_application() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Nat: axiom
+
+            define maps_to<T, U>(f: T -> U, u: U) -> Bool {
+                exists(t: T) {
+                    f(t) = u
+                }
+            }
+
+            define not2(b: Bool) -> Bool {
+                not b
+            }
+
+            theorem foo {
+                maps_to<Bool, Bool>(not2, false)
+            }
+        "#,
+        );
+    }
 }
