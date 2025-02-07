@@ -30,7 +30,9 @@ pub struct Block {
 
     // Sometimes the user specifies a goal for a block, that must be proven.
     // The goal for a block is relative to its internal environment.
-    // TODO: the goal can be generic. Should we be making it arbitrary, instead?
+    // In particular, the goal should not be generic. It should use arbitrary fixed types instead.
+    // XXX make that actually true!
+    //
     // Everything in the block can be used to achieve this goal.
     // If there is no goal for the block, we can still use its conclusion externally,
     // but we let the conclusion be determined by the code in the block.
@@ -152,8 +154,7 @@ impl Block {
                     );
                 }
 
-                // We can prove the goal either in bound or in function form
-                let bound_goal = unbound_goal.bind_values(0, 0, &arg_values);
+                let bound_goal = unbound_goal.bind_values(0, 0, &arg_values).to_arbitrary();
                 Some(Goal::Prove(Proposition::theorem(
                     false,
                     bound_goal,

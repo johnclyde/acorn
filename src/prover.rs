@@ -183,6 +183,7 @@ impl Prover {
 
         // Add any monomorphic facts needed to match the goal.
         // We don't need to add the goal as a generic fact since we convert to arbitrary first.
+        // XXX have this happen somewhere upstream
         let goal_value = goal_context.goal.value().to_arbitrary();
         self.monomorphizer.add_monomorphs(&goal_value);
         for fact in self.monomorphizer.take_facts() {
