@@ -550,17 +550,21 @@ impl Expression {
         Expression::parse(tokens, ExpressionType::Type, terminator)
     }
 
-    // Whether this expression is a type.
-    pub fn is_type(&self) -> bool {
+    // Whether this expression could be part of a type.
+    pub fn could_be_part_of_type(&self) -> bool {
         let answer = match self {
-            Expression::Singleton(token) => token.is_type_name(),
-            Expression::Grouping(_, e, _) => e.is_type(),
+            Expression::Singleton(_) => true,
+            Expression::Grouping(_, e, _) => e.could_be_part_of_type(),
             Expression::Binary(left, op, right) => match op.token_type {
-                TokenType::Comma | TokenType::RightArrow => left.is_type() && right.is_type(),
-                TokenType::Dot => right.is_type(),
+                TokenType::Comma | TokenType::RightArrow => {
+                    left.could_be_part_of_type() && right.could_be_part_of_type()
+                }
+                TokenType::Dot => right.could_be_part_of_type(),
                 _ => false,
             },
-            Expression::Apply(left, right) => left.is_type() && right.is_type(),
+            Expression::Apply(left, right) => {
+                left.could_be_part_of_type() && right.could_be_part_of_type()
+            }
             _ => false,
         };
         answer
@@ -850,12 +854,16 @@ fn looks_like_type_params(partials: &VecDeque<PartialExpression>, index: usize) 
     for (i, partial) in partials.iter().enumerate().skip(index) {
         match partial {
             PartialExpression::Binary(token) => match token.token_type {
-                TokenType::Comma => continue,
+                TokenType::Comma | TokenType::RightArrow | TokenType::Dot | TokenType::Colon => {
+                    continue
+                }
                 TokenType::GreaterThan => return Some(i),
-                _ => return None,
+                _ => {
+                    return None;
+                }
             },
             PartialExpression::Expression(expr) => {
-                if expr.is_type() {
+                if expr.could_be_part_of_type() {
                     continue;
                 }
                 return None;
@@ -1034,7 +1042,7 @@ mod tests {
     fn expect_optimal(input: &str, expected_type: ExpressionType) {
         let expr = Expression::expect_parse(input, expected_type);
         if expected_type == ExpressionType::Type {
-            assert!(expr.is_type());
+            assert!(expr.could_be_part_of_type());
         }
         let output = expr.to_string();
         assert_eq!(input, output);
@@ -1264,6 +1272,8 @@ mod tests {
     #[test]
     fn test_generic_types() {
         check_type("List<List<T>>");
+        check_type("List<List<X> -> List<Y>, List<Y> -> List<X>>");
+        check_type("List<(foo.Foo, bar.Bar) -> baz.Baz<Qux>>");
     }
 
     #[test]
