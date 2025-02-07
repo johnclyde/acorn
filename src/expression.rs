@@ -526,7 +526,7 @@ impl Expression {
     ) -> Result<(Expression, Token)> {
         let (partials, terminator) = parse_partial_expressions(tokens, expected_type, termination)?;
         check_partial_expressions(&partials)?;
-        let expression = combine_partial_expressions(partials, expected_type, tokens)?;
+        let expression = combine_partial_expressions(partials, expected_type, &terminator)?;
         Ok((expression, terminator))
     }
 
@@ -881,14 +881,13 @@ fn looks_like_type_params(partials: &VecDeque<PartialExpression>) -> Option<(Tok
 // Combines partial expressions into a single expression.
 // Operators work in precedence order, and left-to-right within a single precedence.
 // This algorithm is quadratic, so perhaps we should improve it at some point.
-// XXX iter -> source
 fn combine_partial_expressions(
     mut partials: VecDeque<PartialExpression>,
     expected_type: ExpressionType,
-    iter: &mut TokenIter,
+    source: &dyn ErrorSource,
 ) -> Result<Expression> {
     if partials.len() == 0 {
-        return Err(iter.error("expected an expression here"));
+        return Err(source.error("expected an expression here"));
     }
     if partials.len() == 1 {
         let partial = partials.pop_back().unwrap();
@@ -906,7 +905,11 @@ fn combine_partial_expressions(
             if let PartialExpression::Unary(token) = partial {
                 return Ok(Expression::Unary(
                     token,
-                    Box::new(combine_partial_expressions(partials, expected_type, iter)?),
+                    Box::new(combine_partial_expressions(
+                        partials,
+                        expected_type,
+                        source,
+                    )?),
                 ));
             }
             return Err(partial.error("expected unary operator"));
@@ -925,23 +928,23 @@ fn combine_partial_expressions(
                         let params = combine_partial_expressions(
                             right_partials,
                             ExpressionType::Type,
-                            iter,
+                            source,
                         )?;
                         let grouped =
                             Expression::Grouping(token.clone(), Box::new(params), closing);
                         partials.push_back(PartialExpression::Expression(grouped));
                         partials.extend(far_right_partials);
-                        return combine_partial_expressions(partials, expected_type, iter);
+                        return combine_partial_expressions(partials, expected_type, source);
                     }
                 }
 
-                let left = combine_partial_expressions(partials, expected_type, iter)?;
-                let right = combine_partial_expressions(right_partials, expected_type, iter)?;
+                let left = combine_partial_expressions(partials, expected_type, source)?;
+                let right = combine_partial_expressions(right_partials, expected_type, source)?;
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
             }
             PartialExpression::ImplicitApply(_) => {
-                let left = combine_partial_expressions(partials, expected_type, iter)?;
-                let right = combine_partial_expressions(right_partials, expected_type, iter)?;
+                let left = combine_partial_expressions(partials, expected_type, source)?;
+                let right = combine_partial_expressions(right_partials, expected_type, source)?;
                 Ok(Expression::Apply(Box::new(left), Box::new(right)))
             }
             _ => Err(partial.error("expected binary operator")),
