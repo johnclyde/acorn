@@ -854,11 +854,43 @@ fn looks_like_type_params(
     None
 }
 
+fn find_type_params(partials: &VecDeque<PartialExpression>) -> Option<(usize, usize)> {
+    None
+}
+
 // Checks if there are any type parameters in this list of partial expressions.
 // If so, it combines them into a single Grouping expression.
 fn group_type_parameters(partials: &mut VecDeque<PartialExpression>) -> Result<()> {
-    // XXX
-    Ok(())
+    loop {
+        match find_type_params(&partials) {
+            Some((i, j)) => {
+                // Break into three groups.
+                // left, opening token, middle (the type parameters), closing token, right
+                // The left group is still called "partials".
+                let right = partials.split_off(j + 1);
+                let closing = partials.pop_back().unwrap();
+                let closing = match closing {
+                    PartialExpression::Binary(t) => t,
+                    _ => return Err(closing.error("expected a closing '>'")),
+                };
+                let middle = partials.split_off(i + 1);
+                let opening = partials.pop_back().unwrap();
+                let opening = match opening {
+                    PartialExpression::Binary(t) => t,
+                    _ => return Err(opening.error("expected an opening '<'")),
+                };
+
+                // Make a partial expression for the type params
+                let params = combine_partial_expressions(middle, ExpressionType::Type, &opening)?;
+                let grouped = Expression::Grouping(opening, Box::new(params), closing);
+
+                // Reassemble the whole thing
+                partials.push_back(PartialExpression::Expression(grouped));
+                partials.extend(right);
+            }
+            None => return Ok(()),
+        }
+    }
 }
 
 // Checks to see if the partial expressions are valid.
