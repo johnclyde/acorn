@@ -320,6 +320,18 @@ impl BindingMap {
         data_type
     }
 
+    // Adds an arbitrary type to the binding map.
+    // This indicates a type parameter that is coming into scope.
+    // Panics if the name is already bound.
+    pub fn add_arbitrary_type(&mut self, name: &str) -> AcornType {
+        if self.name_in_use(name) {
+            panic!("type name {} already bound", name);
+        }
+        let arbitrary_type = AcornType::Arbitrary(name.to_string(), None);
+        self.insert_type_name(name.to_string(), arbitrary_type.clone());
+        arbitrary_type
+    }
+
     // Adds a new type name that's an alias for an existing type
     pub fn add_type_alias(&mut self, name: &str, acorn_type: AcornType) {
         if self.name_in_use(name) {

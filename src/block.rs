@@ -98,10 +98,9 @@ impl Block {
         let mut subenv = env.child(first_line, body.is_none());
 
         // Inside the block, the type parameters are arbitrary types.
-        // XXX not true yet!
         let param_pairs: Vec<(String, AcornType)> = type_params
             .iter()
-            .map(|s| (s.clone(), subenv.bindings.add_data_type(&s)))
+            .map(|s| (s.clone(), subenv.bindings.add_arbitrary_type(&s)))
             .collect();
 
         // Inside the block, the arguments are constants.
