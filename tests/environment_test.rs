@@ -1981,4 +1981,37 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_cant_reuse_type_param_name() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+        "#,
+        );
+
+        // Reusing in a different scope is fine.
+        env.add(
+            r#"
+            structure Pair2<T, U> {
+                first: T
+                second: U
+            }
+        "#,
+        );
+
+        // Reusing a global name is not.
+        env.bad(
+            r#"
+            structure T<Pair, U> {
+                first: Pair
+                second: U
+            }
+        "#,
+        );
+    }
 }
