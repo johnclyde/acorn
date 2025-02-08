@@ -1894,6 +1894,16 @@ mod tests {
         }"});
     }
 
+    #[test]
+    fn test_parsing_class_statement_with_type_params() {
+        ok(indoc! {"
+        class Pair<T, U> {
+            define swap(self) -> Pair<U, T> {
+                Pair.new(self.second, self.first)
+            }
+        }"});
+    }
+
     // #[test]
     // fn test_parsing_typeclass_statement_theorems() {
     //     ok(indoc! {"

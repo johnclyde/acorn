@@ -1672,4 +1672,26 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    // XXX
+    // #[test]
+    // fn test_proving_with_generic_structure() {
+    //     let text = r#"
+    //         structure Pair<T, U> {
+    //             first: T
+    //             second: U
+    //         }
+
+    //         class Pair<T, U> {
+    //             define swap(self) -> Pair<U, T> {
+    //                 Pair.new(self.second, self.first)
+    //             }
+    //         }
+
+    //         theorem swap_swap<T< U>(p: Pair<T, U>) {
+    //             p.swap.swap = p
+    //         }
+    //     "#;
+    //     verify_succeeds(text);
+    // }
 }

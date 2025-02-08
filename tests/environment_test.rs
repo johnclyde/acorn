@@ -2014,4 +2014,24 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    // XXX
+    // #[test]
+    // fn test_generic_class_statement() {
+    //     let mut env = Environment::new_test();
+    //     env.add(
+    //         r#"
+    //         structure Pair<T, U> {
+    //             first: T
+    //             second: U
+    //         }
+
+    //         class Pair<T, U> {
+    //             define swap(self) -> Pair<U, T> {
+    //                 Pair.new(self.second, self.first)
+    //             }
+    //         }
+    //     "#,
+    //     );
+    // }
 }
