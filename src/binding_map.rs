@@ -504,13 +504,18 @@ impl BindingMap {
         self.theorems.contains(name)
     }
 
-    // Type variables should get removed when they go out of scope.
-    fn remove_type_variable(&mut self, name: &str) {
+    // Type variables and arbitrary variables should get removed when they go out of scope.
+    // Other sorts of types shouldn't be getting removed.
+    fn remove_type(&mut self, name: &str) {
         match self.type_names.remove(name) {
             Some(t) => {
+                match &t {
+                    AcornType::Variable(..) | AcornType::Arbitrary(..) => {}
+                    _ => panic!("unexpectedly removing type: {}", name),
+                }
                 self.reverse_type_names.remove(&t);
             }
-            None => panic!("removing data type {} which is already not present", name),
+            None => panic!("removing type {} which is already not present", name),
         }
     }
 
@@ -1810,7 +1815,7 @@ impl BindingMap {
 
         // Reset the bindings
         for name in type_param_names.iter().rev() {
-            self.remove_type_variable(&name);
+            self.remove_type(&name);
         }
         if let Some(function_name) = function_name {
             self.remove_constant(&function_name);
