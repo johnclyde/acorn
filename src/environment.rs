@@ -847,6 +847,16 @@ impl Environment {
                     return Err(statement.error("type name already defined in this scope"));
                 }
 
+                for type_param in &ss.type_params {
+                    if self.bindings.has_type_name(&type_param.text()) {
+                        return Err(statement.error("type parameter already defined in this scope"));
+                    }
+
+                    // For the duration of the structure definition, the type parameters are
+                    // parsed like arbitrary types.
+                    // XXX
+                }
+
                 // Parse the fields before adding the struct type so that we can't have
                 // self-referential structs.
                 let mut member_fn_names = vec![];
