@@ -176,6 +176,7 @@ pub struct ImportStatement {
 pub struct ClassStatement {
     pub name: String,
     pub name_token: Token,
+    pub type_params: Vec<Token>,
 
     // The body of a class statement
     pub body: Body,
@@ -827,6 +828,7 @@ fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
 // Parses a class statement where the "class" keyword has already been found.
 fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
+    let type_params = parse_params(tokens)?;
     let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
     let (statements, right_brace) = parse_block(tokens)?;
     let body = Body {
@@ -837,6 +839,7 @@ fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     let cs = ClassStatement {
         name: name_token.to_string(),
         name_token,
+        type_params,
         body,
     };
     let statement = Statement {
@@ -1160,6 +1163,7 @@ impl Statement {
 
             StatementInfo::Class(cs) => {
                 write!(f, "class {}", cs.name)?;
+                write_type_params(f, &cs.type_params)?;
                 write_block(f, &cs.body.statements, indentation)
             }
 
