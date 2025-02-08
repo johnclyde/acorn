@@ -848,13 +848,13 @@ impl Environment {
                 }
 
                 for type_param in &ss.type_params {
-                    if self.bindings.has_type_name(&type_param.text()) {
+                    if self.bindings.has_type_name(type_param.text()) {
                         return Err(statement.error("type parameter already defined in this scope"));
                     }
 
                     // For the duration of the structure definition, the type parameters are
-                    // parsed like arbitrary types.
-                    // XXX
+                    // treated as arbitrary types.
+                    self.bindings.add_arbitrary_type(type_param.text());
                 }
 
                 // Parse the fields before adding the struct type so that we can't have
@@ -1049,6 +1049,10 @@ impl Environment {
                     );
                 }
 
+                // Clean up the type parameters
+                for type_param in &ss.type_params {
+                    self.bindings.remove_type(type_param.text());
+                }
                 Ok(())
             }
 
