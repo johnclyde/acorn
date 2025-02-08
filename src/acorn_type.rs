@@ -89,9 +89,12 @@ pub enum AcornType {
     // Booleans are special
     Bool,
 
-    // Data types are structs or axiomatic types.
-    // For their canonical representation, we track the module they were initially defined in.
-    Data(ModuleId, String),
+    // Data types are structures, inductive types, or axiomatic types.
+    // There are three parts:
+    // 1. The module they were defined in.
+    // 2. The name of the type.
+    // 3. The type parameters, if any.
+    Data(ModuleId, String, Vec<AcornType>),
 
     // Function types are defined by their inputs and output.
     Function(FunctionType),
@@ -159,15 +162,6 @@ impl AcornType {
             function_type.applied_type(1)
         } else {
             panic!("Can't apply {:?} to {:?}", self, arg_type);
-        }
-    }
-
-    pub fn equals_data_type(&self, data_type_module_id: ModuleId, data_type_name: &str) -> bool {
-        match self {
-            AcornType::Data(module_id, name) => {
-                *module_id == data_type_module_id && name == data_type_name
-            }
-            _ => false,
         }
     }
 
@@ -256,11 +250,9 @@ impl AcornType {
     // A type is generic if it has any type variables within it.
     pub fn is_generic(&self) -> bool {
         match self {
-            AcornType::Bool
-            | AcornType::Data(_, _)
-            | AcornType::Empty
-            | AcornType::Arbitrary(..) => false,
+            AcornType::Bool | AcornType::Empty | AcornType::Arbitrary(..) => false,
             AcornType::Variable(..) => true,
+            AcornType::Data(_, _, types) => types.iter().any(|t| t.is_generic()),
             AcornType::Function(ftype) => {
                 for arg_type in &ftype.arg_types {
                     if arg_type.is_generic() {
@@ -296,7 +288,13 @@ impl fmt::Display for AcornType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AcornType::Bool => write!(f, "Bool"),
-            AcornType::Data(_, name) => write!(f, "{}", name),
+            AcornType::Data(_, name, params) => {
+                write!(f, "{}", name)?;
+                if !params.is_empty() {
+                    write!(f, "<{}>", AcornType::types_to_str(params))?;
+                }
+                Ok(())
+            }
             AcornType::Function(function_type) => write!(f, "{}", function_type),
             AcornType::Empty => write!(f, "empty"),
             AcornType::Variable(name, tc) | AcornType::Arbitrary(name, tc) => {

@@ -51,7 +51,12 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
             check_normalized_type(&function_type.return_type)
         }
         AcornType::Bool => Ok(()),
-        AcornType::Data(_, _) => Ok(()),
+        AcornType::Data(_, _, params) => {
+            for param in params {
+                check_normalized_type(&param)?;
+            }
+            Ok(())
+        }
         AcornType::Variable(..) => {
             return Err(NormalizationError(format!(
                 "Type variables should be monomorphized before normalization: {}",

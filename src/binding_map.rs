@@ -311,11 +311,12 @@ impl BindingMap {
 
     // Adds a new data type to the binding map.
     // Panics if the name is already bound.
+    // XXX: handle params
     pub fn add_data_type(&mut self, name: &str) -> AcornType {
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
-        let data_type = AcornType::Data(self.module, name.to_string());
+        let data_type = AcornType::Data(self.module, name.to_string(), vec![]);
         self.insert_type_name(name.to_string(), data_type.clone());
         data_type
     }
@@ -337,7 +338,8 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("type alias {} already bound", name);
         }
-        if let AcornType::Data(module, type_name) = &acorn_type {
+        // XXX probably not right
+        if let AcornType::Data(module, type_name, _) = &acorn_type {
             self.canonical_to_alias
                 .entry((*module, type_name.clone()))
                 .or_insert(name.to_string());
@@ -555,7 +557,7 @@ impl BindingMap {
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
-        if let AcornType::Data(module, type_name) = t {
+        if let AcornType::Data(module, type_name, _) = t {
             let bindings = if *module == self.module {
                 &self
             } else {
@@ -657,7 +659,7 @@ impl BindingMap {
                 if importing {
                     let data_type = self.type_names.get(key)?;
                     match data_type {
-                        AcornType::Data(module, name) => {
+                        AcornType::Data(module, name, _) => {
                             if module != &self.module || name != key {
                                 continue;
                             }
@@ -790,6 +792,7 @@ impl BindingMap {
                         types.push(AcornType::Data(
                             self.module,
                             class_name.unwrap().to_string(),
+                            vec![],
                         ));
                         continue;
                     }
@@ -998,7 +1001,7 @@ impl BindingMap {
         name: &str,
     ) -> compilation::Result<AcornValue> {
         let base_type = instance.get_type();
-        if let AcornType::Data(module, type_name) = base_type {
+        if let AcornType::Data(module, type_name, _) = base_type {
             let bindings = if module == self.module {
                 &self
             } else {
@@ -1052,7 +1055,7 @@ impl BindingMap {
                 Ok(NamedEntity::Value(value))
             }
             Some(NamedEntity::Type(t)) => {
-                if let AcornType::Data(module, type_name) = t {
+                if let AcornType::Data(module, type_name, _) = t {
                     if name_token.token_type == TokenType::Numeral {
                         let value = self.evaluate_number_with_type(
                             name_token,
@@ -1905,7 +1908,7 @@ impl BindingMap {
         }
 
         // Check if it's a type from a module that we have imported
-        if let AcornType::Data(module, type_name) = acorn_type {
+        if let AcornType::Data(module, type_name, _) = acorn_type {
             if let Some(module_name) = self.reverse_modules.get(module) {
                 return Ok(Expression::generate_identifier_chain(&[
                     &module_name,
@@ -1999,7 +2002,7 @@ impl BindingMap {
 
         // If it's a member function, check if there's a local alias for its struct.
         if parts.len() == 2 {
-            let data_type = AcornType::Data(module, parts[0].to_string());
+            let data_type = AcornType::Data(module, parts[0].to_string(), vec![]);
             if let Some(type_alias) = self.reverse_type_names.get(&data_type) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(parts[1]);
