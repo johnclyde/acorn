@@ -719,8 +719,30 @@ impl BindingMap {
                 }
                 _ => Err(token.error("unexpected binary operator in type expression")),
             },
-            Expression::Apply(left, _) => {
-                Err(left.error("unexpected function application in type expression"))
+            Expression::Apply(left, params) => {
+                let param_exprs = if let Expression::Grouping(opening, expr, _) = params.as_ref() {
+                    if opening.token_type != TokenType::LessThan {
+                        return Err(opening.error("expected '<' for type params"));
+                    }
+                    expr.flatten_comma_separated_list()
+                } else {
+                    return Err(params.error("expected type parameters in type application"));
+                };
+                let mut instance_params = vec![];
+                for param_expr in param_exprs {
+                    instance_params.push(self.evaluate_type(project, param_expr)?);
+                }
+                let (module, name) = if let AcornType::Data(module, name, params) =
+                    self.evaluate_type(project, left)?
+                {
+                    if !params.is_empty() {
+                        return Err(left.error("expected an unparametrized data type"));
+                    }
+                    (module, name)
+                } else {
+                    return Err(left.error("expected a data type"));
+                };
+                Ok(AcornType::Data(module, name, instance_params))
             }
             Expression::Grouping(_, e, _) => self.evaluate_type(project, e),
             Expression::Binder(token, _, _, _) | Expression::IfThenElse(token, _, _, _, _) => {
