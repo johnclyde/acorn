@@ -227,6 +227,9 @@ enum NamedEntity {
 
     // A constant that we don't know the specific type of yet.
     UnresolvedValue(UnresolvedConstant),
+
+    // A generic type that we don't know the instantiated type of yet.
+    UnresolvedType(UnresolvedType),
 }
 
 impl NamedEntity {
@@ -240,14 +243,14 @@ impl NamedEntity {
                 check_type(source, expected_type, &value.get_type())?;
                 Ok(value)
             }
-            NamedEntity::Type(_) => {
+            NamedEntity::Type(_) | NamedEntity::UnresolvedType(_) => {
                 Err(source.error("name refers to a type but we expected a value"))
             }
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a value"))
             }
             NamedEntity::UnresolvedValue(u) => {
-                Err(source.error(&format!("name {} has unresolved type", u.name)))
+                Err(source.error(&format!("value {} has unresolved type", u.name)))
             }
         }
     }
@@ -258,6 +261,9 @@ impl NamedEntity {
                 Err(source.error("name refers to a value but we expected a type"))
             }
             NamedEntity::Type(t) => Ok(t),
+            NamedEntity::UnresolvedType(_) => {
+                Err(source.error("we expected this type to be resolved here"))
+            }
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
             }
@@ -634,6 +640,10 @@ impl BindingMap {
                 }
                 NamedEntity::UnresolvedValue(u) => {
                     return self.get_member_completions(project, &u.generic_type, partial);
+                }
+                NamedEntity::UnresolvedType(_) => {
+                    // XXX we should return something here
+                    return None;
                 }
             }
         }
@@ -1142,6 +1152,9 @@ impl BindingMap {
             Some(NamedEntity::UnresolvedValue(_)) => {
                 Err(name_token.error("cannot access members of unresolved types"))
             }
+            Some(NamedEntity::UnresolvedType(_)) => {
+                panic!("XXX evaluate names in unresolved types");
+            }
             None => {
                 match name_token.token_type {
                     TokenType::Identifier => {
@@ -1342,8 +1355,12 @@ impl BindingMap {
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
 
-            // TODO: we *should* be able to import unresolved types.
+            // TODO: we *should* be able to import unresolved things.
             NamedEntity::UnresolvedValue(_) => {
+                Err(name_token.error("cannot import unresolved types"))
+            }
+
+            NamedEntity::UnresolvedType(_) => {
                 Err(name_token.error("cannot import unresolved types"))
             }
         }
@@ -1452,7 +1469,9 @@ impl BindingMap {
                             check_type(expression, expected_type, &value.get_type())?;
                             value
                         }
-                        NamedEntity::Type(_) | NamedEntity::Module(_) => {
+                        NamedEntity::Type(_)
+                        | NamedEntity::Module(_)
+                        | NamedEntity::UnresolvedType(_) => {
                             return Err(token.error("expected a value"));
                         }
                         NamedEntity::UnresolvedValue(u) => {
