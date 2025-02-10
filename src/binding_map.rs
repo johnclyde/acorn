@@ -1152,8 +1152,15 @@ impl BindingMap {
             Some(NamedEntity::UnresolvedValue(_)) => {
                 Err(name_token.error("cannot access members of unresolved types"))
             }
-            Some(NamedEntity::UnresolvedType(_)) => {
-                panic!("XXX evaluate names in unresolved types");
+            Some(NamedEntity::UnresolvedType(ut)) => {
+                match self.evaluate_class_variable(project, ut.module_id, &ut.name, name) {
+                    Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
+                    Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
+                    None => {
+                        Err(name_token
+                            .error(&format!("{} has no member named '{}'", ut.name, name)))
+                    }
+                }
             }
             None => {
                 match name_token.token_type {
