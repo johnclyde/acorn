@@ -466,7 +466,7 @@ impl Environment {
                     )));
                 }
                 if ts.type_expr.is_axiom() {
-                    self.bindings.add_data_type(&ts.name);
+                    self.bindings.add_data_type(&ts.name, 0);
                 } else {
                     let acorn_type = self.bindings.evaluate_type(project, &ts.type_expr)?;
                     self.bindings.add_type_alias(&ts.name, acorn_type);
@@ -914,7 +914,7 @@ impl Environment {
                 };
 
                 // The member functions take the type itself to a particular member.
-                let struct_type = self.bindings.add_data_type(&ss.name);
+                let struct_type = self.bindings.add_data_type(&ss.name, ss.type_params.len());
                 let mut member_fns = vec![];
                 for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
                     let member_fn_type =
@@ -1067,7 +1067,7 @@ impl Environment {
                 };
 
                 // Add the new type first, because we can have self-reference in the inductive type.
-                let inductive_type = self.bindings.add_data_type(&is.name);
+                let inductive_type = self.bindings.add_data_type(&is.name, 0);
 
                 // Parse (member name, list of arg types) for each constructor.
                 let mut constructors = vec![];

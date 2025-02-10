@@ -311,12 +311,16 @@ impl BindingMap {
 
     // Adds a new data type to the binding map.
     // Panics if the name is already bound.
-    // XXX: handle params
-    pub fn add_data_type(&mut self, name: &str) -> AcornType {
+    pub fn add_data_type(&mut self, name: &str, num_type_params: usize) -> AcornType {
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
-        let data_type = AcornType::Data(self.module, name.to_string(), vec![]);
+        // It seems like a poor aspect of the design that we have to give these things names.
+        // But we do.
+        let type_params = (0..num_type_params)
+            .map(|i| AcornType::Variable(format!("T{}", i), None))
+            .collect();
+        let data_type = AcornType::Data(self.module, name.to_string(), type_params);
         self.insert_type_name(name.to_string(), data_type.clone());
         data_type
     }
