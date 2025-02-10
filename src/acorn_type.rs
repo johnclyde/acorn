@@ -4,13 +4,25 @@ use crate::compilation::{ErrorSource, Result};
 use crate::module::ModuleId;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct UnresolvedType {
+    // The module where this type was defined in.
+    pub module_id: ModuleId,
+
+    // The name of this type.
+    pub name: String,
+
+    // How many parameters we need to instantiate this type.
+    pub num_params: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum PotentialType {
     // A usable type.
     Resolved(AcornType),
 
     // A generic type that we don't know the parameters for yet.
     // (module, name, number of parameters).
-    Unresolved(ModuleId, String, usize),
+    Unresolved(UnresolvedType),
 }
 
 impl PotentialType {
@@ -25,16 +37,16 @@ impl PotentialType {
                     Ok(t)
                 }
             }
-            PotentialType::Unresolved(module_id, name, num_params) => {
-                if params.len() != num_params {
+            PotentialType::Unresolved(ut) => {
+                if params.len() != ut.num_params {
                     Err(source.error(&format!(
                         "type {} expects {} parameters, but got {}",
-                        name,
-                        num_params,
+                        ut.name,
+                        ut.num_params,
                         params.len()
                     )))
                 } else {
-                    Ok(AcornType::Data(module_id, name, params))
+                    Ok(AcornType::Data(ut.module_id, ut.name, params))
                 }
             }
         }

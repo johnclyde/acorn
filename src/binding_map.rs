@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, PotentialType, TypeClass};
+use crate::acorn_type::{AcornType, PotentialType, TypeClass, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -161,7 +161,7 @@ impl PotentialValue {
 
     fn to_named_entity(self) -> NamedEntity {
         match self {
-            PotentialValue::Unresolved(u) => NamedEntity::Unresolved(u),
+            PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
             PotentialValue::Resolved(v) => NamedEntity::Value(v),
         }
     }
@@ -225,8 +225,8 @@ enum NamedEntity {
     Type(AcornType),
     Module(ModuleId),
 
-    // A constant that we don't know the type of yet.
-    Unresolved(UnresolvedConstant),
+    // A constant that we don't know the specific type of yet.
+    UnresolvedValue(UnresolvedConstant),
 }
 
 impl NamedEntity {
@@ -246,7 +246,7 @@ impl NamedEntity {
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a value"))
             }
-            NamedEntity::Unresolved(u) => {
+            NamedEntity::UnresolvedValue(u) => {
                 Err(source.error(&format!("name {} has unresolved type", u.name)))
             }
         }
@@ -261,7 +261,7 @@ impl NamedEntity {
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
             }
-            NamedEntity::Unresolved(u) => {
+            NamedEntity::UnresolvedValue(u) => {
                 Err(source.error(&format!("name {} has unresolved type", u.name)))
             }
         }
@@ -322,14 +322,19 @@ impl BindingMap {
         t
     }
 
-    pub fn add_potential_type(&mut self, name: &str, num_type_params: usize) -> PotentialType {
-        if num_type_params == 0 {
+    pub fn add_potential_type(&mut self, name: &str, num_params: usize) -> PotentialType {
+        if num_params == 0 {
             return PotentialType::Resolved(self.add_data_type(name));
         }
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
-        let potential = PotentialType::Unresolved(self.module, name.to_string(), num_type_params);
+        let ut = UnresolvedType {
+            module_id: self.module,
+            name: name.to_string(),
+            num_params,
+        };
+        let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
         potential
     }
@@ -525,8 +530,8 @@ impl BindingMap {
     pub fn remove_type(&mut self, name: &str) {
         match self.type_names.remove(name) {
             Some(p) => match &p {
-                PotentialType::Unresolved(_, name, _) => {
-                    panic!("removing type {} which is unresolved", name);
+                PotentialType::Unresolved(ut) => {
+                    panic!("removing type {} which is unresolved", ut.name);
                 }
                 PotentialType::Resolved(t) => {
                     match &t {
@@ -627,7 +632,7 @@ impl BindingMap {
                     let t = v.get_type();
                     return self.get_member_completions(project, &t, partial);
                 }
-                NamedEntity::Unresolved(u) => {
+                NamedEntity::UnresolvedValue(u) => {
                     return self.get_member_completions(project, &u.generic_type, partial);
                 }
             }
@@ -711,8 +716,8 @@ impl BindingMap {
         let potential = self.evaluate_potential_type(project, expression)?;
         match potential {
             PotentialType::Resolved(t) => Ok(t),
-            PotentialType::Unresolved(_, name, _) => {
-                Err(expression.error(&format!("{} has unresolved type", name)))
+            PotentialType::Unresolved(ut) => {
+                Err(expression.error(&format!("{} has unresolved type", ut.name)))
             }
         }
     }
@@ -1119,7 +1124,7 @@ impl BindingMap {
                     }
                     match self.evaluate_class_variable(project, module, &type_name, name) {
                         Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                        Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::Unresolved(u)),
+                        Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
                         None => Err(name_token
                             .error(&format!("{} has no member named '{}'", type_name, name))),
                     }
@@ -1134,7 +1139,7 @@ impl BindingMap {
                     Err(name_token.error("could not load bindings for module"))
                 }
             }
-            Some(NamedEntity::Unresolved(_)) => {
+            Some(NamedEntity::UnresolvedValue(_)) => {
                 Err(name_token.error("cannot access members of unresolved types"))
             }
             None => {
@@ -1338,7 +1343,9 @@ impl BindingMap {
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
 
             // TODO: we *should* be able to import unresolved types.
-            NamedEntity::Unresolved(_) => Err(name_token.error("cannot import unresolved types")),
+            NamedEntity::UnresolvedValue(_) => {
+                Err(name_token.error("cannot import unresolved types"))
+            }
         }
     }
 
@@ -1448,7 +1455,7 @@ impl BindingMap {
                         NamedEntity::Type(_) | NamedEntity::Module(_) => {
                             return Err(token.error("expected a value"));
                         }
-                        NamedEntity::Unresolved(u) => {
+                        NamedEntity::UnresolvedValue(u) => {
                             return Ok(PotentialValue::Unresolved(u));
                         }
                     }
