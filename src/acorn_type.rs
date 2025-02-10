@@ -1,6 +1,45 @@
 use std::{collections::HashMap, fmt};
 
+use crate::compilation::{ErrorSource, Result};
 use crate::module::ModuleId;
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum PotentialType {
+    // A usable type.
+    Resolved(AcornType),
+
+    // A generic type that we don't know the parameters for yet.
+    // (module, name, number of parameters).
+    Unresolved(ModuleId, String, usize),
+}
+
+impl PotentialType {
+    // Resolves the type given the parameters.
+    // Reports an error if the parameters don't match what we expected.
+    pub fn resolve(self, params: Vec<AcornType>, source: &dyn ErrorSource) -> Result<AcornType> {
+        match self {
+            PotentialType::Resolved(t) => {
+                if !params.is_empty() {
+                    Err(source.error("resolved type cannot take parameters"))
+                } else {
+                    Ok(t)
+                }
+            }
+            PotentialType::Unresolved(module_id, name, num_params) => {
+                if params.len() != num_params {
+                    Err(source.error(&format!(
+                        "type {} expects {} parameters, but got {}",
+                        name,
+                        num_params,
+                        params.len()
+                    )))
+                } else {
+                    Ok(AcornType::Data(module_id, name, params))
+                }
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct FunctionType {

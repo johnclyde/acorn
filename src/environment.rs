@@ -466,7 +466,7 @@ impl Environment {
                     )));
                 }
                 if ts.type_expr.is_axiom() {
-                    self.bindings.add_data_type(&ts.name, 0);
+                    self.bindings.add_potential_type(&ts.name, 0);
                 } else {
                     let acorn_type = self.bindings.evaluate_type(project, &ts.type_expr)?;
                     self.bindings.add_type_alias(&ts.name, acorn_type);
@@ -847,6 +847,7 @@ impl Environment {
                     return Err(statement.error("type name already defined in this scope"));
                 }
 
+                let mut arbitrary_params = vec![];
                 for type_param in &ss.type_params {
                     if self.bindings.has_type_name(type_param.text()) {
                         return Err(statement.error("type parameter already defined in this scope"));
@@ -854,7 +855,7 @@ impl Environment {
 
                     // For the duration of the structure definition, the type parameters are
                     // treated as arbitrary types.
-                    self.bindings.add_arbitrary_type(type_param.text());
+                    arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.text()));
                 }
 
                 // Parse the fields before adding the struct type so that we can't have
@@ -914,7 +915,10 @@ impl Environment {
                 };
 
                 // The member functions take the type itself to a particular member.
-                let struct_type = self.bindings.add_data_type(&ss.name, ss.type_params.len());
+                let potential_type = self
+                    .bindings
+                    .add_potential_type(&ss.name, ss.type_params.len());
+                let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
                 let mut member_fns = vec![];
                 for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
                     let member_fn_type =
@@ -1067,7 +1071,7 @@ impl Environment {
                 };
 
                 // Add the new type first, because we can have self-reference in the inductive type.
-                let inductive_type = self.bindings.add_data_type(&is.name, 0);
+                let inductive_type = self.bindings.add_data_type(&is.name);
 
                 // Parse (member name, list of arg types) for each constructor.
                 let mut constructors = vec![];
@@ -1353,15 +1357,24 @@ impl Environment {
 
             StatementInfo::Class(cs) => {
                 self.add_other_lines(statement);
-                match self.bindings.get_type_for_name(&cs.name) {
-                    Some(AcornType::Data(module, name, params)) => {
-                        if params.len() != cs.type_params.len() {
-                            return Err(cs.name_token.error(&format!(
-                                "expected {} type parameters but found {}",
-                                params.len(),
-                                cs.type_params.len()
-                            )));
-                        }
+                let potential = match self.bindings.get_type_for_name(&cs.name) {
+                    Some(potential) => potential.clone(),
+                    None => {
+                        return Err(cs
+                            .name_token
+                            .error(&format!("undefined type name '{}'", cs.name)));
+                    }
+                };
+                let mut params = vec![];
+                for token in &cs.type_params {
+                    if self.bindings.name_in_use(token.text()) {
+                        return Err(token.error("type parameter already defined in this scope"));
+                    }
+                    params.push(self.bindings.add_arbitrary_type(token.text()));
+                }
+                let instance_type = potential.resolve(params, &cs.name_token)?;
+                match &instance_type {
+                    AcornType::Data(module, name, _) => {
                         if module != &self.module_id {
                             return Err(cs
                                 .name_token
@@ -1373,23 +1386,13 @@ impl Environment {
                                 .error("we cannot bind members to type aliases"));
                         }
                     }
-                    Some(_) => {
+                    _ => {
                         return Err(cs
                             .name_token
                             .error(&format!("we can only bind members to data types")));
                     }
-                    None => {
-                        return Err(cs
-                            .name_token
-                            .error(&format!("undefined type name '{}'", cs.name)));
-                    }
-                };
-                for token in &cs.type_params {
-                    if self.bindings.name_in_use(token.text()) {
-                        return Err(token.error("type parameter already defined in this scope"));
-                    }
-                    self.bindings.add_arbitrary_type(token.text());
                 }
+
                 for substatement in &cs.body.statements {
                     match &substatement.statement {
                         StatementInfo::Let(ls) => {

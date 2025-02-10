@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, TypeClass};
+use crate::acorn_type::{AcornType, PotentialType, TypeClass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -67,10 +67,12 @@ pub struct BindingMap {
     module: ModuleId,
 
     // Maps the name of a type to the type object.
-    type_names: BTreeMap<String, AcornType>,
+    // Includes unresolved names like List that don't have enough information
+    // to get a specific type.
+    type_names: BTreeMap<String, PotentialType>,
 
     // Maps the type object to the name of a type.
-    reverse_type_names: HashMap<AcornType, String>,
+    reverse_type_names: HashMap<PotentialType, String>,
 
     // Maps an identifier name to its type.
     // Has entries for both defined constants and aliases.
@@ -296,33 +298,40 @@ impl BindingMap {
             || self.modules.contains_key(name)
     }
 
-    fn insert_type_name(&mut self, name: String, acorn_type: AcornType) {
+    fn insert_type_name(&mut self, name: String, potential_type: PotentialType) {
         if self.name_in_use(&name) {
             panic!("type name {} already bound", name);
         }
         // There can be multiple names for a type.
         // If we already have a name for the reverse lookup, we don't overwrite it.
-        if !self.reverse_type_names.contains_key(&acorn_type) {
+        if !self.reverse_type_names.contains_key(&potential_type) {
             self.reverse_type_names
-                .insert(acorn_type.clone(), name.clone());
+                .insert(potential_type.clone(), name.clone());
         }
-        self.type_names.insert(name, acorn_type);
+        self.type_names.insert(name, potential_type);
     }
 
     // Adds a new data type to the binding map.
     // Panics if the name is already bound.
-    pub fn add_data_type(&mut self, name: &str, num_type_params: usize) -> AcornType {
+    pub fn add_data_type(&mut self, name: &str) -> AcornType {
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
-        // It seems like a poor aspect of the design that we have to give these things names.
-        // But we do.
-        let type_params = (0..num_type_params)
-            .map(|i| AcornType::Variable(format!("T{}", i), None))
-            .collect();
-        let data_type = AcornType::Data(self.module, name.to_string(), type_params);
-        self.insert_type_name(name.to_string(), data_type.clone());
-        data_type
+        let t = AcornType::Data(self.module, name.to_string(), vec![]);
+        self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
+        t
+    }
+
+    pub fn add_potential_type(&mut self, name: &str, num_type_params: usize) -> PotentialType {
+        if num_type_params == 0 {
+            return PotentialType::Resolved(self.add_data_type(name));
+        }
+        if self.name_in_use(name) {
+            panic!("type name {} already bound", name);
+        }
+        let potential = PotentialType::Unresolved(self.module, name.to_string(), num_type_params);
+        self.insert_type_name(name.to_string(), potential.clone());
+        potential
     }
 
     // Adds an arbitrary type to the binding map.
@@ -333,7 +342,8 @@ impl BindingMap {
             panic!("type name {} already bound", name);
         }
         let arbitrary_type = AcornType::Arbitrary(name.to_string(), None);
-        self.insert_type_name(name.to_string(), arbitrary_type.clone());
+        let potential = PotentialType::Resolved(arbitrary_type.clone());
+        self.insert_type_name(name.to_string(), potential);
         arbitrary_type
     }
 
@@ -348,7 +358,7 @@ impl BindingMap {
                 .entry((*module, type_name.clone()))
                 .or_insert(name.to_string());
         }
-        self.insert_type_name(name.to_string(), acorn_type);
+        self.insert_type_name(name.to_string(), PotentialType::Resolved(acorn_type));
     }
 
     fn add_type_variable(&mut self, name: &str, typeclass: Option<TypeClass>) {
@@ -356,7 +366,7 @@ impl BindingMap {
             panic!("type variable {} already bound", name);
         }
         let acorn_type = AcornType::Variable(name.to_string(), typeclass);
-        self.insert_type_name(name.to_string(), acorn_type);
+        self.insert_type_name(name.to_string(), PotentialType::Resolved(acorn_type));
     }
 
     // Returns an AcornValue representing this name, if there is one.
@@ -408,7 +418,7 @@ impl BindingMap {
     }
 
     // Gets the type for a type name, not for an identifier.
-    pub fn get_type_for_name(&self, type_name: &str) -> Option<&AcornType> {
+    pub fn get_type_for_name(&self, type_name: &str) -> Option<&PotentialType> {
         self.type_names.get(type_name)
     }
 
@@ -514,13 +524,18 @@ impl BindingMap {
     // Other sorts of types shouldn't be getting removed.
     pub fn remove_type(&mut self, name: &str) {
         match self.type_names.remove(name) {
-            Some(t) => {
-                match &t {
-                    AcornType::Variable(..) | AcornType::Arbitrary(..) => {}
-                    _ => panic!("unexpectedly removing type: {}", name),
+            Some(p) => match &p {
+                PotentialType::Unresolved(_, name, _) => {
+                    panic!("removing type {} which is unresolved", name);
                 }
-                self.reverse_type_names.remove(&t);
-            }
+                PotentialType::Resolved(t) => {
+                    match &t {
+                        AcornType::Variable(..) | AcornType::Arbitrary(..) => {}
+                        _ => panic!("unexpectedly removing type: {}", name),
+                    }
+                    self.reverse_type_names.remove(&p);
+                }
+            },
             None => panic!("removing type {} which is already not present", name),
         }
     }
@@ -663,7 +678,7 @@ impl BindingMap {
                 if importing {
                     let data_type = self.type_names.get(key)?;
                     match data_type {
-                        AcornType::Data(module, name, _) => {
+                        PotentialType::Resolved(AcornType::Data(module, name, _)) => {
                             if module != &self.module || name != key {
                                 continue;
                             }
@@ -698,7 +713,8 @@ impl BindingMap {
                 if token.token_type == TokenType::Axiom {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
-                if let Some(acorn_type) = self.type_names.get(token.text()) {
+                if let Some(PotentialType::Resolved(acorn_type)) = self.type_names.get(token.text())
+                {
                     Ok(acorn_type.clone())
                 } else {
                     Err(token.error("expected type name"))
@@ -1122,8 +1138,10 @@ impl BindingMap {
                             }
                         } else if self.has_type_name(name) {
                             match self.get_type_for_name(name) {
-                                Some(t) => Ok(NamedEntity::Type(t.clone())),
-                                None => Err(name_token.error("unknown type")),
+                                Some(PotentialType::Resolved(t)) => {
+                                    Ok(NamedEntity::Type(t.clone()))
+                                }
+                                _ => Err(name_token.error("unknown type")),
                             }
                         } else if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
@@ -1929,7 +1947,10 @@ impl BindingMap {
         }
 
         // Check if there's a local alias for this type
-        if let Some(name) = self.reverse_type_names.get(acorn_type) {
+        if let Some(name) = self
+            .reverse_type_names
+            .get(&PotentialType::Resolved(acorn_type.clone()))
+        {
             return Ok(Expression::generate_identifier(name));
         }
 
@@ -2029,7 +2050,8 @@ impl BindingMap {
         // If it's a member function, check if there's a local alias for its struct.
         if parts.len() == 2 {
             let data_type = AcornType::Data(module, parts[0].to_string(), vec![]);
-            if let Some(type_alias) = self.reverse_type_names.get(&data_type) {
+            let resolved = PotentialType::Resolved(data_type);
+            if let Some(type_alias) = self.reverse_type_names.get(&resolved) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(parts[1]);
                 return Ok(Expression::Binary(
