@@ -1355,8 +1355,12 @@ impl Environment {
                 self.add_other_lines(statement);
                 match self.bindings.get_type_for_name(&cs.name) {
                     Some(AcornType::Data(module, name, params)) => {
-                        if !params.is_empty() {
-                            panic!("XXX: handle type parameters in class definitions");
+                        if params.len() != cs.type_params.len() {
+                            return Err(cs.name_token.error(&format!(
+                                "expected {} type parameters but found {}",
+                                params.len(),
+                                cs.type_params.len()
+                            )));
                         }
                         if module != &self.module_id {
                             return Err(cs
@@ -1380,6 +1384,12 @@ impl Environment {
                             .error(&format!("undefined type name '{}'", cs.name)));
                     }
                 };
+                for token in &cs.type_params {
+                    if self.bindings.name_in_use(token.text()) {
+                        return Err(token.error("type parameter already defined in this scope"));
+                    }
+                    self.bindings.add_arbitrary_type(token.text());
+                }
                 for substatement in &cs.body.statements {
                     match &substatement.statement {
                         StatementInfo::Let(ls) => {
@@ -1404,6 +1414,9 @@ impl Environment {
                             ));
                         }
                     }
+                }
+                for token in &cs.type_params {
+                    self.bindings.remove_type(token.text());
                 }
                 Ok(())
             }
