@@ -708,14 +708,28 @@ impl BindingMap {
         project: &Project,
         expression: &Expression,
     ) -> compilation::Result<AcornType> {
+        let potential = self.evaluate_potential_type(project, expression)?;
+        match potential {
+            PotentialType::Resolved(t) => Ok(t),
+            PotentialType::Unresolved(_, name, _) => {
+                Err(expression.error(&format!("{} has unresolved type", name)))
+            }
+        }
+    }
+
+    // Evaluates an expression that either represents a type, or represents a type that still needs params.
+    pub fn evaluate_potential_type(
+        &self,
+        project: &Project,
+        expression: &Expression,
+    ) -> compilation::Result<PotentialType> {
         match expression {
             Expression::Singleton(token) => {
                 if token.token_type == TokenType::Axiom {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
-                if let Some(PotentialType::Resolved(acorn_type)) = self.type_names.get(token.text())
-                {
-                    Ok(acorn_type.clone())
+                if let Some(t) = self.type_names.get(token.text()) {
+                    Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))
                 }
@@ -731,11 +745,14 @@ impl BindingMap {
                         arg_types.push(self.evaluate_type(project, arg_expr)?);
                     }
                     let return_type = self.evaluate_type(project, right)?;
-                    Ok(AcornType::new_functional(arg_types, return_type))
+                    Ok(PotentialType::Resolved(AcornType::new_functional(
+                        arg_types,
+                        return_type,
+                    )))
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_entity(&mut Stack::new(), project, expression)?;
-                    entity.expect_type(token)
+                    Ok(PotentialType::Resolved(entity.expect_type(token)?))
                 }
                 _ => Err(token.error("unexpected binary operator in type expression")),
             },
@@ -752,19 +769,11 @@ impl BindingMap {
                 for param_expr in param_exprs {
                     instance_params.push(self.evaluate_type(project, param_expr)?);
                 }
-                let (module, name) = if let AcornType::Data(module, name, params) =
-                    self.evaluate_type(project, left)?
-                {
-                    if !params.is_empty() {
-                        return Err(left.error("expected an unparametrized data type"));
-                    }
-                    (module, name)
-                } else {
-                    return Err(left.error("expected a data type"));
-                };
-                Ok(AcornType::Data(module, name, instance_params))
+                let p = self.evaluate_potential_type(project, left)?;
+                let t = p.resolve(instance_params, expression)?;
+                Ok(PotentialType::Resolved(t))
             }
-            Expression::Grouping(_, e, _) => self.evaluate_type(project, e),
+            Expression::Grouping(_, e, _) => self.evaluate_potential_type(project, e),
             Expression::Binder(token, _, _, _) | Expression::IfThenElse(token, _, _, _, _) => {
                 Err(token.error("unexpected token in type expression"))
             }
@@ -2279,7 +2288,7 @@ impl BindingMap {
                 }
             };
         assert!(self
-            .evaluate_type(&Project::new_mock(), &expression)
+            .evaluate_potential_type(&Project::new_mock(), &expression)
             .is_err());
     }
 
