@@ -1168,6 +1168,9 @@ impl BindingMap {
                                 Some(PotentialType::Resolved(t)) => {
                                     Ok(NamedEntity::Type(t.clone()))
                                 }
+                                Some(PotentialType::Unresolved(ut)) => {
+                                    Ok(NamedEntity::UnresolvedType(ut.clone()))
+                                }
                                 _ => Err(name_token.error("unknown type")),
                             }
                         } else if let Some((i, t)) = stack.get(name) {
