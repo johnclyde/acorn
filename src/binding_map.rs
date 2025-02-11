@@ -1397,14 +1397,11 @@ impl BindingMap {
         }
     }
 
-    // Apply an unresolved name to arguments, inferring the types.
-    fn infer_and_apply(
+    fn resolve_function(
         &self,
-        stack: &mut Stack,
-        project: &Project,
         source: &dyn ErrorSource,
         unresolved: UnresolvedConstant,
-        arg_exprs: Vec<&Expression>,
+        args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
         let unresolved_function_type = match &unresolved.generic_type {
@@ -1414,20 +1411,18 @@ impl BindingMap {
             }
         };
 
-        // Do type inference
-        let mut args = vec![];
+        // Do type inference. Mapping is where the generic types go.
         let mut mapping = HashMap::new();
-        for (i, arg_expr) in arg_exprs.iter().enumerate() {
+        for (i, arg) in args.iter().enumerate() {
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
-            let arg_value = self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
-            if !arg_type.match_instance(&arg_value.get_type(), &mut mapping) {
-                return Err(arg_expr.error(&format!(
-                    "expected type {}, but got {}",
+            if !arg_type.match_instance(&arg.get_type(), &mut mapping) {
+                return Err(source.error(&format!(
+                    "for argument {}, expected type {}, but got {}",
+                    i,
                     arg_type,
-                    arg_value.get_type()
+                    arg.get_type()
                 )));
             }
-            args.push(arg_value);
         }
 
         // Determine the parameters for the instance function
@@ -1459,6 +1454,26 @@ impl BindingMap {
             check_type(source, expected_type, &value.get_type())?;
         }
         Ok(value)
+    }
+
+    // Apply an unresolved name to arguments, inferring the types.
+    fn infer_and_apply(
+        &self,
+        stack: &mut Stack,
+        project: &Project,
+        source: &dyn ErrorSource,
+        unresolved: UnresolvedConstant,
+        arg_exprs: Vec<&Expression>,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<AcornValue> {
+        // Evaluate the arguments
+        let mut args = vec![];
+        for arg_expr in &arg_exprs {
+            let arg = self.evaluate_value_with_stack(stack, project, arg_expr, None)?;
+            args.push(arg);
+        }
+
+        self.resolve_function(source, unresolved, args, expected_type)
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.
