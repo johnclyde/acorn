@@ -27,7 +27,7 @@ impl Fact {
     // Instantiates a generic fact.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> Fact {
         let value = self.value.instantiate(params);
-        if value.is_generic() {
+        if value.has_generic() {
             panic!("tried to instantiate but {} is still generic", value);
         }
         let source = match &self.source.source_type {

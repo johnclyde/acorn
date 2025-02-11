@@ -65,7 +65,7 @@ impl ConstantParams {
     // Checks that this is a full instantiation, replacing all type variables.
     fn assert_full(&self) {
         for t in &self.params {
-            if t.is_generic() {
+            if t.has_generic() {
                 panic!("bad monomorphization: {}", self);
             }
         }
@@ -126,10 +126,10 @@ impl Monomorphizer {
         let i = self.generic_facts.len();
         let mut generic_constants = vec![];
         fact.value
-            .find_constants(&|c| c.is_generic(), &mut generic_constants);
+            .find_constants(&|c| c.has_generic(), &mut generic_constants);
         if generic_constants.is_empty() {
             if let AcornValue::ForAll(args, _) = &fact.value {
-                if args.iter().any(|arg| arg.is_generic()) {
+                if args.iter().any(|arg| arg.has_generic()) {
                     // This is a generic fact with no generic functions.
                     // It could be something trivial and purely propositional, like
                     // forall(x: T) { x = x }
@@ -178,7 +178,7 @@ impl Monomorphizer {
     pub fn add_monomorphs(&mut self, value: &AcornValue) {
         let mut monomorphs = vec![];
         value.find_constants(
-            &|c| !c.params.is_empty() && !c.is_generic(),
+            &|c| !c.params.is_empty() && !c.has_generic(),
             &mut monomorphs,
         );
         for c in monomorphs {
@@ -245,7 +245,7 @@ impl Monomorphizer {
         }
 
         let monomorphic_fact = self.generic_facts[fact_id].instantiate(&fact_params.params);
-        if monomorphic_fact.value.is_generic() {
+        if monomorphic_fact.value.has_generic() {
             // This is a little awkward. Completely monomorphizing this instance
             // still doesn't monomorphize the whole fact.
             // TODO: if we could handle partial monomorphizations, we would take some action here.

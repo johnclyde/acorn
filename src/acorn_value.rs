@@ -118,8 +118,8 @@ impl ConstantInstance {
         }
     }
 
-    pub fn is_generic(&self) -> bool {
-        self.params.iter().any(|t| t.is_generic())
+    pub fn has_generic(&self) -> bool {
+        self.params.iter().any(|t| t.has_generic())
     }
 
     fn has_arbitrary(&self) -> bool {
@@ -1406,30 +1406,30 @@ impl AcornValue {
         }
     }
 
-    // A value is generic if anything within it has type variables.
-    pub fn is_generic(&self) -> bool {
+    // A value has_generic if anything within it has type variables.
+    pub fn has_generic(&self) -> bool {
         match self {
-            AcornValue::Variable(_, t) => t.is_generic(),
+            AcornValue::Variable(_, t) => t.has_generic(),
             AcornValue::Application(app) => {
-                app.function.is_generic() || app.args.iter().any(|x| x.is_generic())
+                app.function.has_generic() || app.args.iter().any(|x| x.has_generic())
             }
             AcornValue::Lambda(args, value)
             | AcornValue::ForAll(args, value)
             | AcornValue::Exists(args, value) => {
-                args.iter().any(|x| x.is_generic()) || value.is_generic()
+                args.iter().any(|x| x.has_generic()) || value.has_generic()
             }
-            AcornValue::Binary(_, left, right) => left.is_generic() || right.is_generic(),
+            AcornValue::Binary(_, left, right) => left.has_generic() || right.has_generic(),
             AcornValue::IfThenElse(cond, if_value, else_value) => {
-                cond.is_generic() || if_value.is_generic() || else_value.is_generic()
+                cond.has_generic() || if_value.has_generic() || else_value.has_generic()
             }
-            AcornValue::Not(x) => x.is_generic(),
-            AcornValue::Constant(c) => c.is_generic(),
+            AcornValue::Not(x) => x.has_generic(),
+            AcornValue::Constant(c) => c.has_generic(),
             AcornValue::Bool(_) => false,
             AcornValue::Match(scrutinee, cases) => {
-                scrutinee.is_generic()
+                scrutinee.has_generic()
                     || cases
                         .iter()
-                        .any(|(_, pattern, result)| pattern.is_generic() || result.is_generic())
+                        .any(|(_, pattern, result)| pattern.has_generic() || result.has_generic())
             }
         }
     }

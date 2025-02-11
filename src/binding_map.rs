@@ -468,6 +468,7 @@ impl BindingMap {
 
     // Adds a constant.
     // This can also add members, by providing a name like "Foo.bar".
+    // The type and definition can be generic. If so, the parameters must be listed in params.
     pub fn add_constant(
         &mut self,
         name: &str,
@@ -480,9 +481,23 @@ impl BindingMap {
             panic!("constant name {} already bound", name);
         }
 
-        if let Some(definition) = &definition {
-            if !params.is_empty() && definition.has_arbitrary() {
-                panic!("there should not be arbitrary types in parametrized definitions");
+        if params.is_empty() {
+            if let Some(definition) = &definition {
+                if definition.has_generic() {
+                    panic!("there should not be generic types in non-parametrized definitions");
+                }
+            }
+            if constant_type.has_generic() {
+                panic!("there should not be generic types in non-parametrized constant types");
+            }
+        } else {
+            if let Some(definition) = &definition {
+                if definition.has_arbitrary() {
+                    panic!("there should not be arbitrary types in parametrized definitions");
+                }
+            }
+            if constant_type.has_arbitrary() {
+                panic!("there should not be arbitrary types in parametrized constant types");
             }
         }
 
