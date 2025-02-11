@@ -999,8 +999,8 @@ impl Environment {
                 )?;
                 let new_eq =
                     AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
-                let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq));
-
+                let new_claim =
+                    AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
                 self.add_node(
                     project,
                     true,

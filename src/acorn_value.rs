@@ -122,6 +122,15 @@ impl ConstantInstance {
         self.params.iter().any(|t| t.has_generic())
     }
 
+    pub fn to_generic(&self) -> ConstantInstance {
+        ConstantInstance {
+            module_id: self.module_id,
+            name: self.name.clone(),
+            params: self.params.iter().map(|t| t.to_generic()).collect(),
+            instance_type: self.instance_type.to_generic(),
+        }
+    }
+
     fn has_arbitrary(&self) -> bool {
         self.params.iter().any(|t| t.has_arbitrary())
     }
@@ -1547,6 +1556,52 @@ impl AcornValue {
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_arbitrary())),
             AcornValue::Constant(c) => AcornValue::Constant(c.to_arbitrary()),
+            AcornValue::Bool(_) => self.clone(),
+        }
+    }
+
+    // Change all the arbitrary types to generic ones.
+    pub fn to_generic(&self) -> AcornValue {
+        match self {
+            AcornValue::Variable(i, var_type) => AcornValue::Variable(*i, var_type.to_generic()),
+            AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
+                function: Box::new(app.function.to_generic()),
+                args: app.args.iter().map(|x| x.to_generic()).collect(),
+            }),
+            AcornValue::Lambda(args, value) => AcornValue::Lambda(
+                args.iter().map(|x| x.to_generic()).collect(),
+                Box::new(value.to_generic()),
+            ),
+            AcornValue::ForAll(args, value) => AcornValue::ForAll(
+                args.iter().map(|x| x.to_generic()).collect(),
+                Box::new(value.to_generic()),
+            ),
+            AcornValue::Exists(args, value) => AcornValue::Exists(
+                args.iter().map(|x| x.to_generic()).collect(),
+                Box::new(value.to_generic()),
+            ),
+            AcornValue::Binary(op, left, right) => AcornValue::Binary(
+                *op,
+                Box::new(left.to_generic()),
+                Box::new(right.to_generic()),
+            ),
+            AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
+                Box::new(cond.to_generic()),
+                Box::new(if_value.to_generic()),
+                Box::new(else_value.to_generic()),
+            ),
+            AcornValue::Match(scrutinee, cases) => {
+                let new_scrutinee = scrutinee.to_generic();
+                let new_cases = cases
+                    .iter()
+                    .map(|(new_vars, pattern, result)| {
+                        (new_vars.clone(), pattern.to_generic(), result.to_generic())
+                    })
+                    .collect();
+                AcornValue::Match(Box::new(new_scrutinee), new_cases)
+            }
+            AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_generic())),
+            AcornValue::Constant(c) => AcornValue::Constant(c.to_generic()),
             AcornValue::Bool(_) => self.clone(),
         }
     }
