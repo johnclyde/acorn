@@ -924,6 +924,7 @@ impl Environment {
                 for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
                     let member_fn_type =
                         AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
+                    // XXX looks wrong. we need params
                     self.bindings
                         .add_constant(&member_fn_name, vec![], member_fn_type, None, None);
                     member_fns.push(
@@ -938,6 +939,7 @@ impl Environment {
                 let new_fn_name = format!("{}.new", ss.name);
                 let new_fn_type =
                     AcornType::new_functional(field_types.clone(), struct_type.clone());
+                // XXX looks wrong. we need params
                 self.bindings.add_constant(
                     &new_fn_name,
                     vec![],

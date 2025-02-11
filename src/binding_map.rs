@@ -479,6 +479,13 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("constant name {} already bound", name);
         }
+
+        if let Some(definition) = &definition {
+            if !params.is_empty() {
+                // XXX check for arbitrary types
+            }
+        }
+
         self.identifier_types
             .insert(name.to_string(), constant_type);
 
