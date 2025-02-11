@@ -204,9 +204,6 @@ pub fn check_type<'a>(
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
-            if true {
-                panic!("XXX");
-            }
             return Err(source.error(&format!("expected type {}, but this is {}", e, actual_type)));
         }
     }
@@ -840,13 +837,13 @@ impl BindingMap {
     }
 
     // Parses a list of named argument declarations and adds them to the stack.
-    // class_name should be provided if these are the arguments of a new member function.
+    // class_type should be provided if these are the arguments of a new member function.
     pub fn bind_args<'a, I>(
         &self,
         stack: &mut Stack,
         project: &Project,
         declarations: I,
-        class_name: Option<&str>,
+        class_type: Option<&AcornType>,
     ) -> compilation::Result<(Vec<String>, Vec<AcornType>)>
     where
         I: IntoIterator<Item = &'a Declaration>,
@@ -854,16 +851,11 @@ impl BindingMap {
         let mut names = Vec::new();
         let mut types = Vec::new();
         for (i, declaration) in declarations.into_iter().enumerate() {
-            if class_name.is_some() && i == 0 {
+            if class_type.is_some() && i == 0 {
                 match declaration {
                     Declaration::SelfToken(_) => {
                         names.push("self".to_string());
-                        // XXX
-                        types.push(AcornType::Data(
-                            self.module,
-                            class_name.unwrap().to_string(),
-                            vec![],
-                        ));
+                        types.push(class_type.unwrap().clone());
                         continue;
                     }
                     _ => {
@@ -1612,7 +1604,7 @@ impl BindingMap {
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
-                    entity.expect_value(expected_type, token)?
+                    entity.expect_value(expected_type, expression)?
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => self.evaluate_infix(
@@ -1843,7 +1835,7 @@ impl BindingMap {
     // Wherever the argument types and the value type include the type parameters, they will
     // be type variables.
     //
-    // class_name should be provided if this is the definition of a member function.
+    // class_type should be provided, fully instantiated, if this is the definition of a member function.
     //
     // The return value is "unbound" in the sense that it has variable atoms that are not
     // bound within any lambda, exists, or forall value. It also may have references to a
@@ -1855,7 +1847,7 @@ impl BindingMap {
         args: &[Declaration],
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
-        class_name: Option<&str>,
+        class_type: Option<&AcornType>,
         function_name: Option<&str>,
     ) -> compilation::Result<(
         Vec<String>,
@@ -1874,7 +1866,7 @@ impl BindingMap {
             type_param_names.push(token.text().to_string());
         }
         let mut stack = Stack::new();
-        let (arg_names, arg_types) = self.bind_args(&mut stack, project, args, class_name)?;
+        let (arg_names, arg_types) = self.bind_args(&mut stack, project, args, class_type)?;
 
         // Figure out types.
         let value_type = match value_type_expr {
