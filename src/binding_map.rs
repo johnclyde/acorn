@@ -1397,7 +1397,7 @@ impl BindingMap {
         }
     }
 
-    fn resolve_function(
+    pub fn resolve_function(
         &self,
         source: &dyn ErrorSource,
         unresolved: UnresolvedConstant,
