@@ -114,6 +114,7 @@ pub struct BindingMap {
 
 // A generic constant that we don't know the type of yet.
 // It's more of a "constant with unresolved type" than an "unresolved constant".
+#[derive(Debug)]
 pub struct UnresolvedConstant {
     module_id: ModuleId,
 
@@ -130,6 +131,7 @@ pub struct UnresolvedConstant {
 }
 
 // Could be a value, but could also be an unresolved constant.
+#[derive(Debug)]
 pub enum PotentialValue {
     // (module, constant name, type, type parameters)
     Unresolved(UnresolvedConstant),
