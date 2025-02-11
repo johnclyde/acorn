@@ -849,6 +849,7 @@ impl Environment {
                 }
 
                 let mut arbitrary_params = vec![];
+                let mut param_names = vec![];
                 for type_param in &ss.type_params {
                     if self.bindings.has_type_name(type_param.text()) {
                         return Err(statement.error("type parameter already defined in this scope"));
@@ -857,6 +858,7 @@ impl Environment {
                     // For the duration of the structure definition, the type parameters are
                     // treated as arbitrary types.
                     arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.text()));
+                    param_names.push(type_param.text().to_string());
                 }
 
                 // Parse the fields before adding the struct type so that we can't have
@@ -924,9 +926,13 @@ impl Environment {
                 for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
                     let member_fn_type =
                         AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
-                    // XXX looks wrong. we need params
-                    self.bindings
-                        .add_constant(&member_fn_name, vec![], member_fn_type, None, None);
+                    self.bindings.add_constant(
+                        &member_fn_name,
+                        param_names.clone(),
+                        member_fn_type.to_generic(),
+                        None,
+                        None,
+                    );
                     member_fns.push(
                         self.bindings
                             .get_constant_value(&member_fn_name)
@@ -939,11 +945,10 @@ impl Environment {
                 let new_fn_name = format!("{}.new", ss.name);
                 let new_fn_type =
                     AcornType::new_functional(field_types.clone(), struct_type.clone());
-                // XXX looks wrong. we need params
                 self.bindings.add_constant(
                     &new_fn_name,
-                    vec![],
-                    new_fn_type,
+                    param_names,
+                    new_fn_type.to_generic(),
                     None,
                     Some((struct_type.clone(), 0, 1)),
                 );
