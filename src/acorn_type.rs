@@ -121,6 +121,10 @@ impl FunctionType {
             AcornType::Function(self.new_partial(num_args))
         }
     }
+
+    pub fn has_arbitrary(&self) -> bool {
+        self.arg_types.iter().any(|t| t.has_arbitrary()) || self.return_type.has_arbitrary()
+    }
 }
 
 // Typeclasses are represented by the module they were defined in, and their name.
@@ -294,6 +298,20 @@ impl AcornType {
                 }
                 true
             }
+            (
+                AcornType::Data(g_module, g_name, g_params),
+                AcornType::Data(i_module, i_name, i_params),
+            ) => {
+                if g_module != i_module || g_name != i_name || g_params.len() != i_params.len() {
+                    return false;
+                }
+                for (g_param, i_param) in g_params.iter().zip(i_params) {
+                    if !g_param.match_instance(i_param, mapping) {
+                        return false;
+                    }
+                }
+                true
+            }
             _ => self == instance,
         }
     }
@@ -305,6 +323,11 @@ impl AcornType {
             AcornType::Function(ftype) => AcornType::new_functional(
                 ftype.arg_types.iter().map(|t| t.to_generic()).collect(),
                 ftype.return_type.to_generic(),
+            ),
+            AcornType::Data(module, name, params) => AcornType::Data(
+                *module,
+                name.to_string(),
+                params.iter().map(|t| t.to_generic()).collect(),
             ),
             _ => self.clone(),
         }
@@ -342,14 +365,8 @@ impl AcornType {
     pub fn has_arbitrary(&self) -> bool {
         match self {
             AcornType::Arbitrary(..) => true,
-            AcornType::Function(ftype) => {
-                for arg_type in &ftype.arg_types {
-                    if arg_type.has_arbitrary() {
-                        return true;
-                    }
-                }
-                ftype.return_type.has_arbitrary()
-            }
+            AcornType::Function(ftype) => ftype.has_arbitrary(),
+            AcornType::Data(_, _, params) => params.iter().any(|t| t.has_arbitrary()),
             _ => false,
         }
     }

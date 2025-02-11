@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tower_lsp::lsp_types::Range;
 
 use crate::acorn_type::AcornType;
-use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
+use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
@@ -948,11 +948,7 @@ impl Environment {
                     None,
                     Some((struct_type.clone(), 0, 1)),
                 );
-                let new_fn = self
-                    .bindings
-                    .get_constant_value(&new_fn_name)
-                    .unwrap()
-                    .force_value();
+                let new_fn = self.bindings.get_constant_value(&new_fn_name).unwrap();
 
                 // Each object of this new type has certain properties.
                 let object_var = AcornValue::Variable(0, struct_type.clone());
@@ -995,10 +991,12 @@ impl Environment {
                 // An object can be recreated by new'ing from its members. Ie:
                 // Pair.new(Pair.first(p), Pair.second(p)) = p.
                 // This is the "new equation" for a struct type.
-                let recreated = AcornValue::Application(FunctionApplication {
-                    function: Box::new(new_fn.clone()),
-                    args: member_args,
-                });
+                let recreated = self.bindings.apply_potential(
+                    &ss.name_token,
+                    new_fn.clone(),
+                    member_args,
+                    None,
+                )?;
                 let new_eq =
                     AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
                 let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq));
@@ -1019,10 +1017,9 @@ impl Environment {
                 let var_args = (0..ss.fields.len())
                     .map(|i| AcornValue::Variable(i as AtomId, field_types[i].clone()))
                     .collect::<Vec<_>>();
-                let new_application = AcornValue::Application(FunctionApplication {
-                    function: Box::new(new_fn),
-                    args: var_args,
-                });
+                let new_application =
+                    self.bindings
+                        .apply_potential(&ss.name_token, new_fn, var_args, None)?;
                 for i in 0..ss.fields.len() {
                     let (field_name_token, field_type_expr) = &ss.fields[i];
                     let member_fn = &member_fns[i];

@@ -365,7 +365,7 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("type alias {} already bound", name);
         }
-        // XXX probably not right
+        // XXX we should be able to alias smarter
         if let AcornType::Data(module, type_name, _) = &acorn_type {
             self.canonical_to_alias
                 .entry((*module, type_name.clone()))
@@ -1427,6 +1427,9 @@ impl BindingMap {
                 return Err(source.error("expected a function"));
             }
         };
+        if unresolved_function_type.has_arbitrary() {
+            return Err(source.error("unresolved function type has arbitrary"));
+        }
 
         // Do type inference. Mapping is where the generic types go.
         let mut mapping = HashMap::new();
@@ -1434,7 +1437,7 @@ impl BindingMap {
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
             if !arg_type.match_instance(&arg.get_type(), &mut mapping) {
                 return Err(source.error(&format!(
-                    "for argument {}, expected type {}, but got {}",
+                    "for argument {}, expected type {:?}, but got {:?}",
                     i,
                     arg_type,
                     arg.get_type()
@@ -1454,7 +1457,7 @@ impl BindingMap {
                 None => {
                     return Err(
                         source.error(&format!("parameter {} could not be inferred", param_name))
-                    )
+                    );
                 }
             }
         }
