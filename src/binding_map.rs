@@ -114,7 +114,7 @@ pub struct BindingMap {
 
 // A generic constant that we don't know the type of yet.
 // It's more of a "constant with unresolved type" than an "unresolved constant".
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnresolvedConstant {
     module_id: ModuleId,
 
@@ -131,7 +131,7 @@ pub struct UnresolvedConstant {
 }
 
 // Could be a value, but could also be an unresolved constant.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PotentialValue {
     // (module, constant name, type, type parameters)
     Unresolved(UnresolvedConstant),
@@ -1397,7 +1397,24 @@ impl BindingMap {
         }
     }
 
-    pub fn resolve_function(
+    pub fn apply_potential(
+        &self,
+        source: &dyn ErrorSource,
+        potential: PotentialValue,
+        args: Vec<AcornValue>,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<AcornValue> {
+        match potential {
+            PotentialValue::Resolved(f) => {
+                let value = AcornValue::new_apply(f, args);
+                check_type(source, expected_type, &value.get_type())?;
+                Ok(value)
+            }
+            PotentialValue::Unresolved(u) => self.resolve_function(source, u, args, expected_type),
+        }
+    }
+
+    fn resolve_function(
         &self,
         source: &dyn ErrorSource,
         unresolved: UnresolvedConstant,

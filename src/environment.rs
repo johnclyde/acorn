@@ -918,6 +918,7 @@ impl Environment {
                 };
 
                 // The member functions take the type itself to a particular member.
+                // These may be unresolved values.
                 let potential_type = self
                     .bindings
                     .add_potential_type(&ss.name, ss.type_params.len());
@@ -933,12 +934,7 @@ impl Environment {
                         None,
                         None,
                     );
-                    member_fns.push(
-                        self.bindings
-                            .get_constant_value(&member_fn_name)
-                            .unwrap()
-                            .force_value(),
-                    );
+                    member_fns.push(self.bindings.get_constant_value(&member_fn_name).unwrap());
                 }
 
                 // A "new" function to create one of these struct types.
@@ -960,15 +956,16 @@ impl Environment {
 
                 // Each object of this new type has certain properties.
                 let object_var = AcornValue::Variable(0, struct_type.clone());
-                let member_args = member_fns
-                    .iter()
-                    .map(|f| {
-                        AcornValue::Application(FunctionApplication {
-                            function: Box::new(f.clone()),
-                            args: vec![object_var.clone()],
-                        })
-                    })
-                    .collect::<Vec<_>>();
+                let mut member_args = vec![];
+                for (i, member_fn) in member_fns.iter().enumerate() {
+                    let member_arg = self.bindings.apply_potential(
+                        &ss.fields[i].0,
+                        member_fn.clone(),
+                        vec![object_var.clone()],
+                        None,
+                    )?;
+                    member_args.push(member_arg);
+                }
                 let range = Range {
                     start: statement.first_token.start_pos(),
                     end: ss.name_token.end_pos(),
@@ -1029,12 +1026,15 @@ impl Environment {
                 for i in 0..ss.fields.len() {
                     let (field_name_token, field_type_expr) = &ss.fields[i];
                     let member_fn = &member_fns[i];
+                    let applied = self.bindings.apply_potential(
+                        field_name_token,
+                        member_fn.clone(),
+                        vec![new_application.clone()],
+                        None,
+                    )?;
                     let member_eq = AcornValue::Binary(
                         BinaryOp::Equals,
-                        Box::new(AcornValue::Application(FunctionApplication {
-                            function: Box::new(member_fn.clone()),
-                            args: vec![new_application.clone()],
-                        })),
+                        Box::new(applied),
                         Box::new(AcornValue::Variable(i as AtomId, field_types[i].clone())),
                     );
                     let unbound_member_claim = if let Some(constraint) = &unbound_constraint {
