@@ -481,8 +481,8 @@ impl BindingMap {
         }
 
         if let Some(definition) = &definition {
-            if !params.is_empty() {
-                // XXX check for arbitrary types
+            if !params.is_empty() && definition.has_arbitrary() {
+                panic!("there should not be arbitrary types in parametrized definitions");
             }
         }
 

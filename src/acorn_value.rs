@@ -122,6 +122,10 @@ impl ConstantInstance {
         self.params.iter().any(|t| t.is_generic())
     }
 
+    fn has_arbitrary(&self) -> bool {
+        self.params.iter().any(|t| t.has_arbitrary())
+    }
+
     pub fn to_arbitrary(&self) -> ConstantInstance {
         ConstantInstance {
             module_id: self.module_id,
@@ -1426,6 +1430,32 @@ impl AcornValue {
                     || cases
                         .iter()
                         .any(|(_, pattern, result)| pattern.is_generic() || result.is_generic())
+            }
+        }
+    }
+
+    // A value is arbitrary if any value within it has an arbitrary type.
+    pub fn has_arbitrary(&self) -> bool {
+        match self {
+            AcornValue::Variable(_, t) => t.has_arbitrary(),
+            AcornValue::Application(app) => {
+                app.function.has_arbitrary() || app.args.iter().any(|x| x.has_arbitrary())
+            }
+            AcornValue::Lambda(_, value)
+            | AcornValue::ForAll(_, value)
+            | AcornValue::Exists(_, value) => value.has_arbitrary(),
+            AcornValue::Binary(_, left, right) => left.has_arbitrary() || right.has_arbitrary(),
+            AcornValue::IfThenElse(cond, if_value, else_value) => {
+                cond.has_arbitrary() || if_value.has_arbitrary() || else_value.has_arbitrary()
+            }
+            AcornValue::Not(x) => x.has_arbitrary(),
+            AcornValue::Constant(c) => c.has_arbitrary(),
+            AcornValue::Bool(_) => false,
+            AcornValue::Match(scrutinee, cases) => {
+                scrutinee.has_arbitrary()
+                    || cases.iter().any(|(_, pattern, result)| {
+                        pattern.has_arbitrary() || result.has_arbitrary()
+                    })
             }
         }
     }

@@ -327,6 +327,21 @@ impl AcornType {
         }
     }
 
+    pub fn has_arbitrary(&self) -> bool {
+        match self {
+            AcornType::Arbitrary(..) => true,
+            AcornType::Function(ftype) => {
+                for arg_type in &ftype.arg_types {
+                    if arg_type.has_arbitrary() {
+                        return true;
+                    }
+                }
+                ftype.return_type.has_arbitrary()
+            }
+            _ => false,
+        }
+    }
+
     pub fn is_functional(&self) -> bool {
         match self {
             AcornType::Function(_) => true,
