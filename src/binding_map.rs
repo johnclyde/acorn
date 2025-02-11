@@ -204,6 +204,9 @@ pub fn check_type<'a>(
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
+            if true {
+                panic!("XXX");
+            }
             return Err(source.error(&format!("expected type {}, but this is {}", e, actual_type)));
         }
     }
@@ -819,7 +822,7 @@ impl BindingMap {
     }
 
     // Evaluates a variable declaration in this context.
-    // expect_self is whether we expect this to be a "self" declaration.
+    // "self" declarations should be handled externally.
     pub fn evaluate_declaration(
         &self,
         project: &Project,
@@ -855,6 +858,7 @@ impl BindingMap {
                 match declaration {
                     Declaration::SelfToken(_) => {
                         names.push("self".to_string());
+                        // XXX
                         types.push(AcornType::Data(
                             self.module,
                             class_name.unwrap().to_string(),
@@ -1057,7 +1061,7 @@ impl BindingMap {
         self.evaluate_value_with_stack(&mut Stack::new(), project, expression, expected_type)
     }
 
-    // Evaluates a variable attached to an instance like foo.bar.
+    // Evaluates a variable attached to an instance, like foo.bar.
     // token is used for reporting errors but may not correspond to anything in particular.
     fn evaluate_instance_variable(
         &self,
@@ -1086,6 +1090,7 @@ impl BindingMap {
                 }
             };
             // We need to typecheck that the apply is okay
+            // TODO: this puts the error on the "bar" of foo.bar where it should really be on the "foo".
             match function.get_type() {
                 AcornType::Function(function_type) => {
                     check_type(
