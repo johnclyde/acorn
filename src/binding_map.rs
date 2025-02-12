@@ -1100,35 +1100,12 @@ impl BindingMap {
                 project.get_bindings(module).unwrap()
             };
             let constant_name = format!("{}.{}", type_name, name);
-            let function = match bindings.get_constant_value(&constant_name) {
-                Some(PotentialValue::Resolved(value)) => value,
-                Some(PotentialValue::Unresolved(_)) => {
-                    return Err(source.error(&format!(
-                        "member {}.{} has unresolved type",
-                        type_name, name
-                    )))
-                }
-                None => {
-                    return Err(
-                        source.error(&format!("unknown instance variable '{}'", constant_name))
-                    )
-                }
+            let function = if let Some(f) = bindings.get_constant_value(&constant_name) {
+                f
+            } else {
+                return Err(source.error(&format!("unknown instance variable '{}'", constant_name)));
             };
-            // We need to typecheck that the apply is okay
-            // TODO: this puts the error on the "bar" of foo.bar where it should really be on the "foo".
-            match function.get_type() {
-                AcornType::Function(function_type) => {
-                    check_type(
-                        source,
-                        Some(&function_type.arg_types[0]),
-                        &instance.get_type(),
-                    )?;
-                }
-                _ => {
-                    return Err(source.error("expected member to be a function"));
-                }
-            };
-            Ok(AcornValue::new_apply(function, vec![instance]))
+            self.apply_potential(source, function, vec![instance], None)
         } else {
             Err(source.error(&format!("objects of type {:?} have no members", base_type)))
         }
