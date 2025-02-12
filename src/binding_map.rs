@@ -752,7 +752,7 @@ impl BindingMap {
         match potential {
             PotentialType::Resolved(t) => Ok(t),
             PotentialType::Unresolved(ut) => {
-                Err(expression.error(&format!("{} has unresolved type", ut.name)))
+                Err(expression.error(&format!("type {} is unresolved", ut.name)))
             }
         }
     }
@@ -1020,7 +1020,9 @@ impl BindingMap {
             match nc {
                 PotentialValue::Resolved(value) => return Ok(value),
                 PotentialValue::Unresolved(_) => {
-                    return Err(token.error(&format!("{}.{} has unresolved type", type_name, s)));
+                    return Err(
+                        token.error(&format!("number {}.{} has unresolved type", type_name, s))
+                    );
                 }
             }
         }
@@ -1038,7 +1040,10 @@ impl BindingMap {
         let read_fn = match self.evaluate_class_variable(project, module, type_name, "read") {
             Some(PotentialValue::Resolved(f)) => f,
             Some(PotentialValue::Unresolved(_)) => {
-                return Err(token.error(&format!("{}.read has unresolved type", type_name)))
+                return Err(token.error(&format!(
+                    "read function {}.read has unresolved type",
+                    type_name
+                )))
             }
             None => {
                 return Err(token.error(&format!(
@@ -1098,7 +1103,10 @@ impl BindingMap {
             let function = match bindings.get_constant_value(&constant_name) {
                 Some(PotentialValue::Resolved(value)) => value,
                 Some(PotentialValue::Unresolved(_)) => {
-                    return Err(source.error(&format!("{}.{} has unresolved type", type_name, name)))
+                    return Err(source.error(&format!(
+                        "member {}.{} has unresolved type",
+                        type_name, name
+                    )))
                 }
                 None => {
                     return Err(
