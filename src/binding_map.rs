@@ -235,15 +235,15 @@ enum NamedEntity {
 }
 
 impl NamedEntity {
-    fn expect_value(
+    fn expect_potential_value(
         self,
         expected_type: Option<&AcornType>,
         source: &dyn ErrorSource,
-    ) -> compilation::Result<AcornValue> {
+    ) -> compilation::Result<PotentialValue> {
         match self {
             NamedEntity::Value(value) => {
                 check_type(source, expected_type, &value.get_type())?;
-                Ok(value)
+                Ok(PotentialValue::Resolved(value))
             }
             NamedEntity::Type(_) | NamedEntity::UnresolvedType(_) => {
                 Err(source.error("name refers to a type but we expected a value"))
@@ -252,7 +252,8 @@ impl NamedEntity {
                 Err(source.error("name refers to a module but we expected a value"))
             }
             NamedEntity::UnresolvedValue(u) => {
-                Err(source.error(&format!("value {} has unresolved type", u.name)))
+                // TODO: should we typecheck?
+                Ok(PotentialValue::Unresolved(u))
             }
         }
     }
@@ -1663,7 +1664,7 @@ impl BindingMap {
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
-                    entity.expect_value(expected_type, expression)?
+                    return entity.expect_potential_value(expected_type, expression);
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => self.evaluate_infix(
