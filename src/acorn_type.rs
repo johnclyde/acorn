@@ -15,6 +15,16 @@ pub struct UnresolvedType {
     pub num_params: usize,
 }
 
+impl UnresolvedType {
+    // Just sticks fake names in there to print.
+    pub fn to_display_type(&self) -> AcornType {
+        let params = (0..self.num_params)
+            .map(|i| AcornType::Arbitrary(format!("T{}", i), None))
+            .collect();
+        AcornType::Data(self.module_id, self.name.clone(), params)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum PotentialType {
     // A usable type.

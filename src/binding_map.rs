@@ -369,7 +369,7 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("type alias {} already bound", name);
         }
-        // XXX we should be able to alias smarter
+        // TODO: we should be able to alias smarter
         if let AcornType::Data(module, type_name, _) = &acorn_type {
             self.canonical_to_alias
                 .entry((*module, type_name.clone()))
@@ -659,9 +659,9 @@ impl BindingMap {
                 NamedEntity::UnresolvedValue(u) => {
                     return self.get_member_completions(project, &u.generic_type, partial);
                 }
-                NamedEntity::UnresolvedType(_) => {
-                    // XXX we should return something here
-                    return None;
+                NamedEntity::UnresolvedType(ut) => {
+                    let display_type = ut.to_display_type();
+                    return self.get_member_completions(project, &display_type, partial);
                 }
             }
         }
