@@ -477,24 +477,22 @@ impl BindingMap {
             panic!("constant name {} already bound", name);
         }
 
-        if params.is_empty() {
-            if let Some(definition) = &definition {
-                if definition.has_generic() {
-                    panic!("there should not be generic types in non-parametrized definitions");
-                }
+        if let Some(definition) = &definition {
+            if let Err(e) = definition.validate() {
+                panic!("invalid definition for constant {}: {}", name, e);
             }
-            if constant_type.has_generic() {
-                panic!("there should not be generic types in non-parametrized constant types");
+            if params.is_empty() && definition.has_generic() {
+                panic!("there should not be generic types in non-parametrized definitions");
             }
-        } else {
-            if let Some(definition) = &definition {
-                if definition.has_arbitrary() {
-                    panic!("there should not be arbitrary types in parametrized definitions");
-                }
+            if !params.is_empty() && definition.has_arbitrary() {
+                panic!("there should not be arbitrary types in parametrized definitions");
             }
-            if constant_type.has_arbitrary() {
-                panic!("there should not be arbitrary types in parametrized constant types");
-            }
+        }
+        if params.is_empty() && constant_type.has_generic() {
+            panic!("there should not be generic types in non-parametrized constant types");
+        }
+        if !params.is_empty() && constant_type.has_arbitrary() {
+            panic!("there should not be arbitrary types in parametrized constant types");
         }
 
         self.identifier_types
