@@ -14,7 +14,8 @@ use crate::project::{LoadError, Project};
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
-    Body, DefineStatement, LetStatement, Statement, StatementInfo, TheoremStatement,
+    Body, DefineStatement, FunctionSatisfyStatement, LetStatement, Statement, StatementInfo,
+    TheoremStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -460,7 +461,7 @@ impl Environment {
         project: &mut Project,
         statement: &Statement,
         ts: &TheoremStatement,
-    ) -> Result<(), Error> {
+    ) -> compilation::Result<()> {
         // Figure out the range for this theorem definition.
         // It's smaller than the whole theorem statement because it doesn't
         // include the proof block.
@@ -570,6 +571,105 @@ impl Environment {
             self.bindings.mark_as_theorem(name);
         }
 
+        Ok(())
+    }
+
+    fn add_function_satisfy_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        fss: &FunctionSatisfyStatement,
+    ) -> compilation::Result<()> {
+        if fss.name == "new" || fss.name == "self" {
+            return Err(fss.name_token.error(&format!(
+                "'{}' is a reserved word. use a different name",
+                fss.name
+            )));
+        }
+        if self.bindings.name_in_use(&fss.name) {
+            return Err(statement.error(&format!(
+                "function name '{}' already defined in this scope",
+                fss.name
+            )));
+        }
+
+        // Figure out the range for this function definition.
+        // It's smaller than the whole function statement because it doesn't
+        // include the proof block.
+        let definition_range = Range {
+            start: statement.first_token.start_pos(),
+            end: fss.satisfy_token.end_pos(),
+        };
+        self.definition_ranges
+            .insert(fss.name.clone(), definition_range);
+
+        let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
+            project,
+            &[],
+            &fss.declarations,
+            None,
+            &fss.condition,
+            None,
+            None,
+        )?;
+
+        let unbound_condition = condition.ok_or_else(|| statement.error("missing condition"))?;
+        if unbound_condition.get_type() != AcornType::Bool {
+            return Err(fss.condition.error("condition must be a boolean"));
+        }
+
+        // The return variable shouldn't become a block arg, because we're trying to
+        // prove its existence.
+        let _return_name = arg_names.pop().unwrap();
+        let return_type = arg_types.pop().unwrap();
+        let block_args: Vec<_> = arg_names
+            .iter()
+            .cloned()
+            .zip(arg_types.iter().cloned())
+            .collect();
+        let num_args = block_args.len() as AtomId;
+
+        let block = Block::new(
+            project,
+            &self,
+            vec![],
+            block_args,
+            BlockParams::FunctionSatisfy(
+                unbound_condition.clone(),
+                return_type.clone(),
+                fss.condition.range(),
+            ),
+            statement.first_line(),
+            statement.last_line(),
+            fss.body.as_ref(),
+        )?;
+
+        // We define this function not with an equality, but via the condition.
+        let function_type = AcornType::new_functional(arg_types.clone(), return_type);
+        self.bindings
+            .add_constant(&fss.name, vec![], function_type.clone(), None, None);
+        let function_constant =
+            AcornValue::new_constant(self.module_id, fss.name.clone(), vec![], function_type);
+        let function_term = AcornValue::new_apply(
+            function_constant.clone(),
+            arg_types
+                .iter()
+                .enumerate()
+                .map(|(i, t)| AcornValue::Variable(i as AtomId, t.clone()))
+                .collect(),
+        );
+        let return_bound = unbound_condition.bind_values(num_args, num_args, &[function_term]);
+        let external_condition = AcornValue::ForAll(arg_types, Box::new(return_bound));
+
+        let prop = Proposition::constant_definition(
+            external_condition,
+            self.module_id,
+            definition_range,
+            function_constant,
+        );
+
+        let index = self.add_node(project, false, prop, Some(block));
+        self.add_node_lines(index, &statement.range());
         Ok(())
     }
 
@@ -753,104 +853,7 @@ impl Environment {
             }
 
             StatementInfo::FunctionSatisfy(fss) => {
-                if fss.name == "new" || fss.name == "self" {
-                    return Err(fss.name_token.error(&format!(
-                        "'{}' is a reserved word. use a different name",
-                        fss.name
-                    )));
-                }
-                if self.bindings.name_in_use(&fss.name) {
-                    return Err(statement.error(&format!(
-                        "function name '{}' already defined in this scope",
-                        fss.name
-                    )));
-                }
-
-                // Figure out the range for this function definition.
-                // It's smaller than the whole function statement because it doesn't
-                // include the proof block.
-                let definition_range = Range {
-                    start: statement.first_token.start_pos(),
-                    end: fss.satisfy_token.end_pos(),
-                };
-                self.definition_ranges
-                    .insert(fss.name.clone(), definition_range);
-
-                let (_, mut arg_names, mut arg_types, condition, _) =
-                    self.bindings.evaluate_scoped_value(
-                        project,
-                        &[],
-                        &fss.declarations,
-                        None,
-                        &fss.condition,
-                        None,
-                        None,
-                    )?;
-
-                let unbound_condition =
-                    condition.ok_or_else(|| statement.error("missing condition"))?;
-                if unbound_condition.get_type() != AcornType::Bool {
-                    return Err(fss.condition.error("condition must be a boolean"));
-                }
-
-                // The return variable shouldn't become a block arg, because we're trying to
-                // prove its existence.
-                let _return_name = arg_names.pop().unwrap();
-                let return_type = arg_types.pop().unwrap();
-                let block_args: Vec<_> = arg_names
-                    .iter()
-                    .cloned()
-                    .zip(arg_types.iter().cloned())
-                    .collect();
-                let num_args = block_args.len() as AtomId;
-
-                let block = Block::new(
-                    project,
-                    &self,
-                    vec![],
-                    block_args,
-                    BlockParams::FunctionSatisfy(
-                        unbound_condition.clone(),
-                        return_type.clone(),
-                        fss.condition.range(),
-                    ),
-                    statement.first_line(),
-                    statement.last_line(),
-                    fss.body.as_ref(),
-                )?;
-
-                // We define this function not with an equality, but via the condition.
-                let function_type = AcornType::new_functional(arg_types.clone(), return_type);
-                self.bindings
-                    .add_constant(&fss.name, vec![], function_type.clone(), None, None);
-                let function_constant = AcornValue::new_constant(
-                    self.module_id,
-                    fss.name.clone(),
-                    vec![],
-                    function_type,
-                );
-                let function_term = AcornValue::new_apply(
-                    function_constant.clone(),
-                    arg_types
-                        .iter()
-                        .enumerate()
-                        .map(|(i, t)| AcornValue::Variable(i as AtomId, t.clone()))
-                        .collect(),
-                );
-                let return_bound =
-                    unbound_condition.bind_values(num_args, num_args, &[function_term]);
-                let external_condition = AcornValue::ForAll(arg_types, Box::new(return_bound));
-
-                let prop = Proposition::constant_definition(
-                    external_condition,
-                    self.module_id,
-                    definition_range,
-                    function_constant,
-                );
-
-                let index = self.add_node(project, false, prop, Some(block));
-                self.add_node_lines(index, &statement.range());
-                Ok(())
+                self.add_function_satisfy_statement(project, statement, fss)
             }
 
             StatementInfo::Structure(ss) => {
