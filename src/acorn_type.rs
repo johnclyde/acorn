@@ -261,6 +261,11 @@ impl AcornType {
                     .collect(),
                 function_type.return_type.instantiate(params),
             ),
+            AcornType::Data(module, name, types) => AcornType::Data(
+                *module,
+                name.clone(),
+                types.iter().map(|t| t.instantiate(params)).collect(),
+            ),
             _ => self.clone(),
         }
     }

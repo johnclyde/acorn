@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, PotentialType, TypeClass, UnresolvedType};
+use crate::acorn_type::{AcornType, PotentialType, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -206,7 +206,10 @@ pub fn check_type<'a>(
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
-            return Err(source.error(&format!("expected type {}, but this is {}", e, actual_type)));
+            return Err(source.error(&format!(
+                "expected type {:?}, but this is {:?}",
+                e, actual_type
+            )));
         }
     }
     Ok(())
@@ -372,14 +375,6 @@ impl BindingMap {
                 .entry((*module, type_name.clone()))
                 .or_insert(name.to_string());
         }
-        self.insert_type_name(name.to_string(), PotentialType::Resolved(acorn_type));
-    }
-
-    fn add_type_variable(&mut self, name: &str, typeclass: Option<TypeClass>) {
-        if self.name_in_use(name) {
-            panic!("type variable {} already bound", name);
-        }
-        let acorn_type = AcornType::Variable(name.to_string(), typeclass);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(acorn_type));
     }
 
@@ -1390,14 +1385,17 @@ impl BindingMap {
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
-        match potential {
+        let value = match potential {
             PotentialValue::Resolved(f) => {
                 let value = AcornValue::new_apply(f, args);
                 check_type(source, expected_type, &value.get_type())?;
-                Ok(value)
+                value
             }
-            PotentialValue::Unresolved(u) => self.resolve_function(source, u, args, expected_type),
-        }
+            PotentialValue::Unresolved(u) => {
+                self.resolve_function(source, u, args, expected_type)?
+            }
+        };
+        Ok(value)
     }
 
     fn resolve_function(
@@ -1420,6 +1418,9 @@ impl BindingMap {
         // Do type inference. Mapping is where the generic types go.
         let mut mapping = HashMap::new();
         for (i, arg) in args.iter().enumerate() {
+            if arg.has_generic() {
+                return Err(source.error(&format!("argument {} ({}) has unresolved type", i, arg)));
+            }
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
             if !arg_type.match_instance(&arg.get_type(), &mut mapping) {
                 return Err(source.error(&format!(
@@ -1877,8 +1878,8 @@ impl BindingMap {
     //   an optional unbound value. (None means axiom.)
     //   the value type
     //
-    // Wherever the argument types and the value type include the type parameters, they will
-    // be type variables.
+    // The type parameters are treated as arbitrary types internally to the new scope, but externally
+    // they are replaced with type variables.
     //
     // class_type should be provided, fully instantiated, if this is the definition of a member function.
     //
@@ -1907,35 +1908,42 @@ impl BindingMap {
             if self.type_names.contains_key(token.text()) {
                 return Err(token.error("cannot redeclare a type in a generic type list"));
             }
-            self.add_type_variable(token.text(), None);
+            self.add_arbitrary_type(token.text());
             type_param_names.push(token.text().to_string());
         }
         let mut stack = Stack::new();
-        let (arg_names, arg_types) = self.bind_args(&mut stack, project, args, class_type)?;
+        let (arg_names, internal_arg_types) =
+            self.bind_args(&mut stack, project, args, class_type)?;
 
         // Figure out types.
-        let value_type = match value_type_expr {
+        let internal_value_type = match value_type_expr {
             Some(e) => self.evaluate_type(project, e)?,
             None => AcornType::Bool,
         };
 
         if let Some(function_name) = function_name {
-            let fn_type = AcornType::new_functional(arg_types.clone(), value_type.clone());
-            self.add_constant(function_name, type_param_names.clone(), fn_type, None, None);
+            let fn_type =
+                AcornType::new_functional(internal_arg_types.clone(), internal_value_type.clone());
+            // Internally to the definition, this function is not polymorphic.
+            self.add_constant(function_name, vec![], fn_type, None, None);
         }
 
-        // Evaluate the inner value using our modified bindings
-        let value = if value_expr.is_axiom() {
+        // Evaluate the internal value using our modified bindings
+        let internal_value = if value_expr.is_axiom() {
             None
         } else {
-            let value =
-                self.evaluate_value_with_stack(&mut stack, project, value_expr, Some(&value_type))?;
+            let value = self.evaluate_value_with_stack(
+                &mut stack,
+                project,
+                value_expr,
+                Some(&internal_value_type),
+            )?;
 
             if let Some(function_name) = function_name {
                 let mut checker = TerminationChecker::new(
                     self.module,
                     function_name.to_string(),
-                    arg_types.len(),
+                    internal_arg_types.len(),
                 );
                 if !checker.check(&value) {
                     return Err(
@@ -1955,7 +1963,18 @@ impl BindingMap {
             self.remove_constant(&function_name);
         }
 
-        Ok((type_param_names, arg_names, arg_types, value, value_type))
+        // Convert to external type variables
+        let external_arg_types = internal_arg_types.iter().map(|t| t.to_generic()).collect();
+        let external_value = internal_value.map(|v| v.to_generic());
+        let external_value_type = internal_value_type.to_generic();
+
+        Ok((
+            type_param_names,
+            arg_names,
+            external_arg_types,
+            external_value,
+            external_value_type,
+        ))
     }
 
     // Finds the names of all constants that are in this module but unknown to this binding map.

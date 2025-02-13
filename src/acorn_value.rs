@@ -119,7 +119,7 @@ impl ConstantInstance {
     }
 
     pub fn has_generic(&self) -> bool {
-        self.params.iter().any(|t| t.has_generic())
+        self.params.iter().any(|t| t.has_generic()) || self.instance_type.has_generic()
     }
 
     pub fn to_generic(&self) -> ConstantInstance {
