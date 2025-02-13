@@ -1613,6 +1613,71 @@ impl AcornValue {
         }
     }
 
+    // Set parameters to the given constant in this value.
+    pub fn set_params(
+        self,
+        module_id: ModuleId,
+        name: &str,
+        params: &Vec<AcornType>,
+    ) -> AcornValue {
+        match self {
+            // The only interesting case.
+            AcornValue::Constant(c) if c.module_id == module_id && c.name == name => {
+                AcornValue::Constant(ConstantInstance {
+                    module_id: c.module_id,
+                    name: c.name,
+                    params: params.clone(),
+                    instance_type: c.instance_type,
+                })
+            }
+
+            // Otherwise just recurse.
+            AcornValue::Constant(..) | AcornValue::Variable(..) | AcornValue::Bool(_) => self,
+            AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
+                function: Box::new(app.function.set_params(module_id, name, params)),
+                args: app
+                    .args
+                    .into_iter()
+                    .map(|x| x.set_params(module_id, name, params))
+                    .collect(),
+            }),
+            AcornValue::Lambda(args, value) => {
+                AcornValue::Lambda(args, Box::new(value.set_params(module_id, name, params)))
+            }
+            AcornValue::ForAll(args, value) => {
+                AcornValue::ForAll(args, Box::new(value.set_params(module_id, name, params)))
+            }
+            AcornValue::Exists(args, value) => {
+                AcornValue::Exists(args, Box::new(value.set_params(module_id, name, params)))
+            }
+            AcornValue::Binary(op, left, right) => AcornValue::Binary(
+                op,
+                Box::new(left.set_params(module_id, name, params)),
+                Box::new(right.set_params(module_id, name, params)),
+            ),
+            AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
+                Box::new(cond.set_params(module_id, name, params)),
+                Box::new(if_value.set_params(module_id, name, params)),
+                Box::new(else_value.set_params(module_id, name, params)),
+            ),
+            AcornValue::Match(scrutinee, cases) => {
+                let new_scrutinee = scrutinee.set_params(module_id, name, params);
+                let new_cases = cases
+                    .into_iter()
+                    .map(|(new_vars, pattern, result)| {
+                        (
+                            new_vars,
+                            pattern.set_params(module_id, name, params),
+                            result.set_params(module_id, name, params),
+                        )
+                    })
+                    .collect();
+                AcornValue::Match(Box::new(new_scrutinee), new_cases)
+            }
+            AcornValue::Not(x) => AcornValue::Not(Box::new(x.set_params(module_id, name, params))),
+        }
+    }
+
     // Negates a goal proposition and separates it into the types of its assumptions.
     // (hypothetical, counterfactual)
     // Hypotheticals are assumed to be true in a "by" block when proving something, in the

@@ -1924,7 +1924,6 @@ impl BindingMap {
                 AcornType::new_functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            // TODO: we need to turn this back to polymorphic in the definition.
             self.add_constant(function_name, vec![], fn_type, None, None);
         }
 
@@ -1979,8 +1978,29 @@ impl BindingMap {
             ))
         } else {
             // Convert to external type variables
+            let external_value = if let Some(internal_value) = internal_value {
+                if let Some(function_name) = function_name {
+                    // We might have defined this function recursively.
+                    // In this case, internally it's not polymorphic. It's just a constant
+                    // with a type that depends on the arbitrary types we introduced.
+                    // But, externally we need to make it polymorphic.
+                    let generic_params = type_param_names
+                        .iter()
+                        .map(|name| AcornType::Variable(name.to_string(), None))
+                        .collect();
+                    let derecursed =
+                        internal_value.set_params(self.module, function_name, &generic_params);
+                    Some(derecursed.to_generic())
+                } else {
+                    // There's no name for this function so it can't possibly be recursive.
+                    // This is simpler, but we still need to remove arbitrary local types.
+                    Some(internal_value.to_generic())
+                }
+            } else {
+                // No internal value, no external value.
+                None
+            };
             let external_arg_types = internal_arg_types.iter().map(|t| t.to_generic()).collect();
-            let external_value = internal_value.map(|v| v.to_generic());
             let external_value_type = internal_value_type.to_generic();
 
             Ok((
