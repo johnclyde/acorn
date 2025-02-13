@@ -370,6 +370,8 @@ impl Environment {
     }
 
     // Adds a "define" statement to the environment, that may be within a class block.
+    // For a parametrized class, the class type should contain arbitrary types, which
+    // should already be bound into this environment.
     fn add_define_statement(
         &mut self,
         project: &Project,
@@ -384,7 +386,14 @@ impl Environment {
             )));
         }
         let name = match class_type {
-            Some(AcornType::Data(_, class_name, _)) => format!("{}.{}", class_name, ds.name),
+            Some(AcornType::Data(_, class_name, _)) => {
+                if !ds.type_params.is_empty() {
+                    return Err(ds
+                        .name_token
+                        .error("member functions may not have type parameters"));
+                }
+                format!("{}.{}", class_name, ds.name)
+            }
             Some(_) => return Err(ds.name_token.error("class type must be a data type")),
             None => ds.name.clone(),
         };

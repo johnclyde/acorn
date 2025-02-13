@@ -1963,18 +1963,34 @@ impl BindingMap {
             self.remove_constant(&function_name);
         }
 
-        // Convert to external type variables
-        let external_arg_types = internal_arg_types.iter().map(|t| t.to_generic()).collect();
-        let external_value = internal_value.map(|v| v.to_generic());
-        let external_value_type = internal_value_type.to_generic();
+        // This part is awkward. We might have types parametrized on this function, or they
+        // might be parametrized on the class definition. We only want to genericize the
+        // parameters that we created. But, we are not quite doing that, we are just genericizing
+        // all or nothing.
+        // TODO: do this the right way.
+        if type_param_names.is_empty() {
+            // Just keep the types as they are.
+            Ok((
+                type_param_names,
+                arg_names,
+                internal_arg_types,
+                internal_value,
+                internal_value_type,
+            ))
+        } else {
+            // Convert to external type variables
+            let external_arg_types = internal_arg_types.iter().map(|t| t.to_generic()).collect();
+            let external_value = internal_value.map(|v| v.to_generic());
+            let external_value_type = internal_value_type.to_generic();
 
-        Ok((
-            type_param_names,
-            arg_names,
-            external_arg_types,
-            external_value,
-            external_value_type,
-        ))
+            Ok((
+                type_param_names,
+                arg_names,
+                external_arg_types,
+                external_value,
+                external_value_type,
+            ))
+        }
     }
 
     // Finds the names of all constants that are in this module but unknown to this binding map.
