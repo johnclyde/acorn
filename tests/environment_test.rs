@@ -2033,4 +2033,26 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_no_params_on_member_functions() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure BoolPair {
+                first: Bool
+                second: Bool
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            class BoolPair {
+                define apply_first<T>(self, f: Bool -> T) -> T {
+                    f(self.first)
+                }
+            }
+            "#,
+        );
+    }
 }

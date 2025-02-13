@@ -14,8 +14,8 @@ use crate::project::{LoadError, Project};
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
-    Body, DefineStatement, FunctionSatisfyStatement, LetStatement, Statement, StatementInfo,
-    StructureStatement, TheoremStatement,
+    Body, DefineStatement, FunctionSatisfyStatement, InductiveStatement, LetStatement, Statement,
+    StatementInfo, StructureStatement, TheoremStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -890,6 +890,259 @@ impl Environment {
         Ok(())
     }
 
+    fn add_inductive_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        is: &InductiveStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+        if self.bindings.has_type_name(&is.name) {
+            return Err(statement.error("type name already defined in this scope"));
+        }
+        let range = Range {
+            start: statement.first_token.start_pos(),
+            end: is.name_token.end_pos(),
+        };
+
+        // Add the new type first, because we can have self-reference in the inductive type.
+        let inductive_type = self.bindings.add_data_type(&is.name);
+
+        // Parse (member name, list of arg types) for each constructor.
+        let mut constructors = vec![];
+        let mut has_base = false;
+        for (name_token, type_list_expr) in &is.constructors {
+            let type_list = match type_list_expr {
+                Some(expr) => {
+                    let mut type_list = vec![];
+                    self.bindings
+                        .evaluate_type_list(project, expr, &mut type_list)?;
+                    type_list
+                }
+                None => vec![],
+            };
+            if !type_list.contains(&inductive_type) {
+                // This provides a base case
+                has_base = true;
+            }
+            let member_name = format!("{}.{}", is.name, name_token.text());
+            constructors.push((member_name, type_list));
+        }
+        if !has_base {
+            return Err(statement.error("inductive type must have a base case"));
+        }
+
+        // Define the constructors.
+        let mut constructor_fns = vec![];
+        let total = constructors.len();
+        for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
+            let constructor_type =
+                AcornType::new_functional(type_list.clone(), inductive_type.clone());
+            self.bindings.add_constant(
+                constructor_name,
+                vec![],
+                constructor_type,
+                None,
+                Some((inductive_type.clone(), i, total)),
+            );
+            constructor_fns.push(
+                self.bindings
+                    .get_constant_value(constructor_name)
+                    .unwrap()
+                    .force_value(),
+            );
+        }
+
+        // The "no confusion" property. Different constructors give different results.
+        for i in 0..constructors.len() {
+            let (_, i_arg_types) = &constructors[i];
+            let i_fn = constructor_fns[i].clone();
+            let i_vars: Vec<_> = i_arg_types
+                .iter()
+                .enumerate()
+                .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
+                .collect();
+            let i_app = AcornValue::new_apply(i_fn, i_vars);
+            for j in 0..i {
+                let (_, j_arg_types) = &constructors[j];
+                let j_fn = constructor_fns[j].clone();
+                let j_vars: Vec<_> = j_arg_types
+                    .iter()
+                    .enumerate()
+                    .map(|(k, t)| {
+                        AcornValue::Variable((k + i_arg_types.len()) as AtomId, t.clone())
+                    })
+                    .collect();
+                let j_app = AcornValue::new_apply(j_fn, j_vars);
+                let inequality = AcornValue::new_not_equals(i_app.clone(), j_app);
+                let mut quantifiers = i_arg_types.clone();
+                quantifiers.extend(j_arg_types.clone());
+                let claim = AcornValue::new_forall(quantifiers, inequality);
+                self.add_node(
+                    project,
+                    true,
+                    Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+                    None,
+                );
+            }
+        }
+
+        // The "canonical form" principle. Any item of this type must be created by one
+        // of the constructors.
+        // It seems like this is implied by induction but let's just stick it in.
+        // x0 is going to be the "generic item of this type".
+        let mut disjuncts = vec![];
+        for (i, constructor_fn) in constructor_fns.iter().enumerate() {
+            let (_, arg_types) = &constructors[i];
+            let args = arg_types
+                .iter()
+                .enumerate()
+                .map(|(k, t)| AcornValue::Variable((k + 1) as AtomId, t.clone()))
+                .collect();
+            let app = AcornValue::new_apply(constructor_fn.clone(), args);
+            let var = AcornValue::Variable(0, inductive_type.clone());
+            let equality = AcornValue::new_equals(var, app);
+            let exists = AcornValue::new_exists(arg_types.clone(), equality);
+            disjuncts.push(exists);
+        }
+        let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
+        let claim = AcornValue::new_forall(vec![inductive_type.clone()], disjunction);
+        self.add_node(
+            project,
+            true,
+            Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+            None,
+        );
+
+        // The next principle is that each constructor is injective.
+        // Ie if Type.construct(x0, x1) = Type.construct(x2, x3) then x0 = x2 and x1 = x3.
+        for (i, constructor_fn) in constructor_fns.iter().enumerate() {
+            let (_, arg_types) = &constructors[i];
+            if arg_types.is_empty() {
+                continue;
+            }
+
+            // First construct the equality.
+            // "Type.construct(x0, x1) = Type.construct(x2, x3)"
+            let left_args = arg_types
+                .iter()
+                .enumerate()
+                .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
+                .collect();
+            let lhs = AcornValue::new_apply(constructor_fn.clone(), left_args);
+            let right_args = arg_types
+                .iter()
+                .enumerate()
+                .map(|(k, t)| AcornValue::Variable((k + arg_types.len()) as AtomId, t.clone()))
+                .collect();
+            let rhs = AcornValue::new_apply(constructor_fn.clone(), right_args);
+            let equality = AcornValue::new_equals(lhs, rhs);
+
+            // Then construct the implication, that the corresponding args are equal.
+            let mut conjuncts = vec![];
+            for (i, arg_type) in arg_types.iter().enumerate() {
+                let left = AcornValue::Variable(i as AtomId, arg_type.clone());
+                let right = AcornValue::Variable((i + arg_types.len()) as AtomId, arg_type.clone());
+                let arg_equality = AcornValue::new_equals(left, right);
+                conjuncts.push(arg_equality);
+            }
+            let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
+            let mut forall_types = arg_types.clone();
+            forall_types.extend_from_slice(&arg_types);
+            let claim = AcornValue::new_forall(
+                forall_types,
+                AcornValue::new_implies(equality, conjunction),
+            );
+            self.add_node(
+                project,
+                true,
+                Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+                None,
+            );
+        }
+
+        // Structural induction.
+        // The type for the inductive hypothesis.
+        let hyp_type = AcornType::new_functional(vec![inductive_type.clone()], AcornType::Bool);
+        // x0 represents the inductive hypothesis.
+        // Think of the inductive principle as (conjunction) -> (conclusion).
+        // The conjunction is a case for each constructor.
+        // The conclusion is that x0 holds for all items of the type.
+        let mut conjuncts = vec![];
+        for (i, constructor_fn) in constructor_fns.iter().enumerate() {
+            let (_, arg_types) = &constructors[i];
+            let mut args = vec![];
+            let mut conditions = vec![];
+            for (j, arg_type) in arg_types.iter().enumerate() {
+                // x0 is the inductive hypothesis so we start at 1 for the
+                // constructor arguments.
+                let id = (j + 1) as AtomId;
+                args.push(AcornValue::Variable(id, arg_type.clone()));
+                if arg_type == &inductive_type {
+                    // The inductive case for this constructor includes a condition
+                    // that the inductive hypothesis holds for this argument.
+                    conditions.push(AcornValue::new_apply(
+                        AcornValue::Variable(0, hyp_type.clone()),
+                        vec![AcornValue::Variable(id, arg_type.clone())],
+                    ));
+                }
+            }
+
+            let new_instance = AcornValue::new_apply(constructor_fn.clone(), args);
+            let instance_claim = AcornValue::new_apply(
+                AcornValue::Variable(0, hyp_type.clone()),
+                vec![new_instance],
+            );
+            let unbound = if conditions.is_empty() {
+                // This is a base case. We just need to show that the inductive hypothesis
+                // holds for this constructor.
+                instance_claim
+            } else {
+                // This is an inductive case. Given the conditions, we show that
+                // the inductive hypothesis holds for this constructor.
+                AcornValue::new_implies(
+                    AcornValue::reduce(BinaryOp::And, conditions),
+                    instance_claim,
+                )
+            };
+            let conjunction_part = AcornValue::new_forall(arg_types.clone(), unbound);
+            conjuncts.push(conjunction_part);
+        }
+        let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
+        let conclusion = AcornValue::new_forall(
+            vec![inductive_type.clone()],
+            AcornValue::new_apply(
+                AcornValue::Variable(0, hyp_type.clone()),
+                vec![AcornValue::Variable(1, inductive_type.clone())],
+            ),
+        );
+        let unbound_claim = AcornValue::new_implies(conjunction, conclusion);
+
+        // The lambda form is the functional form, which we bind in the environment.
+        let name = format!("{}.induction", is.name);
+        let lambda_claim = AcornValue::new_lambda(vec![hyp_type.clone()], unbound_claim.clone());
+        self.bindings.add_constant(
+            &name,
+            vec![],
+            lambda_claim.get_type(),
+            Some(lambda_claim),
+            None,
+        );
+        self.bindings.mark_as_theorem(&name);
+
+        // The forall form is the anonymous truth of induction.
+        // We add that as a proposition.
+        let forall_claim = AcornValue::new_forall(vec![hyp_type], unbound_claim);
+        self.add_node(
+            project,
+            true,
+            Proposition::theorem(true, forall_claim, self.module_id, range, Some(name)),
+            None,
+        );
+
+        Ok(())
+    }
+
     // Adds a statement to the environment.
     // If the statement has a body, this call creates a sub-environment and adds the body
     // to that sub-environment.
@@ -1075,263 +1328,7 @@ impl Environment {
 
             StatementInfo::Structure(ss) => self.add_structure_statement(project, statement, ss),
 
-            StatementInfo::Inductive(is) => {
-                self.add_other_lines(statement);
-                if self.bindings.has_type_name(&is.name) {
-                    return Err(statement.error("type name already defined in this scope"));
-                }
-                let range = Range {
-                    start: statement.first_token.start_pos(),
-                    end: is.name_token.end_pos(),
-                };
-
-                // Add the new type first, because we can have self-reference in the inductive type.
-                let inductive_type = self.bindings.add_data_type(&is.name);
-
-                // Parse (member name, list of arg types) for each constructor.
-                let mut constructors = vec![];
-                let mut has_base = false;
-                for (name_token, type_list_expr) in &is.constructors {
-                    let type_list = match type_list_expr {
-                        Some(expr) => {
-                            let mut type_list = vec![];
-                            self.bindings
-                                .evaluate_type_list(project, expr, &mut type_list)?;
-                            type_list
-                        }
-                        None => vec![],
-                    };
-                    if !type_list.contains(&inductive_type) {
-                        // This provides a base case
-                        has_base = true;
-                    }
-                    let member_name = format!("{}.{}", is.name, name_token.text());
-                    constructors.push((member_name, type_list));
-                }
-                if !has_base {
-                    return Err(statement.error("inductive type must have a base case"));
-                }
-
-                // Define the constructors.
-                let mut constructor_fns = vec![];
-                let total = constructors.len();
-                for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
-                    let constructor_type =
-                        AcornType::new_functional(type_list.clone(), inductive_type.clone());
-                    self.bindings.add_constant(
-                        constructor_name,
-                        vec![],
-                        constructor_type,
-                        None,
-                        Some((inductive_type.clone(), i, total)),
-                    );
-                    constructor_fns.push(
-                        self.bindings
-                            .get_constant_value(constructor_name)
-                            .unwrap()
-                            .force_value(),
-                    );
-                }
-
-                // The "no confusion" property. Different constructors give different results.
-                for i in 0..constructors.len() {
-                    let (_, i_arg_types) = &constructors[i];
-                    let i_fn = constructor_fns[i].clone();
-                    let i_vars: Vec<_> = i_arg_types
-                        .iter()
-                        .enumerate()
-                        .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
-                        .collect();
-                    let i_app = AcornValue::new_apply(i_fn, i_vars);
-                    for j in 0..i {
-                        let (_, j_arg_types) = &constructors[j];
-                        let j_fn = constructor_fns[j].clone();
-                        let j_vars: Vec<_> = j_arg_types
-                            .iter()
-                            .enumerate()
-                            .map(|(k, t)| {
-                                AcornValue::Variable((k + i_arg_types.len()) as AtomId, t.clone())
-                            })
-                            .collect();
-                        let j_app = AcornValue::new_apply(j_fn, j_vars);
-                        let inequality = AcornValue::new_not_equals(i_app.clone(), j_app);
-                        let mut quantifiers = i_arg_types.clone();
-                        quantifiers.extend(j_arg_types.clone());
-                        let claim = AcornValue::new_forall(quantifiers, inequality);
-                        self.add_node(
-                            project,
-                            true,
-                            Proposition::type_definition(
-                                claim,
-                                self.module_id,
-                                range,
-                                is.name.clone(),
-                            ),
-                            None,
-                        );
-                    }
-                }
-
-                // The "canonical form" principle. Any item of this type must be created by one
-                // of the constructors.
-                // It seems like this is implied by induction but let's just stick it in.
-                // x0 is going to be the "generic item of this type".
-                let mut disjuncts = vec![];
-                for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-                    let (_, arg_types) = &constructors[i];
-                    let args = arg_types
-                        .iter()
-                        .enumerate()
-                        .map(|(k, t)| AcornValue::Variable((k + 1) as AtomId, t.clone()))
-                        .collect();
-                    let app = AcornValue::new_apply(constructor_fn.clone(), args);
-                    let var = AcornValue::Variable(0, inductive_type.clone());
-                    let equality = AcornValue::new_equals(var, app);
-                    let exists = AcornValue::new_exists(arg_types.clone(), equality);
-                    disjuncts.push(exists);
-                }
-                let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                let claim = AcornValue::new_forall(vec![inductive_type.clone()], disjunction);
-                self.add_node(
-                    project,
-                    true,
-                    Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
-                    None,
-                );
-
-                // The next principle is that each constructor is injective.
-                // Ie if Type.construct(x0, x1) = Type.construct(x2, x3) then x0 = x2 and x1 = x3.
-                for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-                    let (_, arg_types) = &constructors[i];
-                    if arg_types.is_empty() {
-                        continue;
-                    }
-
-                    // First construct the equality.
-                    // "Type.construct(x0, x1) = Type.construct(x2, x3)"
-                    let left_args = arg_types
-                        .iter()
-                        .enumerate()
-                        .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
-                        .collect();
-                    let lhs = AcornValue::new_apply(constructor_fn.clone(), left_args);
-                    let right_args = arg_types
-                        .iter()
-                        .enumerate()
-                        .map(|(k, t)| {
-                            AcornValue::Variable((k + arg_types.len()) as AtomId, t.clone())
-                        })
-                        .collect();
-                    let rhs = AcornValue::new_apply(constructor_fn.clone(), right_args);
-                    let equality = AcornValue::new_equals(lhs, rhs);
-
-                    // Then construct the implication, that the corresponding args are equal.
-                    let mut conjuncts = vec![];
-                    for (i, arg_type) in arg_types.iter().enumerate() {
-                        let left = AcornValue::Variable(i as AtomId, arg_type.clone());
-                        let right =
-                            AcornValue::Variable((i + arg_types.len()) as AtomId, arg_type.clone());
-                        let arg_equality = AcornValue::new_equals(left, right);
-                        conjuncts.push(arg_equality);
-                    }
-                    let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
-                    let mut forall_types = arg_types.clone();
-                    forall_types.extend_from_slice(&arg_types);
-                    let claim = AcornValue::new_forall(
-                        forall_types,
-                        AcornValue::new_implies(equality, conjunction),
-                    );
-                    self.add_node(
-                        project,
-                        true,
-                        Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
-                        None,
-                    );
-                }
-
-                // Structural induction.
-                // The type for the inductive hypothesis.
-                let hyp_type =
-                    AcornType::new_functional(vec![inductive_type.clone()], AcornType::Bool);
-                // x0 represents the inductive hypothesis.
-                // Think of the inductive principle as (conjunction) -> (conclusion).
-                // The conjunction is a case for each constructor.
-                // The conclusion is that x0 holds for all items of the type.
-                let mut conjuncts = vec![];
-                for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-                    let (_, arg_types) = &constructors[i];
-                    let mut args = vec![];
-                    let mut conditions = vec![];
-                    for (j, arg_type) in arg_types.iter().enumerate() {
-                        // x0 is the inductive hypothesis so we start at 1 for the
-                        // constructor arguments.
-                        let id = (j + 1) as AtomId;
-                        args.push(AcornValue::Variable(id, arg_type.clone()));
-                        if arg_type == &inductive_type {
-                            // The inductive case for this constructor includes a condition
-                            // that the inductive hypothesis holds for this argument.
-                            conditions.push(AcornValue::new_apply(
-                                AcornValue::Variable(0, hyp_type.clone()),
-                                vec![AcornValue::Variable(id, arg_type.clone())],
-                            ));
-                        }
-                    }
-
-                    let new_instance = AcornValue::new_apply(constructor_fn.clone(), args);
-                    let instance_claim = AcornValue::new_apply(
-                        AcornValue::Variable(0, hyp_type.clone()),
-                        vec![new_instance],
-                    );
-                    let unbound = if conditions.is_empty() {
-                        // This is a base case. We just need to show that the inductive hypothesis
-                        // holds for this constructor.
-                        instance_claim
-                    } else {
-                        // This is an inductive case. Given the conditions, we show that
-                        // the inductive hypothesis holds for this constructor.
-                        AcornValue::new_implies(
-                            AcornValue::reduce(BinaryOp::And, conditions),
-                            instance_claim,
-                        )
-                    };
-                    let conjunction_part = AcornValue::new_forall(arg_types.clone(), unbound);
-                    conjuncts.push(conjunction_part);
-                }
-                let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
-                let conclusion = AcornValue::new_forall(
-                    vec![inductive_type.clone()],
-                    AcornValue::new_apply(
-                        AcornValue::Variable(0, hyp_type.clone()),
-                        vec![AcornValue::Variable(1, inductive_type.clone())],
-                    ),
-                );
-                let unbound_claim = AcornValue::new_implies(conjunction, conclusion);
-
-                // The lambda form is the functional form, which we bind in the environment.
-                let name = format!("{}.induction", is.name);
-                let lambda_claim =
-                    AcornValue::new_lambda(vec![hyp_type.clone()], unbound_claim.clone());
-                self.bindings.add_constant(
-                    &name,
-                    vec![],
-                    lambda_claim.get_type(),
-                    Some(lambda_claim),
-                    None,
-                );
-                self.bindings.mark_as_theorem(&name);
-
-                // The forall form is the anonymous truth of induction.
-                // We add that as a proposition.
-                let forall_claim = AcornValue::new_forall(vec![hyp_type], unbound_claim);
-                self.add_node(
-                    project,
-                    true,
-                    Proposition::theorem(true, forall_claim, self.module_id, range, Some(name)),
-                    None,
-                );
-
-                Ok(())
-            }
+            StatementInfo::Inductive(is) => self.add_inductive_statement(project, statement, is),
 
             StatementInfo::Import(is) => {
                 self.add_other_lines(statement);
