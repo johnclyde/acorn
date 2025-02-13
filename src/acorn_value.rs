@@ -1353,7 +1353,14 @@ impl AcornValue {
                 Ok(())
             }
             AcornValue::Not(x) => x.validate_against_stack(stack),
-            AcornValue::Constant(_) | AcornValue::Bool(_) => Ok(()),
+            AcornValue::Constant(ci) => {
+                if ci.params.is_empty() && ci.has_generic() {
+                    Err(format!("'{}' has generic type but no params", ci))
+                } else {
+                    Ok(())
+                }
+            }
+            AcornValue::Bool(_) => Ok(()),
         }
     }
 
