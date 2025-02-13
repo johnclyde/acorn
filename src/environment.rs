@@ -13,7 +13,9 @@ use crate::module::ModuleId;
 use crate::project::{LoadError, Project};
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
-use crate::statement::{Body, DefineStatement, LetStatement, Statement, StatementInfo};
+use crate::statement::{
+    Body, DefineStatement, LetStatement, Statement, StatementInfo, TheoremStatement,
+};
 use crate::token::{Token, TokenIter, TokenType};
 
 // Each line has a LineType, to handle line-based user interface.
@@ -453,6 +455,124 @@ impl Environment {
         Ok(())
     }
 
+    fn add_theorem_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ts: &TheoremStatement,
+    ) -> Result<(), Error> {
+        // Figure out the range for this theorem definition.
+        // It's smaller than the whole theorem statement because it doesn't
+        // include the proof block.
+        let range = Range {
+            start: statement.first_token.start_pos(),
+            end: ts.claim_right_brace.end_pos(),
+        };
+
+        if let Some(name) = &ts.name {
+            if self.bindings.name_in_use(&name) {
+                return Err(statement.first_token.error(&format!(
+                    "theorem name '{}' already defined in this scope",
+                    name
+                )));
+            }
+
+            self.definition_ranges
+                .insert(name.to_string(), range.clone());
+        }
+
+        let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
+            project,
+            &ts.type_params,
+            &ts.args,
+            None,
+            &ts.claim,
+            None,
+            None,
+        )?;
+
+        let unbound_claim = value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
+
+        let is_citation = self.bindings.is_citation(project, &unbound_claim);
+        if is_citation && ts.body.is_some() {
+            return Err(statement.error("citations do not need proof blocks"));
+        }
+
+        let mut block_args = vec![];
+        for (arg_name, arg_type) in arg_names.iter().zip(&arg_types) {
+            block_args.push((arg_name.clone(), arg_type.clone()));
+        }
+
+        // Externally we use the theorem in unnamed, "forall" form
+        let external_claim = AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
+
+        let (premise, goal) = match &unbound_claim {
+            AcornValue::Binary(BinaryOp::Implies, left, right) => {
+                let premise_range = match ts.claim.premise() {
+                    Some(p) => p.range(),
+                    None => {
+                        // I don't think this should happen, but it's awkward for the
+                        // compiler to enforce, so pick a not-too-wrong default.
+                        ts.claim.range()
+                    }
+                };
+                (Some((*left.clone(), premise_range)), *right.clone())
+            }
+            c => (None, c.clone()),
+        };
+
+        // We define the theorem using "lambda" form.
+        // The definition happens here, in the outside environment, because the
+        // theorem is usable by name in this environment.
+        let lambda_claim = AcornValue::new_lambda(arg_types, unbound_claim);
+        let theorem_type = lambda_claim.get_type();
+        if let Some(name) = &ts.name {
+            self.bindings.add_constant(
+                &name,
+                type_params.clone(),
+                theorem_type.clone(),
+                Some(lambda_claim.clone()),
+                None,
+            );
+        }
+
+        let already_proven = ts.axiomatic || is_citation;
+
+        let block = if already_proven {
+            None
+        } else {
+            Some(Block::new(
+                project,
+                &self,
+                type_params,
+                block_args,
+                BlockParams::Theorem(ts.name.as_deref(), range, premise, goal),
+                statement.first_line(),
+                statement.last_line(),
+                ts.body.as_ref(),
+            )?)
+        };
+
+        let index = self.add_node(
+            project,
+            already_proven,
+            Proposition::theorem(
+                already_proven,
+                external_claim,
+                self.module_id,
+                range,
+                ts.name.clone(),
+            ),
+            block,
+        );
+        self.add_node_lines(index, &statement.range());
+        if let Some(name) = &ts.name {
+            self.bindings.mark_as_theorem(name);
+        }
+
+        Ok(())
+    }
+
     // Adds a statement to the environment.
     // If the statement has a body, this call creates a sub-environment and adds the body
     // to that sub-environment.
@@ -494,121 +614,7 @@ impl Environment {
                 self.add_define_statement(project, None, ds, statement.range())
             }
 
-            StatementInfo::Theorem(ts) => {
-                // Figure out the range for this theorem definition.
-                // It's smaller than the whole theorem statement because it doesn't
-                // include the proof block.
-                let range = Range {
-                    start: statement.first_token.start_pos(),
-                    end: ts.claim_right_brace.end_pos(),
-                };
-
-                if let Some(name) = &ts.name {
-                    if self.bindings.name_in_use(&name) {
-                        return Err(statement.first_token.error(&format!(
-                            "theorem name '{}' already defined in this scope",
-                            name
-                        )));
-                    }
-
-                    self.definition_ranges
-                        .insert(name.to_string(), range.clone());
-                }
-
-                let (type_params, arg_names, arg_types, value, _) =
-                    self.bindings.evaluate_scoped_value(
-                        project,
-                        &ts.type_params,
-                        &ts.args,
-                        None,
-                        &ts.claim,
-                        None,
-                        None,
-                    )?;
-
-                let unbound_claim =
-                    value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
-
-                let is_citation = self.bindings.is_citation(project, &unbound_claim);
-                if is_citation && ts.body.is_some() {
-                    return Err(statement.error("citations do not need proof blocks"));
-                }
-
-                let mut block_args = vec![];
-                for (arg_name, arg_type) in arg_names.iter().zip(&arg_types) {
-                    block_args.push((arg_name.clone(), arg_type.clone()));
-                }
-
-                // Externally we use the theorem in unnamed, "forall" form
-                let external_claim =
-                    AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
-
-                let (premise, goal) = match &unbound_claim {
-                    AcornValue::Binary(BinaryOp::Implies, left, right) => {
-                        let premise_range = match ts.claim.premise() {
-                            Some(p) => p.range(),
-                            None => {
-                                // I don't think this should happen, but it's awkward for the
-                                // compiler to enforce, so pick a not-too-wrong default.
-                                ts.claim.range()
-                            }
-                        };
-                        (Some((*left.clone(), premise_range)), *right.clone())
-                    }
-                    c => (None, c.clone()),
-                };
-
-                // We define the theorem using "lambda" form.
-                // The definition happens here, in the outside environment, because the
-                // theorem is usable by name in this environment.
-                let lambda_claim = AcornValue::new_lambda(arg_types, unbound_claim);
-                let theorem_type = lambda_claim.get_type();
-                if let Some(name) = &ts.name {
-                    self.bindings.add_constant(
-                        &name,
-                        type_params.clone(),
-                        theorem_type.clone(),
-                        Some(lambda_claim.clone()),
-                        None,
-                    );
-                }
-
-                let already_proven = ts.axiomatic || is_citation;
-
-                let block = if already_proven {
-                    None
-                } else {
-                    Some(Block::new(
-                        project,
-                        &self,
-                        type_params,
-                        block_args,
-                        BlockParams::Theorem(ts.name.as_deref(), range, premise, goal),
-                        statement.first_line(),
-                        statement.last_line(),
-                        ts.body.as_ref(),
-                    )?)
-                };
-
-                let index = self.add_node(
-                    project,
-                    already_proven,
-                    Proposition::theorem(
-                        already_proven,
-                        external_claim,
-                        self.module_id,
-                        range,
-                        ts.name.clone(),
-                    ),
-                    block,
-                );
-                self.add_node_lines(index, &statement.range());
-                if let Some(name) = &ts.name {
-                    self.bindings.mark_as_theorem(name);
-                }
-
-                Ok(())
-            }
+            StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
 
             StatementInfo::Prop(ps) => {
                 let claim =
