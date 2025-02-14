@@ -206,10 +206,7 @@ pub fn check_type<'a>(
 ) -> compilation::Result<()> {
     if let Some(e) = expected_type {
         if e != actual_type {
-            return Err(source.error(&format!(
-                "expected type {:?}, but this is {:?}",
-                e, actual_type
-            )));
+            return Err(source.error(&format!("expected type {}, but this is {}", e, actual_type)));
         }
     }
     Ok(())

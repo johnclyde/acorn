@@ -2217,6 +2217,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 }
             }
 
+            let s: Pair<Foo, Bar> -> Pair<Bar, Foo> = Pair<Foo, Bar>.swap
             let f: Foo = axiom
             let b: Bar = axiom
             let p1: Pair<Foo, Bar> = Pair.new(f, b)
