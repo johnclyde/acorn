@@ -408,9 +408,6 @@ fn parse_theorem_statement(
     };
     let type_params = parse_params(tokens)?;
     let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
-    if type_params.len() > 1 {
-        return Err(type_params[1].error("only one type parameter is supported"));
-    }
     let (claim, claim_right_brace) =
         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
 

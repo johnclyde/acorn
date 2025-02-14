@@ -2198,4 +2198,32 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_generic_return_types() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Foo: axiom
+            type Bar: axiom
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            
+            class Pair<T, U> {
+                define swap(self) -> Pair<U, T> {
+                    Pair.new(self.second, self.first)
+                }
+            }
+
+            let f: Foo = axiom
+            let b: Bar = axiom
+            let p1: Pair<Foo, Bar> = Pair.new(f, b)
+            let p2: Pair<Bar, Foo> = p1.swap
+            let p3: Pair<Foo, Bar> = p2.swap
+            let p4: Pair<Foo, Bar> = p1.swap.swap
+            "#,
+        );
+    }
 }
