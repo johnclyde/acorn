@@ -2171,4 +2171,31 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_methods_on_generic_classes() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Foo: axiom
+            type Bar: axiom
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            let f: Foo = axiom
+            let b: Bar = axiom
+            let p1: Pair<Foo, Bar> = Pair.new(f, b)
+            let p2: Pair<Foo, Bar> = Pair<Foo, Bar>.new(f, b)
+            "#,
+        );
+
+        // For now, I don't want this to work because I'm afraid it will be hard to parse.
+        // Once we have dependent types, maybe we can make this work too.
+        env.bad(
+            r#"
+            let p3: Pair<Foo, Bar> = Pair.new<Foo, Bar>(f, b)
+            "#,
+        );
+    }
 }
