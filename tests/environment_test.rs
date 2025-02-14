@@ -2075,4 +2075,23 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_aliases_for_generics() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.add(
+            r#"
+            type BoolPair: Pair<Bool, Bool>
+            let truetrue: BoolPair = Pair.new(true, true)
+            "#,
+        );
+    }
 }
