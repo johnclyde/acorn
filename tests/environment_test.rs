@@ -2055,4 +2055,24 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_class_with_mismatched_num_params() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            class Pair<T> {
+                let t: Bool = true
+            }
+            "#,
+        );
+    }
 }
