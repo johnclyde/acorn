@@ -2094,4 +2094,61 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_structures_cant_reuse_param_names() {
+        let mut env = Environment::new_test();
+        env.bad(
+            r#"
+            structure Pair<T, T> {
+                first: T
+                second: T
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_struct_params_leave_scopre() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            let f: T -> T = function(t: T) { t }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_class_params_leave_scopre() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.add(
+            r#"
+            class Pair<T, U> {
+                let t: T = axiom
+                let u: U = axiom
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            let f: T -> T = function(t: T) { t }
+            "#,
+        );
+    }
 }
