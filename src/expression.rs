@@ -163,6 +163,7 @@ impl Declaration {
 
     // Parses an expression that should contain a single declaration.
     // This rejects numerals.
+    // Consumes the terminating token and returns it along with the Declaration.
     pub fn parse(tokens: &mut TokenIter, terminator: Terminator) -> Result<(Declaration, Token)> {
         let name_token = tokens.expect_variable_name(false)?;
         if name_token.text() == "self" {
@@ -179,6 +180,8 @@ impl Declaration {
         }
         tokens.expect_type(TokenType::Colon)?;
         let (type_expr, token) = Expression::parse_type(tokens, terminator)?;
+
+        println!("XXX got type expr: {}", type_expr);
 
         Ok((Declaration::Typed(name_token, type_expr), token))
     }
@@ -526,6 +529,14 @@ impl Expression {
     ) -> Result<(Expression, Token)> {
         let (mut partials, terminator) =
             parse_partial_expressions(tokens, expected_type, termination)?;
+        println!(
+            "XXX partials: {}",
+            partials
+                .iter()
+                .map(|p| format!("{}", p))
+                .collect::<Vec<_>>()
+                .join(" // ")
+        );
         group_type_parameters(&mut partials)?;
         check_partial_expressions(&partials)?;
         let expression = combine_partial_expressions(partials, expected_type, &terminator)?;
@@ -643,6 +654,21 @@ fn parse_partial_expressions(
         if termination.matches(&token.token_type) {
             return Ok((partials, token));
         }
+
+        if token.token_type == TokenType::LessThan && expected_type == ExpressionType::Type {
+            // The start of a type parameter list.
+            // If so, we need to parse the whole list as a single expression.
+            let (subexpression, last_token) = Expression::parse(
+                tokens,
+                ExpressionType::Type,
+                Terminator::Is(TokenType::GreaterThan),
+            )?;
+            partials.push_back(PartialExpression::ImplicitApply(token.clone()));
+            let group = Expression::Grouping(token, Box::new(subexpression), last_token);
+            partials.push_back(PartialExpression::Expression(group));
+            continue;
+        }
+
         if token.token_type.is_binary() {
             match (expected_type, token.token_type) {
                 (ExpressionType::Value, TokenType::Colon) => {
@@ -1274,6 +1300,7 @@ mod tests {
         check_type("List<List<T>>");
         check_type("List<List<X> -> List<Y>, List<Y> -> List<X>>");
         check_type("List<(foo.Foo, bar.Bar) -> baz.Baz<Qux>>");
+        check_type("Pair<Bool, Bool>");
     }
 
     #[test]
@@ -1284,5 +1311,15 @@ mod tests {
         check_value("is_surjective(identity<T>)");
         check_value("foo.bar<T>");
         check_value("maps_to<Bool, Bool>(not2, false)");
+    }
+
+    #[test]
+    fn test_multi_arg_function_in_argument() {
+        check_value("forall(f: (Bool, Bool) -> Bool) { f(true, false) }");
+    }
+
+    #[test]
+    fn test_multiple_type_params_in_argument() {
+        check_value("forall(p: Pair<Bool, Bool>) { true }");
     }
 }
