@@ -1314,4 +1314,9 @@ mod tests {
     fn test_multiple_type_params_in_argument() {
         check_value("forall(p: Pair<Bool, Bool>) { true }");
     }
+
+    #[test]
+    fn test_instantiated_method_expression() {
+        check_value("Pair<Foo, Bar>.new(foo, bar)");
+    }
 }
