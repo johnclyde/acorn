@@ -1688,7 +1688,7 @@ mod prover_test {
     //             }
     //         }
 
-    //         theorem swap_swap<T< U>(p: Pair<T, U>) {
+    //         theorem swap_swap<T, U>(p: Pair<T, U>) {
     //             p.swap.swap = p
     //         }
     //     "#;

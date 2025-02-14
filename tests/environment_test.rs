@@ -2109,7 +2109,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_struct_params_leave_scopre() {
+    fn test_struct_params_leave_scope() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2127,7 +2127,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_class_params_leave_scopre() {
+    fn test_class_params_leave_scope() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2148,6 +2148,26 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bad(
             r#"
             let f: T -> T = function(t: T) { t }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_theorem_with_instantiated_arg_type() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.add(
+            r#"
+            theorem goal(p: Pair<Bool, Bool>) {
+                p.first = p.second or p.first = not p.second
+            }
             "#,
         );
     }
