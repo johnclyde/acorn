@@ -1265,13 +1265,19 @@ impl BindingMap {
             return self.evaluate_name(token, project, stack, None);
         }
 
+        // Dot expressions could be any sort of named entity
         if let Expression::Binary(left, token, right) = expression {
             if token.token_type == TokenType::Dot {
                 return self.evaluate_dot_expression(stack, project, left, right);
             }
         }
 
-        // If it isn't a name or a dot, it must be a value.
+        if expression.is_type() {
+            let acorn_type = self.evaluate_type(project, expression)?;
+            return Ok(NamedEntity::Type(acorn_type));
+        }
+
+        // If it isn't a name or a type, it must be a value.
         let value = self.evaluate_value_with_stack(stack, project, expression, None)?;
         Ok(NamedEntity::Value(value))
     }

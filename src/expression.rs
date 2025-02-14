@@ -5,11 +5,13 @@ use tower_lsp::lsp_types::Range;
 use crate::compilation::{Error, ErrorSource, Result};
 use crate::token::{Token, TokenIter, TokenType};
 
-// There are two sorts of expressions.
+// There are two main sorts of expressions.
 // Value expressions, like:
 //    1 + 2
 // Type expressions, like:
 //    (int, bool) -> bool
+//
+// There are other sorts of expressions. Module names, argument lists, type parameters.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum ExpressionType {
     Value,
@@ -586,6 +588,23 @@ impl Expression {
 
     pub fn expect_value(input: &str) -> Expression {
         Expression::expect_parse(input, ExpressionType::Value)
+    }
+
+    // For the purposes of this function, type params like <T, U> are considered types.
+    pub fn is_type(&self) -> bool {
+        match &self {
+            Expression::Singleton(token) => token.is_type_name(),
+            Expression::Grouping(_, e, _) => e.is_type(),
+            Expression::Binary(left, token, _) => match token.token_type {
+                TokenType::Comma | TokenType::RightArrow => left.is_type(),
+                _ => false,
+            },
+            Expression::Apply(left, _) => left.is_type(),
+            Expression::Binder(..)
+            | Expression::Unary(..)
+            | Expression::Match(..)
+            | Expression::IfThenElse(..) => false,
+        }
     }
 }
 
