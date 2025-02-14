@@ -181,8 +181,6 @@ impl Declaration {
         tokens.expect_type(TokenType::Colon)?;
         let (type_expr, token) = Expression::parse_type(tokens, terminator)?;
 
-        println!("XXX got type expr: {}", type_expr);
-
         Ok((Declaration::Typed(name_token, type_expr), token))
     }
 
@@ -529,14 +527,6 @@ impl Expression {
     ) -> Result<(Expression, Token)> {
         let (mut partials, terminator) =
             parse_partial_expressions(tokens, expected_type, termination)?;
-        println!(
-            "XXX partials: {}",
-            partials
-                .iter()
-                .map(|p| format!("{}", p))
-                .collect::<Vec<_>>()
-                .join(" // ")
-        );
         group_type_parameters(&mut partials)?;
         check_partial_expressions(&partials)?;
         let expression = combine_partial_expressions(partials, expected_type, &terminator)?;
@@ -920,6 +910,8 @@ fn find_type_params(partials: &VecDeque<PartialExpression>) -> Option<(usize, us
 
 // Checks if there are any type parameters in this list of partial expressions.
 // If so, it combines them into a single Grouping expression.
+// It's weird that sometimes we catch type parameters here and sometimes we catch them
+// while parsing partial expressions. It would be better to do it all in one place.
 fn group_type_parameters(partials: &mut VecDeque<PartialExpression>) -> Result<()> {
     loop {
         match find_type_params(&partials) {
