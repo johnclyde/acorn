@@ -410,7 +410,11 @@ impl BindingMap {
 
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
-        // TODO
+        if let PotentialType::Unresolved(u) = &potential {
+            self.canonical_to_alias
+                .entry((u.module_id, u.name.clone()))
+                .or_insert(name.to_string());
+        }
 
         self.insert_type_name(name.to_string(), potential);
     }
