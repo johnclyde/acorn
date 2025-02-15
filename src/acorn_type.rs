@@ -373,6 +373,11 @@ impl AcornType {
                 ftype.arg_types.iter().map(|t| t.to_arbitrary()).collect(),
                 ftype.return_type.to_arbitrary(),
             ),
+            AcornType::Data(module, name, params) => AcornType::Data(
+                *module,
+                name.to_string(),
+                params.iter().map(|t| t.to_arbitrary()).collect(),
+            ),
             _ => self.clone(),
         }
     }

@@ -66,13 +66,18 @@ impl GoalContext {
         last_line: u32,
     ) -> GoalContext {
         let name = match &goal {
-            Goal::Prove(proposition) => match proposition.name() {
-                Some(name) => name.to_string(),
-                None => env
-                    .bindings
-                    .value_to_code(&proposition.value)
-                    .unwrap_or("<goal>".to_string()),
-            },
+            Goal::Prove(proposition) => {
+                // Goals should never be generic.
+                assert!(!proposition.value.has_generic());
+
+                match proposition.name() {
+                    Some(name) => name.to_string(),
+                    None => env
+                        .bindings
+                        .value_to_code(&proposition.value)
+                        .unwrap_or("<goal>".to_string()),
+                }
+            }
             Goal::Solve(value, _) => {
                 let value_str = env
                     .bindings

@@ -41,7 +41,10 @@ pub struct Block {
     pub env: Environment,
 }
 
-// The different ways to construct a block
+// The different ways to construct a block.
+// Note that these don't necessarily have anything to do with type params.
+// I should probably rename this object.
+#[derive(Debug)]
 pub enum BlockParams<'a> {
     // (theorem name, theorem range, premise, goal)
     //
@@ -178,6 +181,7 @@ impl Block {
                 // but there is one last variable that needs to be existentially quantified.
                 let partial_goal = unbound_goal.bind_values(0, 0, &arg_values);
                 let bound_goal = AcornValue::new_exists(vec![return_type], partial_goal);
+                assert!(!bound_goal.has_generic());
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
                 Some(Goal::Prove(prop))
             }

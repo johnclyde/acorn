@@ -182,7 +182,6 @@ impl Prover {
         assert!(self.goal.is_none());
 
         // Add any monomorphic facts needed to match the goal.
-        assert!(!goal_context.goal.value().has_generic());
         self.monomorphizer
             .add_monomorphs(&goal_context.goal.value());
         for fact in self.monomorphizer.take_facts() {
