@@ -2258,4 +2258,22 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_aliasing_a_generic_type() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        env.add(
+            r#"
+            type Pair2: Pair
+            "#,
+        );
+    }
 }

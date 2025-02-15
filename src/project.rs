@@ -1442,4 +1442,25 @@ mod tests {
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
     }
+
+    #[test]
+    fn test_importing_a_generic_type() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from pair import Pair
+            "#,
+        );
+        p.check_code("main", "forall(x0: Pair<Bool, Bool>) { true }");
+    }
 }
