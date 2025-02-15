@@ -373,12 +373,14 @@ impl Environment {
     }
 
     // Adds a "define" statement to the environment, that may be within a class block.
-    // For a parametrized class, the class type should contain arbitrary types, which
-    // should already be bound into this environment.
+    //
+    // For a parametrized class, class_info should contain:
+    //   The class name.
+    //   The class type, with arbitrary types, already be bound into this environment.
     fn add_define_statement(
         &mut self,
         project: &Project,
-        class_type: Option<&AcornType>,
+        class_info: Option<(&str, &AcornType)>,
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -388,17 +390,16 @@ impl Environment {
                 ds.name
             )));
         }
-        let name = match class_type {
-            Some(AcornType::Data(_, class_name, _)) => {
-                if !ds.type_params.is_empty() {
-                    return Err(ds
-                        .name_token
-                        .error("member functions may not have type parameters"));
-                }
-                format!("{}.{}", class_name, ds.name)
+        let (class_name, class_type) = class_info.unzip();
+        let name = if let Some(class_name) = &class_name {
+            if !ds.type_params.is_empty() {
+                return Err(ds
+                    .name_token
+                    .error("member functions may not have type parameters"));
             }
-            Some(_) => return Err(ds.name_token.error("class type must be a data type")),
-            None => ds.name.clone(),
+            format!("{}.{}", class_name, ds.name)
+        } else {
+            ds.name.clone()
         };
         if self.bindings.name_in_use(&name) {
             return Err(ds.name_token.error(&format!(
@@ -1418,7 +1419,7 @@ impl Environment {
                         StatementInfo::Define(ds) => {
                             self.add_define_statement(
                                 project,
-                                Some(&instance_type),
+                                Some((&cs.name, &instance_type)),
                                 ds,
                                 substatement.range(),
                             )?;
