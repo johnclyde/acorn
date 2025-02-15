@@ -376,11 +376,12 @@ impl Environment {
     //
     // For a parametrized class, class_info should contain:
     //   The class name.
+    //   The class parameters.
     //   The class type, with arbitrary types, already be bound into this environment.
     fn add_define_statement(
         &mut self,
         project: &Project,
-        class_info: Option<(&str, &AcornType)>,
+        class_info: Option<(&str, &Vec<String>, &AcornType)>,
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -390,7 +391,9 @@ impl Environment {
                 ds.name
             )));
         }
-        let (class_name, class_type) = class_info.unzip();
+        let (class_name, class_param_names, class_type) = class_info
+            .map(|(a, b, c)| (Some(a), Some(b), Some(c)))
+            .unwrap_or((None, None, None));
         let name = if let Some(class_name) = &class_name {
             if !ds.type_params.is_empty() {
                 return Err(ds
@@ -409,7 +412,7 @@ impl Environment {
         }
 
         // Calculate the function value
-        let (param_names, _, arg_types, unbound_value, value_type) =
+        let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
                 project,
                 &ds.type_params,
@@ -437,7 +440,17 @@ impl Environment {
         }
 
         if let Some(v) = unbound_value {
-            let fn_value = AcornValue::new_lambda(arg_types, v);
+            let mut fn_value = AcornValue::new_lambda(arg_types, v);
+
+            let param_names = if let Some(class_param_names) = class_param_names {
+                // When a class is parametrized, the member gets parameters from the class.
+                fn_value = fn_value.to_generic();
+                class_param_names.clone()
+            } else {
+                // When there's no class, we just have the function's own type parameters.
+                fn_param_names
+            };
+
             // Add the function value to the environment
             self.bindings.add_constant(
                 &name,
@@ -449,7 +462,7 @@ impl Environment {
         } else {
             let new_axiom_type = AcornType::new_functional(arg_types, value_type);
             self.bindings
-                .add_constant(&name, param_names, new_axiom_type, None, None);
+                .add_constant(&name, fn_param_names, new_axiom_type, None, None);
         };
 
         self.definition_ranges.insert(name.clone(), range);
@@ -1379,11 +1392,13 @@ impl Environment {
                     }
                 };
                 let mut params = vec![];
+                let mut param_names = vec![];
                 for token in &cs.type_params {
                     if self.bindings.name_in_use(token.text()) {
                         return Err(token.error("type parameter already defined in this scope"));
                     }
                     params.push(self.bindings.add_arbitrary_type(token.text()));
+                    param_names.push(token.text().to_string());
                 }
                 let instance_type = potential.resolve(params, &cs.name_token)?;
                 match &instance_type {
@@ -1419,7 +1434,7 @@ impl Environment {
                         StatementInfo::Define(ds) => {
                             self.add_define_statement(
                                 project,
-                                Some((&cs.name, &instance_type)),
+                                Some((&cs.name, &param_names, &instance_type)),
                                 ds,
                                 substatement.range(),
                             )?;
