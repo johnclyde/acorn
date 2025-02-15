@@ -2227,4 +2227,35 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_no_templated_define_inside_proof() {
+        // This doesn't work correctly right now, so let's forbid it.
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            theorem bar {
+                true
+            } by {
+                define foo(x: Bool) -> Bool {
+                    true
+                }
+            }
+            "#,
+        );
+
+        env.bad(
+            r#"
+            theorem baz<T> {
+                forall(x: T) {
+                    true
+                }
+            } by {
+                define qux<U>(x: U) -> Bool {
+                    true
+                }
+            }
+            "#,
+        );
+    }
 }
