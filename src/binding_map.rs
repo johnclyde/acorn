@@ -130,6 +130,36 @@ pub struct UnresolvedConstant {
     generic_type: AcornType,
 }
 
+impl UnresolvedConstant {
+    fn resolve(
+        &self,
+        source: &dyn ErrorSource,
+        params: Vec<AcornType>,
+    ) -> compilation::Result<AcornValue> {
+        if params.len() != self.params.len() {
+            return Err(source.error(&format!(
+                "expected {} type parameters, but got {}",
+                self.params.len(),
+                params.len()
+            )));
+        }
+
+        let named_params: Vec<_> = self
+            .params
+            .iter()
+            .zip(params.iter())
+            .map(|(name, t)| (name.clone(), t.clone()))
+            .collect();
+        let resolved_type = self.generic_type.instantiate(&named_params);
+        Ok(AcornValue::new_constant(
+            self.module_id,
+            self.name.clone(),
+            params,
+            resolved_type,
+        ))
+    }
+}
+
 // Could be a value, but could also be an unresolved constant.
 #[derive(Debug, Clone)]
 pub enum PotentialValue {
@@ -222,6 +252,7 @@ fn keys_with_prefix<'a, T>(
 }
 
 // A name can refer to any of these things.
+#[derive(Debug)]
 enum NamedEntity {
     Value(AcornValue),
     Type(AcornType),
@@ -1119,7 +1150,7 @@ impl BindingMap {
                 Ok(NamedEntity::Value(value))
             }
             Some(NamedEntity::Type(t)) => {
-                if let AcornType::Data(module, type_name, _) = t {
+                if let AcornType::Data(module, type_name, params) = t {
                     if name_token.token_type == TokenType::Numeral {
                         let value = self.evaluate_number_with_type(
                             name_token,
@@ -1131,8 +1162,22 @@ impl BindingMap {
                         return Ok(NamedEntity::Value(value));
                     }
                     match self.evaluate_class_variable(project, module, &type_name, name) {
-                        Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                        Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
+                        Some(PotentialValue::Resolved(value)) => {
+                            if !params.is_empty() {
+                                return Err(name_token.error("unexpected double type resolution"));
+                            }
+                            Ok(NamedEntity::Value(value))
+                        }
+                        Some(PotentialValue::Unresolved(u)) => {
+                            if params.is_empty() {
+                                // Leave it unresolved
+                                Ok(NamedEntity::UnresolvedValue(u))
+                            } else {
+                                // Resolve it with the params from the class name
+                                let value = u.resolve(name_token, params)?;
+                                Ok(NamedEntity::Value(value))
+                            }
+                        }
                         None => Err(name_token
                             .error(&format!("{} has no member named '{}'", type_name, name))),
                     }
@@ -1231,7 +1276,6 @@ impl BindingMap {
             _ => return Err(right.error("expected an identifier after a dot")),
         };
         let left_entity = self.evaluate_entity(stack, project, left)?;
-
         self.evaluate_name(right_token, project, stack, Some(left_entity))
     }
 
@@ -1450,14 +1494,9 @@ impl BindingMap {
                 }
             }
         }
-        let resolved_function_type = unresolved.generic_type.instantiate(&named_params);
 
-        let instance_fn = AcornValue::new_constant(
-            unresolved.module_id,
-            unresolved.name,
-            instance_params,
-            resolved_function_type,
-        );
+        let instance_fn = unresolved.resolve(source, instance_params)?;
+
         let value = AcornValue::new_apply(instance_fn, args);
         if expected_type.is_some() {
             check_type(source, expected_type, &value.get_type())?;
