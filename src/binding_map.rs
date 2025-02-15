@@ -155,7 +155,7 @@ impl PotentialValue {
     pub fn value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
         match self {
             PotentialValue::Unresolved(u) => {
-                Err(source.error(&format!("name {} has unresolved type", u.name)))
+                Err(source.error(&format!("value {} has unresolved type", u.name)))
             }
             PotentialValue::Resolved(c) => Ok(c),
         }
@@ -270,9 +270,10 @@ impl NamedEntity {
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
             }
-            NamedEntity::UnresolvedValue(u) => {
-                Err(source.error(&format!("name {} has unresolved type", u.name)))
-            }
+            NamedEntity::UnresolvedValue(u) => Err(source.error(&format!(
+                "expected {} to be resolved, but it is unresolved",
+                u.name
+            ))),
         }
     }
 }
