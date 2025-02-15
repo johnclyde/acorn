@@ -1687,8 +1687,8 @@ mod prover_test {
                 }
             }
 
-            theorem swap_swap<T, U>(p: Pair<T, U>) {
-                p.swap.swap = p
+            theorem swap_def<T, U>(p: Pair<T, U>) {
+                p.swap = Pair.new(p.second, p.first)
             }
         "#;
         verify_succeeds(text);
