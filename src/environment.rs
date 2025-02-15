@@ -391,6 +391,11 @@ impl Environment {
                 ds.name
             )));
         }
+        if !self.top_level && !ds.type_params.is_empty() {
+            return Err(ds
+                .name_token
+                .error("parametrized functions may only be defined at the top level"));
+        }
         let (class_name, class_param_names, class_type) = class_info
             .map(|(a, b, c)| (Some(a), Some(b), Some(c)))
             .unwrap_or((None, None, None));
