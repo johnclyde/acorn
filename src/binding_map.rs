@@ -325,7 +325,7 @@ impl BindingMap {
             default: None,
             theorems: HashSet::new(),
         };
-        answer.add_type_alias("Bool", AcornType::Bool);
+        answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
     }
 
@@ -394,17 +394,25 @@ impl BindingMap {
     }
 
     // Adds a new type name that's an alias for an existing type
-    pub fn add_type_alias(&mut self, name: &str, acorn_type: AcornType) {
+    pub fn add_type_alias(&mut self, name: &str, potential: PotentialType) {
         if self.name_in_use(name) {
             panic!("type alias {} already bound", name);
         }
-        // TODO: we should be able to alias smarter
-        if let AcornType::Data(module, type_name, _) = &acorn_type {
-            self.canonical_to_alias
-                .entry((*module, type_name.clone()))
-                .or_insert(name.to_string());
+
+        // Local type aliases for concrete types should be preferred.
+        if let PotentialType::Resolved(AcornType::Data(module, type_name, params)) = &potential {
+            if params.is_empty() {
+                self.canonical_to_alias
+                    .entry((*module, type_name.clone()))
+                    .or_insert(name.to_string());
+            }
         }
-        self.insert_type_name(name.to_string(), PotentialType::Resolved(acorn_type));
+
+        // Local type aliases should also be preferred to the canonical name for
+        // unresolved generic types.
+        // TODO
+
+        self.insert_type_name(name.to_string(), potential);
     }
 
     // Returns an AcornValue representing this name, if there is one.
@@ -774,6 +782,9 @@ impl BindingMap {
         match potential {
             PotentialType::Resolved(t) => Ok(t),
             PotentialType::Unresolved(ut) => {
+                if true {
+                    panic!("XXX");
+                }
                 Err(expression.error(&format!("type {} is unresolved", ut.name)))
             }
         }
@@ -1408,18 +1419,19 @@ impl BindingMap {
                 }
             }
             NamedEntity::Type(acorn_type) => {
-                self.add_type_alias(&name_token.text(), acorn_type);
+                self.add_type_alias(&name_token.text(), PotentialType::Resolved(acorn_type));
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
 
-            // TODO: we *should* be able to import unresolved things.
+            // TODO: we *should* be able to import unresolved values.
             NamedEntity::UnresolvedValue(_) => {
                 Err(name_token.error("cannot import unresolved types"))
             }
 
-            NamedEntity::UnresolvedType(_) => {
-                Err(name_token.error("cannot import unresolved types"))
+            NamedEntity::UnresolvedType(u) => {
+                self.add_type_alias(&name_token.text(), PotentialType::Unresolved(u));
+                Ok(())
             }
         }
     }

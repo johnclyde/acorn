@@ -1187,8 +1187,10 @@ impl Environment {
                 if ts.type_expr.is_axiom() {
                     self.bindings.add_potential_type(&ts.name, 0);
                 } else {
-                    let acorn_type = self.bindings.evaluate_type(project, &ts.type_expr)?;
-                    self.bindings.add_type_alias(&ts.name, acorn_type);
+                    let potential = self
+                        .bindings
+                        .evaluate_potential_type(project, &ts.type_expr)?;
+                    self.bindings.add_type_alias(&ts.name, potential);
                 };
                 Ok(())
             }
