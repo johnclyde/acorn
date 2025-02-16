@@ -2147,7 +2147,7 @@ impl BindingMap {
             ));
         }
 
-        // Check if there's a local alias for this type
+        // Check if there's a local alias for this exact type
         if let Some(name) = self
             .reverse_type_names
             .get(&PotentialType::Resolved(acorn_type.clone()))
@@ -2156,8 +2156,11 @@ impl BindingMap {
         }
 
         // Check if it's a type from a module that we have imported
-        if let AcornType::Data(module, type_name, _) = acorn_type {
+        if let AcornType::Data(module, type_name, params) = acorn_type {
             if let Some(module_name) = self.reverse_modules.get(module) {
+                if !params.is_empty() {
+                    todo!("handle imported generic type");
+                }
                 return Ok(Expression::generate_identifier_chain(&[
                     &module_name,
                     &type_name,
