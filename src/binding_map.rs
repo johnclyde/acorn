@@ -2137,7 +2137,7 @@ impl BindingMap {
             let lhs = if args.len() == 1 {
                 args.pop().unwrap()
             } else {
-                Expression::generate_grouping(args)
+                Expression::generate_paren_grouping(args)
             };
             let rhs = self.type_to_expr(&ft.return_type)?;
             return Ok(Expression::Binary(
@@ -2158,13 +2158,11 @@ impl BindingMap {
         // Check if it's a type from a module that we have imported
         if let AcornType::Data(module, type_name, params) = acorn_type {
             if let Some(module_name) = self.reverse_modules.get(module) {
-                if !params.is_empty() {
-                    todo!("handle imported generic type");
+                let base_expr = Expression::generate_identifier_chain(&[module_name, type_name]);
+                if params.is_empty() {
+                    return Ok(base_expr);
                 }
-                return Ok(Expression::generate_identifier_chain(&[
-                    &module_name,
-                    &type_name,
-                ]));
+                todo!("handle imported generic type");
             }
         }
 
@@ -2369,14 +2367,14 @@ impl BindingMap {
                         // Like foo.bar(baz, qux)
                         let applied = Expression::Apply(
                             Box::new(bound),
-                            Box::new(Expression::generate_grouping(args)),
+                            Box::new(Expression::generate_paren_grouping(args)),
                         );
                         return Ok(applied);
                     }
                 }
 
                 let f = self.value_to_expr(&fa.function, var_names, next_x, next_k)?;
-                let grouped_args = Expression::generate_grouping(args);
+                let grouped_args = Expression::generate_paren_grouping(args);
                 Ok(Expression::Apply(Box::new(f), Box::new(grouped_args)))
             }
             AcornValue::Binary(op, left, right) => {

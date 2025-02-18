@@ -344,18 +344,27 @@ impl Expression {
         answer
     }
 
-    // Generates a comma-separated grouping
-    pub fn generate_grouping(mut exprs: Vec<Expression>) -> Expression {
+    fn generate_grouping(
+        mut exprs: Vec<Expression>,
+        left: TokenType,
+        right: TokenType,
+    ) -> Expression {
         assert_ne!(exprs.len(), 0);
         let mut answer = exprs.remove(0);
         for e in exprs {
             answer = Expression::Binary(Box::new(answer), TokenType::Comma.generate(), Box::new(e));
         }
-        Expression::Grouping(
-            TokenType::LeftParen.generate(),
-            Box::new(answer),
-            TokenType::RightParen.generate(),
-        )
+        Expression::Grouping(left.generate(), Box::new(answer), right.generate())
+    }
+
+    // Generates a comma-separated grouping in parentheses
+    pub fn generate_paren_grouping(exprs: Vec<Expression>) -> Expression {
+        Expression::generate_grouping(exprs, TokenType::LeftParen, TokenType::RightParen)
+    }
+
+    // Generate a comma-separated grouping in angle brackets
+    pub fn generate_params(exprs: Vec<Expression>) -> Expression {
+        Expression::generate_grouping(exprs, TokenType::LessThan, TokenType::GreaterThan)
     }
 
     // Generates a unary expression, parenthesizing if necessary according to precedence.
