@@ -2162,6 +2162,11 @@ impl BindingMap {
                 if params.is_empty() {
                     return Ok(base_expr);
                 }
+                let mut param_exprs = vec![];
+                for param in params {
+                    param_exprs.push(self.type_to_expr(param)?);
+                }
+                let params_expr = Expression::generate_params(param_exprs);
                 todo!("handle imported generic type");
             }
         }
