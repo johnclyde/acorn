@@ -2167,7 +2167,8 @@ impl BindingMap {
                     param_exprs.push(self.type_to_expr(param)?);
                 }
                 let params_expr = Expression::generate_params(param_exprs);
-                todo!("handle imported generic type");
+                let applied = Expression::Apply(Box::new(base_expr), Box::new(params_expr));
+                return Ok(applied);
             }
         }
 
