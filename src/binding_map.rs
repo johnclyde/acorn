@@ -2159,20 +2159,29 @@ impl BindingMap {
         if let AcornType::Data(module, type_name, params) = acorn_type {
             if let Some(module_name) = self.reverse_modules.get(module) {
                 let base_expr = Expression::generate_identifier_chain(&[module_name, type_name]);
-                if params.is_empty() {
-                    return Ok(base_expr);
-                }
-                let mut param_exprs = vec![];
-                for param in params {
-                    param_exprs.push(self.type_to_expr(param)?);
-                }
-                let params_expr = Expression::generate_params(param_exprs);
-                let applied = Expression::Apply(Box::new(base_expr), Box::new(params_expr));
-                return Ok(applied);
+                return self.parametrize_expr(base_expr, params);
             }
         }
 
         Err(CodeGenError::unnamed_type(acorn_type))
+    }
+
+    // Adds parameters, if there are any, to an expression representing a type.
+    fn parametrize_expr(
+        &self,
+        base_expr: Expression,
+        params: &[AcornType],
+    ) -> Result<Expression, CodeGenError> {
+        if params.is_empty() {
+            return Ok(base_expr);
+        }
+        let mut param_exprs = vec![];
+        for param in params {
+            param_exprs.push(self.type_to_expr(&param)?);
+        }
+        let params_expr = Expression::generate_params(param_exprs);
+        let applied = Expression::Apply(Box::new(base_expr), Box::new(params_expr));
+        Ok(applied)
     }
 
     // We use variables named x0, x1, x2, etc when new temporary variables are needed.

@@ -332,6 +332,7 @@ impl Expression {
         Expression::Singleton(TokenType::Identifier.new_token(s))
     }
 
+    // Generates a dot-separated chain of identifiers, for the provided parts.
     pub fn generate_identifier_chain(parts: &[&str]) -> Expression {
         let mut answer = Expression::generate_identifier(parts[0]);
         for part in &parts[1..] {
