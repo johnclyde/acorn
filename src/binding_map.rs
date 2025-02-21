@@ -2157,6 +2157,15 @@ impl BindingMap {
 
         // Check if it's a type from a module that we have imported
         if let AcornType::Data(module, type_name, params) = acorn_type {
+            // See if we have an alias for the unresolved version
+            let unresolved = UnresolvedType {
+                module_id: *module,
+                name: type_name.clone(),
+                num_params: params.len(),
+            };
+            // XXX
+
+            // Reference this type via referencing the imported module
             if let Some(module_name) = self.reverse_modules.get(module) {
                 let base_expr = Expression::generate_identifier_chain(&[module_name, type_name]);
                 return self.parametrize_expr(base_expr, params);
