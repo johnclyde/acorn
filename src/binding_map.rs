@@ -2163,7 +2163,10 @@ impl BindingMap {
                 name: type_name.clone(),
                 num_params: params.len(),
             };
-            // XXX
+            let potential = PotentialType::Unresolved(unresolved);
+            if let Some(name) = self.reverse_type_names.get(&potential) {
+                todo!("XXX name is the unresolved version, we need to parametrize still");
+            }
 
             // Reference this type via referencing the imported module
             if let Some(module_name) = self.reverse_modules.get(module) {
