@@ -5,7 +5,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::binding_map::{BindingMap, Stack};
+use crate::binding_map::{BindingMap, PotentialValue, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource};
 use crate::fact::Fact;
@@ -359,7 +359,7 @@ impl Environment {
                     &name,
                     canonical_module,
                     canonical_name.to_string(),
-                    value.clone(),
+                    PotentialValue::Resolved(value.clone()),
                 );
                 return Ok(());
             }

@@ -556,7 +556,7 @@ impl BindingMap {
         name: &str,
         canonical_module: ModuleId,
         canonical_name: String,
-        value: AcornValue,
+        value: PotentialValue,
     ) {
         if self.name_in_use(name) {
             panic!("cannot alias name {} because it is already bound", name);
@@ -570,8 +570,7 @@ impl BindingMap {
                 .entry(canonical.clone())
                 .or_insert(name.to_string());
         }
-        self.alias_to_canonical
-            .insert(name.to_string(), PotentialValue::Resolved(value));
+        self.alias_to_canonical.insert(name.to_string(), value);
     }
 
     pub fn is_constant(&self, name: &str) -> bool {
@@ -1403,7 +1402,12 @@ impl BindingMap {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some((ext_module, ext_name)) = value.as_simple_constant() {
-                    self.add_alias(&name_token.text(), ext_module, ext_name.to_string(), value);
+                    self.add_alias(
+                        &name_token.text(),
+                        ext_module,
+                        ext_name.to_string(),
+                        PotentialValue::Resolved(value),
+                    );
                     Ok(())
                 } else {
                     // I don't see how this branch can be reached.
