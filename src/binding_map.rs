@@ -76,6 +76,8 @@ pub struct BindingMap {
 
     // Maps an identifier name to its type.
     // Has entries for both defined constants and aliases.
+    // Note that for generic types, this stores the type using the same generic variables
+    // that were used in the definition.
     identifier_types: HashMap<String, AcornType>,
 
     // Maps the name of a constant defined in this scope to information about it.
@@ -1420,9 +1422,14 @@ impl BindingMap {
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
 
-            // TODO: we *should* be able to import unresolved values.
-            NamedEntity::UnresolvedValue(_) => {
-                Err(name_token.error("cannot import unresolved types"))
+            NamedEntity::UnresolvedValue(uc) => {
+                self.add_alias(
+                    &name_token.text(),
+                    uc.module_id,
+                    uc.name.clone(),
+                    PotentialValue::Unresolved(uc),
+                );
+                Ok(())
             }
 
             NamedEntity::UnresolvedType(u) => {
