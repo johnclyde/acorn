@@ -266,6 +266,7 @@ enum NamedEntity {
 }
 
 impl NamedEntity {
+    // Convert this entity into a PotentialValue, erroring if it's not the right sort of entity.
     fn expect_potential_value(
         self,
         expected_type: Option<&AcornType>,
@@ -289,22 +290,20 @@ impl NamedEntity {
         }
     }
 
-    fn expect_type(self, source: &dyn ErrorSource) -> compilation::Result<AcornType> {
+    // Convert this entity into a PotentialType, erroring if it's not the right sort of type.
+    fn expect_potential_type(self, source: &dyn ErrorSource) -> compilation::Result<PotentialType> {
         match self {
             NamedEntity::Value(_) => {
                 Err(source.error("name refers to a value but we expected a type"))
             }
-            NamedEntity::Type(t) => Ok(t),
-            NamedEntity::UnresolvedType(_) => {
-                Err(source.error("we expected this type to be resolved here"))
-            }
+            NamedEntity::Type(t) => Ok(PotentialType::Resolved(t)),
+            NamedEntity::UnresolvedType(u) => Ok(PotentialType::Unresolved(u)),
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
             }
-            NamedEntity::UnresolvedValue(u) => Err(source.error(&format!(
-                "expected {} to be resolved, but it is unresolved",
-                u.name
-            ))),
+            NamedEntity::UnresolvedValue(_) => {
+                Err(source.error("name refers to an unresolved value but we expected a type"))
+            }
         }
     }
 }
@@ -826,7 +825,7 @@ impl BindingMap {
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_entity(&mut Stack::new(), project, expression)?;
-                    Ok(PotentialType::Resolved(entity.expect_type(token)?))
+                    Ok(entity.expect_potential_type(token)?)
                 }
                 _ => Err(token.error("unexpected binary operator in type expression")),
             },
