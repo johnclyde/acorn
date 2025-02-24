@@ -359,7 +359,7 @@ impl Environment {
                     &name,
                     canonical_module,
                     canonical_name.to_string(),
-                    value.get_type(),
+                    value.clone(),
                 );
                 return Ok(());
             }

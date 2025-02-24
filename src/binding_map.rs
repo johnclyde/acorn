@@ -85,11 +85,11 @@ pub struct BindingMap {
     // Includes "<datatype>.<constant>" for members.
     constants: BTreeMap<String, ConstantInfo>,
 
-    // The canonical identifier of a constant is the first place it is defined.
+    // The canonical identifier of a constant value is the first place it is defined.
     // There may be other names in this environment that refer to the same thing.
     // When we create an AcornValue, we want to use the canonical name.
-    // The alias -> canonical name mapping is stored here.
-    alias_to_canonical: HashMap<String, (ModuleId, String)>,
+    // The alias -> canonical value mapping is stored here.
+    alias_to_canonical: HashMap<String, PotentialValue>,
 
     // Whenever a name from some other scope has a local alias in this one,
     // if we're generating code, we prefer to use the local name.
@@ -418,20 +418,15 @@ impl BindingMap {
         self.insert_type_name(name.to_string(), potential);
     }
 
-    // Returns an AcornValue representing this name, if there is one.
-    // This can return an unresolved value.
+    // Returns a PotentialValue representing this name, if there is one.
+    // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
         let constant_type = self.identifier_types.get(name)?.clone();
 
         // Aliases
-        if let Some((canonical_module, canonical_name)) = self.alias_to_canonical.get(name) {
-            return Some(PotentialValue::Resolved(AcornValue::new_constant(
-                *canonical_module,
-                canonical_name.clone(),
-                vec![],
-                constant_type,
-            )));
+        if let Some(pv) = self.alias_to_canonical.get(name) {
+            return Some(pv.clone());
         }
 
         // Constants defined here
@@ -555,18 +550,19 @@ impl BindingMap {
         self.constants.remove(name);
     }
 
-    // Adds a local alias for an already-existing constant.
+    // Adds a local alias for an already-existing constant value.
     pub fn add_alias(
         &mut self,
         name: &str,
         canonical_module: ModuleId,
         canonical_name: String,
-        acorn_type: AcornType,
+        value: AcornValue,
     ) {
         if self.name_in_use(name) {
             panic!("cannot alias name {} because it is already bound", name);
         }
-        self.identifier_types.insert(name.to_string(), acorn_type);
+        self.identifier_types
+            .insert(name.to_string(), value.get_type());
         let canonical = (canonical_module, canonical_name);
         if canonical_module != self.module {
             // Prefer this alias locally to using the qualified, canonical name
@@ -574,7 +570,8 @@ impl BindingMap {
                 .entry(canonical.clone())
                 .or_insert(name.to_string());
         }
-        self.alias_to_canonical.insert(name.to_string(), canonical);
+        self.alias_to_canonical
+            .insert(name.to_string(), PotentialValue::Resolved(value));
     }
 
     pub fn is_constant(&self, name: &str) -> bool {
@@ -1406,12 +1403,7 @@ impl BindingMap {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some((ext_module, ext_name)) = value.as_simple_constant() {
-                    self.add_alias(
-                        &name_token.text(),
-                        ext_module,
-                        ext_name.to_string(),
-                        value.get_type(),
-                    );
+                    self.add_alias(&name_token.text(), ext_module, ext_name.to_string(), value);
                     Ok(())
                 } else {
                     // I don't see how this branch can be reached.
