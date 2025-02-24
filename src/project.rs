@@ -1484,4 +1484,22 @@ mod tests {
         );
         p.check_code("main", "forall(x0: pair.Pair<Bool, Bool>) { true }");
     }
+
+    #[test]
+    fn test_aliasing_local_generic_constant() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            let pbbn: (Bool, Bool) -> Pair<Bool, Bool> = Pair<Bool, Bool>.new
+            "#,
+        );
+        p.expect_ok("pair");
+        p.check_code("pair", "pbbn(false, true)");
+    }
 }
