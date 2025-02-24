@@ -1502,4 +1502,29 @@ mod tests {
         p.expect_ok("pair");
         p.check_code("pair", "pbbn(false, true)");
     }
+
+    #[test]
+    fn test_importing_generic_function() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            define double<T>(x: T) -> Pair<T, T> {
+                Pair.new(x, x)
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from pair import double
+            "#,
+        );
+        p.check_code("main", "double(true)");
+    }
 }
