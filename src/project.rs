@@ -852,14 +852,14 @@ impl Project {
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
         let env = self.get_env_by_id(module_id).expect("no env");
-        let value = env
-            .bindings
-            .evaluate_value(self, &expression, None)
-            .expect("could not evaluate");
-        let output = env
-            .bindings
-            .value_to_code(&value)
-            .expect("could not convert to code");
+        let value = match env.bindings.evaluate_value(self, &expression, None) {
+            Ok(value) => value,
+            Err(e) => panic!("evaluation error: {}", e),
+        };
+        let output = match env.bindings.value_to_code(&value) {
+            Ok(output) => output,
+            Err(e) => panic!("code generation error: {}", e),
+        };
 
         if output != expected {
             panic!(
