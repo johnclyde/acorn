@@ -1463,4 +1463,25 @@ mod tests {
         );
         p.check_code("main", "forall(x0: Pair<Bool, Bool>) { true }");
     }
+
+    #[test]
+    fn test_generic_type_in_imported_module() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import pair
+            "#,
+        );
+        p.check_code("main", "forall(x0: pair.Pair<Bool, Bool>) { true }");
+    }
 }
