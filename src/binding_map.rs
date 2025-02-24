@@ -786,9 +786,6 @@ impl BindingMap {
         match potential {
             PotentialType::Resolved(t) => Ok(t),
             PotentialType::Unresolved(ut) => {
-                if true {
-                    panic!("XXX");
-                }
                 Err(expression.error(&format!("type {} is unresolved", ut.name)))
             }
         }
