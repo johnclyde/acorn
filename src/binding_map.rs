@@ -2166,7 +2166,7 @@ impl BindingMap {
             let potential = PotentialType::Unresolved(unresolved);
             if let Some(name) = self.reverse_type_names.get(&potential) {
                 let base_expr = Expression::generate_identifier(name);
-                todo!("XXX name is the unresolved version, we need to parametrize still");
+                return self.parametrize_expr(base_expr, params);
             }
 
             // Reference this type via referencing the imported module
