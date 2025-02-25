@@ -1770,6 +1770,14 @@ mod prover_test {
             theorem foo_pair_first(a: Foo, b: Foo) {
                 Pair.new(a, b).first = a
             }
+
+            theorem foo_pair_second(a: Foo, b: Foo) {
+                Pair.new(a, b).second = b
+            }
+
+            theorem foo_pair_new(p: Pair<Foo, Foo>) {
+                Pair.new(p.first, p.second) = p
+            }
         "#;
         verify_succeeds(text);
     }
