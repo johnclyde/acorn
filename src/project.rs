@@ -1462,6 +1462,10 @@ mod tests {
             "#,
         );
         p.check_code("main", "forall(x0: Pair<Bool, Bool>) { true }");
+        p.check_code(
+            "main",
+            "forall(x0: Bool, x1: Bool) { Pair.new(x0, x1).second = x1 }",
+        );
     }
 
     #[test]
