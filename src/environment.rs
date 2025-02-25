@@ -889,7 +889,8 @@ impl Environment {
                 member_eq
             };
             let member_claim =
-                AcornValue::ForAll(field_types.clone(), Box::new(unbound_member_claim));
+                AcornValue::ForAll(field_types.clone(), Box::new(unbound_member_claim))
+                    .to_generic();
             let range = Range {
                 start: field_name_token.start_pos(),
                 end: field_type_expr.last_token().end_pos(),

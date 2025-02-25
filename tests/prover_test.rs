@@ -1756,4 +1756,21 @@ mod prover_test {
         let (outcome, _) = prove(&mut p, "main", "check_new");
         assert_eq!(outcome, Outcome::Success);
     }
+
+    #[test]
+    fn test_proving_with_instance_of_generic_structure() {
+        let text = r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            type Foo: axiom
+
+            theorem foo_pair_first(a: Foo, b: Foo) {
+                Pair.new(a, b).first = a
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
