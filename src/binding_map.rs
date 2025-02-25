@@ -2156,14 +2156,9 @@ impl BindingMap {
 
         // Check if it's a type from a module that we have imported
         if let AcornType::Data(module, type_name, params) = acorn_type {
-            // See if we have an alias for the unresolved version
-            let unresolved = UnresolvedType {
-                module_id: *module,
-                name: type_name.clone(),
-                num_params: params.len(),
-            };
-            let potential = PotentialType::Unresolved(unresolved);
-            if let Some(name) = self.reverse_type_names.get(&potential) {
+            // See if we have an alias
+            let key = (*module, type_name.clone());
+            if let Some(name) = self.canonical_to_alias.get(&key) {
                 let base_expr = Expression::generate_identifier(name);
                 return self.parametrize_expr(base_expr, params);
             }
@@ -2233,6 +2228,7 @@ impl BindingMap {
     }
 
     // Given a module and a name, find an expression that refers to the name.
+    // The name can be dotted, if it's a class member.
     // Note that:
     //   module, the canonical module of the entity we are trying to express
     // is different from
@@ -2278,9 +2274,9 @@ impl BindingMap {
 
         // If it's a member function, check if there's a local alias for its struct.
         if parts.len() == 2 {
-            let data_type = AcornType::Data(module, parts[0].to_string(), vec![]);
-            let resolved = PotentialType::Resolved(data_type);
-            if let Some(type_alias) = self.reverse_type_names.get(&resolved) {
+            let name = parts[0].to_string();
+            let key = (module, name);
+            if let Some(type_alias) = self.canonical_to_alias.get(&key) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(parts[1]);
                 return Ok(Expression::Binary(
