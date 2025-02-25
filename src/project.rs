@@ -1527,4 +1527,29 @@ mod tests {
         );
         p.check_code("main", "double(true)");
     }
+
+    #[test]
+    fn test_generic_function_in_imported_module() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            define double<T>(x: T) -> Pair<T, T> {
+                Pair.new(x, x)
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import pair
+            "#,
+        );
+        p.check_code("main", "pair.double(true)");
+    }
 }
