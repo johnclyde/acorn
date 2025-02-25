@@ -1790,10 +1790,12 @@ mod prover_test {
                 second: T
                 eq: Bool
             } constraint {
-                eq implies (first = second)
+                eq implies first = second
             }
 
-            theorem check_constraint<T>(p: EqCheckedPair<T>) {
+            type Foo: axiom
+
+            theorem check_constraint(p: EqCheckedPair<Foo>) {
                 p.eq implies p.first = p.second
             }
         "#;

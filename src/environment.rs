@@ -536,9 +536,12 @@ impl Environment {
                         ts.claim.range()
                     }
                 };
-                (Some((*left.clone(), premise_range)), *right.clone())
+                (
+                    Some((left.to_arbitrary(), premise_range)),
+                    right.to_arbitrary(),
+                )
             }
-            c => (None, c.clone()),
+            c => (None, c.to_arbitrary()),
         };
 
         // We define the theorem using "lambda" form.

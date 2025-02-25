@@ -55,6 +55,8 @@ pub enum BlockParams<'a> {
     // The meaning of the theorem is that it is true for all args.
     //
     // The premise is optional.
+    //
+    // The premise and goal should not have type variables in them.
     Theorem(
         Option<&'a str>,
         Range,
@@ -389,7 +391,7 @@ impl Node {
         proposition
             .value
             .validate()
-            .unwrap_or_else(|e| panic!("invalid claim: {} ({})", proposition.value, e));
+            .unwrap_or_else(|e| panic!("invalid claim: {:#?} ({})", proposition.value, e));
 
         if structural {
             assert!(block.is_none());
