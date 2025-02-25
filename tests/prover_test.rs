@@ -1781,4 +1781,22 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_generic_constraint() {
+        let text = r#"
+            structure EqCheckedPair<T> {
+                first: T
+                second: T
+                eq: Bool
+            } constraint {
+                eq implies (first = second)
+            }
+
+            theorem check_constraint<T>(p: EqCheckedPair<T>) {
+                p.eq implies p.first = p.second
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
