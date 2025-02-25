@@ -1675,6 +1675,7 @@ mod prover_test {
 
     #[test]
     fn test_proving_with_generic_structure() {
+        // Just testing that we can define something, then immediately prove the definition.
         let text = r#"
             structure Pair<T, U> {
                 first: T
@@ -1692,5 +1693,67 @@ mod prover_test {
             }
         "#;
         verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_proving_with_generic_structure_definition() {
+        // These theorems are direct implications of the structure definition.
+        let text = r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            theorem check_first<T, U>(t: T, u: U) {
+                Pair.new(t, u).first = t
+            }
+
+            theorem check_second<T, U>(t: T, u: U) {
+                Pair.new(t, u).second = u
+            }
+
+            theorem check_new<T, U>(p: Pair<T, U>) {
+                Pair.new(p.first, p.second) = p
+            }
+        "#;
+        verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_prove_with_imported_generic_structure() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from pair import Pair
+
+            theorem check_first<T, U>(t: T, u: U) {
+                Pair.new(t, u).first = t
+            }
+
+            theorem check_second<T, U>(t: T, u: U) {
+                Pair.new(t, u).second = u
+            }
+
+            theorem check_new<T, U>(p: Pair<T, U>) {
+                Pair.new(p.first, p.second) = p
+            }
+        "#,
+        );
+        let (outcome, _) = prove(&mut p, "main", "check_first");
+        assert_eq!(outcome, Outcome::Success);
+        let (outcome, _) = prove(&mut p, "main", "check_second");
+        assert_eq!(outcome, Outcome::Success);
+        let (outcome, _) = prove(&mut p, "main", "check_new");
+        assert_eq!(outcome, Outcome::Success);
     }
 }
