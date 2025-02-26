@@ -830,7 +830,8 @@ impl Environment {
         if let Some(unbound_constraint) = &unbound_constraint {
             let bound_constraint = unbound_constraint.clone().bind_values(0, 0, &member_args);
             let constraint_claim =
-                AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint));
+                AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
+                    .to_generic();
             self.add_node(
                 project,
                 true,
