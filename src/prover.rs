@@ -599,13 +599,12 @@ impl Prover {
         let (alt_activated_id, generated_steps) = self.active_set.activate(activated_step);
         assert_eq!(activated_id, alt_activated_id);
 
-        let print_limit = 30;
         let len = generated_steps.len();
-        if self.verbose && len > 0 {
+        if self.verbose {
             println!(
-                "generated {} new clauses{}:",
+                "  generated {} new clause{}",
                 len,
-                if len > print_limit { ", eg" } else { "" }
+                if len == 1 { "" } else { "s" }
             );
         }
         let mut new_steps = vec![];

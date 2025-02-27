@@ -15,6 +15,8 @@ pub struct Score {
     // Verification steps should always be activated before non-verification steps.
     // Otherwise, we might discover a proof using non-verification steps, and then be
     // unsure whether the proof is simple enough to pass verification or not.
+    // TODO: we stopped using a deterministic score threshold for verification.
+    // So this comment is "historical", if not just wrong.
     usable_for_verification: bool,
 
     // Higher scores are preferred.
