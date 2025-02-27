@@ -74,7 +74,10 @@ mod prover_test {
             }
             prover.set_goal(&goal_context);
             prover.verbose = true;
-            let outcome = prover.quick_verification_search();
+            // This is a key difference between our verification tests, and our real verification.
+            // This helps us test that verification fails in cases where we do have an
+            // infinite rabbit hole we could go down.
+            let outcome = prover.quick_shallow_search();
             if outcome == Outcome::Error {
                 println!("prover error: {}", prover.error.unwrap());
             }

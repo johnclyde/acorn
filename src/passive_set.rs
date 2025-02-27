@@ -39,10 +39,9 @@ pub struct PassiveSet {
     // Set if we ever discover a contradiction between two members of the passive set.
     contradiction: Option<(usize, usize)>,
 
-    // The verification phase is when we have only activated proof steps tagged as usable for
-    // verification.
-    // This flag starts as true and flips to false once we exit that phase.
-    pub verification_phase: bool,
+    // Whether every step we have activated is shallow.
+    // This flag starts as true and flips to false once we activate a non-shallow step.
+    pub all_shallow: bool,
 
     // We do reference counting so that we don't have to clone the scorer when we clone the prover.
     // For now this doesn't really matter, but maybe in the future the scorer will have a large model,
@@ -109,7 +108,7 @@ impl PassiveSet {
             literals: FingerprintSpecializer::new(),
             singles: HashMap::new(),
             contradiction: None,
-            verification_phase: true,
+            all_shallow: true,
             scorer: default_scorer().into(),
         }
     }
@@ -158,11 +157,11 @@ impl PassiveSet {
     // Whether we can pop another proof step from the passive set and still use a resulting
     // proof for verification.
     pub fn can_pop_for_verification(&self) -> bool {
-        if !self.verification_phase {
+        if !self.all_shallow {
             return false;
         }
         if let Some((score, _)) = self.queue.iter().next_back() {
-            score.is_usable_for_verification()
+            score.is_shallow()
         } else {
             false
         }
@@ -171,8 +170,8 @@ impl PassiveSet {
     pub fn pop(&mut self) -> Option<ProofStep> {
         // Remove the largest entry from queue
         let (score, id) = self.queue.pop_last()?;
-        if !score.is_usable_for_verification() {
-            self.verification_phase = false;
+        if !score.is_shallow() {
+            self.all_shallow = false;
         }
         match self.clauses[id].take() {
             Some((step, _)) => Some(step),

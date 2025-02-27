@@ -448,7 +448,7 @@ impl Prover {
             _ => return None,
         };
 
-        let difficulty = if !self.passive_set.verification_phase {
+        let difficulty = if !self.passive_set.all_shallow {
             // Verification mode won't find this proof, so we definitely need a shorter one
             Difficulty::Complicated
         } else if self.non_factual_activated > 500 {
@@ -652,33 +652,32 @@ impl Prover {
     // The time-based limit is set high enough so that hopefully it will not apply,
     // because we don't want the result of verification to be machine-dependent.
     pub fn verification_search(&mut self) -> Outcome {
-        self.search_for_contradiction(2000, 5.0, true)
+        self.search_for_contradiction(2000, 5.0, false)
     }
 
-    // A single fast search, intended for unit testing.
+    // A fast search, for testing.
     pub fn quick_search(&mut self) -> Outcome {
         self.search_for_contradiction(500, 0.1, false)
     }
 
-    // A restricted verification search, intended for unit testing.
-    pub fn quick_verification_search(&mut self) -> Outcome {
+    // A fast search that only uses shallow steps, for testing.
+    pub fn quick_shallow_search(&mut self) -> Outcome {
         self.search_for_contradiction(500, 0.1, true)
     }
 
-    // When 'verification' flag is set, the prover doesn't have to do arbitrarily deeply.
-    // It is allowed to finish as soon as it finishes checking all the verification steps.
+    // When 'shallow_only' flag is set, the prover only has to .
     pub fn search_for_contradiction(
         &mut self,
         size: i32,
         seconds: f32,
-        verification: bool,
+        shallow_only: bool,
     ) -> Outcome {
         if self.error.is_some() {
             return Outcome::Error;
         }
         let start_time = std::time::Instant::now();
         loop {
-            if verification && !self.passive_set.verification_phase {
+            if shallow_only && !self.passive_set.all_shallow {
                 return Outcome::Exhausted;
             }
             if self.activate_next() {
