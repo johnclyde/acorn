@@ -18,8 +18,10 @@ pub enum SourceType {
     // A proposition that is implicit in the definition of a type
     TypeDefinition(String),
 
-    // A proposition that is implicit in the definition of a constant
-    ConstantDefinition(AcornValue),
+    // A proposition that is implicit in the definition of a constant.
+    // The value is instantiated during monomorphization.
+    // The string is the name of the constant.
+    ConstantDefinition(AcornValue, String),
 
     // A premise for a block that contains the current environment
     Premise,
@@ -55,6 +57,7 @@ impl Source {
         self.range.start.line + 1
     }
 
+    // The description is human-readable.
     pub fn description(&self) -> String {
         match &self.source_type {
             SourceType::Axiom(name) => match name {
@@ -67,7 +70,7 @@ impl Source {
             },
             SourceType::Anonymous => format!("line {}", self.user_visible_line()),
             SourceType::TypeDefinition(name) => format!("the '{}' definition", name),
-            SourceType::ConstantDefinition(value) => format!("the '{}' definition", value),
+            SourceType::ConstantDefinition(value, _) => format!("the '{}' definition", value),
             SourceType::Premise => "an assumed premise".to_string(),
             SourceType::NegatedGoal => "negating the goal".to_string(),
         }
@@ -93,7 +96,7 @@ impl Source {
             },
             SourceType::Anonymous => Some(self.user_visible_line().to_string()),
             SourceType::TypeDefinition(name) => Some(name.clone()),
-            SourceType::ConstantDefinition(value) => Some(value.to_string()),
+            SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::Premise | SourceType::NegatedGoal => None,
         }
     }
@@ -164,13 +167,14 @@ impl Proposition {
         module: ModuleId,
         range: Range,
         constant: AcornValue,
+        name: &str,
     ) -> Proposition {
         Proposition {
             value,
             source: Source {
                 module,
                 range,
-                source_type: SourceType::ConstantDefinition(constant),
+                source_type: SourceType::ConstantDefinition(constant, name.to_string()),
             },
         }
     }

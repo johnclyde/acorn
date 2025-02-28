@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tower_lsp::lsp_types::Range;
 
@@ -216,7 +216,7 @@ impl Environment {
         self.add_node(
             project,
             true,
-            Proposition::constant_definition(claim, self.module_id, range, constant),
+            Proposition::constant_definition(claim, self.module_id, range, constant, name),
             None,
         );
     }
@@ -688,6 +688,7 @@ impl Environment {
             self.module_id,
             definition_range,
             function_constant,
+            &fss.name,
         );
 
         let index = self.add_node(project, false, prop, Some(block));
@@ -1640,7 +1641,14 @@ impl Environment {
     pub fn exported_facts(&self) -> Vec<Fact> {
         assert!(self.top_level);
         let mut facts = vec![];
+        let mut source_names = HashSet::new();
         for node in &self.nodes {
+            let name = node.claim.source.name().expect("bad exported proposition");
+            if source_names.contains(&name) && false {
+                panic!("duplicate source name: {}", name);
+            }
+            source_names.insert(name);
+
             facts.push(Fact::new(node.claim.clone(), Truthiness::Factual));
         }
         facts

@@ -142,7 +142,7 @@ impl Prover {
     fn add_monomorphic_fact(&mut self, fact: Fact) {
         let local = fact.local();
         let defined = match &fact.source.source_type {
-            SourceType::ConstantDefinition(value) => {
+            SourceType::ConstantDefinition(value, _) => {
                 match self.normalizer.term_from_value(&value, local) {
                     Ok(term) => Some(term.get_head().clone()),
                     Err(NormalizationError(s)) => {
