@@ -1660,17 +1660,22 @@ impl Environment {
     }
 
     // Used for integration testing.
-    pub fn get_node_by_name(&self, name: &str) -> NodeCursor {
-        let mut names = Vec::new();
+    // Not good for general use because it's based on the human-readable description.
+    pub fn get_node_by_description(&self, description: &str) -> NodeCursor {
+        let mut descriptions = Vec::new();
         for node in self.iter_goals() {
             let context = node.goal_context().unwrap();
-            if context.name == name {
+            if context.description == description {
                 return node;
             }
-            names.push(context.name);
+            descriptions.push(context.description);
         }
 
-        panic!("no context found for {} in:\n{}\n", name, names.join("\n"));
+        panic!(
+            "no context found for {} in:\n{}\n",
+            description,
+            descriptions.join("\n")
+        );
     }
 
     // Returns the path to a given zero-based line.

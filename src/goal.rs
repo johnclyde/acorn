@@ -34,8 +34,8 @@ impl Goal {
 pub struct GoalContext {
     pub module_id: ModuleId,
 
-    // A printable name for this goal.
-    pub name: String,
+    // Something a person reads, describing this goal.
+    pub description: String,
 
     // The goal itself.
     pub goal: Goal,
@@ -65,7 +65,7 @@ impl GoalContext {
         first_line: u32,
         last_line: u32,
     ) -> GoalContext {
-        let name = match &goal {
+        let description = match &goal {
             Goal::Prove(proposition) => {
                 // Goals should never be generic.
                 assert!(!proposition.value.has_generic());
@@ -88,7 +88,7 @@ impl GoalContext {
         };
         GoalContext {
             module_id: env.module_id,
-            name,
+            description,
             goal,
             proof_insertion_line,
             insert_block: env.implicit,

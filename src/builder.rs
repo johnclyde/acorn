@@ -341,7 +341,7 @@ impl<'a> Builder<'a> {
         message: &str,
         sev: DiagnosticSeverity,
     ) -> BuildEvent {
-        let mut full_message = format!("{} {}", goal_context.name, message);
+        let mut full_message = format!("{} {}", goal_context.description, message);
         if let Some(e) = &prover.error {
             full_message.push_str(&format!(": {}", e));
         }

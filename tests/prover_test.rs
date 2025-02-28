@@ -23,7 +23,7 @@ mod prover_test {
             LoadState::Error(e) => panic!("module loading error: {}", e),
             _ => panic!("no module"),
         };
-        let node = env.get_node_by_name(goal_name);
+        let node = env.get_node_by_description(goal_name);
         let facts = node.usable_facts(project);
         let goal_context = node.goal_context().unwrap();
         let mut prover = Prover::new(&project, false);
@@ -67,7 +67,7 @@ mod prover_test {
         for node in env.iter_goals() {
             let facts = node.usable_facts(&project);
             let goal_context = node.goal_context().unwrap();
-            println!("proving: {}", goal_context.name);
+            println!("proving: {}", goal_context.description);
             let mut prover = Prover::new(&project, false);
             for fact in facts {
                 prover.add_fact(fact);

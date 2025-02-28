@@ -79,6 +79,24 @@ impl Source {
             _ => false,
         }
     }
+
+    // The name is an identifier for this source that is somewhat resilient to common edits.
+    // We use the line number as the name if there is no other identifier.
+    // This is specific to the file it's in; to make it global it needs the fully qualified module name
+    // as a prefix.
+    // Premises and negated goals do not get names.
+    pub fn name(&self) -> Option<String> {
+        match &self.source_type {
+            SourceType::Axiom(name) | SourceType::Theorem(name) => match name {
+                None => Some(self.user_visible_line().to_string()),
+                Some(name) => Some(name.clone()),
+            },
+            SourceType::Anonymous => Some(self.user_visible_line().to_string()),
+            SourceType::TypeDefinition(name) => Some(name.clone()),
+            SourceType::ConstantDefinition(value) => Some(value.to_string()),
+            SourceType::Premise | SourceType::NegatedGoal => None,
+        }
+    }
 }
 
 // A value along with information on where to find it in the source.
