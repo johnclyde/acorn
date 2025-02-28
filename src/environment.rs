@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tower_lsp::lsp_types::Range;
 
@@ -1670,10 +1670,17 @@ impl Environment {
     }
 
     // Get all facts that this environment exports.
-    pub fn exported_facts(&self) -> Vec<Fact> {
+    // If the filter is provided, we only return facts whose name is in the filter.
+    pub fn exported_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert!(self.top_level);
         let mut facts = vec![];
         for node in &self.nodes {
+            if let Some(filter) = filter {
+                let name = node.claim.name().expect("exported fact has no name");
+                if !filter.contains(name) {
+                    continue;
+                }
+            }
             facts.push(Fact::new(node.claim.clone(), Truthiness::Factual));
         }
         facts

@@ -743,7 +743,7 @@ impl Project {
         let mut facts = vec![];
         for dependency in self.all_dependencies(module_id) {
             let env = self.get_env_by_id(dependency).unwrap();
-            facts.extend(env.exported_facts());
+            facts.extend(env.exported_facts(None));
         }
         facts
     }
