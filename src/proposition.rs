@@ -15,12 +15,13 @@ pub enum SourceType {
     // An anonymous proposition that has previously been proved
     Anonymous,
 
-    // A proposition that is implicit in the definition of a type
-    TypeDefinition(String),
+    // A proposition that comes from the definition of a type.
+    // The first string is the type, the second string is a member name.
+    TypeDefinition(String, String),
 
-    // A proposition that is implicit in the definition of a constant.
+    // A proposition that comes from the definition of a constant.
     // The value is instantiated during monomorphization.
-    // The string is the name of the constant.
+    // The string is the name of the constant. It can be <Type>.<name> for members.
     ConstantDefinition(AcornValue, String),
 
     // A premise for a block that contains the current environment
@@ -69,7 +70,7 @@ impl Source {
                 None => "an anonymous theorem".to_string(),
             },
             SourceType::Anonymous => format!("line {}", self.user_visible_line()),
-            SourceType::TypeDefinition(name) => format!("the '{}' definition", name),
+            SourceType::TypeDefinition(type_name, _) => format!("the '{}' definition", type_name),
             SourceType::ConstantDefinition(value, _) => format!("the '{}' definition", value),
             SourceType::Premise => "an assumed premise".to_string(),
             SourceType::NegatedGoal => "negating the goal".to_string(),
@@ -85,6 +86,7 @@ impl Source {
 
     // The name is an identifier for this source that is somewhat resilient to common edits.
     // We use the line number as the name if there is no other identifier.
+    // This can be a duplicate in some cases, like monomorphization or type definition.
     // This is specific to the file it's in; to make it global it needs the fully qualified module name
     // as a prefix.
     // Premises and negated goals do not get names.
@@ -95,7 +97,9 @@ impl Source {
                 Some(name) => Some(name.clone()),
             },
             SourceType::Anonymous => Some(self.user_visible_line().to_string()),
-            SourceType::TypeDefinition(name) => Some(name.clone()),
+            SourceType::TypeDefinition(type_name, member) => {
+                Some(format!("{}.{}", type_name, member))
+            }
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::Premise | SourceType::NegatedGoal => None,
         }
@@ -150,14 +154,15 @@ impl Proposition {
         value: AcornValue,
         module: ModuleId,
         range: Range,
-        name: String,
+        type_name: String,
+        member_name: String,
     ) -> Proposition {
         Proposition {
             value,
             source: Source {
                 module,
                 range,
-                source_type: SourceType::TypeDefinition(name),
+                source_type: SourceType::TypeDefinition(type_name, member_name),
             },
         }
     }

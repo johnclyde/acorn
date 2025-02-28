@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use tower_lsp::lsp_types::Range;
 
@@ -841,6 +841,7 @@ impl Environment {
                     self.module_id,
                     range,
                     ss.name.clone(),
+                    "constraint".to_string(),
                 ),
                 None,
             );
@@ -858,7 +859,13 @@ impl Environment {
         self.add_node(
             project,
             true,
-            Proposition::type_definition(new_claim, self.module_id, range, ss.name.clone()),
+            Proposition::type_definition(
+                new_claim,
+                self.module_id,
+                range,
+                ss.name.clone(),
+                "new".to_string(),
+            ),
             None,
         );
 
@@ -903,7 +910,13 @@ impl Environment {
             self.add_node(
                 project,
                 true,
-                Proposition::type_definition(member_claim, self.module_id, range, ss.name.clone()),
+                Proposition::type_definition(
+                    member_claim,
+                    self.module_id,
+                    range,
+                    ss.name.clone(),
+                    field_name_token.text().to_string(),
+                ),
                 None,
             );
         }
@@ -980,7 +993,7 @@ impl Environment {
 
         // The "no confusion" property. Different constructors give different results.
         for i in 0..constructors.len() {
-            let (_, i_arg_types) = &constructors[i];
+            let (member_name, i_arg_types) = &constructors[i];
             let i_fn = constructor_fns[i].clone();
             let i_vars: Vec<_> = i_arg_types
                 .iter()
@@ -1006,7 +1019,13 @@ impl Environment {
                 self.add_node(
                     project,
                     true,
-                    Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+                    Proposition::type_definition(
+                        claim,
+                        self.module_id,
+                        range,
+                        is.name.clone(),
+                        member_name.to_string(),
+                    ),
                     None,
                 );
             }
@@ -1032,17 +1051,24 @@ impl Environment {
         }
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
         let claim = AcornValue::new_forall(vec![inductive_type.clone()], disjunction);
+        // There is no "new" for this type, but it's kind of thematically appropriate.
         self.add_node(
             project,
             true,
-            Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+            Proposition::type_definition(
+                claim,
+                self.module_id,
+                range,
+                is.name.clone(),
+                "new".to_string(),
+            ),
             None,
         );
 
         // The next principle is that each constructor is injective.
         // Ie if Type.construct(x0, x1) = Type.construct(x2, x3) then x0 = x2 and x1 = x3.
         for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-            let (_, arg_types) = &constructors[i];
+            let (member_name, arg_types) = &constructors[i];
             if arg_types.is_empty() {
                 continue;
             }
@@ -1081,7 +1107,13 @@ impl Environment {
             self.add_node(
                 project,
                 true,
-                Proposition::type_definition(claim, self.module_id, range, is.name.clone()),
+                Proposition::type_definition(
+                    claim,
+                    self.module_id,
+                    range,
+                    is.name.clone(),
+                    member_name.to_string(),
+                ),
                 None,
             );
         }
@@ -1641,14 +1673,7 @@ impl Environment {
     pub fn exported_facts(&self) -> Vec<Fact> {
         assert!(self.top_level);
         let mut facts = vec![];
-        let mut source_names = HashSet::new();
         for node in &self.nodes {
-            let name = node.claim.source.name().expect("bad exported proposition");
-            if source_names.contains(&name) && false {
-                panic!("duplicate source name: {}", name);
-            }
-            source_names.insert(name);
-
             facts.push(Fact::new(node.claim.clone(), Truthiness::Factual));
         }
         facts
