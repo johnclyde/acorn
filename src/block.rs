@@ -541,7 +541,7 @@ impl<'a> NodeCursor<'a> {
     // All facts that can be used to prove the current node.
     // This includes imported facts.
     pub fn usable_facts(&self, project: &Project) -> Vec<Fact> {
-        let mut facts = project.imported_facts(self.env().module_id);
+        let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
             for prop in &env.nodes[0..*i] {
                 let truthiness = if env.top_level {

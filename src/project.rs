@@ -369,7 +369,8 @@ impl Project {
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.
-        self.for_each_prover_fast(env, &mut |prover, goal_context| {
+        // TODO: use an import filter here
+        self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
             if current_hash.matches_through_line(&cached_hash, goal_context.last_line) {
                 builder.log_proving_success_cached(&goal_context);
                 true
@@ -413,6 +414,7 @@ impl Project {
     pub fn for_each_prover_fast(
         &self,
         env: &Environment,
+        import_filter: Option<&HashSet<String>>,
         callback: &mut impl FnMut(Prover, GoalContext) -> bool,
     ) {
         if env.nodes.is_empty() {
@@ -420,7 +422,7 @@ impl Project {
             return;
         }
         let mut prover = Prover::new(&self, false);
-        for fact in self.imported_facts(env.module_id) {
+        for fact in self.imported_facts(env.module_id, import_filter) {
             prover.add_fact(fact);
         }
         let mut node = NodeCursor::new(&env, 0);
@@ -739,11 +741,15 @@ impl Project {
     }
 
     // All facts that the given module imports.
-    pub fn imported_facts(&self, module_id: ModuleId) -> Vec<Fact> {
+    pub fn imported_facts(
+        &self,
+        module_id: ModuleId,
+        filter: Option<&HashSet<String>>,
+    ) -> Vec<Fact> {
         let mut facts = vec![];
         for dependency in self.all_dependencies(module_id) {
             let env = self.get_env_by_id(dependency).unwrap();
-            facts.extend(env.exported_facts(None));
+            facts.extend(env.exported_facts(filter));
         }
         facts
     }
@@ -1292,7 +1298,7 @@ mod tests {
             true
         });
 
-        p.for_each_prover_fast(env, &mut |_, _| {
+        p.for_each_prover_fast(env, None, &mut |_, _| {
             fast_count += 1;
             true
         });
