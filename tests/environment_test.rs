@@ -2276,4 +2276,28 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_handling_functional_type_mismatch() {
+        // This is a repro of a bug that crashed the released language server.
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            type Foo: axiom
+            type Bar: axiom
+
+            let is_cut: (Foo -> Bool) -> Bool = axiom
+            let liftable: (Foo -> Bar) -> Bool = axiom
+            let lift_gt_rat: (Foo -> Bar, Bar, Foo) -> Bool = axiom
+        "#,
+        );
+        // This is not valid, but it shouldn't cause a panic
+        env.bad(
+            r#"
+            theorem lift_gt_rat_is_cut(f: Foo -> Bar) {
+                liftable(f) implies is_cut(lift_gt_rat(f))
+            }
+        "#,
+        );
+    }
 }
