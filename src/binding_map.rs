@@ -1808,7 +1808,11 @@ impl BindingMap {
                             )?;
                             args.push(arg);
                         }
-                        AcornValue::new_apply(function, args)
+                        let value = AcornValue::new_apply(function, args);
+                        if expected_type.is_some() {
+                            check_type(expression, expected_type, &value.get_type())?;
+                        }
+                        value
                     }
                 }
             }

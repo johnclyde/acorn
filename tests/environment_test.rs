@@ -2302,10 +2302,10 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_missed_typecheck() {
+    fn test_proposition_must_typecheck_as_bool() {
         // The Real.bar(foo) line should cause it to fail.
         let mut env = Environment::new_test();
-        env.bad(
+        env.add(
             r#"
             type Real: axiom
             class Real {
@@ -2314,7 +2314,10 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 }
                 let bar: Real -> Real = axiom
             }
-
+        "#,
+        );
+        env.bad(
+            r#"
             theorem goal(a: Real, eps: Real) {
                 eps = a implies eps.foo.foo = a.foo
             } by {
