@@ -525,6 +525,9 @@ impl Environment {
 
         // Externally we use the theorem in unnamed, "forall" form
         let external_claim = AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
+        if let Err(message) = external_claim.validate() {
+            return Err(ts.claim.error(&message));
+        }
 
         let (premise, goal) = match &unbound_claim {
             AcornValue::Binary(BinaryOp::Implies, left, right) => {
