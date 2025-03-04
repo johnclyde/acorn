@@ -4,13 +4,13 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::{fmt, io};
 
-use dashmap::DashMap;
 use regex::Regex;
 use tower_lsp::lsp_types::{CompletionItem, Url};
 use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
+use crate::build_cache::BuildCache;
 use crate::builder::{BuildEvent, BuildStatus, Builder};
 use crate::compilation;
 use crate::environment::Environment;
@@ -53,7 +53,7 @@ pub struct Project {
     targets: HashSet<ModuleDescriptor>,
 
     // The cache contains a hash for each module from the last time it was cleanly built.
-    build_cache: Arc<DashMap<ModuleDescriptor, ModuleHash>>,
+    build_cache: BuildCache,
 
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
@@ -106,7 +106,7 @@ impl Project {
             modules: Module::default_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
-            build_cache: Arc::new(DashMap::new()),
+            build_cache: BuildCache::new(),
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -360,10 +360,7 @@ impl Project {
     // Verifies all goals within this target.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
-        let cached_hash = self
-            .build_cache
-            .get(target)
-            .map(|entry| entry.value().clone());
+        let cached_hash = self.build_cache.inner.get(target).map(|entry| entry.value().clone());
 
         builder.module_proving_started(target.clone());
 
@@ -380,8 +377,7 @@ impl Project {
         });
 
         if builder.module_proving_complete(target) {
-            self.build_cache
-                .insert(target.clone(), current_hash.clone());
+            self.build_cache.inner.insert(target.clone(), current_hash.clone());
         }
     }
 
@@ -1401,7 +1397,7 @@ mod tests {
         p.mock("/mock/main.ac", main_text);
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
-        assert_eq!(p.build_cache.len(), 2);
+        assert_eq!(p.build_cache.inner.len(), 2);
 
         // Just rebuilding a second time should require no work
         let num_success = p.expect_build_ok();
