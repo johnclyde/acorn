@@ -44,6 +44,12 @@ impl ModuleCache {
         file.write_all(content.as_bytes())?;
         Ok(())
     }
+
+    pub fn load(&self, filename: &PathBuf) -> Result<ModuleCache, Box<dyn Error>> {
+        let file = File::open(filename)?;
+        let cache = serde_yaml::from_reader(file)?;
+        Ok(cache)
+    }
 }
 
 pub struct ModuleHasher {
