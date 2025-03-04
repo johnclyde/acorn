@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use crate::module::Module;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModuleCache {
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.

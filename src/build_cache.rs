@@ -2,6 +2,7 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 
 use crate::module::ModuleDescriptor;
@@ -34,16 +35,36 @@ impl BuildCache {
         }
     }
 
-    // Gets the cached hash for a module descriptor
+    // Gets the module cache for a module descriptor
     pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
         self.inner
             .get(descriptor)
             .map(|entry| entry.value().clone())
     }
 
-    // Inserts a hash for a module descriptor
-    pub fn insert(&self, descriptor: ModuleDescriptor, hash: ModuleCache) {
-        self.inner.insert(descriptor, hash);
+    // Inserts a module cache for a module descriptor.
+    // Saves the cache if it represents a change from the old one.
+    pub fn insert(
+        &self,
+        descriptor: ModuleDescriptor,
+        module_cache: ModuleCache,
+    ) -> Result<(), Box<dyn Error>> {
+        match self.inner.entry(descriptor) {
+            Entry::Occupied(mut entry) => {
+                if entry.get() == &module_cache {
+                    // Nothing changed, no need to save
+                    return Ok(());
+                }
+
+                self.save(entry.key(), &module_cache)?;
+                *entry.get_mut() = module_cache;
+            }
+            Entry::Vacant(entry) => {
+                self.save(entry.key(), &module_cache)?;
+                entry.insert(module_cache);
+            }
+        }
+        Ok(())
     }
 
     // Returns the number of entries in the cache
@@ -51,8 +72,12 @@ impl BuildCache {
         self.inner.len()
     }
 
-    // Saves the build cache to its directory, if possible.
-    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+    // Saves the cache for one module.
+    fn save(
+        &self,
+        descriptor: &ModuleDescriptor,
+        module_cache: &ModuleCache,
+    ) -> Result<(), Box<dyn Error>> {
         if !self.writable {
             return Ok(());
         }
@@ -62,25 +87,22 @@ impl BuildCache {
         };
 
         // Iterate over inner
-        for entry in self.inner.iter() {
-            let (descriptor, module_cache) = entry.pair();
-            if let ModuleDescriptor::Name(name) = descriptor {
-                let mut parts = name.split(".").collect::<Vec<_>>();
-                if parts.is_empty() {
-                    continue;
-                }
-                let last = parts.pop().unwrap();
-                let mut path = directory.clone();
-                for part in parts {
-                    path.push(part);
-                    // Make the directory, if needed
-                    if !path.exists() {
-                        std::fs::create_dir(&path)?;
-                    }
-                }
-                path.push(format!("{}.yaml", last));
-                module_cache.save(&path)?;
+        if let ModuleDescriptor::Name(name) = descriptor {
+            let mut parts = name.split(".").collect::<Vec<_>>();
+            if parts.is_empty() {
+                return Ok(());
             }
+            let last = parts.pop().unwrap();
+            let mut path = directory.clone();
+            for part in parts {
+                path.push(part);
+                // Make the directory, if needed
+                if !path.exists() {
+                    std::fs::create_dir(&path)?;
+                }
+            }
+            path.push(format!("{}.yaml", last));
+            module_cache.save(&path)?;
         }
 
         Ok(())

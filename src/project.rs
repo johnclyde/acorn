@@ -16,9 +16,7 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{
-    LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL,
-};
+use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHasher};
 use crate::prover::Prover;
 use crate::token::Token;
@@ -387,8 +385,12 @@ impl Project {
         });
 
         if builder.module_proving_complete(target) {
-            self.build_cache
-                .insert(target.clone(), current_hash.clone());
+            if let Err(e) = self
+                .build_cache
+                .insert(target.clone(), current_hash.clone())
+            {
+                builder.log_info(format!("error in build cache: {}", e));
+            }
         }
     }
 
