@@ -17,7 +17,7 @@ use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{
-    LoadState, Module, ModuleDescriptor, ModuleHash, ModuleHasher, ModuleId, FIRST_NORMAL,
+    LoadState, Module, ModuleCache, ModuleDescriptor, ModuleHasher, ModuleId, FIRST_NORMAL,
 };
 use crate::prover::Prover;
 use crate::token::Token;
@@ -248,7 +248,7 @@ impl Project {
         self.open_files.get(path).map(|(_, version)| *version)
     }
 
-    pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleHash> {
+    pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleCache> {
         self.modules[module_id as usize].hash.as_ref()
     }
 

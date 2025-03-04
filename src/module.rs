@@ -29,7 +29,7 @@ pub struct Module {
 
     // The hash of the module's code.
     // None before the module is loaded.
-    pub hash: Option<ModuleHash>,
+    pub hash: Option<ModuleCache>,
 }
 
 impl Module {
@@ -63,14 +63,14 @@ impl Module {
     }
 
     // Called when a module load succeeds.
-    pub fn load_ok(&mut self, env: Environment, hash: ModuleHash) {
+    pub fn load_ok(&mut self, env: Environment, hash: ModuleCache) {
         self.state = LoadState::Ok(env);
         self.hash = Some(hash);
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModuleHash {
+pub struct ModuleCache {
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
     prefixes: Vec<u64>,
@@ -79,15 +79,15 @@ pub struct ModuleHash {
     dependencies: u64,
 }
 
-impl ModuleHash {
-    pub fn new(prefixes: u64, dependencies: u64) -> ModuleHash {
-        ModuleHash {
+impl ModuleCache {
+    pub fn new(prefixes: u64, dependencies: u64) -> ModuleCache {
+        ModuleCache {
             prefixes: vec![prefixes],
             dependencies,
         }
     }
 
-    pub fn matches_through_line(&self, other: &Option<ModuleHash>, line: u32) -> bool {
+    pub fn matches_through_line(&self, other: &Option<ModuleCache>, line: u32) -> bool {
         let line = line as usize;
         match other {
             Some(other) => {
@@ -101,7 +101,7 @@ impl ModuleHash {
 }
 
 pub struct ModuleHasher {
-    // Will become part of the ModuleHash
+    // Will become part of the ModuleCache
     prefix_hashes: Vec<u64>,
 
     // For hashing the dependencies of the module
@@ -133,8 +133,8 @@ impl ModuleHasher {
         }
     }
 
-    pub fn finish(self) -> ModuleHash {
-        ModuleHash {
+    pub fn finish(self) -> ModuleCache {
+        ModuleCache {
             prefixes: self.prefix_hashes,
             dependencies: self.dependency_hasher.finish(),
         }

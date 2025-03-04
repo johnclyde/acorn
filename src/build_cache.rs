@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::module::{ModuleDescriptor, ModuleHash};
+use crate::module::{ModuleCache, ModuleDescriptor};
 
 // The BuildCache contains a hash for each module from the last time it was cleanly built.
 // This enables skipping verification for modules that haven't changed.
@@ -12,7 +12,7 @@ use crate::module::{ModuleDescriptor, ModuleHash};
 #[derive(Clone)]
 pub struct BuildCache {
     // The internal map from module descriptor to module hash
-    inner: Arc<DashMap<ModuleDescriptor, ModuleHash>>,
+    inner: Arc<DashMap<ModuleDescriptor, ModuleCache>>,
 
     // A directory to persist the cache in.
     directory: Option<PathBuf>,
@@ -33,14 +33,14 @@ impl BuildCache {
     }
 
     // Gets the cached hash for a module descriptor
-    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleHash> {
+    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
         self.inner
             .get(descriptor)
             .map(|entry| entry.value().clone())
     }
 
     // Inserts a hash for a module descriptor
-    pub fn insert(&self, descriptor: ModuleDescriptor, hash: ModuleHash) {
+    pub fn insert(&self, descriptor: ModuleDescriptor, hash: ModuleCache) {
         self.inner.insert(descriptor, hash);
     }
 
