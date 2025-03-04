@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -10,13 +11,22 @@ use crate::module::{ModuleDescriptor, ModuleHash};
 pub struct BuildCache {
     // The internal map from module descriptor to module hash
     inner: Arc<DashMap<ModuleDescriptor, ModuleHash>>,
+
+    // A directory to persist the cache in.
+    directory: Option<PathBuf>,
+
+    // Whether it's okay to write to the cache directory.
+    // If false, the cache will not be saved to disk.
+    writable: bool,
 }
 
 impl BuildCache {
     // Creates a new empty build cache
-    pub fn new() -> BuildCache {
+    pub fn new(directory: Option<PathBuf>, writable: bool) -> BuildCache {
         BuildCache {
             inner: Arc::new(DashMap::new()),
+            directory,
+            writable,
         }
     }
 
@@ -35,5 +45,18 @@ impl BuildCache {
     // Returns the number of entries in the cache
     pub fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    // Saves the build cache to its directory, if possible.
+    pub fn save(&self) {
+        if !self.writable {
+            return;
+        }
+        let directory = match &self.directory {
+            Some(directory) => directory,
+            None => return,
+        };
+
+        todo!("save build cache to {:?}", directory);
     }
 }

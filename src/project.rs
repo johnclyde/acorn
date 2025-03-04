@@ -106,7 +106,7 @@ impl Project {
             modules: Module::default_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
-            build_cache: BuildCache::new(),
+            build_cache: BuildCache::new(None, false),
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -377,7 +377,8 @@ impl Project {
         });
 
         if builder.module_proving_complete(target) {
-            self.build_cache.insert(target.clone(), current_hash.clone());
+            self.build_cache
+                .insert(target.clone(), current_hash.clone());
         }
     }
 
