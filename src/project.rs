@@ -98,7 +98,16 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
 }
 
 impl Project {
-    pub fn new(library_root: PathBuf) -> Project {
+    pub fn new(library_root: PathBuf, cache_writable: bool) -> Project {
+        let cache_dir = library_root.join("build");
+
+        // Check if the directory exists
+        let build_cache = if cache_dir.is_dir() {
+            BuildCache::new(Some(cache_dir), cache_writable)
+        } else {
+            BuildCache::new(None, false)
+        };
+
         Project {
             library_root,
             use_filesystem: true,
@@ -106,7 +115,7 @@ impl Project {
             modules: Module::default_modules(),
             module_map: HashMap::new(),
             targets: HashSet::new(),
-            build_cache: BuildCache::new(None, false),
+            build_cache,
             build_stopped: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -143,13 +152,13 @@ impl Project {
     pub fn new_local() -> Option<Project> {
         let current_dir = std::env::current_dir().ok()?;
         let library_root = Project::find_local_acorn_library(&current_dir)?;
-        Some(Project::new(library_root))
+        Some(Project::new(library_root, true))
     }
 
     // A Project where nothing can be imported.
     pub fn new_mock() -> Project {
         let mock_dir = PathBuf::from("/mock");
-        let mut p = Project::new(mock_dir);
+        let mut p = Project::new(mock_dir, false);
         p.use_filesystem = false;
         p
     }

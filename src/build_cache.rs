@@ -7,6 +7,8 @@ use crate::module::{ModuleDescriptor, ModuleHash};
 
 // The BuildCache contains a hash for each module from the last time it was cleanly built.
 // This enables skipping verification for modules that haven't changed.
+// We read once at startup, and write whole files at a time when needed.
+// Hopefully that makes it okay to not lock it. But we might need to be better about this.
 #[derive(Clone)]
 pub struct BuildCache {
     // The internal map from module descriptor to module hash

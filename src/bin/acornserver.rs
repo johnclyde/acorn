@@ -391,13 +391,14 @@ struct Backend {
 
 // Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
+// Also returns a flag for whether the library looks writable.
 // Panics if we can't find either.
-fn find_acorn_library(args: &Args) -> PathBuf {
+fn find_acorn_library(args: &Args) -> (PathBuf, bool) {
     // Check for a local library, near the code
     if let Some(workspace_root) = &args.workspace_root {
         let path = PathBuf::from(&workspace_root);
         if let Some(library_root) = Project::find_local_acorn_library(&path) {
-            return library_root;
+            return (library_root, true);
         }
     }
 
@@ -409,7 +410,7 @@ fn find_acorn_library(args: &Args) -> PathBuf {
             library_root.display()
         );
     }
-    library_root
+    (library_root, false)
 }
 
 impl Backend {
@@ -419,14 +420,14 @@ impl Backend {
     // the library bundled with the extension.
     fn new(client: Client) -> Backend {
         let args = Args::parse();
-        let library_root = find_acorn_library(&args);
+        let (library_root, cache_writable) = find_acorn_library(&args);
 
         log(&format!(
             "using acorn library at {}",
             library_root.display()
         ));
 
-        let project = Project::new(library_root);
+        let project = Project::new(library_root, cache_writable);
         Backend {
             project: Arc::new(RwLock::new(project)),
             client,
