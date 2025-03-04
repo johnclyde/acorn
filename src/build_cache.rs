@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
+use walkdir::WalkDir;
 
 use crate::module::ModuleDescriptor;
 use crate::module_cache::ModuleCache;
@@ -28,8 +29,18 @@ pub struct BuildCache {
 impl BuildCache {
     // Creates a new empty build cache
     pub fn new(directory: Option<PathBuf>, writable: bool) -> BuildCache {
+        let inner = DashMap::new();
+        if let Some(root) = &directory {
+            if root.exists() {
+                for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
+                    if let Some((desc, cache)) = ModuleCache::load_relative(root, entry.path()) {
+                        inner.insert(desc, cache);
+                    }
+                }
+            }
+        }
         BuildCache {
-            inner: Arc::new(DashMap::new()),
+            inner: Arc::new(inner),
             directory,
             writable,
         }

@@ -4,9 +4,9 @@ use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
-use crate::module::Module;
+use crate::module::{Module, ModuleDescriptor};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModuleCache {
@@ -38,17 +38,34 @@ impl ModuleCache {
         }
     }
 
-    pub fn save(&self, filename: &PathBuf) -> Result<(), Box<dyn Error>> {
+    pub fn save(&self, filename: &Path) -> Result<(), Box<dyn Error>> {
         let content = serde_yaml::to_string(&self)?;
         let mut file = File::create(filename)?;
         file.write_all(content.as_bytes())?;
         Ok(())
     }
 
-    pub fn load(&self, filename: &PathBuf) -> Result<ModuleCache, Box<dyn Error>> {
+    pub fn load(filename: &Path) -> Result<ModuleCache, Box<dyn Error>> {
         let file = File::open(filename)?;
         let cache = serde_yaml::from_reader(file)?;
         Ok(cache)
+    }
+
+    // Loads a ModuleCache along with its descriptor.
+    pub fn load_relative(
+        root: &Path,
+        full_filename: &Path,
+    ) -> Option<(ModuleDescriptor, ModuleCache)> {
+        let relative_filename = full_filename.strip_prefix(root).ok()?;
+        let ext = relative_filename.extension()?;
+        if ext != "yaml" {
+            return None;
+        }
+        let stem = relative_filename.file_stem()?;
+        let name = stem.to_string_lossy().to_string().replace("/", ".");
+        let descriptor = ModuleDescriptor::Name(name);
+        let module_cache = ModuleCache::load(full_filename).ok()?;
+        Some((descriptor, module_cache))
     }
 }
 
