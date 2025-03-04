@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::module::{ModuleCache, ModuleDescriptor};
+use crate::module::ModuleDescriptor;
+use crate::module_cache::ModuleCache;
 
 // The BuildCache contains a hash for each module from the last time it was cleanly built.
 // This enables skipping verification for modules that haven't changed.

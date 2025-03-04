@@ -17,8 +17,9 @@ use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{
-    LoadState, Module, ModuleCache, ModuleDescriptor, ModuleHasher, ModuleId, FIRST_NORMAL,
+    LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL,
 };
+use crate::module_cache::{ModuleCache, ModuleHasher};
 use crate::prover::Prover;
 use crate::token::Token;
 

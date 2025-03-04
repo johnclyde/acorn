@@ -23,6 +23,7 @@ pub mod interfaces;
 pub mod literal;
 pub mod live_document;
 pub mod module;
+pub mod module_cache;
 pub mod monomorphizer;
 pub mod normalizer;
 pub mod ort_model;
