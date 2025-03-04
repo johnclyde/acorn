@@ -9,7 +9,7 @@ use crate::module::{ModuleDescriptor, ModuleHash};
 #[derive(Clone)]
 pub struct BuildCache {
     // The internal map from module descriptor to module hash
-    pub inner: Arc<DashMap<ModuleDescriptor, ModuleHash>>,
+    inner: Arc<DashMap<ModuleDescriptor, ModuleHash>>,
 }
 
 impl BuildCache {
@@ -18,5 +18,22 @@ impl BuildCache {
         BuildCache {
             inner: Arc::new(DashMap::new()),
         }
+    }
+
+    // Gets the cached hash for a module descriptor
+    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleHash> {
+        self.inner
+            .get(descriptor)
+            .map(|entry| entry.value().clone())
+    }
+
+    // Inserts a hash for a module descriptor
+    pub fn insert(&self, descriptor: ModuleDescriptor, hash: ModuleHash) {
+        self.inner.insert(descriptor, hash);
+    }
+
+    // Returns the number of entries in the cache
+    pub fn len(&self) -> usize {
+        self.inner.len()
     }
 }

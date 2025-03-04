@@ -360,7 +360,7 @@ impl Project {
     // Verifies all goals within this target.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
-        let cached_hash = self.build_cache.inner.get(target).map(|entry| entry.value().clone());
+        let cached_hash = self.build_cache.get(target);
 
         builder.module_proving_started(target.clone());
 
@@ -377,7 +377,7 @@ impl Project {
         });
 
         if builder.module_proving_complete(target) {
-            self.build_cache.inner.insert(target.clone(), current_hash.clone());
+            self.build_cache.insert(target.clone(), current_hash.clone());
         }
     }
 
@@ -1397,7 +1397,7 @@ mod tests {
         p.mock("/mock/main.ac", main_text);
         let num_success = p.expect_build_ok();
         assert_eq!(num_success, 2);
-        assert_eq!(p.build_cache.inner.len(), 2);
+        assert_eq!(p.build_cache.len(), 2);
 
         // Just rebuilding a second time should require no work
         let num_success = p.expect_build_ok();
