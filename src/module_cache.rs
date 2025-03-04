@@ -1,6 +1,10 @@
-use std::hash::{Hash, Hasher};
-use serde::{Deserialize, Serialize};
 use fxhash::FxHasher;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fs::File;
+use std::hash::{Hash, Hasher};
+use std::io::Write;
+use std::path::PathBuf;
 
 use crate::module::Module;
 
@@ -32,6 +36,13 @@ impl ModuleCache {
             }
             None => false,
         }
+    }
+
+    pub fn save(&self, filename: &PathBuf) -> Result<(), Box<dyn Error>> {
+        let content = serde_yaml::to_string(&self)?;
+        let mut file = File::create(filename)?;
+        file.write_all(content.as_bytes())?;
+        Ok(())
     }
 }
 

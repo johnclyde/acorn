@@ -66,7 +66,6 @@ impl Module {
     }
 }
 
-
 // The LoadState describes the state of a module, loaded or not or in progress.
 pub enum LoadState {
     // There is no such module, not even an id for it

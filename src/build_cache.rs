@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -51,15 +52,37 @@ impl BuildCache {
     }
 
     // Saves the build cache to its directory, if possible.
-    pub fn save(&self) {
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
         if !self.writable {
-            return;
+            return Ok(());
         }
         let directory = match &self.directory {
             Some(directory) => directory,
-            None => return,
+            None => return Ok(()),
         };
 
-        todo!("save build cache to {:?}", directory);
+        // Iterate over inner
+        for entry in self.inner.iter() {
+            let (descriptor, module_cache) = entry.pair();
+            if let ModuleDescriptor::Name(name) = descriptor {
+                let mut parts = name.split(".").collect::<Vec<_>>();
+                if parts.is_empty() {
+                    continue;
+                }
+                let last = parts.pop().unwrap();
+                let mut path = directory.clone();
+                for part in parts {
+                    path.push(part);
+                    // Make the directory, if needed
+                    if !path.exists() {
+                        std::fs::create_dir(&path)?;
+                    }
+                }
+                path.push(format!("{}.yaml", last));
+                module_cache.save(&path)?;
+            }
+        }
+
+        Ok(())
     }
 }
