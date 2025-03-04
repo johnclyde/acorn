@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::{fmt, path::PathBuf};
 
 use fxhash::FxHasher;
+use serde::{Deserialize, Serialize};
 
 use crate::compilation;
 use crate::environment::Environment;
@@ -68,21 +69,21 @@ impl Module {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleHash {
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
-    prefix_hashes: Vec<u64>,
+    prefixes: Vec<u64>,
 
     // This single hash represents all dependencies.
-    dependency_hash: u64,
+    dependencies: u64,
 }
 
 impl ModuleHash {
-    pub fn new(prefix_hash: u64, dependency_hash: u64) -> ModuleHash {
+    pub fn new(prefixes: u64, dependencies: u64) -> ModuleHash {
         ModuleHash {
-            prefix_hashes: vec![prefix_hash],
-            dependency_hash,
+            prefixes: vec![prefixes],
+            dependencies,
         }
     }
 
@@ -90,9 +91,9 @@ impl ModuleHash {
         let line = line as usize;
         match other {
             Some(other) => {
-                self.dependency_hash == other.dependency_hash
-                    && line < self.prefix_hashes.len()
-                    && self.prefix_hashes.get(line) == other.prefix_hashes.get(line)
+                self.dependencies == other.dependencies
+                    && line < self.prefixes.len()
+                    && self.prefixes.get(line) == other.prefixes.get(line)
             }
             None => false,
         }
@@ -125,17 +126,17 @@ impl ModuleHasher {
     // Should be called in an order that's consistent across different hashes of the same module
     pub fn add_dependency(&mut self, module: &Module) {
         if let Some(h) = &module.hash {
-            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
+            if let Some(last_prefix_hash) = h.prefixes.last() {
                 last_prefix_hash.hash(&mut self.dependency_hasher);
             }
-            h.dependency_hash.hash(&mut self.dependency_hasher);
+            h.dependencies.hash(&mut self.dependency_hasher);
         }
     }
 
     pub fn finish(self) -> ModuleHash {
         ModuleHash {
-            prefix_hashes: self.prefix_hashes,
-            dependency_hash: self.dependency_hasher.finish(),
+            prefixes: self.prefix_hashes,
+            dependencies: self.dependency_hasher.finish(),
         }
     }
 }
