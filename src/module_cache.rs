@@ -25,15 +25,6 @@ pub struct ModuleCache {
 }
 
 impl ModuleCache {
-    // TODO: how can this ever be right?
-    pub fn new(module: u64, dependencies: u64) -> ModuleCache {
-        ModuleCache {
-            prefix_hashes: vec![module],
-            dependencies,
-            module,
-        }
-    }
-
     pub fn matches_through_line(&self, other: &Option<ModuleCache>, line: u32) -> bool {
         let line = line as usize;
         match other {
