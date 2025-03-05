@@ -109,3 +109,45 @@ impl ModuleHasher {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+    use std::fs;
+    use std::io::Read;
+
+    #[test]
+    fn test_save_and_load() {
+        // Create a temporary directory for our test
+        let temp_dir = tempdir().expect("Failed to create temp directory");
+        let file_path = temp_dir.path().join("test_cache.yaml");
+
+        let original_cache = ModuleCache {
+            prefixes: vec![12345, 23456],
+            dependencies: 67890,
+        };
+
+        // Save the cache to a file
+        original_cache
+            .save(&file_path)
+            .expect("Failed to save cache");
+
+        // Verify file was created and contains YAML
+        assert!(file_path.exists());
+        let mut file = File::open(&file_path).expect("Failed to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Failed to read file");
+        assert!(contents.contains("prefixes:"));
+        assert!(contents.contains("dependencies: 678"));
+
+        // Load the cache from the file
+        let loaded_cache = ModuleCache::load(&file_path).expect("Failed to load cache");
+        assert_eq!(original_cache, loaded_cache);
+
+        // Clean up
+        fs::remove_file(file_path).expect("Failed to clean up test file");
+    }
+}

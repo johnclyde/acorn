@@ -20,6 +20,7 @@ qp-trie = "0.8.2"
 regex = "1.11.1"
 serde = "1.0.188"
 serde_yaml = "0.9.34"
+tempfile = "3.17.1"
 tokio = { version = "1.32.0", features = ["full"] }
 tower-lsp = "0.20.0"
 walkdir = "2.4.0"
