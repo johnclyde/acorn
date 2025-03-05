@@ -15,11 +15,11 @@ pub struct ModuleCache {
 
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
-    prefixes: Vec<u32>,
+    prefixes: Vec<u64>,
 }
 
 impl ModuleCache {
-    pub fn new(prefixes: u32, dependencies: u64) -> ModuleCache {
+    pub fn new(prefixes: u64, dependencies: u64) -> ModuleCache {
         ModuleCache {
             prefixes: vec![prefixes],
             dependencies,
@@ -71,7 +71,7 @@ impl ModuleCache {
 
 pub struct ModuleHasher {
     // Will become part of the ModuleCache
-    prefix_hashes: Vec<u32>,
+    prefix_hashes: Vec<u64>,
 
     // For hashing the dependencies of the module
     dependency_hasher: FxHasher,
@@ -83,7 +83,7 @@ impl ModuleHasher {
         let mut prefix_hashes = vec![];
         for line in text.lines() {
             line.hash(&mut line_hasher);
-            prefix_hashes.push(line_hasher.finish() as u32);
+            prefix_hashes.push(line_hasher.finish());
         }
 
         ModuleHasher {
