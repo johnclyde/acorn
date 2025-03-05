@@ -27,7 +27,7 @@ pub struct BuildCache {
 }
 
 impl BuildCache {
-    // Creates a new empty build cache
+    // Creates a new build cache, based on data stored on disk if there is any.
     pub fn new(directory: Option<PathBuf>, writable: bool) -> BuildCache {
         let inner = DashMap::new();
         if let Some(root) = &directory {
@@ -47,7 +47,7 @@ impl BuildCache {
     }
 
     // Gets the module cache for a module descriptor
-    pub fn get(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
+    pub fn get_cloned(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
         self.inner
             .get(descriptor)
             .map(|entry| entry.value().clone())

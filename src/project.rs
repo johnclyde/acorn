@@ -17,7 +17,7 @@ use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
-use crate::module_cache::ModuleCache;
+use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -247,7 +247,8 @@ impl Project {
         self.open_files.get(path).map(|(_, version)| *version)
     }
 
-    pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleCache> {
+    // The ModuleHash corresponding to the current build, *not* the known-good build.
+    pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleHash> {
         self.modules[module_id as usize].hash.as_ref()
     }
 
@@ -368,15 +369,15 @@ impl Project {
     // Verifies all goals within this target.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
-        let cached_hash = self.build_cache.get(target);
+        let existing_cache = self.build_cache.get_cloned(target);
 
         builder.module_proving_started(target.clone());
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, try using slow mode to debug.
-        // TODO: use an import filter here
+        // TODO: let the prover use the existing cache for premise selection
         self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
-            if current_hash.matches_through_line(&cached_hash, goal_context.last_line) {
+            if current_hash.matches_through_line(&existing_cache, goal_context.last_line) {
                 builder.log_proving_success_cached(&goal_context);
                 true
             } else {
@@ -385,10 +386,8 @@ impl Project {
         });
 
         if builder.module_proving_complete(target) {
-            if let Err(e) = self
-                .build_cache
-                .insert(target.clone(), current_hash.clone())
-            {
+            let new_cache = ModuleCache::new(current_hash);
+            if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
                 builder.log_info(format!("error in build cache: {}", e));
             }
         }
@@ -693,15 +692,15 @@ impl Project {
             return Ok(module_id);
         }
 
-        // Create cache information for this module, reflecting its state on disk.
-        let module_cache = ModuleCache::new(
+        // Hash this module, reflecting its state on disk.
+        let module_hash = ModuleHash::new(
             &text,
             env.bindings
                 .direct_dependencies()
                 .iter()
                 .map(|dep_id| &self.modules[*dep_id as usize]),
         );
-        self.modules[module_id as usize].load_ok(env, module_cache);
+        self.modules[module_id as usize].load_ok(env, module_hash);
         Ok(module_id)
     }
 

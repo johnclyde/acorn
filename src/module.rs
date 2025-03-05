@@ -2,7 +2,7 @@ use std::{fmt, path::PathBuf};
 
 use crate::compilation;
 use crate::environment::Environment;
-use crate::module_cache::ModuleCache;
+use crate::module_cache::ModuleHash;
 
 // The code in one file is exposed to other Acorn code as a "module".
 // You could have two different types both named "MyStruct" but defined in different places.
@@ -24,9 +24,13 @@ pub struct Module {
     // The state of the module, whether it's been loaded or not.
     pub state: LoadState,
 
-    // The hash of the module's code.
+    // A hash of the state of the module, to use for the cache.
+    // This corresponds to the current state of the module.
+    // This may not match the cache held by the BuildCache.
+    // In particular, when we have made some changes and are rebuilding, this hash will
+    // reflect the current state of the module, while the BuildCache will have a previous good state.
     // None before the module is loaded.
-    pub hash: Option<ModuleCache>,
+    pub hash: Option<ModuleHash>,
 }
 
 impl Module {
@@ -60,7 +64,7 @@ impl Module {
     }
 
     // Called when a module load succeeds.
-    pub fn load_ok(&mut self, env: Environment, hash: ModuleCache) {
+    pub fn load_ok(&mut self, env: Environment, hash: ModuleHash) {
         self.state = LoadState::Ok(env);
         self.hash = Some(hash);
     }
