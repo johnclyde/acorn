@@ -19,7 +19,8 @@ pub struct ModuleCache {
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
     // The last one should match 'module'.
-    // These aren't stored when the cache is serialized because we don't need them.
+    // These aren't serialized because they are large and can be recomputed from the file.
+    #[serde(skip)]
     prefix_hashes: Vec<u64>,
 }
 
