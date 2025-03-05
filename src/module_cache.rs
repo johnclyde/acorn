@@ -74,6 +74,39 @@ impl ModuleCache {
         let module_cache = ModuleCache::load(full_filename).ok()?;
         Some((descriptor, module_cache))
     }
+
+    fn hash_dependencies<'a>(deps: impl IntoIterator<Item = &'a Module>) -> u64 {
+        let mut hasher = FxHasher::default();
+        for dep in deps {
+            if let Some(h) = &dep.hash {
+                h.dependencies.hash(&mut hasher);
+                h.content.hash(&mut hasher);
+            }
+        }
+        hasher.finish()
+    }
+
+    // Returns a content hash, and a list of prefix hashes.
+    fn hash_content(text: &str) -> (u64, Vec<u64>) {
+        let mut line_hasher = FxHasher::default();
+        let mut prefix_hashes = vec![];
+        for line in text.lines() {
+            line.hash(&mut line_hasher);
+            prefix_hashes.push(line_hasher.finish());
+        }
+        let content = *prefix_hashes.last().unwrap_or(&0);
+        (content, prefix_hashes)
+    }
+
+    pub fn new<'a>(text: &str, deps: impl IntoIterator<Item = &'a Module>) -> ModuleCache {
+        let (content, prefix_hashes) = ModuleCache::hash_content(text);
+        let dependencies = ModuleCache::hash_dependencies(deps);
+        ModuleCache {
+            dependencies,
+            content,
+            prefix_hashes,
+        }
+    }
 }
 
 pub struct ModuleHasher {
