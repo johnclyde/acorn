@@ -13,23 +13,23 @@ pub struct ModuleCache {
     // The dependencies hash represents all dependencies.
     dependencies: u64,
 
-    // The content hash represents the content of the file, plus all its dependencies.
-    content: u64,
+    // The module hash represents the content of the file, plus all its dependencies.
+    module: u64,
 
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
-    // The last one should match 'content'.
+    // The last one should match 'module'.
     // These aren't stored when the cache is serialized because we don't need them.
     prefixes: Vec<u64>,
 }
 
 impl ModuleCache {
     // TODO: how can this ever be right?
-    pub fn new(content: u64, dependencies: u64) -> ModuleCache {
+    pub fn new(module: u64, dependencies: u64) -> ModuleCache {
         ModuleCache {
-            prefixes: vec![content],
+            prefixes: vec![module],
             dependencies,
-            content,
+            module,
         }
     }
 
@@ -112,7 +112,7 @@ impl ModuleHasher {
     pub fn finish(self) -> ModuleCache {
         ModuleCache {
             dependencies: self.dependency_hasher.finish(),
-            content: *self.prefix_hashes.last().unwrap_or(&0),
+            module: *self.prefix_hashes.last().unwrap_or(&0),
             prefixes: self.prefix_hashes,
         }
     }
@@ -135,7 +135,7 @@ mod tests {
         let original_cache = ModuleCache {
             prefixes: vec![12345, 23456],
             dependencies: 67890,
-            content: 23456,
+            module: 23456,
         };
 
         // Save the cache to a file
