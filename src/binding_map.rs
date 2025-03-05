@@ -100,6 +100,7 @@ pub struct BindingMap {
 
     // Names that refer to other modules.
     // After "import foo", "foo" refers to a module.
+    // It's important that these are in alphabetical order, so that dependency hashes are consistent.
     modules: BTreeMap<String, ModuleId>,
 
     // The local name for imported modules.

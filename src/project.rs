@@ -17,7 +17,7 @@ use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
-use crate::module_cache::{ModuleCache, ModuleHasher};
+use crate::module_cache::ModuleCache;
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -693,13 +693,15 @@ impl Project {
             return Ok(module_id);
         }
 
-        // Give this module a hash.
-        let mut hasher = ModuleHasher::new(&text);
-        for dependency_id in env.bindings.direct_dependencies() {
-            hasher.add_dependency(&self.modules[dependency_id as usize]);
-        }
-        let module_hash = hasher.finish();
-        self.modules[module_id as usize].load_ok(env, module_hash);
+        // Create cache information for this module, reflecting its state on disk.
+        let module_cache = ModuleCache::new(
+            &text,
+            env.bindings
+                .direct_dependencies()
+                .iter()
+                .map(|dep_id| &self.modules[*dep_id as usize]),
+        );
+        self.modules[module_id as usize].load_ok(env, module_cache);
         Ok(module_id)
     }
 

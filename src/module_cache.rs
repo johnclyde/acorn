@@ -75,6 +75,8 @@ impl ModuleCache {
         Some((descriptor, module_cache))
     }
 
+    // Hashes the dependencies of a module into a single hash.
+    // The dependencies should be in alphabetical order by name.
     fn hash_dependencies<'a>(deps: impl IntoIterator<Item = &'a Module>) -> u64 {
         let mut hasher = FxHasher::default();
         for dep in deps {
@@ -105,46 +107,6 @@ impl ModuleCache {
             dependencies,
             content,
             prefix_hashes,
-        }
-    }
-}
-
-pub struct ModuleHasher {
-    // Will become part of the ModuleCache
-    prefix_hashes: Vec<u64>,
-
-    // For hashing the dependencies of the module
-    dependency_hasher: FxHasher,
-}
-
-impl ModuleHasher {
-    pub fn new(text: &str) -> ModuleHasher {
-        let mut line_hasher = FxHasher::default();
-        let mut prefix_hashes = vec![];
-        for line in text.lines() {
-            line.hash(&mut line_hasher);
-            prefix_hashes.push(line_hasher.finish());
-        }
-
-        ModuleHasher {
-            prefix_hashes,
-            dependency_hasher: FxHasher::default(),
-        }
-    }
-
-    // Should be called in an order that's consistent across different hashes of the same module
-    pub fn add_dependency(&mut self, module: &Module) {
-        if let Some(h) = &module.hash {
-            h.dependencies.hash(&mut self.dependency_hasher);
-            h.content.hash(&mut self.dependency_hasher);
-        }
-    }
-
-    pub fn finish(self) -> ModuleCache {
-        ModuleCache {
-            dependencies: self.dependency_hasher.finish(),
-            content: *self.prefix_hashes.last().unwrap_or(&0),
-            prefix_hashes: self.prefix_hashes,
         }
     }
 }
