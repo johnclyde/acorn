@@ -102,10 +102,8 @@ impl ModuleHasher {
     // Should be called in an order that's consistent across different hashes of the same module
     pub fn add_dependency(&mut self, module: &Module) {
         if let Some(h) = &module.hash {
-            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
-                last_prefix_hash.hash(&mut self.dependency_hasher);
-            }
             h.dependencies.hash(&mut self.dependency_hasher);
+            h.content.hash(&mut self.dependency_hasher);
         }
     }
 
