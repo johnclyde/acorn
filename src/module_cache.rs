@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::module::{Module, ModuleDescriptor};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleCache {
     // The dependencies hash represents all dependencies.
     dependencies: u64,
@@ -20,14 +20,14 @@ pub struct ModuleCache {
     // Each one hashes that line and all the lines before it.
     // The last one should match 'module'.
     // These aren't stored when the cache is serialized because we don't need them.
-    prefixes: Vec<u64>,
+    prefix_hashes: Vec<u64>,
 }
 
 impl ModuleCache {
     // TODO: how can this ever be right?
     pub fn new(module: u64, dependencies: u64) -> ModuleCache {
         ModuleCache {
-            prefixes: vec![module],
+            prefix_hashes: vec![module],
             dependencies,
             module,
         }
@@ -38,11 +38,16 @@ impl ModuleCache {
         match other {
             Some(other) => {
                 self.dependencies == other.dependencies
-                    && line < self.prefixes.len()
-                    && self.prefixes.get(line) == other.prefixes.get(line)
+                    && line < self.prefix_hashes.len()
+                    && self.prefix_hashes.get(line) == other.prefix_hashes.get(line)
             }
             None => false,
         }
+    }
+
+    // Whether we should save this cache, given an existing one.
+    pub fn requires_save(&self, existing: &ModuleCache) -> bool {
+        self.dependencies != existing.dependencies || self.module != existing.module
     }
 
     pub fn save(&self, filename: &Path) -> Result<(), Box<dyn Error>> {
@@ -59,6 +64,7 @@ impl ModuleCache {
     }
 
     // Loads a ModuleCache along with its descriptor.
+    // TODO: see if we can also populate prefixes.
     pub fn load_relative(
         root: &Path,
         full_filename: &Path,
@@ -102,7 +108,7 @@ impl ModuleHasher {
     // Should be called in an order that's consistent across different hashes of the same module
     pub fn add_dependency(&mut self, module: &Module) {
         if let Some(h) = &module.hash {
-            if let Some(last_prefix_hash) = h.prefixes.last() {
+            if let Some(last_prefix_hash) = h.prefix_hashes.last() {
                 last_prefix_hash.hash(&mut self.dependency_hasher);
             }
             h.dependencies.hash(&mut self.dependency_hasher);
@@ -113,7 +119,7 @@ impl ModuleHasher {
         ModuleCache {
             dependencies: self.dependency_hasher.finish(),
             module: *self.prefix_hashes.last().unwrap_or(&0),
-            prefixes: self.prefix_hashes,
+            prefix_hashes: self.prefix_hashes,
         }
     }
 }
@@ -133,7 +139,7 @@ mod tests {
         let file_path = temp_dir.path().join("test_cache.yaml");
 
         let original_cache = ModuleCache {
-            prefixes: vec![12345, 23456],
+            prefix_hashes: vec![12345, 23456],
             dependencies: 67890,
             module: 23456,
         };
@@ -152,9 +158,8 @@ mod tests {
         assert!(contents.contains("dependencies: 678"));
 
         // Load the cache from the file
-        let _loaded_cache = ModuleCache::load(&file_path).expect("Failed to load cache");
-
-        // TODO: compare original and loaded
+        let loaded_cache = ModuleCache::load(&file_path).expect("Failed to load cache");
+        assert!(!loaded_cache.requires_save(&original_cache));
 
         // Clean up
         fs::remove_file(file_path).expect("Failed to clean up test file");

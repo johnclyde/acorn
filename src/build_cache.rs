@@ -54,7 +54,7 @@ impl BuildCache {
     }
 
     // Inserts a module cache for a module descriptor.
-    // Saves the cache if it represents a change from the old one.
+    // Saves the cache if it conflicts with the old one.
     pub fn insert(
         &self,
         descriptor: ModuleDescriptor,
@@ -62,12 +62,11 @@ impl BuildCache {
     ) -> Result<(), Box<dyn Error>> {
         match self.inner.entry(descriptor) {
             Entry::Occupied(mut entry) => {
-                if entry.get() == &module_cache {
-                    // Nothing changed, no need to save
-                    return Ok(());
+                if !module_cache.requires_save(entry.get()) {
+                    // No need to save
+                    self.save(entry.key(), &module_cache)?;
                 }
 
-                self.save(entry.key(), &module_cache)?;
                 *entry.get_mut() = module_cache;
             }
             Entry::Vacant(entry) => {
