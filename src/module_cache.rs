@@ -157,6 +157,8 @@ mod tests {
         file.read_to_string(&mut contents)
             .expect("Failed to read file");
         assert!(contents.contains("dependencies: 678"));
+        assert!(contents.contains("module: 23456"));
+        assert!(!contents.contains("prefix_hashes"));
 
         // Load the cache from the file
         let loaded_cache = ModuleCache::load(&file_path).expect("Failed to load cache");
