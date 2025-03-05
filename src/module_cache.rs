@@ -10,12 +10,12 @@ use crate::module::{Module, ModuleDescriptor};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModuleCache {
+    // This single hash represents all dependencies.
+    dependencies: u64,
+
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
     prefixes: Vec<u64>,
-
-    // This single hash represents all dependencies.
-    dependencies: u64,
 }
 
 impl ModuleCache {
