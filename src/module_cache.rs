@@ -13,12 +13,13 @@ pub struct ModuleCache {
     // The dependencies hash represents all dependencies.
     dependencies: u64,
 
-    // The module hash represents the content of the file, plus all its dependencies.
-    module: u64,
+    // The content hash represents just the content of the file.
+    // It's zero if there are no lines in the file.
+    content: u64,
 
     // There is one prefix hash per line in the file.
     // Each one hashes that line and all the lines before it.
-    // The last one should match 'module'.
+    // The last one should match the content hash.
     // These aren't serialized because they are large and can be recomputed from the file.
     #[serde(skip)]
     prefix_hashes: Vec<u64>,
@@ -39,7 +40,7 @@ impl ModuleCache {
 
     // Whether we should save this cache, given an existing one.
     pub fn requires_save(&self, existing: &ModuleCache) -> bool {
-        self.dependencies != existing.dependencies || self.module != existing.module
+        self.dependencies != existing.dependencies || self.content != existing.content
     }
 
     pub fn save(&self, filename: &Path) -> Result<(), Box<dyn Error>> {
@@ -49,6 +50,7 @@ impl ModuleCache {
         Ok(())
     }
 
+    // TODO: see if we can also populate prefixes.
     pub fn load(filename: &Path) -> Result<ModuleCache, Box<dyn Error>> {
         let file = File::open(filename)?;
         let cache = serde_yaml::from_reader(file)?;
@@ -110,7 +112,7 @@ impl ModuleHasher {
     pub fn finish(self) -> ModuleCache {
         ModuleCache {
             dependencies: self.dependency_hasher.finish(),
-            module: *self.prefix_hashes.last().unwrap_or(&0),
+            content: *self.prefix_hashes.last().unwrap_or(&0),
             prefix_hashes: self.prefix_hashes,
         }
     }
@@ -133,7 +135,7 @@ mod tests {
         let original_cache = ModuleCache {
             prefix_hashes: vec![12345, 23456],
             dependencies: 67890,
-            module: 23456,
+            content: 23456,
         };
 
         // Save the cache to a file
@@ -148,7 +150,7 @@ mod tests {
         file.read_to_string(&mut contents)
             .expect("Failed to read file");
         assert!(contents.contains("dependencies: 678"));
-        assert!(contents.contains("module: 23456"));
+        assert!(contents.contains("content: 23456"));
         assert!(!contents.contains("prefix_hashes"));
 
         // Load the cache from the file
