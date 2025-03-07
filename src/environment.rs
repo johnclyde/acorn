@@ -102,7 +102,6 @@ impl Environment {
 
     // Create a child environment.
     pub fn create_child(&self, first_line: u32, implicit: bool, block_name: String) -> Self {
-        // TODO: have a block name
         Environment {
             module_id: self.module_id,
             bindings: self.bindings.clone(),
