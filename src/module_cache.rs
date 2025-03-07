@@ -9,6 +9,7 @@ use std::path::Path;
 use crate::module::{Module, ModuleDescriptor};
 
 // The ModuleHash reflects the state of a module that is loadable, but may or may not be verifiable.
+#[derive(Debug)]
 pub struct ModuleHash {
     // The dependencies hash represents all dependencies.
     dependencies: u64,

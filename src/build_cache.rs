@@ -62,14 +62,15 @@ impl BuildCache {
     ) -> Result<(), Box<dyn Error>> {
         match self.inner.entry(descriptor) {
             Entry::Occupied(mut entry) => {
-                if !module_cache.requires_save(entry.get()) {
-                    // No need to save
+                if module_cache.requires_save(entry.get()) {
+                    // Overwrite the old on-disk cache
                     self.save(entry.key(), &module_cache)?;
                 }
 
                 *entry.get_mut() = module_cache;
             }
             Entry::Vacant(entry) => {
+                // Create a new on-disk cache for this module
                 self.save(entry.key(), &module_cache)?;
                 entry.insert(module_cache);
             }
