@@ -512,7 +512,7 @@ impl Project {
         let (status, num_success) = {
             let mut builder = self.builder(|event| events.push(event));
             self.build(&mut builder);
-            (builder.status, builder.num_success)
+            (builder.status, builder.searches_success)
         };
         (status, events, num_success)
     }

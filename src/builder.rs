@@ -96,9 +96,12 @@ pub struct Builder<'a> {
     // Counted up during the loading phase.
     pub goals_total: i32,
 
-    // The number of goals for which the proof search finished.
-    // This includes both successful and unsuccessful searches.
+    // The number of goals that we have processed in the build.
+    // This includes cache hits, successful searches, and unsuccessful searches.
     pub goals_done: i32,
+
+    // The number of goals that were successfully proven, either via search or via cache.
+    pub goals_success: i32,
 
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
@@ -114,11 +117,13 @@ pub struct Builder<'a> {
     pub dataset: Option<Dataset>,
 
     // The Builder also tracks statistics.
-    // Think of these as having a "goal_done" denominator.
     // When we use the cache, we don't use it to modify these statistics.
 
-    // Number of goals successfully proven
-    pub num_success: i32,
+    // How many proof searches we did.
+    pub searches_total: i32,
+
+    // Number of proof searches that ended in success.
+    pub searches_success: i32,
 
     // The total number of clauses activated.
     pub num_activated: i32,
@@ -142,11 +147,13 @@ impl<'a> Builder<'a> {
             id: NEXT_BUILD_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
             goals_total: 0,
             goals_done: 0,
+            goals_success: 0,
             log_when_slow: false,
             current_module: None,
             current_module_good: true,
             dataset: None,
-            num_success: 0,
+            searches_total: 0,
+            searches_success: 0,
             num_activated: 0,
             sum_square_activated: 0,
             num_clauses: 0,
@@ -253,6 +260,7 @@ impl<'a> Builder<'a> {
 
         // Tracking statistics
         self.goals_done += 1;
+        self.searches_total += 1;
         self.proving_time += elapsed_f64;
         let num_activated = prover.num_activated() as i32;
         self.num_activated += num_activated;
@@ -267,8 +275,9 @@ impl<'a> Builder<'a> {
                     if proof.needs_simplification() {
                         self.log_proving_warning(&prover, &goal_context, "needs simplification");
                     } else {
-                        // Both of these count as a success.
-                        self.num_success += 1;
+                        // Both of these count as a search success.
+                        self.goals_success += 1;
+                        self.searches_success += 1;
                         if self.log_when_slow && elapsed_f64 > 0.1 {
                             self.log_proving_info(
                                 &prover,
@@ -330,6 +339,7 @@ impl<'a> Builder<'a> {
     // Call as an alternative to search_finished.
     pub fn log_proving_success_cached(&mut self, goal_context: &GoalContext) {
         self.goals_done += 1;
+        self.goals_success += 1;
         self.log_proving_success(goal_context);
     }
 
@@ -402,16 +412,20 @@ impl<'a> Builder<'a> {
                 println!("Build completed successfully.");
             }
         }
-        println!("{}/{} OK", self.num_success, self.goals_total);
-        let success_percent = 100.0 * self.num_success as f64 / self.goals_total as f64;
-        println!("{:.1}% success rate", success_percent);
-        let num_activated = self.num_activated as f64 / self.num_success as f64;
-        println!("{:.2} average activations", num_activated);
-        let mean_square_activated = self.sum_square_activated as f64 / self.num_success as f64;
-        println!("{:.1} mean square activations", mean_square_activated);
-        let num_clauses = self.num_clauses as f64 / self.num_success as f64;
-        println!("{:.2} average clauses", num_clauses);
-        let proving_time_ms = 1000.0 * self.proving_time / self.num_success as f64;
-        println!("{:.1} ms average proving time", proving_time_ms);
+        println!("{}/{} OK", self.goals_success, self.goals_total);
+        println!("{} searches performed", self.searches_total);
+        if self.searches_total > 0 {
+            let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
+            println!("{:.1}% search success rate", success_percent);
+            let num_activated = self.num_activated as f64 / self.searches_success as f64;
+            println!("{:.2} average activations", num_activated);
+            let mean_square_activated =
+                self.sum_square_activated as f64 / self.searches_total as f64;
+            println!("{:.1} mean square activations", mean_square_activated);
+            let num_clauses = self.num_clauses as f64 / self.searches_total as f64;
+            println!("{:.2} average clauses", num_clauses);
+            let proving_time_ms = 1000.0 * self.proving_time / self.searches_total as f64;
+            println!("{:.1} ms average proving time", proving_time_ms);
+        }
     }
 }
