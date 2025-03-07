@@ -90,6 +90,7 @@ pub enum BlockParams<'a> {
 }
 
 impl Block {
+    // Creates a new block, as a direct child of the given environment.
     pub fn new(
         project: &mut Project,
         env: &Environment,
@@ -100,7 +101,7 @@ impl Block {
         last_line: u32,
         body: Option<&Body>,
     ) -> compilation::Result<Block> {
-        let mut subenv = env.child(first_line, body.is_none());
+        let mut subenv = env.create_child(first_line, body.is_none());
 
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params

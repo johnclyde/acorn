@@ -77,6 +77,11 @@ pub struct Environment {
 
     // Whether this environment is at the top level of a module.
     pub top_level: bool,
+
+    // Environments that are not the top level should have a block name.
+    // Right below the top level, every block has a different name.
+    // Below that, the block name is the same as the block above it.
+    pub block_name: Option<String>,
 }
 
 impl Environment {
@@ -91,11 +96,13 @@ impl Environment {
             line_types: Vec::new(),
             implicit: false,
             top_level: true,
+            block_name: None,
         }
     }
 
     // Create a child environment.
-    pub fn child(&self, first_line: u32, implicit: bool) -> Self {
+    pub fn create_child(&self, first_line: u32, implicit: bool) -> Self {
+        // TODO: have a block name
         Environment {
             module_id: self.module_id,
             bindings: self.bindings.clone(),
@@ -106,6 +113,7 @@ impl Environment {
             line_types: Vec::new(),
             implicit,
             top_level: false,
+            block_name: None,
         }
     }
 
