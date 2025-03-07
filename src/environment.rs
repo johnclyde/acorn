@@ -101,7 +101,7 @@ impl Environment {
     }
 
     // Create a child environment.
-    pub fn create_child(&self, first_line: u32, implicit: bool) -> Self {
+    pub fn create_child(&self, first_line: u32, implicit: bool, block_name: String) -> Self {
         // TODO: have a block name
         Environment {
             module_id: self.module_id,
@@ -113,7 +113,7 @@ impl Environment {
             line_types: Vec::new(),
             implicit,
             top_level: false,
-            block_name: None,
+            block_name: Some(block_name),
         }
     }
 

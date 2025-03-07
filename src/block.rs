@@ -101,7 +101,11 @@ impl Block {
         last_line: u32,
         body: Option<&Body>,
     ) -> compilation::Result<Block> {
-        let mut subenv = env.create_child(first_line, body.is_none());
+        let block_name = env.block_name.clone().unwrap_or_else(|| match params {
+            BlockParams::Theorem(Some(name), _, _, _) => name.to_string(),
+            _ => first_line.to_string(),
+        });
+        let mut subenv = env.create_child(first_line, body.is_none(), block_name);
 
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params
