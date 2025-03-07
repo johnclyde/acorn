@@ -101,11 +101,11 @@ impl Block {
         last_line: u32,
         body: Option<&Body>,
     ) -> compilation::Result<Block> {
-        let block_name = env.block_name.clone().unwrap_or_else(|| match params {
-            BlockParams::Theorem(Some(name), _, _, _) => name.to_string(),
-            _ => first_line.to_string(),
-        });
-        let mut subenv = env.create_child(first_line, body.is_none(), block_name);
+        let theorem_name = match params {
+            BlockParams::Theorem(name, _, _, _) => name,
+            _ => None,
+        };
+        let mut subenv = env.create_child(first_line, body.is_none(), theorem_name);
 
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params
@@ -473,7 +473,7 @@ impl<'a> NodeCursor<'a> {
     // Only call this on a module level environment.
     // Returns None if there are no nodes in the environment.
     pub fn new(env: &'a Environment, index: usize) -> Self {
-        assert!(env.top_level);
+        assert_eq!(env.depth, 0);
         assert!(env.nodes.len() > index);
         NodeCursor {
             annotated_path: vec![(env, index)],
@@ -535,7 +535,7 @@ impl<'a> NodeCursor<'a> {
 
     // The fact at the current node.
     pub fn get_fact(&self) -> Fact {
-        let truthiness = if self.env().top_level {
+        let truthiness = if self.env().depth == 0 {
             Truthiness::Factual
         } else {
             Truthiness::Hypothetical
@@ -549,7 +549,7 @@ impl<'a> NodeCursor<'a> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
             for prop in &env.nodes[0..*i] {
-                let truthiness = if env.top_level {
+                let truthiness = if env.depth == 0 {
                     Truthiness::Factual
                 } else {
                     Truthiness::Hypothetical

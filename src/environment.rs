@@ -75,12 +75,14 @@ pub struct Environment {
     // the user has asserted without proof.
     pub implicit: bool,
 
-    // Whether this environment is at the top level of a module.
-    pub top_level: bool,
+    // The depth if you think of the environments in a module like a tree structure.
+    // The root environment for a module has depth zero.
+    // Each child node has a depth of one plus its parent.
+    pub depth: u32,
 
-    // Environments that are not the top level should have a block name.
-    // Right below the top level, every block has a different name.
-    // Below that, the block name is the same as the block above it.
+    // Depth-zero environments don't have a block name.
+    // Depth-one environments each have a unique block name.
+    // Deeper environments, share their block name with their parent.
     pub block_name: Option<String>,
 }
 
@@ -95,13 +97,23 @@ impl Environment {
             first_line: 0,
             line_types: Vec::new(),
             implicit: false,
-            top_level: true,
+            depth: 0,
             block_name: None,
         }
     }
 
     // Create a child environment.
-    pub fn create_child(&self, first_line: u32, implicit: bool, block_name: String) -> Self {
+    pub fn create_child(
+        &self,
+        first_line: u32,
+        implicit: bool,
+        theorem_name: Option<&str>,
+    ) -> Self {
+        let block_name = if self.depth == 0 {
+            theorem_name.map(|s| s.to_string())
+        } else {
+            self.block_name.clone()
+        };
         Environment {
             module_id: self.module_id,
             bindings: self.bindings.clone(),
@@ -111,8 +123,8 @@ impl Environment {
             first_line,
             line_types: Vec::new(),
             implicit,
-            top_level: false,
-            block_name: Some(block_name),
+            depth: self.depth + 1,
+            block_name,
         }
     }
 
@@ -398,7 +410,7 @@ impl Environment {
                 ds.name
             )));
         }
-        if !self.top_level && !ds.type_params.is_empty() {
+        if self.depth > 0 && !ds.type_params.is_empty() {
             return Err(ds
                 .name_token
                 .error("parametrized functions may only be defined at the top level"));
@@ -1682,7 +1694,7 @@ impl Environment {
     // Get all facts that this environment exports.
     // If the filter is provided, we only return facts whose name is in the filter.
     pub fn exported_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
-        assert!(self.top_level);
+        assert_eq!(self.depth, 0);
         let mut facts = vec![];
         for node in &self.nodes {
             if let Some(filter) = filter {
