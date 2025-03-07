@@ -24,16 +24,17 @@ struct Args {
     #[clap(long)]
     dataset: bool,
 
-    // Disable caching with --no-cache.
+    // Use the cache if --cache is set.
+    // By default, the cache is not used.
     #[clap(long)]
-    no_cache: bool,
+    cache: bool,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    let mut project = Project::new_local(!args.no_cache).unwrap();
+    let mut project = Project::new_local(args.cache).unwrap();
 
     if let Some(target) = args.target {
         if target.ends_with(".ac") {
