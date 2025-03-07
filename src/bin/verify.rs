@@ -23,13 +23,18 @@ struct Args {
     // Create a dataset from the prover logs.
     #[clap(long)]
     dataset: bool,
+
+    // Disable caching with --no-cache.
+    #[clap(long)]
+    no_cache: bool,
 }
 
 #[tokio::main]
 async fn main() {
-    let mut project = Project::new_local().unwrap();
-
     let args = Args::parse();
+
+    let mut project = Project::new_local(!args.no_cache).unwrap();
+
     if let Some(target) = args.target {
         if target.ends_with(".ac") {
             // Looks like a filename

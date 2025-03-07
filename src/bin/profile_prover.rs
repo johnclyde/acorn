@@ -8,7 +8,7 @@ use acorn::project::Project;
 
 fn main() {
     for _ in 0..10 {
-        let mut project = Project::new_local().unwrap();
+        let mut project = Project::new_local(false).unwrap();
         assert!(project.add_target_by_name("nat"));
         assert!(project.add_target_by_name("nat_gcd"));
         assert!(project.add_target_by_name("int"));

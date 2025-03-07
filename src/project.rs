@@ -97,12 +97,14 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
 }
 
 impl Project {
-    pub fn new(library_root: PathBuf, cache_writable: bool) -> Project {
+    // Create a new project.
+    // Flags control whether we read the cache, and whether we write the cache.
+    pub fn new(library_root: PathBuf, read_cache: bool, write_cache: bool) -> Project {
         let cache_dir = library_root.join("build");
 
         // Check if the directory exists
-        let build_cache = if cache_dir.is_dir() {
-            BuildCache::new(Some(cache_dir), cache_writable)
+        let build_cache = if read_cache && cache_dir.is_dir() {
+            BuildCache::new(Some(cache_dir), write_cache)
         } else {
             BuildCache::new(None, false)
         };
@@ -148,16 +150,16 @@ impl Project {
 
     // A Project based on the current working directory.
     // Returns None if we can't find an acorn library.
-    pub fn new_local() -> Option<Project> {
+    pub fn new_local(use_cache: bool) -> Option<Project> {
         let current_dir = std::env::current_dir().ok()?;
         let library_root = Project::find_local_acorn_library(&current_dir)?;
-        Some(Project::new(library_root, true))
+        Some(Project::new(library_root, use_cache, use_cache))
     }
 
     // A Project where nothing can be imported.
     pub fn new_mock() -> Project {
         let mock_dir = PathBuf::from("/mock");
-        let mut p = Project::new(mock_dir, false);
+        let mut p = Project::new(mock_dir, false, false);
         p.use_filesystem = false;
         p
     }
