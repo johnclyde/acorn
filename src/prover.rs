@@ -876,7 +876,7 @@ impl Prover {
         })
     }
 
-    // Shoud only be called after proving completes successfully.
+    // Should only be called after proving completes successfully.
     // Gets the qualified name of every fact that was used in the proof.
     pub fn get_useful_fact_names(&self) -> BTreeSet<(ModuleId, String)> {
         let proof = self.get_uncondensed_proof().unwrap();
