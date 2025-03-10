@@ -19,6 +19,7 @@ use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::prover::Prover;
+use crate::theorem_cache::TheoremCache;
 use crate::token::Token;
 
 // The Project is responsible for importing different files and assigning them module ids.
@@ -372,6 +373,7 @@ impl Project {
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
         let existing_cache = self.build_cache.get_cloned(target);
+        let mut new_theorem_cache = TheoremCache::new();
 
         builder.module_proving_started(target.clone());
 
@@ -381,8 +383,11 @@ impl Project {
         self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
             if current_hash.matches_through_line(&existing_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
+                if let Some(theorem) = &goal_context.theorem {
+                    new_theorem_cache.skip(&theorem.name);
+                }
             } else {
-                self.prove(prover, goal_context, builder)
+                self.prove(prover, goal_context, builder, &mut new_theorem_cache);
             };
             !builder.status.is_error()
         });
@@ -495,12 +500,23 @@ impl Project {
     }
 
     // Proves a single goal in the target, using the provided prover.
-    // Reports using the handler as appropriate.
-    fn prove(&self, mut prover: Prover, goal_context: GoalContext, builder: &mut Builder) {
+    // Reports using the builder.
+    // Adds to the theorem cache if possible.
+    fn prove(
+        &self,
+        mut prover: Prover,
+        goal_context: GoalContext,
+        builder: &mut Builder,
+        theorem_cache: &mut TheoremCache,
+    ) {
         let start = std::time::Instant::now();
         let outcome = prover.verification_search();
 
         builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
+        if let Some(theorem) = goal_context.theorem {
+            let premises = prover.get_useful_fact_names();
+            theorem_cache.report_premises(theorem.name.clone(), premises);
+        }
     }
 
     // Does the build and returns when it's done, rather than asynchronously.

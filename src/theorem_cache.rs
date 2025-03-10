@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use crate::module::ModuleId;
 
@@ -26,6 +26,8 @@ impl TheoremCacheEntry {
 
 // The TheoremCache applies to a single module.
 pub struct TheoremCache {
+    // Name of the theorem, and cache entry.
+    // Names should be unique.
     theorems: Vec<(String, TheoremCacheEntry)>,
 }
 
@@ -44,18 +46,25 @@ impl TheoremCache {
             .push((theorem.to_string(), TheoremCacheEntry::Skipped));
     }
 
-    pub fn report_premises(&mut self, theorem: &str, new_premises: BTreeSet<(ModuleId, String)>) {
+    pub fn report_premises(&mut self, theorem: String, premises: BTreeSet<(ModuleId, String)>) {
         if let Some((last_theorem, existing_premises)) = self.theorems.last_mut() {
-            if last_theorem == theorem {
-                for premise in new_premises {
+            if last_theorem == &theorem {
+                for premise in premises {
                     existing_premises.add_premise(premise);
                 }
                 return;
             }
         }
-        self.theorems.push((
-            theorem.to_string(),
-            TheoremCacheEntry::Premises(new_premises),
-        ));
+        self.theorems
+            .push((theorem, TheoremCacheEntry::Premises(premises)));
+    }
+
+    pub fn validate(&self) {
+        let mut names = HashSet::new();
+        for (name, _) in &self.theorems {
+            if !names.insert(name) {
+                panic!("duplicate theorem name: {}", name);
+            }
+        }
     }
 }
