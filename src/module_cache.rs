@@ -1,6 +1,6 @@
 use fxhash::FxHasher;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -95,6 +95,11 @@ pub struct ModuleCache {
     // TODO: see if we can serialize this.
     #[serde(skip)]
     theorems: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+
+    // Theorems that we can't cache for whatever reason.
+    // We taint them to be sure we don't save a partial cache for them.
+    #[serde(skip)]
+    tainted_theorems: HashSet<String>,
 }
 
 impl ModuleCache {
@@ -141,16 +146,34 @@ impl ModuleCache {
             content: hash.content,
             prefix_hashes: hash.prefix_hashes.clone(),
             theorems: BTreeMap::new(),
+            tainted_theorems: HashSet::new(),
         }
     }
 
     pub fn add_premise(&mut self, theorem: &str, module: &str, premise: String) {
+        if self.tainted_theorems.contains(theorem) {
+            return;
+        }
         self.theorems
             .entry(theorem.to_string())
             .or_insert_with(BTreeMap::new)
             .entry(module.to_string())
             .or_insert_with(Vec::new)
             .push(premise);
+    }
+
+    // Mark this theorem as one that we are not going to save premises for.
+    pub fn taint_theorem(&mut self, theorem: &str) {
+        self.tainted_theorems.insert(theorem.to_string());
+        self.theorems.remove(theorem);
+    }
+
+    // Copies the premise cache for one theorem from another cache.
+    pub fn copy_theorem_cache(&mut self, other: &ModuleCache, theorem: &str) {
+        if let Some(theorem_cache) = other.theorems.get(theorem) {
+            self.theorems
+                .insert(theorem.to_string(), theorem_cache.clone());
+        }
     }
 }
 
@@ -173,6 +196,7 @@ mod tests {
             dependencies: 67890,
             content: 23456,
             theorems: BTreeMap::new(),
+            tainted_theorems: HashSet::new(),
         };
 
         // Save the cache to a file

@@ -381,8 +381,8 @@ impl Project {
         self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
             if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
-                if let Some(theorem) = &goal_context.theorem {
-                    // XXX: copy over the whole entry
+                if let (Some(theorem), Some(old_cache)) = (&goal_context.theorem, &old_cache) {
+                    new_cache.copy_theorem_cache(&old_cache, &theorem.name);
                 }
             } else {
                 self.prove(prover, goal_context, builder, &old_cache, &mut new_cache);
@@ -504,7 +504,7 @@ impl Project {
         mut prover: Prover,
         goal_context: GoalContext,
         builder: &mut Builder,
-        old_cache: &Option<ModuleCache>,
+        _old_cache: &Option<ModuleCache>,
         new_cache: &mut ModuleCache,
     ) {
         let start = std::time::Instant::now();
@@ -514,10 +514,16 @@ impl Project {
         if let Some(theorem) = goal_context.theorem {
             let premise_map = prover.get_useful_fact_names();
             for (module_id, premises) in premise_map {
-                // XXX we shouldn't unwrap here.
-                let module = self.get_module_name_by_id(module_id).unwrap();
-                for premise in premises {
-                    new_cache.add_premise(&theorem.name, module, premise);
+                match self.get_module_name_by_id(module_id) {
+                    Some(module) => {
+                        for premise in premises {
+                            new_cache.add_premise(&theorem.name, module, premise);
+                        }
+                    }
+                    None => {
+                        new_cache.taint_theorem(&theorem.name);
+                        return;
+                    }
                 }
             }
         }
