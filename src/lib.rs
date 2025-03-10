@@ -42,6 +42,7 @@ pub mod statement;
 pub mod term;
 pub mod term_graph;
 pub mod termination_checker;
+pub mod theorem_cache;
 pub mod token;
 pub mod type_map;
 pub mod unifier;
