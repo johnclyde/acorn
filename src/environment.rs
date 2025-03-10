@@ -43,6 +43,15 @@ pub enum LineType {
     Closing,
 }
 
+// The proofs in the module are mostly grouped into theorems.
+#[derive(Clone, Debug)]
+pub struct TheoremInfo {
+    // The theorem name is unique within the module.
+    pub name: String,
+
+    pub last_line: u32,
+}
+
 // The Environment takes Statements as input and processes them.
 // It does not prove anything directly, but it is responsible for determining which
 // things need to be proved, and which statements are usable in which proofs.
@@ -80,10 +89,9 @@ pub struct Environment {
     // Each child node has a depth of one plus its parent.
     pub depth: u32,
 
-    // Depth-zero environments don't have a block name.
-    // Depth-one environments each have a unique block name.
-    // Deeper environments, share their block name with their parent.
-    pub block_name: Option<String>,
+    // When an environment is within the scope of proving a single theorem, this
+    // provides information about that theorem.
+    pub theorem: Option<TheoremInfo>,
 }
 
 impl Environment {
@@ -98,21 +106,26 @@ impl Environment {
             line_types: Vec::new(),
             implicit: false,
             depth: 0,
-            block_name: None,
+            theorem: None,
         }
     }
 
     // Create a child environment.
+    // theorem_name is provided if this is the newly-created environment for proving a theorem.
     pub fn create_child(
         &self,
         first_line: u32,
+        last_line: u32,
         implicit: bool,
         theorem_name: Option<&str>,
     ) -> Self {
-        let block_name = if self.depth == 0 {
-            theorem_name.map(|s| s.to_string())
+        let theorem = if self.depth == 0 {
+            theorem_name.map(|name| TheoremInfo {
+                name: name.to_string(),
+                last_line,
+            })
         } else {
-            self.block_name.clone()
+            self.theorem.clone()
         };
         Environment {
             module_id: self.module_id,
@@ -124,7 +137,7 @@ impl Environment {
             line_types: Vec::new(),
             implicit,
             depth: self.depth + 1,
-            block_name,
+            theorem,
         }
     }
 

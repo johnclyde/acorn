@@ -376,18 +376,19 @@ impl Project {
         builder.module_proving_started(target.clone());
 
         // Fast and slow modes should be interchangeable here.
-        // If we run into a bug with fast mode, try using slow mode to debug.
+        // If we run into a bug with fast mode, we can try using slow mode to debug.
         // TODO: let the prover use the existing cache for premise selection
         self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
-            if current_hash.matches_through_line(&existing_cache, goal_context.last_line) {
+            if current_hash.matches_through_line(&existing_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
-                true
             } else {
                 self.prove(prover, goal_context, builder)
-            }
+            };
+            !builder.status.is_error()
         });
 
         if builder.module_proving_complete(target) {
+            // The module was entirely verified. We can update the cache.
             let new_cache = ModuleCache::new(current_hash);
             if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
                 builder.log_info(format!("error in build cache: {}", e));
@@ -495,14 +496,11 @@ impl Project {
 
     // Proves a single goal in the target, using the provided prover.
     // Reports using the handler as appropriate.
-    // Returns true if we should keep building, false if we should stop.
-    fn prove(&self, mut prover: Prover, goal_context: GoalContext, builder: &mut Builder) -> bool {
+    fn prove(&self, mut prover: Prover, goal_context: GoalContext, builder: &mut Builder) {
         let start = std::time::Instant::now();
         let outcome = prover.verification_search();
 
         builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
-
-        !builder.status.is_error()
     }
 
     // Does the build and returns when it's done, rather than asynchronously.

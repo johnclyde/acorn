@@ -105,7 +105,7 @@ impl Block {
             BlockParams::Theorem(name, _, _, _) => name,
             _ => None,
         };
-        let mut subenv = env.create_child(first_line, body.is_none(), theorem_name);
+        let mut subenv = env.create_child(first_line, last_line, body.is_none(), theorem_name);
 
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params

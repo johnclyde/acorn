@@ -1,7 +1,7 @@
 use tower_lsp::lsp_types::Range;
 
 use crate::acorn_value::AcornValue;
-use crate::environment::Environment;
+use crate::environment::{Environment, TheoremInfo};
 use crate::module::ModuleId;
 use crate::proposition::Proposition;
 
@@ -54,6 +54,10 @@ pub struct GoalContext {
     // This range includes the entire proof block for this goal, if there is one.
     pub first_line: u32,
     pub last_line: u32,
+
+    // The theorem that this goal is part of proving.
+    // Some goals are at the root level and don't have an associated theorem.
+    pub theorem: Option<TheoremInfo>,
 }
 
 impl GoalContext {
@@ -95,6 +99,16 @@ impl GoalContext {
             inconsistency_okay: env.includes_explicit_false,
             first_line,
             last_line,
+            theorem: env.theorem.clone(),
+        }
+    }
+
+    // We won't try to re-prove the goal if the file is the same up to the cache line.
+    pub fn cache_line(&self) -> u32 {
+        if let Some(theorem) = &self.theorem {
+            theorem.last_line
+        } else {
+            self.last_line
         }
     }
 }
