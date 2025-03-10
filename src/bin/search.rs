@@ -50,7 +50,7 @@ async fn main() {
             Outcome::Success => {
                 println!("success!");
                 prover.get_and_print_proof();
-                let proof = prover.get_proof().unwrap();
+                let proof = prover.get_condensed_proof().unwrap();
                 match proof.to_code(&env.bindings) {
                     Ok(code) => {
                         println!("\ngenerated code:\n");

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -15,6 +15,7 @@ use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::interfaces::{ClauseInfo, InfoResult, Location, ProofStepInfo};
 use crate::literal::Literal;
+use crate::module::ModuleId;
 use crate::monomorphizer::Monomorphizer;
 use crate::normalizer::{Normalization, NormalizationError, Normalizer};
 use crate::passive_set::PassiveSet;
@@ -399,7 +400,7 @@ impl Prover {
     }
 
     pub fn get_and_print_proof(&self) -> Option<Proof> {
-        let proof = match self.get_proof() {
+        let proof = match self.get_condensed_proof() {
             Some(proof) => proof,
             None => {
                 println!("we do not have a proof");
@@ -431,8 +432,7 @@ impl Prover {
         Some(proof)
     }
 
-    // Returns a condensed proof, if we have a proof.
-    pub fn get_proof(&self) -> Option<Proof> {
+    fn get_uncondensed_proof(&self) -> Option<Proof> {
         let final_step = match &self.final_step {
             Some(step) => step,
             None => return None,
@@ -469,6 +469,12 @@ impl Prover {
             proof.add_step(ProofStepId::Passive(i as u32), step);
         }
         proof.add_step(ProofStepId::Final, final_step);
+        Some(proof)
+    }
+
+    // Returns a condensed proof, if we have a proof.
+    pub fn get_condensed_proof(&self) -> Option<Proof> {
+        let mut proof = self.get_uncondensed_proof()?;
         proof.condense();
         Some(proof)
     }
@@ -807,6 +813,7 @@ impl Prover {
         }
     }
 
+    // Call this after the prover succeeds to get the proof steps in jsonable form.
     pub fn to_proof_info(
         &self,
         project: &Project,
@@ -867,5 +874,20 @@ impl Prover {
             consequences,
             num_consequences,
         })
+    }
+
+    // Shoud only be called after proving completes successfully.
+    // Gets the qualified name of every fact that was used in the proof.
+    pub fn get_useful_fact_names(&self) -> BTreeSet<(ModuleId, String)> {
+        let proof = self.get_uncondensed_proof().unwrap();
+        let mut result = BTreeSet::new();
+        for (_, step) in &proof.all_steps {
+            if let Rule::Assumption(ai) = &step.rule {
+                if let Some((module_id, name)) = ai.source.qualified_name() {
+                    result.insert((module_id, name));
+                }
+            }
+        }
+        result
     }
 }

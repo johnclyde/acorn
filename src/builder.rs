@@ -269,7 +269,7 @@ impl<'a> Builder<'a> {
         self.sum_square_activated += (num_activated * num_activated) as u64;
 
         match outcome {
-            Outcome::Success => match prover.get_proof() {
+            Outcome::Success => match prover.get_condensed_proof() {
                 None => self.log_proving_warning(&prover, &goal_context, "had a missing proof"),
                 Some(proof) => {
                     if proof.needs_simplification() {
