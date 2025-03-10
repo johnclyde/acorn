@@ -1,5 +1,6 @@
 use fxhash::FxHasher;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -89,6 +90,11 @@ pub struct ModuleCache {
     // So, they are optional and may be absent.
     #[serde(skip)]
     prefix_hashes: Vec<u64>,
+
+    // theorems[theorem name][module name] = list of premises used in that module
+    // TODO: see if we can serialize this.
+    #[serde(skip)]
+    theorems: BTreeMap<String, BTreeMap<String, Vec<String>>>,
 }
 
 impl ModuleCache {
@@ -134,7 +140,17 @@ impl ModuleCache {
             dependencies: hash.dependencies,
             content: hash.content,
             prefix_hashes: hash.prefix_hashes.clone(),
+            theorems: BTreeMap::new(),
         }
+    }
+
+    pub fn add_premise(&mut self, theorem: &str, module: &str, premise: String) {
+        self.theorems
+            .entry(theorem.to_string())
+            .or_insert_with(BTreeMap::new)
+            .entry(module.to_string())
+            .or_insert_with(Vec::new)
+            .push(premise);
     }
 }
 
@@ -156,6 +172,7 @@ mod tests {
             prefix_hashes: vec![12345, 23456],
             dependencies: 67890,
             content: 23456,
+            theorems: BTreeMap::new(),
         };
 
         // Save the cache to a file

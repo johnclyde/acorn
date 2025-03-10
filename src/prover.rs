@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -878,13 +878,13 @@ impl Prover {
 
     // Should only be called after proving completes successfully.
     // Gets the qualified name of every fact that was used in the proof.
-    pub fn get_useful_fact_names(&self) -> BTreeSet<(ModuleId, String)> {
+    pub fn get_useful_fact_names(&self) -> HashMap<ModuleId, Vec<String>> {
         let proof = self.get_uncondensed_proof().unwrap();
-        let mut result = BTreeSet::new();
+        let mut result = HashMap::new();
         for (_, step) in &proof.all_steps {
             if let Rule::Assumption(ai) = &step.rule {
                 if let Some((module_id, name)) = ai.source.qualified_name() {
-                    result.insert((module_id, name));
+                    result.entry(module_id).or_insert_with(Vec::new).push(name);
                 }
             }
         }

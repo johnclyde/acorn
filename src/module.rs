@@ -68,6 +68,13 @@ impl Module {
         self.state = LoadState::Ok(env);
         self.hash = Some(hash);
     }
+
+    pub fn name(&self) -> Option<&str> {
+        match &self.descriptor {
+            ModuleDescriptor::Name(name) => Some(name),
+            _ => None,
+        }
+    }
 }
 
 // The LoadState describes the state of a module, loaded or not or in progress.

@@ -19,7 +19,6 @@ use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::prover::Prover;
-use crate::theorem_cache::TheoremCache;
 use crate::token::Token;
 
 // The Project is responsible for importing different files and assigning them module ids.
@@ -372,29 +371,27 @@ impl Project {
     // Verifies all goals within this target.
     fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
-        let existing_cache = self.build_cache.get_cloned(target);
-        let mut new_theorem_cache = TheoremCache::new();
+        let old_cache = self.build_cache.get_cloned(target);
+        let mut new_cache = ModuleCache::new(current_hash);
 
         builder.module_proving_started(target.clone());
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, we can try using slow mode to debug.
-        // TODO: let the prover use the existing cache for premise selection
         self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
-            if current_hash.matches_through_line(&existing_cache, goal_context.cache_line()) {
+            if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
                 if let Some(theorem) = &goal_context.theorem {
-                    new_theorem_cache.skip(&theorem.name);
+                    // XXX: copy over the whole entry
                 }
             } else {
-                self.prove(prover, goal_context, builder, &mut new_theorem_cache);
+                self.prove(prover, goal_context, builder, &old_cache, &mut new_cache);
             };
             !builder.status.is_error()
         });
 
         if builder.module_proving_complete(target) {
             // The module was entirely verified. We can update the cache.
-            let new_cache = ModuleCache::new(current_hash);
             if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
                 builder.log_info(format!("error in build cache: {}", e));
             }
@@ -501,21 +498,28 @@ impl Project {
 
     // Proves a single goal in the target, using the provided prover.
     // Reports using the builder.
-    // Adds to the theorem cache if possible.
+    // This has access to both the old and new cache, and should update the new cache.
     fn prove(
         &self,
         mut prover: Prover,
         goal_context: GoalContext,
         builder: &mut Builder,
-        theorem_cache: &mut TheoremCache,
+        old_cache: &Option<ModuleCache>,
+        new_cache: &mut ModuleCache,
     ) {
         let start = std::time::Instant::now();
         let outcome = prover.verification_search();
 
         builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
         if let Some(theorem) = goal_context.theorem {
-            let premises = prover.get_useful_fact_names();
-            theorem_cache.report_premises(theorem.name.clone(), premises);
+            let premise_map = prover.get_useful_fact_names();
+            for (module_id, premises) in premise_map {
+                // XXX we shouldn't unwrap here.
+                let module = self.get_module_name_by_id(module_id).unwrap();
+                for premise in premises {
+                    new_cache.add_premise(&theorem.name, module, premise);
+                }
+            }
         }
     }
 
@@ -549,6 +553,13 @@ impl Project {
         match self.module_map.get(descriptor) {
             Some(id) => self.get_module_by_id(*id),
             None => &LoadState::None,
+        }
+    }
+
+    pub fn get_module_name_by_id(&self, module_id: ModuleId) -> Option<&str> {
+        match self.modules.get(module_id as usize) {
+            Some(module) => module.name(),
+            None => None,
         }
     }
 
