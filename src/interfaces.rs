@@ -112,7 +112,7 @@ pub struct ProofStepInfo {
     // Description of the rule used in this proof step
     pub rule: String,
 
-    // Source is set when this proof step is based on a specific part of a codebase,
+    // Location is set when this proof step is based on a specific part of a codebase,
     // and we can find a location for it.
     pub location: Option<Location>,
 
