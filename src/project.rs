@@ -387,10 +387,16 @@ impl Project {
         }
         let mut node = NodeCursor::new(&env, 0);
 
+        // Loop over all the nodes that are right below the top level.
         loop {
-            self.verify_node(&prover, &mut node, module_hash, &old_cache, builder);
-            if builder.status.is_error() {
-                return;
+            if module_hash.matches_through_line(&old_cache, node.env().last_line()) {
+                builder.log_proving_cache_hit(&mut node);
+            } else {
+                // Recurse into this node
+                self.verify_node(&prover, &mut node, module_hash, &old_cache, builder);
+                if builder.status.is_error() {
+                    return;
+                }
             }
             if !node.has_next() {
                 break;
@@ -863,7 +869,7 @@ impl Project {
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
         let (done, total) = events.last().unwrap().progress.unwrap();
-        assert_eq!(done, total);
+        assert_eq!(done, total, "expected number of build events didn't match");
         num_success
     }
 

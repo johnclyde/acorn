@@ -361,6 +361,8 @@ impl<'a> Builder<'a> {
         }
         if node.current().has_goal() {
             let goal_context = node.goal_context().unwrap();
+            self.goals_done += 1;
+            self.goals_success += 1;
             self.log_proving_success(&goal_context);
         }
     }
