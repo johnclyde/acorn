@@ -102,13 +102,4 @@ impl GoalContext {
             theorem: env.theorem.clone(),
         }
     }
-
-    // We won't try to re-prove the goal if the file is the same up to the cache line.
-    pub fn cache_line(&self) -> u32 {
-        if let Some(theorem) = &self.theorem {
-            theorem.last_line
-        } else {
-            self.last_line
-        }
-    }
 }

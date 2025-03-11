@@ -12,7 +12,7 @@ use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::project::Project;
 use crate::proof_step::Truthiness;
-use crate::proposition::Proposition;
+use crate::proposition::{Proposition, SourceType};
 use crate::statement::Body;
 use crate::token::Token;
 
@@ -449,6 +449,13 @@ impl Node {
             block.env.last_line()
         } else {
             self.claim.source.range.end.line
+        }
+    }
+
+    pub fn theorem_name(&self) -> Option<String> {
+        match &self.claim.source.source_type {
+            SourceType::Theorem(name) => name.clone(),
+            _ => None,
         }
     }
 }
