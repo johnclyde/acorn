@@ -369,6 +369,11 @@ impl Project {
 
     // Verifies all goals within this module.
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
+        if env.nodes.is_empty() {
+            // Nothing to prove
+            return;
+        }
+
         let module_hash = self.get_hash(env.module_id).unwrap();
         let old_cache = self.build_cache.get_cloned(target);
         let new_cache = ModuleCache::new(module_hash);
@@ -396,17 +401,17 @@ impl Project {
         old_cache: &Option<ModuleCache>,
         builder: &mut Builder,
     ) {
-        if env.nodes.is_empty() {
-            // Nothing to prove
-            return;
-        }
         let mut prover = Prover::new(&self, false);
         for fact in self.imported_facts(env.module_id, None) {
             prover.add_fact(fact);
         }
         let mut node = NodeCursor::new(&env, 0);
 
-        while self.verify_node(&prover, &mut node, module_hash, old_cache, builder) {
+        loop {
+            self.verify_node(&prover, &mut node, module_hash, old_cache, builder);
+            if builder.status.is_error() {
+                break;
+            }
             if !node.has_next() {
                 break;
             }
@@ -418,12 +423,11 @@ impl Project {
     // Verifies the goal at this node as well as at every child node.
     //
     // Create a prover for every goal within this node, and call the callback on it.
-    // Returns true if we should keep building, false if we should stop.
     //
     // Prover should have all facts loaded before node, but nothing for node itself.
-    // This function leaves node the same way it found it, although we mutate it
-    // mid-operation.
-    // If we return false, node can be left in some unusable state.
+    //
+    // If verify_node encounters an error, it can return immediately.
+    // Otherwise, it should reset the node cursor to its initial state.
     fn verify_node(
         &self,
         prover: &Prover,
@@ -431,10 +435,10 @@ impl Project {
         module_hash: &ModuleHash,
         old_cache: &Option<ModuleCache>,
         builder: &mut Builder,
-    ) -> bool {
+    ) {
         if node.num_children() == 0 && !node.current().has_goal() {
             // There's nothing to do here
-            return true;
+            return;
         }
 
         let mut prover = prover.clone();
@@ -442,8 +446,9 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                if !self.verify_node(&prover, node, module_hash, old_cache, builder) {
-                    return false;
+                self.verify_node(&prover, node, module_hash, old_cache, builder);
+                if builder.status.is_error() {
+                    return;
                 }
 
                 prover.add_fact(node.get_fact());
@@ -467,11 +472,9 @@ impl Project {
                 builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
             };
             if builder.status.is_error() {
-                return false;
+                return;
             }
         }
-
-        true
     }
 
     // Does the build and returns when it's done, rather than asynchronously.
