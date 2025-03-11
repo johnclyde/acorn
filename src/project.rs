@@ -380,27 +380,6 @@ impl Project {
 
         builder.module_proving_started(target.clone());
 
-        self.for_each_prover(env, module_hash, &old_cache, builder);
-
-        if builder.module_proving_complete(target) {
-            // The module was entirely verified. We can update the cache.
-            if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
-                builder.log_info(format!("error in build cache: {}", e));
-            }
-        }
-    }
-
-    // Create a prover for each goal in this environment, and call the callback on it.
-    // module_hash is the current hash of the module.
-    // An error status makes us stop early.
-    // TODO: have another function absorb this function.
-    fn for_each_prover(
-        &self,
-        env: &Environment,
-        module_hash: &ModuleHash,
-        old_cache: &Option<ModuleCache>,
-        builder: &mut Builder,
-    ) {
         let mut prover = Prover::new(&self, false);
         for fact in self.imported_facts(env.module_id, None) {
             prover.add_fact(fact);
@@ -408,7 +387,7 @@ impl Project {
         let mut node = NodeCursor::new(&env, 0);
 
         loop {
-            self.verify_node(&prover, &mut node, module_hash, old_cache, builder);
+            self.verify_node(&prover, &mut node, module_hash, &old_cache, builder);
             if builder.status.is_error() {
                 break;
             }
@@ -417,6 +396,13 @@ impl Project {
             }
             prover.add_fact(node.get_fact());
             node.next();
+        }
+
+        if builder.module_proving_complete(target) {
+            // The module was entirely verified. We can update the cache.
+            if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
+                builder.log_info(format!("error in build cache: {}", e));
+            }
         }
     }
 
