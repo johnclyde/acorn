@@ -376,11 +376,13 @@ impl Project {
 
         builder.module_proving_started(target.clone());
 
-        self.for_each_prover(env, None, &mut |prover, goal_context| {
+        self.for_each_prover(env, None, &mut |mut prover, goal_context| {
             if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
             } else {
-                self.prove(prover, goal_context, builder);
+                let start = std::time::Instant::now();
+                let outcome = prover.verification_search();
+                builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
             };
             !builder.status.is_error()
         });
@@ -466,16 +468,6 @@ impl Project {
         }
 
         true
-    }
-
-    // Proves a single goal in the target, using the provided prover.
-    // Reports using the builder.
-    // This has access to both the old and new cache, and should update the new cache.
-    fn prove(&self, mut prover: Prover, goal_context: GoalContext, builder: &mut Builder) {
-        let start = std::time::Instant::now();
-        let outcome = prover.verification_search();
-
-        builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
     }
 
     // Does the build and returns when it's done, rather than asynchronously.
