@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -367,6 +367,23 @@ impl Project {
         }
     }
 
+    // Turns a theorem cache from its normalized, serializable form into a plain old hash set.
+    fn load_theorem_cache(
+        &self,
+        module_cache: &Option<ModuleCache>,
+        theorem: &Option<String>,
+    ) -> Option<HashSet<(ModuleId, String)>> {
+        todo!("implement");
+    }
+
+    // Turns a theorem cache from a hash set into its normalized, serializable form.
+    fn normalize_theorem_cache(
+        &self,
+        theorem_cache: &HashSet<(ModuleId, String)>,
+    ) -> BTreeMap<String, Vec<String>> {
+        todo!("implement");
+    }
+
     // Verifies all goals within this module.
     // If we run into an error, we exit without verifying any more goals.
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
@@ -376,8 +393,8 @@ impl Project {
         }
 
         let module_hash = self.get_hash(env.module_id).unwrap();
-        let old_cache = self.build_cache.get_cloned(target);
-        let new_cache = ModuleCache::new(module_hash);
+        let old_module_cache = self.build_cache.get_cloned(target);
+        let mut new_module_cache = ModuleCache::new(module_hash);
 
         builder.module_proving_started(target.clone());
 
@@ -389,8 +406,19 @@ impl Project {
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            if module_hash.matches_through_line(&old_cache, node.current().last_line()) {
+            let theorem_name = node.current().theorem_name();
+            if module_hash.matches_through_line(&old_module_cache, node.current().last_line()) {
                 builder.log_proving_cache_hit(&mut node);
+                if let (Some(theorem), Some(old_mc)) = (theorem_name, &old_module_cache) {
+                    // We skipped the proof of this theorem.
+                    // But we still might want its premises cached.
+                    // So we copy them over from the old module cache.
+                    if let Some(old_theorem_cache) = old_mc.theorems.get(&theorem) {
+                        new_module_cache
+                            .theorems
+                            .insert(theorem, old_theorem_cache.clone());
+                    }
+                }
             } else {
                 self.verify_node(&prover, &mut node, None, builder);
                 if builder.status.is_error() {
@@ -406,7 +434,7 @@ impl Project {
 
         if builder.module_proving_complete(target) {
             // The module was entirely verified. We can update the cache.
-            if let Err(e) = self.build_cache.insert(target.clone(), new_cache) {
+            if let Err(e) = self.build_cache.insert(target.clone(), new_module_cache) {
                 builder.log_info(format!("error in build cache: {}", e));
             }
         }
