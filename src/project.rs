@@ -373,7 +373,16 @@ impl Project {
         module_cache: &Option<ModuleCache>,
         theorem: &Option<String>,
     ) -> Option<HashSet<(ModuleId, String)>> {
-        todo!("implement");
+        let normalized = module_cache.as_ref()?.theorems.get(theorem.as_ref()?)?;
+        let mut answer = HashSet::new();
+        for (module_name, premises) in normalized.iter() {
+            // A module could have been renamed, in which case the whole cache is borked.
+            let module_id = self.get_module_id_by_name(module_name)?;
+            for premise in premises {
+                answer.insert((module_id, premise.clone()));
+            }
+        }
+        Some(answer)
     }
 
     // Turns a theorem cache from a hash set into its normalized, serializable form.
@@ -381,7 +390,15 @@ impl Project {
         &self,
         theorem_cache: &HashSet<(ModuleId, String)>,
     ) -> BTreeMap<String, Vec<String>> {
-        todo!("implement");
+        let mut answer = BTreeMap::new();
+        for (module_id, premise) in theorem_cache {
+            let module_name = self.get_module_name_by_id(*module_id).unwrap();
+            answer
+                .entry(module_name.to_string())
+                .or_insert_with(Vec::new)
+                .push(premise.clone());
+        }
+        answer
     }
 
     // Verifies all goals within this module.
@@ -530,6 +547,12 @@ impl Project {
             Some(module) => module.name(),
             None => None,
         }
+    }
+
+    fn get_module_id_by_name(&self, module_name: &str) -> Option<ModuleId> {
+        self.module_map
+            .get(&ModuleDescriptor::Name(module_name.to_string()))
+            .copied()
     }
 
     pub fn get_env_by_id(&self, module_id: ModuleId) -> Option<&Environment> {
