@@ -372,20 +372,15 @@ impl Project {
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
         let old_cache = self.build_cache.get_cloned(target);
-        let mut new_cache = ModuleCache::new(current_hash);
+        let new_cache = ModuleCache::new(current_hash);
 
         builder.module_proving_started(target.clone());
 
-        // Fast and slow modes should be interchangeable here.
-        // If we run into a bug with fast mode, we can try using slow mode to debug.
         self.for_each_prover(env, None, &mut |prover, goal_context| {
             if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
-                if let (Some(theorem), Some(old_cache)) = (&goal_context.theorem, &old_cache) {
-                    new_cache.copy_theorem_cache(&old_cache, &theorem.name);
-                }
             } else {
-                self.prove(prover, goal_context, builder, &old_cache, &mut new_cache);
+                self.prove(prover, goal_context, builder);
             };
             !builder.status.is_error()
         });
@@ -476,34 +471,11 @@ impl Project {
     // Proves a single goal in the target, using the provided prover.
     // Reports using the builder.
     // This has access to both the old and new cache, and should update the new cache.
-    fn prove(
-        &self,
-        mut prover: Prover,
-        goal_context: GoalContext,
-        builder: &mut Builder,
-        _old_cache: &Option<ModuleCache>,
-        new_cache: &mut ModuleCache,
-    ) {
+    fn prove(&self, mut prover: Prover, goal_context: GoalContext, builder: &mut Builder) {
         let start = std::time::Instant::now();
         let outcome = prover.verification_search();
 
         builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
-        if let Some(theorem) = goal_context.theorem {
-            let premise_map = prover.get_useful_fact_names();
-            for (module_id, premises) in premise_map {
-                match self.get_module_name_by_id(module_id) {
-                    Some(module) => {
-                        for premise in premises {
-                            new_cache.add_premise(&theorem.name, module, premise);
-                        }
-                    }
-                    None => {
-                        new_cache.taint_theorem(&theorem.name);
-                        return;
-                    }
-                }
-            }
-        }
     }
 
     // Does the build and returns when it's done, rather than asynchronously.
