@@ -88,10 +88,6 @@ pub struct Environment {
     // The root environment for a module has depth zero.
     // Each child node has a depth of one plus its parent.
     pub depth: u32,
-
-    // When an environment is within the scope of proving a single theorem, this
-    // provides information about that theorem.
-    pub theorem: Option<TheoremInfo>,
 }
 
 impl Environment {
@@ -106,27 +102,12 @@ impl Environment {
             line_types: Vec::new(),
             implicit: false,
             depth: 0,
-            theorem: None,
         }
     }
 
     // Create a child environment.
     // theorem_name is provided if this is the newly-created environment for proving a theorem.
-    pub fn create_child(
-        &self,
-        first_line: u32,
-        last_line: u32,
-        implicit: bool,
-        theorem_name: Option<&str>,
-    ) -> Self {
-        let theorem = if self.depth == 0 {
-            theorem_name.map(|name| TheoremInfo {
-                name: name.to_string(),
-                last_line,
-            })
-        } else {
-            self.theorem.clone()
-        };
+    pub fn create_child(&self, first_line: u32, implicit: bool) -> Self {
         Environment {
             module_id: self.module_id,
             bindings: self.bindings.clone(),
@@ -137,7 +118,6 @@ impl Environment {
             line_types: Vec::new(),
             implicit,
             depth: self.depth + 1,
-            theorem,
         }
     }
 

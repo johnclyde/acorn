@@ -101,11 +101,7 @@ impl Block {
         last_line: u32,
         body: Option<&Body>,
     ) -> compilation::Result<Block> {
-        let theorem_name = match params {
-            BlockParams::Theorem(name, _, _, _) => name,
-            _ => None,
-        };
-        let mut subenv = env.create_child(first_line, last_line, body.is_none(), theorem_name);
+        let mut subenv = env.create_child(first_line, body.is_none());
 
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params
