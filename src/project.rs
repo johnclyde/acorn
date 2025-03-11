@@ -392,8 +392,7 @@ impl Project {
             if module_hash.matches_through_line(&old_cache, node.current().last_line()) {
                 builder.log_proving_cache_hit(&mut node);
             } else {
-                // Recurse into this node
-                self.verify_node(&prover, &mut node, builder);
+                self.verify_node(&prover, &mut node, None, builder);
                 if builder.status.is_error() {
                     return;
                 }
@@ -415,11 +414,19 @@ impl Project {
 
     // Verifies the goal at this node as well as at every child node.
     //
-    // Prover should have all facts loaded before node, but nothing for node itself.
+    // prover should have all facts loaded before node, but nothing for node itself.
+    // node is a cursor, that typically we will mutate and reset to its original state.
+    // old_premises is a cached list of premises used in this entire theorem block.
+    // builder tracks statistics and results for the build.
     //
-    // If verify_node encounters an error, it can return immediately.
-    // Otherwise, it should reset the node cursor to its initial state.
-    fn verify_node(&self, prover: &Prover, node: &mut NodeCursor, builder: &mut Builder) {
+    // If verify_node encounters an error, it stops, leaving node in a borked state.
+    fn verify_node(
+        &self,
+        prover: &Prover,
+        node: &mut NodeCursor,
+        old_premises: Option<&HashSet<(ModuleId, String)>>,
+        builder: &mut Builder,
+    ) {
         if node.num_children() == 0 && !node.current().has_goal() {
             // There's nothing to do here
             return;
@@ -430,7 +437,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                self.verify_node(&prover, node, builder);
+                self.verify_node(&prover, node, old_premises, builder);
                 if builder.status.is_error() {
                     return;
                 }
