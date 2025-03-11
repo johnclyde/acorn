@@ -378,7 +378,7 @@ impl Project {
 
         // Fast and slow modes should be interchangeable here.
         // If we run into a bug with fast mode, we can try using slow mode to debug.
-        self.for_each_prover_fast(env, None, &mut |prover, goal_context| {
+        self.for_each_prover(env, None, &mut |prover, goal_context| {
             if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
                 if let (Some(theorem), Some(old_cache)) = (&goal_context.theorem, &old_cache) {
@@ -401,30 +401,7 @@ impl Project {
     // Create a prover for each goal in this environment, and call the callback on it.
     // An error status makes us stop early.
     // Return the combined build status.
-    // Slow version that is more simple, for debugging.
-    pub fn for_each_prover_slow(
-        &self,
-        env: &Environment,
-        callback: &mut impl FnMut(Prover, GoalContext) -> bool,
-    ) {
-        for node in env.iter_goals() {
-            let goal_context = node.goal_context().expect("no goal context");
-            let mut prover = Prover::new(&self, false);
-            for fact in node.usable_facts(&self) {
-                prover.add_fact(fact);
-            }
-            prover.set_goal(&goal_context);
-            if !callback(prover, goal_context) {
-                return;
-            }
-        }
-    }
-
-    // Create a prover for each goal in this environment, and call the callback on it.
-    // An error status makes us stop early.
-    // Return the combined build status.
-    // Fast version that tries to clone prover state rather than rebuilding.
-    pub fn for_each_prover_fast(
+    fn for_each_prover(
         &self,
         env: &Environment,
         import_filter: Option<&HashSet<String>>,
@@ -440,7 +417,7 @@ impl Project {
         }
         let mut node = NodeCursor::new(&env, 0);
 
-        while self.for_each_prover_fast_helper(&prover, &mut node, callback) {
+        while self.for_each_prover_helper(&prover, &mut node, callback) {
             if !node.has_next() {
                 break;
             }
@@ -455,7 +432,7 @@ impl Project {
     // This should leave node the same way it found it, although it can mutate it
     // mid-operation.
     // If we return false, node can be left in some unusable state.
-    fn for_each_prover_fast_helper(
+    fn for_each_prover_helper(
         &self,
         prover: &Prover,
         node: &mut NodeCursor,
@@ -471,7 +448,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                if !self.for_each_prover_fast_helper(&prover, node, callback) {
+                if !self.for_each_prover_helper(&prover, node, callback) {
                     return false;
                 }
 
@@ -1334,21 +1311,15 @@ mod tests {
             .unwrap();
 
         let mut fast_count = 0;
-        let mut slow_count = 0;
 
-        p.for_each_prover_slow(env, &mut |_, _| {
-            slow_count += 1;
-            true
-        });
+        let goal_count = env.iter_goals().count();
 
-        p.for_each_prover_fast(env, None, &mut |_, _| {
+        p.for_each_prover(env, None, &mut |_, _| {
             fast_count += 1;
             true
         });
 
-        assert_eq!(fast_count, slow_count);
-
-        // I could test more here. But do I need to?
+        assert_eq!(fast_count, goal_count);
     }
 
     #[test]

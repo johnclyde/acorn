@@ -162,7 +162,7 @@ impl ModuleCache {
             .push(premise);
     }
 
-    // Mark this theorem as one that we are not going to save premises for.
+    // Mark this theorem as one that we should not save premises for.
     pub fn taint_theorem(&mut self, theorem: &str) {
         self.tainted_theorems.insert(theorem.to_string());
         self.theorems.remove(theorem);
