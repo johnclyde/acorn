@@ -368,6 +368,7 @@ impl Project {
     }
 
     // Verifies all goals within this module.
+    // If we run into an error, we exit without verifying any more goals.
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         if env.nodes.is_empty() {
             // Nothing to prove
@@ -389,7 +390,7 @@ impl Project {
         loop {
             self.verify_node(&prover, &mut node, module_hash, &old_cache, builder);
             if builder.status.is_error() {
-                break;
+                return;
             }
             if !node.has_next() {
                 break;
