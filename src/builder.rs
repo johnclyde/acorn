@@ -336,14 +336,6 @@ impl<'a> Builder<'a> {
         (self.event_handler)(event);
     }
 
-    // Logs a successful proof that was cached.
-    // Call as an alternative to search_finished.
-    pub fn log_proving_success_cached(&mut self, goal_context: &GoalContext) {
-        self.goals_done += 1;
-        self.goals_success += 1;
-        self.log_proving_success(goal_context);
-    }
-
     // Logs a cache hit for this node and every child of it.
     // Returns the cursor to its initial state when done.
     pub fn log_proving_cache_hit(&mut self, node: &mut NodeCursor) {

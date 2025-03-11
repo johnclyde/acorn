@@ -393,7 +393,7 @@ impl Project {
                 builder.log_proving_cache_hit(&mut node);
             } else {
                 // Recurse into this node
-                self.verify_node(&prover, &mut node, module_hash, &old_cache, builder);
+                self.verify_node(&prover, &mut node, builder);
                 if builder.status.is_error() {
                     return;
                 }
@@ -419,14 +419,7 @@ impl Project {
     //
     // If verify_node encounters an error, it can return immediately.
     // Otherwise, it should reset the node cursor to its initial state.
-    fn verify_node(
-        &self,
-        prover: &Prover,
-        node: &mut NodeCursor,
-        module_hash: &ModuleHash,
-        old_cache: &Option<ModuleCache>,
-        builder: &mut Builder,
-    ) {
+    fn verify_node(&self, prover: &Prover, node: &mut NodeCursor, builder: &mut Builder) {
         if node.num_children() == 0 && !node.current().has_goal() {
             // There's nothing to do here
             return;
@@ -437,7 +430,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                self.verify_node(&prover, node, module_hash, old_cache, builder);
+                self.verify_node(&prover, node, builder);
                 if builder.status.is_error() {
                     return;
                 }
