@@ -389,7 +389,7 @@ impl Project {
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            if module_hash.matches_through_line(&old_cache, node.env().last_line()) {
+            if module_hash.matches_through_line(&old_cache, node.current().last_line()) {
                 builder.log_proving_cache_hit(&mut node);
             } else {
                 // Recurse into this node
@@ -455,13 +455,9 @@ impl Project {
         if node.current().has_goal() {
             let goal_context = node.goal_context().unwrap();
             prover.set_goal(&goal_context);
-            if module_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
-                builder.log_proving_success_cached(&goal_context);
-            } else {
-                let start = std::time::Instant::now();
-                let outcome = prover.verification_search();
-                builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
-            };
+            let start = std::time::Instant::now();
+            let outcome = prover.verification_search();
+            builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
             if builder.status.is_error() {
                 return;
             }
@@ -469,15 +465,15 @@ impl Project {
     }
 
     // Does the build and returns when it's done, rather than asynchronously.
-    // Returns (status, events, num_success, cache).
+    // Returns (status, events, searches_success, cache).
     pub fn sync_build(&self) -> (BuildStatus, Vec<BuildEvent>, i32) {
         let mut events = vec![];
-        let (status, num_success) = {
+        let (status, searches_success) = {
             let mut builder = self.builder(|event| events.push(event));
             self.build(&mut builder);
             (builder.status, builder.searches_success)
         };
-        (status, events, num_success)
+        (status, events, searches_success)
     }
 
     // Set the file content. This has priority over the actual filesystem.
@@ -865,12 +861,12 @@ impl Project {
     // Returns num_success.
     #[cfg(test)]
     fn expect_build_ok(&mut self) -> i32 {
-        let (status, events, num_success) = self.sync_build();
+        let (status, events, searches_success) = self.sync_build();
         assert_eq!(status, BuildStatus::Good);
         assert!(events.len() > 0);
         let (done, total) = events.last().unwrap().progress.unwrap();
         assert_eq!(done, total, "expected number of build events didn't match");
-        num_success
+        searches_success
     }
 
     #[cfg(test)]

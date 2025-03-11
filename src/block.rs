@@ -443,6 +443,14 @@ impl Node {
             None => true,
         }
     }
+
+    pub fn last_line(&self) -> u32 {
+        if let Some(block) = &self.block {
+            block.env.last_line()
+        } else {
+            self.claim.source.range.end.line
+        }
+    }
 }
 
 // A NodeCursor points at a node. It is used to traverse the nodes in an environment.
@@ -480,6 +488,7 @@ impl<'a> NodeCursor<'a> {
         }
     }
 
+    // The environment that contains the current node.
     pub fn env(&self) -> &'a Environment {
         self.annotated_path.last().unwrap().0
     }
