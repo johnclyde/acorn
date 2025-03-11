@@ -15,7 +15,6 @@ use crate::builder::{BuildEvent, BuildStatus, Builder};
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
-use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::prover::Prover;
@@ -376,21 +375,7 @@ impl Project {
 
         builder.module_proving_started(target.clone());
 
-        self.for_each_prover(
-            env,
-            module_hash,
-            &old_cache,
-            &mut |mut prover, goal_context| {
-                if module_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
-                    builder.log_proving_success_cached(&goal_context);
-                } else {
-                    let start = std::time::Instant::now();
-                    let outcome = prover.verification_search();
-                    builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
-                };
-                !builder.status.is_error()
-            },
-        );
+        self.for_each_prover(env, module_hash, &old_cache, builder);
 
         if builder.module_proving_complete(target) {
             // The module was entirely verified. We can update the cache.
@@ -409,7 +394,7 @@ impl Project {
         env: &Environment,
         module_hash: &ModuleHash,
         old_cache: &Option<ModuleCache>,
-        callback: &mut impl FnMut(Prover, GoalContext) -> bool,
+        builder: &mut Builder,
     ) {
         if env.nodes.is_empty() {
             // Nothing to prove
@@ -421,7 +406,7 @@ impl Project {
         }
         let mut node = NodeCursor::new(&env, 0);
 
-        while self.verify_node(&prover, &mut node, module_hash, old_cache, callback) {
+        while self.verify_node(&prover, &mut node, module_hash, old_cache, builder) {
             if !node.has_next() {
                 break;
             }
@@ -445,7 +430,7 @@ impl Project {
         node: &mut NodeCursor,
         module_hash: &ModuleHash,
         old_cache: &Option<ModuleCache>,
-        callback: &mut impl FnMut(Prover, GoalContext) -> bool,
+        builder: &mut Builder,
     ) -> bool {
         if node.num_children() == 0 && !node.current().has_goal() {
             // There's nothing to do here
@@ -457,7 +442,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                if !self.verify_node(&prover, node, module_hash, old_cache, callback) {
+                if !self.verify_node(&prover, node, module_hash, old_cache, builder) {
                     return false;
                 }
 
@@ -474,7 +459,14 @@ impl Project {
         if node.current().has_goal() {
             let goal_context = node.goal_context().unwrap();
             prover.set_goal(&goal_context);
-            if !callback(prover, goal_context) {
+            if module_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
+                builder.log_proving_success_cached(&goal_context);
+            } else {
+                let start = std::time::Instant::now();
+                let outcome = prover.verification_search();
+                builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
+            };
+            if builder.status.is_error() {
                 return false;
             }
         }
