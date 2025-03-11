@@ -361,15 +361,15 @@ impl Project {
 
         // The second pass is the "proving phase".
         for (target, env) in targets.into_iter().zip(envs) {
-            self.verify_target(&target, env, builder);
+            self.verify_module(&target, env, builder);
             if builder.status.is_error() {
                 return;
             }
         }
     }
 
-    // Verifies all goals within this target.
-    fn verify_target(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
+    // Verifies all goals within this module.
+    fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
         let current_hash = self.get_hash(env.module_id).unwrap();
         let old_cache = self.build_cache.get_cloned(target);
         let mut new_cache = ModuleCache::new(current_hash);
@@ -1275,7 +1275,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prover_iteration_methods() {
+    fn test_verification_touches_every_goal() {
         let mut p = Project::new_mock();
         p.mock(
             "/mock/nat.ac",
@@ -1306,20 +1306,15 @@ mod tests {
             "#,
         );
 
-        let env = p
-            .get_env(&ModuleDescriptor::Name("main".to_string()))
-            .unwrap();
+        let descriptor = ModuleDescriptor::Name("main".to_string());
+        let env = p.get_env(&descriptor).unwrap();
 
-        let mut fast_count = 0;
+        let goal_count = env.iter_goals().count() as i32;
 
-        let goal_count = env.iter_goals().count();
-
-        p.for_each_prover(env, None, &mut |_, _| {
-            fast_count += 1;
-            true
-        });
-
-        assert_eq!(fast_count, goal_count);
+        let mut builder = Builder::new(|_| {});
+        p.verify_module(&descriptor, &env, &mut builder);
+        assert_eq!(builder.status, BuildStatus::Good);
+        assert_eq!(builder.searches_total, goal_count);
     }
 
     #[test]
