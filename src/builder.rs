@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 
+use crate::block::NodeCursor;
 use crate::compilation::Error;
 use crate::dataset::Dataset;
 use crate::environment::Environment;
@@ -341,6 +342,27 @@ impl<'a> Builder<'a> {
         self.goals_done += 1;
         self.goals_success += 1;
         self.log_proving_success(goal_context);
+    }
+
+    // Logs a cache hit for this node and every child of it.
+    // Returns the cursor to its initial state when done.
+    pub fn log_proving_cache_hit(&mut self, node: &mut NodeCursor) {
+        if node.num_children() > 0 {
+            node.descend(0);
+            loop {
+                self.log_proving_cache_hit(node);
+                if node.has_next() {
+                    node.next();
+                } else {
+                    break;
+                }
+            }
+            node.ascend();
+        }
+        if node.current().has_goal() {
+            let goal_context = node.goal_context().unwrap();
+            self.log_proving_success(&goal_context);
+        }
     }
 
     // Create a build event for a proof that was other than successful.

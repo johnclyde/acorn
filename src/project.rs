@@ -408,8 +408,6 @@ impl Project {
 
     // Verifies the goal at this node as well as at every child node.
     //
-    // Create a prover for every goal within this node, and call the callback on it.
-    //
     // Prover should have all facts loaded before node, but nothing for node itself.
     //
     // If verify_node encounters an error, it can return immediately.
