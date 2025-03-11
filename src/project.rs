@@ -370,14 +370,14 @@ impl Project {
 
     // Verifies all goals within this module.
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
-        let current_hash = self.get_hash(env.module_id).unwrap();
+        let module_hash = self.get_hash(env.module_id).unwrap();
         let old_cache = self.build_cache.get_cloned(target);
-        let new_cache = ModuleCache::new(current_hash);
+        let new_cache = ModuleCache::new(module_hash);
 
         builder.module_proving_started(target.clone());
 
-        self.for_each_prover(env, None, &mut |mut prover, goal_context| {
-            if current_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
+        self.for_each_prover(env, module_hash, &mut |mut prover, goal_context| {
+            if module_hash.matches_through_line(&old_cache, goal_context.cache_line()) {
                 builder.log_proving_success_cached(&goal_context);
             } else {
                 let start = std::time::Instant::now();
@@ -396,12 +396,13 @@ impl Project {
     }
 
     // Create a prover for each goal in this environment, and call the callback on it.
+    // module_hash is the current hash of the module.
     // An error status makes us stop early.
-    // Return the combined build status.
+    // TODO: have another function absorb this function.
     fn for_each_prover(
         &self,
         env: &Environment,
-        import_filter: Option<&HashSet<String>>,
+        module_hash: &ModuleHash,
         callback: &mut impl FnMut(Prover, GoalContext) -> bool,
     ) {
         if env.nodes.is_empty() {
@@ -409,12 +410,12 @@ impl Project {
             return;
         }
         let mut prover = Prover::new(&self, false);
-        for fact in self.imported_facts(env.module_id, import_filter) {
+        for fact in self.imported_facts(env.module_id, None) {
             prover.add_fact(fact);
         }
         let mut node = NodeCursor::new(&env, 0);
 
-        while self.for_each_prover_helper(&prover, &mut node, callback) {
+        while self.verify_node(&prover, &mut node, module_hash, callback) {
             if !node.has_next() {
                 break;
             }
@@ -423,16 +424,18 @@ impl Project {
         }
     }
 
+    // Verifies the goal at this node as well as at every child node.
     // Create a prover for every goal within this node, and call the callback on it.
     // Returns true if we should keep building, false if we should stop.
     // Prover should have all facts loaded before node, but nothing for node itself.
     // This should leave node the same way it found it, although it can mutate it
     // mid-operation.
     // If we return false, node can be left in some unusable state.
-    fn for_each_prover_helper(
+    fn verify_node(
         &self,
         prover: &Prover,
         node: &mut NodeCursor,
+        module_hash: &ModuleHash,
         callback: &mut impl FnMut(Prover, GoalContext) -> bool,
     ) -> bool {
         if node.num_children() == 0 && !node.current().has_goal() {
@@ -445,7 +448,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                if !self.for_each_prover_helper(&prover, node, callback) {
+                if !self.verify_node(&prover, node, module_hash, callback) {
                     return false;
                 }
 
