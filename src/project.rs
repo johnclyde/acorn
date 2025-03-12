@@ -453,7 +453,11 @@ impl Project {
                     return;
                 }
 
-                // XXX Save the cache
+                if let Some(theorem_name) = theorem_name {
+                    new_module_cache
+                        .theorems
+                        .insert(theorem_name.clone(), self.normalize_premises(&new_premises));
+                }
             }
             if !node.has_next() {
                 break;
