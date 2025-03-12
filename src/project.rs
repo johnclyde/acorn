@@ -641,7 +641,12 @@ impl Project {
     // Set the file content. This has priority over the actual filesystem.
     pub fn mock(&mut self, filename: &str, content: &str) {
         assert!(!self.use_filesystem);
-        self.update_file(PathBuf::from(filename), content, 0)
+        let path = PathBuf::from(filename);
+        let next_version = match self.get_version(&path) {
+            Some(version) => version + 1,
+            None => 0,
+        };
+        self.update_file(path, content, next_version)
             .expect("mock file update failed");
     }
 
@@ -1459,6 +1464,18 @@ mod tests {
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
         assert_eq!(builder.searches_total, 0);
+        let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
+        assert_eq!(module_cache.theorems.len(), 2);
+        module_cache.assert_premises_eq("goal1", &[]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
+
+        // After a meaningless change, it should use the premise cache.
+        p.mock("/mock/nat.ac", format!("// \n{}", nat_text).as_str());
+        let env = p.get_env(&main_descriptor).unwrap();
+        let mut builder = Builder::new(|_| {});
+        p.verify_module(&main_descriptor, &env, &mut builder);
+        assert_eq!(builder.status, BuildStatus::Good);
+        assert_eq!(builder.searches_total, goal_count);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.theorems.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
