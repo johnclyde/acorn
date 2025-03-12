@@ -667,12 +667,12 @@ impl Prover {
 
     // A fast search, for testing.
     pub fn quick_search(&mut self) -> Outcome {
-        self.search_for_contradiction(500, 0.1, false)
+        self.search_for_contradiction(500, 0.2, false)
     }
 
     // A fast search that only uses shallow steps, for testing.
     pub fn quick_shallow_search(&mut self) -> Outcome {
-        self.search_for_contradiction(500, 0.1, true)
+        self.search_for_contradiction(500, 0.2, true)
     }
 
     // The prover will exit with Outcome::Constrained if it hits a constraint:
