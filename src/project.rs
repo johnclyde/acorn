@@ -367,8 +367,8 @@ impl Project {
         }
     }
 
-    // Turns a theorem cache from its normalized, serializable form into a plain old hash set.
-    fn load_theorem_cache(
+    // Turns a set of qualified premises from its serializable form into a plain hash set.
+    fn load_premises(
         &self,
         module_cache: &Option<ModuleCache>,
         theorem: &Option<String>,
@@ -385,13 +385,13 @@ impl Project {
         Some(answer)
     }
 
-    // Turns a theorem cache from a hash set into its normalized, serializable form.
-    fn normalize_theorem_cache(
+    // Turns a hash set of qualified premises into its serializable form.
+    fn normalize_premises(
         &self,
-        theorem_cache: &HashSet<(ModuleId, String)>,
+        premises: &HashSet<(ModuleId, String)>,
     ) -> BTreeMap<String, Vec<String>> {
         let mut answer = BTreeMap::new();
-        for (module_id, premise) in theorem_cache {
+        for (module_id, premise) in premises {
             let module_name = self.get_module_name_by_id(*module_id).unwrap();
             answer
                 .entry(module_name.to_string())
@@ -437,10 +437,23 @@ impl Project {
                     }
                 }
             } else {
-                self.verify_node(&prover, &mut node, None, builder);
+                // The premise cache works on a per-theorem level, so we create them here.
+                let old_premises = self.load_premises(&old_module_cache, &theorem_name);
+                let mut new_premises = HashSet::new();
+
+                // This call will recurse and verify everything within this top-level block.
+                self.verify_node(
+                    &prover,
+                    &mut node,
+                    &old_premises,
+                    &mut new_premises,
+                    builder,
+                );
                 if builder.status.is_error() {
                     return;
                 }
+
+                // XXX Save the cache
             }
             if !node.has_next() {
                 break;
@@ -462,6 +475,7 @@ impl Project {
     // prover should have all facts loaded before node, but nothing for node itself.
     // node is a cursor, that typically we will mutate and reset to its original state.
     // old_premises is a cached list of premises used in this entire theorem block.
+    // new_premises is updated with the premises used in this theorem block.
     // builder tracks statistics and results for the build.
     //
     // If verify_node encounters an error, it stops, leaving node in a borked state.
@@ -469,7 +483,8 @@ impl Project {
         &self,
         prover: &Prover,
         node: &mut NodeCursor,
-        old_premises: Option<&HashSet<(ModuleId, String)>>,
+        old_premises: &Option<HashSet<(ModuleId, String)>>,
+        new_premises: &mut HashSet<(ModuleId, String)>,
         builder: &mut Builder,
     ) {
         if node.num_children() == 0 && !node.current().has_goal() {
@@ -482,7 +497,7 @@ impl Project {
             // We need to recurse into children
             node.descend(0);
             loop {
-                self.verify_node(&prover, node, old_premises, builder);
+                self.verify_node(&prover, node, old_premises, new_premises, builder);
                 if builder.status.is_error() {
                     return;
                 }

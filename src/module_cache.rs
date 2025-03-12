@@ -110,7 +110,7 @@ impl ModuleCache {
         Ok(())
     }
 
-    // TODO: see if we can also populate prefixes.
+    // Note: this does not populate prefixes.
     fn load(filename: &Path) -> Result<ModuleCache, Box<dyn Error>> {
         let file = File::open(filename)?;
         let cache = serde_yaml::from_reader(file)?;
@@ -118,7 +118,7 @@ impl ModuleCache {
     }
 
     // Loads a ModuleCache along with its descriptor.
-    // TODO: see if we can also populate prefixes.
+    // Note: this does not populate prefixes.
     pub fn load_relative(
         root: &Path,
         full_filename: &Path,
