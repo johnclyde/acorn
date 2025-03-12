@@ -15,10 +15,11 @@ use crate::builder::{BuildEvent, BuildStatus, Builder};
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
+use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::proof_step::Truthiness;
-use crate::prover::Prover;
+use crate::prover::{Outcome, Prover};
 use crate::token::Token;
 
 // The Project is responsible for importing different files and assigning them module ids.
@@ -547,16 +548,21 @@ impl Project {
         }
 
         let mut full_prover = full_prover.clone();
+        let mut filtered_prover = filtered_prover.clone();
         if node.num_children() > 0 {
             // We need to recurse into children
             node.descend(0);
             loop {
-                self.verify_node(&full_prover, filtered_prover, node, new_premises, builder);
+                self.verify_node(&full_prover, &filtered_prover, node, new_premises, builder);
                 if builder.status.is_error() {
                     return;
                 }
 
                 full_prover.add_fact(node.get_fact());
+                if let Some(ref mut filtered_prover) = filtered_prover {
+                    filtered_prover.add_fact(node.get_fact());
+                }
+
                 if node.has_next() {
                     node.next();
                 } else {
@@ -568,22 +574,49 @@ impl Project {
 
         if node.current().has_goal() {
             let goal_context = node.goal_context().unwrap();
-            full_prover.set_goal(&goal_context);
-            let start = std::time::Instant::now();
-            let outcome = full_prover.verification_search();
-            builder.search_finished(&full_prover, &goal_context, outcome, start.elapsed());
+            let prover =
+                self.verify_with_fallback(full_prover, filtered_prover, &goal_context, builder);
             if builder.status.is_error() {
                 return;
             }
 
             // Gather the premises used by this proof
-            full_prover
+            prover
                 .useful_fact_qualified_names()
                 .iter()
                 .for_each(|fact| {
                     new_premises.insert(fact.clone());
                 });
         }
+    }
+
+    // Tries to use the filtered prover to verify this goal, but falls back to the full prover
+    // if that doesn't work.
+    // Returns the prover that was used.
+    fn verify_with_fallback(
+        &self,
+        mut full_prover: Prover,
+        filtered_prover: Option<Prover>,
+        goal_context: &GoalContext,
+        builder: &mut Builder,
+    ) -> Prover {
+        // Try the filtered prover
+        if let Some(mut filtered_prover) = filtered_prover {
+            filtered_prover.set_goal(goal_context);
+            let start = std::time::Instant::now();
+            let outcome = filtered_prover.verification_search();
+            if outcome == Outcome::Success {
+                builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
+                return filtered_prover;
+            }
+        }
+
+        // Fall back to the full prover
+        full_prover.set_goal(goal_context);
+        let start = std::time::Instant::now();
+        let outcome = full_prover.verification_search();
+        builder.search_finished(&full_prover, goal_context, outcome, start.elapsed());
+        full_prover
     }
 
     // Does the build and returns when it's done, rather than asynchronously.
