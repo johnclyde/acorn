@@ -482,13 +482,8 @@ impl Project {
                 // If we have a cached set of premises, we use it to create a filtered prover.
                 // The filtered prover only contains the premises that we think it needs.
                 let old_premises = self.load_premises(&old_module_cache, &theorem_name);
-
-                // XXX: flip this switch to create the filtered prover
-                let filtered_prover = if false {
-                    old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps))
-                } else {
-                    None
-                };
+                let filtered_prover =
+                    old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps));
 
                 // The premises we use while verifying this block.
                 let mut new_premises = HashSet::new();
@@ -581,15 +576,13 @@ impl Project {
                 return;
             }
 
-            // XXX: flip the switch to start gathering premises
-            if false {
-                full_prover
-                    .useful_fact_qualified_names()
-                    .iter()
-                    .for_each(|fact| {
-                        new_premises.insert(fact.clone());
-                    });
-            }
+            // Gather the premises used by this proof
+            full_prover
+                .useful_fact_qualified_names()
+                .iter()
+                .for_each(|fact| {
+                    new_premises.insert(fact.clone());
+                });
         }
     }
 
