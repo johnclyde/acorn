@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -878,13 +878,13 @@ impl Prover {
 
     // Should only be called after proving completes successfully.
     // Gets the qualified name of every fact that was used in the proof.
-    pub fn get_useful_fact_names(&self) -> HashMap<ModuleId, Vec<String>> {
+    pub fn useful_fact_qualified_names(&self) -> HashSet<(ModuleId, String)> {
         let proof = self.get_uncondensed_proof().unwrap();
-        let mut result = HashMap::new();
+        let mut result = HashSet::new();
         for (_, step) in &proof.all_steps {
             if let Rule::Assumption(ai) = &step.rule {
-                if let Some((module_id, name)) = ai.source.qualified_name() {
-                    result.entry(module_id).or_insert_with(Vec::new).push(name);
+                if let Some(qn) = ai.source.qualified_name() {
+                    result.insert(qn);
                 }
             }
         }

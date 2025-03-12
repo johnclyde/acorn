@@ -525,6 +525,12 @@ impl Project {
             if builder.status.is_error() {
                 return;
             }
+            prover
+                .useful_fact_qualified_names()
+                .iter()
+                .for_each(|fact| {
+                    new_premises.insert(fact.clone());
+                });
         }
     }
 
