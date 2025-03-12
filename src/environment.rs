@@ -1676,7 +1676,7 @@ impl Environment {
     }
 
     // Get all facts that this environment exports.
-    // If the filter is provided, we only return facts whose name is in the filter.
+    // If the filter is provided, we only return facts whose qualified name is in the filter.
     pub fn exported_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];

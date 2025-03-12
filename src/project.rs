@@ -17,6 +17,7 @@ use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
+use crate::proof_step::Truthiness;
 use crate::prover::Prover;
 use crate::token::Token;
 
@@ -372,15 +373,13 @@ impl Project {
         &self,
         module_cache: &Option<ModuleCache>,
         theorem: &Option<String>,
-    ) -> Option<HashSet<(ModuleId, String)>> {
+    ) -> Option<HashMap<ModuleId, HashSet<String>>> {
         let normalized = module_cache.as_ref()?.theorems.get(theorem.as_ref()?)?;
-        let mut answer = HashSet::new();
+        let mut answer = HashMap::new();
         for (module_name, premises) in normalized.iter() {
             // A module could have been renamed, in which case the whole cache is borked.
             let module_id = self.get_module_id_by_name(module_name)?;
-            for premise in premises {
-                answer.insert((module_id, premise.clone()));
-            }
+            answer.insert(module_id, premises.iter().cloned().collect());
         }
         Some(answer)
     }
@@ -401,6 +400,45 @@ impl Project {
         answer
     }
 
+    // Construct a prover with only the facts that are included in premises.
+    // node_index is the top level index of the node we are verifying.
+    fn make_filtered_prover(
+        &self,
+        env: &Environment,
+        node_index: usize,
+        premises: HashMap<ModuleId, HashSet<String>>,
+    ) -> Prover {
+        let mut prover = Prover::new(&self, false);
+
+        // Add facts from the dependencies
+        for module_id in self.all_dependencies(env.module_id) {
+            let module_premises = match premises.get(&module_id) {
+                Some(set) => set,
+                None => continue,
+            };
+            let module_env = self.get_env_by_id(module_id).unwrap();
+            for fact in module_env.exported_facts(Some(module_premises)) {
+                prover.add_fact(fact);
+            }
+        }
+
+        // Add facts from this file itself
+        if let Some(local_premises) = premises.get(&env.module_id) {
+            for node in env.nodes.iter().take(node_index) {
+                let name = match node.claim.name() {
+                    Some(name) => name,
+                    None => continue,
+                };
+                if local_premises.contains(name) {
+                    let fact = Fact::new(node.claim.clone(), Truthiness::Factual);
+                    prover.add_fact(fact);
+                }
+            }
+        }
+
+        prover
+    }
+
     // Verifies all goals within this module.
     // If we run into an error, we exit without verifying any more goals.
     fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
@@ -415,9 +453,10 @@ impl Project {
 
         builder.module_proving_started(target.clone());
 
-        let mut prover = Prover::new(&self, false);
+        // The full prover has access to all facts.
+        let mut full_prover = Prover::new(&self, false);
         for fact in self.imported_facts(env.module_id, None) {
-            prover.add_fact(fact);
+            full_prover.add_fact(fact);
         }
         let mut node = NodeCursor::new(&env, 0);
 
@@ -425,6 +464,7 @@ impl Project {
         loop {
             let theorem_name = node.current().theorem_name();
             if module_hash.matches_through_line(&old_module_cache, node.current().last_line()) {
+                // We don't need to verify this, we can just treat it as verified due to the hash.
                 builder.log_proving_cache_hit(&mut node);
                 if let (Some(theorem), Some(old_mc)) = (theorem_name, &old_module_cache) {
                     // We skipped the proof of this theorem.
@@ -437,15 +477,27 @@ impl Project {
                     }
                 }
             } else {
-                // The premise cache works on a per-theorem level, so we create them here.
+                // We do need to verify this.
+
+                // If we have a cached set of premises, we use it to create a filtered prover.
+                // The filtered prover only contains the premises that we think it needs.
                 let old_premises = self.load_premises(&old_module_cache, &theorem_name);
+
+                // XXX: flip this switch to create the filtered prover
+                let filtered_prover = if false {
+                    old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps))
+                } else {
+                    None
+                };
+
+                // The premises we use while verifying this block.
                 let mut new_premises = HashSet::new();
 
                 // This call will recurse and verify everything within this top-level block.
                 self.verify_node(
-                    &prover,
+                    &full_prover,
+                    &filtered_prover,
                     &mut node,
-                    &old_premises,
                     &mut new_premises,
                     builder,
                 );
@@ -462,7 +514,7 @@ impl Project {
             if !node.has_next() {
                 break;
             }
-            prover.add_fact(node.get_fact());
+            full_prover.add_fact(node.get_fact());
             node.next();
         }
 
@@ -476,18 +528,21 @@ impl Project {
 
     // Verifies the goal at this node as well as at every child node.
     //
-    // prover should have all facts loaded before node, but nothing for node itself.
+    // full_prover contains all facts that this node can use.
+    // filtered_prover contains only the facts that were cached.
+    // Our general strategy is to try the filtered prover, if we have it, and only fall back
+    // to the full prover if the filtered prover doesn't work.
+    //
     // node is a cursor, that typically we will mutate and reset to its original state.
-    // old_premises is a cached list of premises used in this entire theorem block.
     // new_premises is updated with the premises used in this theorem block.
     // builder tracks statistics and results for the build.
     //
     // If verify_node encounters an error, it stops, leaving node in a borked state.
     fn verify_node(
         &self,
-        prover: &Prover,
+        full_prover: &Prover,
+        filtered_prover: &Option<Prover>,
         node: &mut NodeCursor,
-        old_premises: &Option<HashSet<(ModuleId, String)>>,
         new_premises: &mut HashSet<(ModuleId, String)>,
         builder: &mut Builder,
     ) {
@@ -496,17 +551,17 @@ impl Project {
             return;
         }
 
-        let mut prover = prover.clone();
+        let mut full_prover = full_prover.clone();
         if node.num_children() > 0 {
             // We need to recurse into children
             node.descend(0);
             loop {
-                self.verify_node(&prover, node, old_premises, new_premises, builder);
+                self.verify_node(&full_prover, filtered_prover, node, new_premises, builder);
                 if builder.status.is_error() {
                     return;
                 }
 
-                prover.add_fact(node.get_fact());
+                full_prover.add_fact(node.get_fact());
                 if node.has_next() {
                     node.next();
                 } else {
@@ -518,19 +573,23 @@ impl Project {
 
         if node.current().has_goal() {
             let goal_context = node.goal_context().unwrap();
-            prover.set_goal(&goal_context);
+            full_prover.set_goal(&goal_context);
             let start = std::time::Instant::now();
-            let outcome = prover.verification_search();
-            builder.search_finished(&prover, &goal_context, outcome, start.elapsed());
+            let outcome = full_prover.verification_search();
+            builder.search_finished(&full_prover, &goal_context, outcome, start.elapsed());
             if builder.status.is_error() {
                 return;
             }
-            prover
-                .useful_fact_qualified_names()
-                .iter()
-                .for_each(|fact| {
-                    new_premises.insert(fact.clone());
-                });
+
+            // XXX: flip the switch to start gathering premises
+            if false {
+                full_prover
+                    .useful_fact_qualified_names()
+                    .iter()
+                    .for_each(|fact| {
+                        new_premises.insert(fact.clone());
+                    });
+            }
         }
     }
 

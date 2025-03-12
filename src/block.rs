@@ -501,6 +501,11 @@ impl<'a> NodeCursor<'a> {
         &env.nodes[*index]
     }
 
+    pub fn top_index(&self) -> usize {
+        let (_, index) = self.annotated_path[0];
+        index
+    }
+
     // Can use this as an identifier for the iterator, to compare two of them
     pub fn path(&self) -> Vec<usize> {
         self.annotated_path.iter().map(|(_, i)| *i).collect()
