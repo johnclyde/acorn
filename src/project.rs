@@ -1394,23 +1394,20 @@ mod tests {
     }
 
     #[test]
-    fn test_verification_touches_every_goal() {
+    fn test_verification() {
         let mut p = Project::new_mock();
-        p.mock(
-            "/mock/nat.ac",
-            r#"
-            inductive Nat {
-                0
-                suc(Nat)
-            }
-            "#,
-        );
-        p.mock(
-            "/mock/main.ac",
-            r#"
+        let nat_text = r#"
+        inductive Nat {
+            0
+            suc(Nat)
+        }
+        "#;
+        p.mock("/mock/nat.ac", nat_text);
+        let main_text = r#"
             from nat import Nat
             let x: Nat = axiom
             let y: Nat = axiom
+
             theorem goal(a: Nat) {
                 a != x or a != y or x = y
             } by {
@@ -1422,13 +1419,19 @@ mod tests {
                 }
                 a != x or a != y or x = y
             }
-            "#,
-        );
+
+            // Relies on an imported definition
+            theorem goal2(a: Nat) {
+                a != Nat.0 implies exists(b: Nat) { a = b.suc }
+            }
+            "#;
+        p.mock("/mock/main.ac", main_text);
 
         let descriptor = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&descriptor).unwrap();
 
         let goal_count = env.iter_goals().count() as i32;
+        assert_eq!(goal_count, 5);
 
         let mut builder = Builder::new(|_| {});
         p.verify_module(&descriptor, &env, &mut builder);
