@@ -1454,6 +1454,10 @@ mod tests {
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
         assert_eq!(builder.searches_total, 0);
+        let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
+        assert_eq!(module_cache.theorems.len(), 2);
+        module_cache.assert_premises_eq("goal1", &[]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.induction"]);
     }
 
     #[test]
