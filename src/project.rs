@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -391,7 +391,7 @@ impl Project {
         theorem_module_id: ModuleId,
         theorem_name: &str,
         premises: &HashSet<(ModuleId, String)>,
-    ) -> BTreeMap<String, Vec<String>> {
+    ) -> BTreeMap<String, BTreeSet<String>> {
         let mut answer = BTreeMap::new();
         for (premise_module_id, premise_name) in premises {
             if *premise_module_id == theorem_module_id && premise_name == theorem_name {
@@ -401,8 +401,8 @@ impl Project {
             let module_name = self.get_module_name_by_id(*premise_module_id).unwrap();
             answer
                 .entry(module_name.to_string())
-                .or_insert_with(Vec::new)
-                .push(premise_name.clone());
+                .or_insert_with(BTreeSet::new)
+                .insert(premise_name.clone());
         }
         answer
     }
@@ -1408,6 +1408,11 @@ mod tests {
             0
             suc(Nat)
         }
+
+        let nz: Nat = axiom
+        axiom nz_nonzero {
+            nz != Nat.0
+        }
         "#;
         p.mock("/mock/nat.ac", nat_text);
         let main_text = r#"
@@ -1427,9 +1432,9 @@ mod tests {
                 a != x or a != y or x = y
             }
 
-            // Relies on an imported definition
-            theorem goal2(a: Nat) {
-                a != Nat.0 implies exists(b: Nat) { a = b.suc }
+            // Relies on imported things
+            theorem goal2 {
+                exists(b: Nat) { nat.nz = b.suc }
             }
             "#;
         p.mock("/mock/main.ac", main_text);
@@ -1447,7 +1452,7 @@ mod tests {
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.theorems.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
-        module_cache.assert_premises_eq("goal2", &["nat:Nat.induction"]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
 
         // Run a second verification with no changes. This should use the cache.
         let mut builder = Builder::new(|_| {});
@@ -1457,7 +1462,7 @@ mod tests {
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.theorems.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
-        module_cache.assert_premises_eq("goal2", &["nat:Nat.induction"]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
     }
 
     #[test]

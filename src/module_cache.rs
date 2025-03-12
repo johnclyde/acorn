@@ -1,6 +1,6 @@
 use fxhash::FxHasher;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -94,7 +94,7 @@ pub struct ModuleCache {
     // theorems[theorem name][module name] = list of premises used in that module
     // TODO: see if we can serialize this.
     #[serde(skip)]
-    pub theorems: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    pub theorems: BTreeMap<String, BTreeMap<String, BTreeSet<String>>>,
 }
 
 impl ModuleCache {
