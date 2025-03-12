@@ -43,15 +43,6 @@ pub enum LineType {
     Closing,
 }
 
-// The proofs in the module are mostly grouped into theorems.
-#[derive(Clone, Debug)]
-pub struct TheoremInfo {
-    // The theorem name is unique within the module.
-    pub name: String,
-
-    pub last_line: u32,
-}
-
 // The Environment takes Statements as input and processes them.
 // It does not prove anything directly, but it is responsible for determining which
 // things need to be proved, and which statements are usable in which proofs.
