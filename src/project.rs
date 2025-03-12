@@ -388,15 +388,21 @@ impl Project {
     // Turns a hash set of qualified premises into its serializable form.
     fn normalize_premises(
         &self,
+        theorem_module_id: ModuleId,
+        theorem_name: &str,
         premises: &HashSet<(ModuleId, String)>,
     ) -> BTreeMap<String, Vec<String>> {
         let mut answer = BTreeMap::new();
-        for (module_id, premise) in premises {
-            let module_name = self.get_module_name_by_id(*module_id).unwrap();
+        for (premise_module_id, premise_name) in premises {
+            if *premise_module_id == theorem_module_id && premise_name == theorem_name {
+                // We don't need to include the theorem itself as a premise.
+                continue;
+            }
+            let module_name = self.get_module_name_by_id(*premise_module_id).unwrap();
             answer
                 .entry(module_name.to_string())
                 .or_insert_with(Vec::new)
-                .push(premise.clone());
+                .push(premise_name.clone());
         }
         answer
     }
@@ -502,9 +508,10 @@ impl Project {
                 }
 
                 if let Some(theorem_name) = theorem_name {
-                    new_module_cache
-                        .theorems
-                        .insert(theorem_name.clone(), self.normalize_premises(&new_premises));
+                    new_module_cache.theorems.insert(
+                        theorem_name.clone(),
+                        self.normalize_premises(env.module_id, &theorem_name, &new_premises),
+                    );
                 }
             }
             if !node.has_next() {
@@ -1394,7 +1401,7 @@ mod tests {
     }
 
     #[test]
-    fn test_verification() {
+    fn test_repeated_verification() {
         let mut p = Project::new_mock();
         let nat_text = r#"
         inductive Nat {
@@ -1408,7 +1415,7 @@ mod tests {
             let x: Nat = axiom
             let y: Nat = axiom
 
-            theorem goal(a: Nat) {
+            theorem goal1(a: Nat) {
                 a != x or a != y or x = y
             } by {
                 if a = x {
@@ -1427,16 +1434,20 @@ mod tests {
             "#;
         p.mock("/mock/main.ac", main_text);
 
-        let descriptor = ModuleDescriptor::Name("main".to_string());
-        let env = p.get_env(&descriptor).unwrap();
-
+        let main_descriptor = ModuleDescriptor::Name("main".to_string());
+        let env = p.get_env(&main_descriptor).unwrap();
         let goal_count = env.iter_goals().count() as i32;
         assert_eq!(goal_count, 5);
 
+        // The first verification should populate the cache, starting from an empty cache.
         let mut builder = Builder::new(|_| {});
-        p.verify_module(&descriptor, &env, &mut builder);
+        p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
         assert_eq!(builder.searches_total, goal_count);
+        let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
+        assert_eq!(module_cache.theorems.len(), 2);
+        module_cache.assert_premises_eq("goal1", &[]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.induction"]);
     }
 
     #[test]

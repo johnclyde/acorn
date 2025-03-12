@@ -143,6 +143,19 @@ impl ModuleCache {
             theorems: BTreeMap::new(),
         }
     }
+
+    // Asserts that the premises for the theorem are equal to the given list.
+    // Syntax is module:theorem.
+    pub fn assert_premises_eq(&self, theorem: &str, premises: &[&str]) {
+        let premise_map = self.theorems.get(theorem).expect("no premises for theorem");
+        let mut expected = vec![];
+        for (module, names) in premise_map {
+            for name in names {
+                expected.push(format!("{}:{}", module, name));
+            }
+        }
+        assert_eq!(expected, premises);
+    }
 }
 
 #[cfg(test)]
