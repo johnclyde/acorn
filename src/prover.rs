@@ -882,6 +882,9 @@ impl Prover {
         let proof = self.get_uncondensed_proof().unwrap();
         let mut result = HashSet::new();
         for (_, step) in &proof.all_steps {
+            if step.truthiness != Truthiness::Factual {
+                continue;
+            }
             if let Rule::Assumption(ai) = &step.rule {
                 if let Some(qn) = ai.source.qualified_name() {
                     result.insert(qn);
