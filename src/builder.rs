@@ -126,14 +126,21 @@ pub struct Builder<'a> {
     // Number of proof searches that ended in success.
     pub searches_success: i32,
 
+    // The number of searches that we ran the full prover on.
+    pub searches_full: i32,
+
+    // The number of searches that we ran the filtered prover on.
+    // This plus searches_full can sum to more than searches_total because we run both sometimes.
+    pub searches_filtered: i32,
+
     // The total number of clauses activated.
-    pub num_activated: i32,
+    pub clauses_activated: i32,
 
     // Total sum of square num_activated.
-    pub sum_square_activated: u64,
+    pub clauses_sum_square_activated: u64,
 
     // Total number of clauses scored, both active and passive.
-    pub num_clauses: i32,
+    pub clauses_total: i32,
 
     // The total amount of time spent proving, in seconds.
     pub proving_time: f64,
@@ -155,9 +162,11 @@ impl<'a> Builder<'a> {
             dataset: None,
             searches_total: 0,
             searches_success: 0,
-            num_activated: 0,
-            sum_square_activated: 0,
-            num_clauses: 0,
+            searches_full: 0,
+            searches_filtered: 0,
+            clauses_activated: 0,
+            clauses_sum_square_activated: 0,
+            clauses_total: 0,
             proving_time: 0.0,
         }
     }
@@ -263,11 +272,11 @@ impl<'a> Builder<'a> {
         self.goals_done += 1;
         self.searches_total += 1;
         self.proving_time += elapsed_f64;
-        let num_activated = prover.num_activated() as i32;
-        self.num_activated += num_activated;
+        let clauses_activated = prover.num_activated() as i32;
+        self.clauses_activated += clauses_activated;
         let num_passive = prover.num_passive() as i32;
-        self.num_clauses += num_activated + num_passive;
-        self.sum_square_activated += (num_activated * num_activated) as u64;
+        self.clauses_total += clauses_activated + num_passive;
+        self.clauses_sum_square_activated += (clauses_activated * clauses_activated) as u64;
 
         match outcome {
             Outcome::Success => match prover.get_condensed_proof() {
@@ -433,12 +442,12 @@ impl<'a> Builder<'a> {
         if self.searches_total > 0 {
             let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
             println!("{:.1}% search success rate", success_percent);
-            let num_activated = self.num_activated as f64 / self.searches_success as f64;
+            let num_activated = self.clauses_activated as f64 / self.searches_success as f64;
             println!("{:.2} average activations", num_activated);
             let mean_square_activated =
-                self.sum_square_activated as f64 / self.searches_total as f64;
+                self.clauses_sum_square_activated as f64 / self.searches_total as f64;
             println!("{:.1} mean square activations", mean_square_activated);
-            let num_clauses = self.num_clauses as f64 / self.searches_total as f64;
+            let num_clauses = self.clauses_total as f64 / self.searches_total as f64;
             println!("{:.2} average clauses", num_clauses);
             let proving_time_ms = 1000.0 * self.proving_time / self.searches_total as f64;
             println!("{:.1} ms average proving time", proving_time_ms);
