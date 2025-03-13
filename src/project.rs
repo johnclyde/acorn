@@ -1488,6 +1488,21 @@ mod tests {
         assert_eq!(module_cache.theorems.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
         module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
+
+        // When we rename a theorem, it should do a fallback.
+        let new_nat_text = nat_text.replace("nz_nonzero", "nz_nonzero_renamed");
+        p.mock("/mock/nat.ac", new_nat_text.as_str());
+        let env = p.get_env(&main_descriptor).unwrap();
+        let mut builder = Builder::new(|_| {});
+        p.verify_module(&main_descriptor, &env, &mut builder);
+        assert_eq!(builder.status, BuildStatus::Good);
+        assert_eq!(builder.searches_total, 5);
+        assert_eq!(builder.searches_full, 1);
+        assert_eq!(builder.searches_filtered, 5);
+        let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
+        assert_eq!(module_cache.theorems.len(), 2);
+        module_cache.assert_premises_eq("goal1", &[]);
+        module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero_renamed"]);
     }
 
     #[test]
