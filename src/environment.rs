@@ -230,7 +230,7 @@ impl Environment {
 
     pub fn get_theorem_claim(&self, name: &str) -> Option<AcornValue> {
         for prop in &self.nodes {
-            if let Some(claim_name) = prop.claim.name() {
+            if let Some(claim_name) = prop.claim.theorem_name() {
                 if claim_name == name {
                     return Some(prop.claim.value.clone());
                 }
@@ -1682,8 +1682,8 @@ impl Environment {
         let mut facts = vec![];
         for node in &self.nodes {
             if let Some(filter) = filter {
-                let name = node.claim.name().expect("exported fact has no name");
-                if !filter.contains(name) {
+                let name = node.claim.source.name().expect("exported fact has no name");
+                if !filter.contains(&name) {
                     continue;
                 }
             }

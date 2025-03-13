@@ -90,7 +90,7 @@ impl Source {
     // This is specific to the file it's in; to make it global it needs the fully qualified module name
     // as a prefix.
     // Premises and negated goals do not get names.
-    fn name(&self) -> Option<String> {
+    pub fn name(&self) -> Option<String> {
         match &self.source_type {
             SourceType::Axiom(name) | SourceType::Theorem(name) => match name {
                 None => Some(self.user_visible_line().to_string()),
@@ -219,8 +219,8 @@ impl Proposition {
         }
     }
 
-    // Theorems and axioms can have names
-    pub fn name(&self) -> Option<&str> {
+    // Theorems have theorem names, and so do axioms because those work like theorems.
+    pub fn theorem_name(&self) -> Option<&str> {
         match &self.source.source_type {
             SourceType::Axiom(name) | SourceType::Theorem(name) => name.as_deref(),
             _ => None,

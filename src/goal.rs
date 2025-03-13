@@ -70,7 +70,7 @@ impl GoalContext {
                 // Goals should never be generic.
                 assert!(!proposition.value.has_generic());
 
-                match proposition.name() {
+                match proposition.theorem_name() {
                     Some(name) => name.to_string(),
                     None => env
                         .bindings

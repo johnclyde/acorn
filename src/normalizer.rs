@@ -580,7 +580,7 @@ impl Normalizer {
         }
     }
 
-    // Checks a theorem
+    // Checks a theorem. Just for testing purposes.
     pub fn check(&mut self, env: &Environment, name: &str, expected: &[&str]) {
         let val = match env.get_theorem_claim(name) {
             Some(val) => val,

@@ -432,11 +432,11 @@ impl Project {
         // Add facts from this file itself
         if let Some(local_premises) = premises.get(&env.module_id) {
             for node in env.nodes.iter().take(node_index) {
-                let name = match node.claim.name() {
+                let name = match node.claim.source.name() {
                     Some(name) => name,
                     None => continue,
                 };
-                if local_premises.contains(name) {
+                if local_premises.contains(&name) {
                     let fact = Fact::new(node.claim.clone(), Truthiness::Factual);
                     prover.add_fact(fact);
                 }
