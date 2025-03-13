@@ -57,6 +57,10 @@ pub struct Project {
 
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
+
+    // Whether we skip goals that match hashes in the cache.
+    // Defaults to true.
+    pub check_hashes: bool,
 }
 
 // An error found while importing a module.
@@ -119,6 +123,7 @@ impl Project {
             targets: HashSet::new(),
             build_cache,
             build_stopped: Arc::new(AtomicBool::new(false)),
+            check_hashes: true,
         }
     }
 
@@ -470,7 +475,9 @@ impl Project {
         // Loop over all the nodes that are right below the top level.
         loop {
             let theorem_name = node.current().theorem_name();
-            if module_hash.matches_through_line(&old_module_cache, node.current().last_line()) {
+            if self.check_hashes
+                && module_hash.matches_through_line(&old_module_cache, node.current().last_line())
+            {
                 // We don't need to verify this, we can just treat it as verified due to the hash.
                 builder.log_proving_cache_hit(&mut node);
                 if let (Some(theorem), Some(old_mc)) = (theorem_name, &old_module_cache) {

@@ -24,17 +24,31 @@ struct Args {
     #[clap(long)]
     dataset: bool,
 
-    // Use the cache if --cache is set.
+    // Use the cache normally if --cache is set.
     // By default, the cache is not used.
     #[clap(long)]
     cache: bool,
+
+    // Use the cache, but only for the filtered prover, not for hash checking.
+    // Incompatible with --cache.
+    #[clap(long)]
+    filtered: bool,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    let mut project = Project::new_local(args.cache).unwrap();
+    let use_cache = args.cache || args.filtered;
+    if args.cache && args.filtered {
+        println!("--cache and --filtered are incompatible.");
+        return;
+    }
+
+    let mut project = Project::new_local(use_cache).unwrap();
+    if args.filtered {
+        project.check_hashes = false;
+    }
 
     if let Some(target) = args.target {
         if target.ends_with(".ac") {
