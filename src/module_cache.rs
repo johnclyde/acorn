@@ -93,7 +93,6 @@ pub struct ModuleCache {
 
     // theorems[theorem name][module name] = list of premises used in that module
     // TODO: see if we can serialize this.
-    #[serde(skip)]
     pub theorems: BTreeMap<String, BTreeMap<String, BTreeSet<String>>>,
 }
 
@@ -171,12 +170,22 @@ mod tests {
         // Create a temporary directory for our test
         let temp_dir = tempdir().expect("Failed to create temp directory");
         let file_path = temp_dir.path().join("test_cache.yaml");
-
+        let theorems: BTreeMap<String, BTreeMap<String, BTreeSet<String>>> = [(
+            "theorem_name".to_string(),
+            [(
+                "module_name".to_string(),
+                ["dependency_name".to_string()].into_iter().collect(),
+            )]
+            .into_iter()
+            .collect(),
+        )]
+        .into_iter()
+        .collect();
         let original_cache = ModuleCache {
             prefix_hashes: vec![12345, 23456],
             dependencies: 67890,
             content: 23456,
-            theorems: BTreeMap::new(),
+            theorems,
         };
 
         // Save the cache to a file
@@ -192,10 +201,16 @@ mod tests {
             .expect("Failed to read file");
         assert!(contents.contains("dependencies: 678"));
         assert!(contents.contains("content: 23456"));
+        assert!(contents.contains("theorem_name"));
+        assert!(contents.contains("module_name"));
+        assert!(contents.contains("dependency_name"));
         assert!(!contents.contains("prefix_hashes"));
 
         // Load the cache from the file
         let loaded_cache = ModuleCache::load(&file_path).expect("Failed to load cache");
+        assert_eq!(original_cache.dependencies, loaded_cache.dependencies);
+        assert_eq!(original_cache.content, loaded_cache.content);
+        assert_eq!(original_cache.theorems, loaded_cache.theorems);
         assert!(!loaded_cache.requires_save(&original_cache));
 
         // Clean up
