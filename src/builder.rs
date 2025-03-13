@@ -438,7 +438,10 @@ impl<'a> Builder<'a> {
             }
         }
         println!("{}/{} OK", self.goals_success, self.goals_total);
-        println!("{} searches performed", self.searches_total);
+        println!(
+            "{} searches performed ({} full, {} filtered)",
+            self.searches_total, self.searches_full, self.searches_filtered
+        );
         if self.searches_total > 0 {
             let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
             println!("{:.1}% search success rate", success_percent);
