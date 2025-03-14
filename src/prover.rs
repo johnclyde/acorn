@@ -432,16 +432,22 @@ impl Prover {
         Some(proof)
     }
 
-    fn get_uncondensed_proof(&self) -> Option<Proof> {
+    // get_uncondensed_proof gets a proof, if we have one.
+    // It does not do any simplification of the proof, it's just exactly how we found it.
+    // We always include all of the steps that are mathematically necessary for the proof.
+    // The include_inspiration flag determines whether we include the "inspiration" steps,
+    // which the prover used to find the proof, but are not needed for the proof to be valid.
+    fn get_uncondensed_proof(&self, include_inspiration: bool) -> Option<Proof> {
         let final_step = match &self.final_step {
             Some(step) => step,
             None => return None,
         };
         let mut useful_active = HashSet::new();
         self.active_set
-            .find_upstream(&final_step, &mut useful_active);
+            .find_upstream(&final_step, include_inspiration, &mut useful_active);
         for step in &self.useful_passive {
-            self.active_set.find_upstream(step, &mut useful_active);
+            self.active_set
+                .find_upstream(step, include_inspiration, &mut useful_active);
         }
         let negated_goal = match &self.goal {
             Some(NormalizedGoal::ProveNegated(negated_goal, _)) => negated_goal,
@@ -473,8 +479,9 @@ impl Prover {
     }
 
     // Returns a condensed proof, if we have a proof.
+    // The condensed proof is what we recommend inserting into the code.
     pub fn get_condensed_proof(&self) -> Option<Proof> {
-        let mut proof = self.get_uncondensed_proof()?;
+        let mut proof = self.get_uncondensed_proof(false)?;
         proof.condense();
         Some(proof)
     }
@@ -878,8 +885,10 @@ impl Prover {
 
     // Should only be called after proving completes successfully.
     // Gets the qualified name of every fact that was used in the proof.
+    // This includes the "inspiration" facts that were used to find the proof but are
+    // not mathematically necessary for the proof to be valid.
     pub fn useful_fact_qualified_names(&self) -> HashSet<(ModuleId, String)> {
-        let proof = self.get_uncondensed_proof().unwrap();
+        let proof = self.get_uncondensed_proof(true).unwrap();
         let mut result = HashSet::new();
         for (_, step) in &proof.all_steps {
             if step.truthiness != Truthiness::Factual {

@@ -839,7 +839,12 @@ impl ActiveSet {
     }
 
     // Find the index of all clauses used to prove the provided step.
-    pub fn find_upstream(&self, step: &ProofStep, output: &mut HashSet<usize>) {
+    pub fn find_upstream(
+        &self,
+        step: &ProofStep,
+        include_inspiration: bool,
+        output: &mut HashSet<usize>,
+    ) {
         let mut pending = vec![];
         for i in step.active_dependencies() {
             pending.push(i);
