@@ -1818,7 +1818,7 @@ mod prover_test {
         let (prover, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
         let mut names = prover
-            .useful_fact_qualified_names()
+            .useful_fact_names()
             .into_iter()
             .map(|(_, name)| name)
             .collect::<Vec<_>>();

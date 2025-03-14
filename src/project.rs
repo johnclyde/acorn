@@ -380,7 +380,7 @@ impl Project {
         module_cache: &Option<ModuleCache>,
         theorem: &Option<String>,
     ) -> Option<HashMap<ModuleId, HashSet<String>>> {
-        let normalized = module_cache.as_ref()?.theorems.get(theorem.as_ref()?)?;
+        let normalized = module_cache.as_ref()?.blocks.get(theorem.as_ref()?)?;
         let mut answer = HashMap::new();
         for (module_name, premises) in normalized.iter() {
             // A module could have been renamed, in which case the whole cache is borked.
@@ -437,7 +437,7 @@ impl Project {
         // Add facts from this file itself
         if let Some(local_premises) = premises.get(&env.module_id) {
             for node in env.nodes.iter().take(node_index) {
-                let name = match node.claim.source.name() {
+                let name = match node.claim.source.fact_name() {
                     Some(name) => name,
                     None => continue,
                 };
@@ -474,7 +474,7 @@ impl Project {
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            let theorem_name = node.current().theorem_name();
+            let theorem_name = node.current().block_name();
             if self.check_hashes
                 && module_hash.matches_through_line(&old_module_cache, node.current().last_line())
             {
@@ -484,9 +484,9 @@ impl Project {
                     // We skipped the proof of this theorem.
                     // But we still might want its premises cached.
                     // So we copy them over from the old module cache.
-                    if let Some(old_theorem_cache) = old_mc.theorems.get(&theorem) {
+                    if let Some(old_theorem_cache) = old_mc.blocks.get(&theorem) {
                         new_module_cache
-                            .theorems
+                            .blocks
                             .insert(theorem, old_theorem_cache.clone());
                     }
                 }
@@ -515,7 +515,7 @@ impl Project {
                 }
 
                 if let Some(theorem_name) = theorem_name {
-                    new_module_cache.theorems.insert(
+                    new_module_cache.blocks.insert(
                         theorem_name.clone(),
                         self.normalize_premises(env.module_id, &theorem_name, &new_premises),
                     );
@@ -595,12 +595,9 @@ impl Project {
             }
 
             // Gather the premises used by this proof
-            prover
-                .useful_fact_qualified_names()
-                .iter()
-                .for_each(|fact| {
-                    new_premises.insert(fact.clone());
-                });
+            prover.useful_fact_names().iter().for_each(|fact| {
+                new_premises.insert(fact.clone());
+            });
         }
     }
 
@@ -1471,7 +1468,7 @@ mod tests {
         assert_eq!(builder.searches_full, 5);
         assert_eq!(builder.searches_filtered, 0);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
-        assert_eq!(module_cache.theorems.len(), 2);
+        assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
         module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
 
@@ -1483,7 +1480,7 @@ mod tests {
         assert_eq!(builder.searches_full, 0);
         assert_eq!(builder.searches_filtered, 0);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
-        assert_eq!(module_cache.theorems.len(), 2);
+        assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
         module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
 
@@ -1497,7 +1494,7 @@ mod tests {
         assert_eq!(builder.searches_full, 0);
         assert_eq!(builder.searches_filtered, 5);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
-        assert_eq!(module_cache.theorems.len(), 2);
+        assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
         module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero"]);
 
@@ -1512,7 +1509,7 @@ mod tests {
         assert_eq!(builder.searches_full, 1);
         assert_eq!(builder.searches_filtered, 5);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
-        assert_eq!(module_cache.theorems.len(), 2);
+        assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
         module_cache.assert_premises_eq("goal2", &["nat:Nat.new", "nat:nz_nonzero_renamed"]);
     }

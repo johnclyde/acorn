@@ -448,9 +448,11 @@ impl Node {
         }
     }
 
-    pub fn theorem_name(&self) -> Option<String> {
+    // The block name is used to cache the premises used for the entire block.
+    pub fn block_name(&self) -> Option<String> {
         match &self.claim.source.source_type {
             SourceType::Theorem(name) => name.clone(),
+            SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             _ => None,
         }
     }

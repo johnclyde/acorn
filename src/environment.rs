@@ -1682,7 +1682,11 @@ impl Environment {
         let mut facts = vec![];
         for node in &self.nodes {
             if let Some(filter) = filter {
-                let name = node.claim.source.name().expect("exported fact has no name");
+                let name = node
+                    .claim
+                    .source
+                    .fact_name()
+                    .expect("exported fact has no name");
                 if !filter.contains(&name) {
                     continue;
                 }
