@@ -76,6 +76,9 @@ struct SubtermInfo {
     // We do use duplicates to prevent factual-factual rewrites, but it is displeasing.
     rewrites: Vec<Rewrite>,
 
+    // The inspiration id for a subterm is the first activated concrete proof step that contains it.
+    inspiration_id: usize,
+
     // The depth of the subterm is the maximum depth of a clause that needs to be activated
     // to use this subterm.
     depth: u32,
@@ -312,6 +315,7 @@ impl ActiveSet {
                         let id2 = self.graph.insert_term(&rewrite.term);
                         self.add_to_term_graph(
                             rewrite.pattern_id,
+                            Some(target_id),
                             Some(target_step.depth),
                             id1,
                             id2,
@@ -325,6 +329,7 @@ impl ActiveSet {
                         term: u_subterm.clone(),
                         locations: vec![],
                         rewrites,
+                        inspiration_id: target_id,
                         depth: target_step.depth,
                     });
                     self.subterm_map.insert(u_subterm.clone(), id);
@@ -435,7 +440,14 @@ impl ActiveSet {
                 // Add this rewrite to the term graph.
                 let id1 = self.graph.insert_term(&subterm);
                 let id2 = self.graph.insert_term(&new_subterm);
-                self.add_to_term_graph(pattern_id, Some(subterm_info.depth), id1, id2, true);
+                self.add_to_term_graph(
+                    pattern_id,
+                    Some(subterm_info.inspiration_id),
+                    Some(subterm_info.depth),
+                    id1,
+                    id2,
+                    true,
+                );
 
                 self.subterms[subterm_id].rewrites.push(Rewrite {
                     pattern_id,
@@ -732,6 +744,7 @@ impl ActiveSet {
     fn add_to_term_graph(
         &mut self,
         pattern_id: usize,
+        inspiration_id: Option<usize>,
         inspiration_depth: Option<u32>,
         term1: TermId,
         term2: TermId,
@@ -739,7 +752,7 @@ impl ActiveSet {
     ) {
         if equal {
             self.graph
-                .set_terms_equal(term1, term2, pattern_id, inspiration_depth);
+                .set_terms_equal(term1, term2, pattern_id, inspiration_id, inspiration_depth);
         } else {
             assert!(inspiration_depth.is_none());
             self.graph.set_terms_not_equal(term1, term2, pattern_id);
@@ -758,7 +771,7 @@ impl ActiveSet {
             let left = self.graph.insert_term(&literal.left);
             let right = self.graph.insert_term(&literal.right);
 
-            self.add_to_term_graph(activated_id, None, left, right, literal.positive);
+            self.add_to_term_graph(activated_id, None, None, left, right, literal.positive);
 
             // The activated step could be rewritten immediately.
             self.activate_rewrite_target(activated_id, &activated_step, output);
