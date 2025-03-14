@@ -898,7 +898,7 @@ impl Prover {
         let proof = self.get_uncondensed_proof(true).unwrap();
         let mut result = HashSet::new();
         for (_, step) in &proof.all_steps {
-            if step.truthiness != Truthiness::Factual {
+            if step.truthiness == Truthiness::Hypothetical {
                 continue;
             }
             if let Rule::Assumption(ai) = &step.rule {
