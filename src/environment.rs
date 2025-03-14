@@ -773,9 +773,8 @@ impl Environment {
                 statement.last_line(),
                 ss.body.as_ref(),
             )?;
-            let vacuous_prop =
-                Proposition::anonymous(AcornValue::Bool(true), self.module_id, statement.range());
-            let index = self.add_node(project, false, vacuous_prop, Some(block));
+            let prop = Proposition::inhabited(self.module_id, &ss.name, statement.range());
+            let index = self.add_node(project, false, prop, Some(block));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
         } else {

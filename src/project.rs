@@ -474,51 +474,52 @@ impl Project {
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            let theorem_name = node.current().block_name();
-            if self.check_hashes
-                && module_hash.matches_through_line(&old_module_cache, node.current().last_line())
-            {
-                // We don't need to verify this, we can just treat it as verified due to the hash.
-                builder.log_proving_cache_hit(&mut node);
-                if let (Some(theorem), Some(old_mc)) = (theorem_name, &old_module_cache) {
-                    // We skipped the proof of this theorem.
-                    // But we still might want its premises cached.
-                    // So we copy them over from the old module cache.
-                    if let Some(old_theorem_cache) = old_mc.blocks.get(&theorem) {
-                        new_module_cache
-                            .blocks
-                            .insert(theorem, old_theorem_cache.clone());
+            if node.num_children() != 0 || node.current().has_goal() {
+                let block_name = node.current().block_name();
+                if self.check_hashes
+                    && module_hash
+                        .matches_through_line(&old_module_cache, node.current().last_line())
+                {
+                    // We don't need to verify this, we can just treat it as verified due to the hash.
+                    builder.log_proving_cache_hit(&mut node);
+                    if let (Some(bn), Some(old_mc)) = (block_name, &old_module_cache) {
+                        // We skipped the proof of this theorem.
+                        // But we still might want its premises cached.
+                        // So we copy them over from the old module cache.
+                        if let Some(old_block_cache) = old_mc.blocks.get(&bn) {
+                            new_module_cache.blocks.insert(bn, old_block_cache.clone());
+                        }
                     }
-                }
-            } else {
-                // We do need to verify this.
+                } else {
+                    // We do need to verify this.
 
-                // If we have a cached set of premises, we use it to create a filtered prover.
-                // The filtered prover only contains the premises that we think it needs.
-                let old_premises = self.load_premises(&old_module_cache, &theorem_name);
-                let filtered_prover =
-                    old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps));
+                    // If we have a cached set of premises, we use it to create a filtered prover.
+                    // The filtered prover only contains the premises that we think it needs.
+                    let old_premises = self.load_premises(&old_module_cache, &block_name);
+                    let filtered_prover =
+                        old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps));
 
-                // The premises we use while verifying this block.
-                let mut new_premises = HashSet::new();
+                    // The premises we use while verifying this block.
+                    let mut new_premises = HashSet::new();
 
-                // This call will recurse and verify everything within this top-level block.
-                self.verify_node(
-                    &full_prover,
-                    &filtered_prover,
-                    &mut node,
-                    &mut new_premises,
-                    builder,
-                );
-                if builder.status.is_error() {
-                    return;
-                }
-
-                if let Some(theorem_name) = theorem_name {
-                    new_module_cache.blocks.insert(
-                        theorem_name.clone(),
-                        self.normalize_premises(env.module_id, &theorem_name, &new_premises),
+                    // This call will recurse and verify everything within this top-level block.
+                    self.verify_node(
+                        &full_prover,
+                        &filtered_prover,
+                        &mut node,
+                        &mut new_premises,
+                        builder,
                     );
+                    if builder.status.is_error() {
+                        return;
+                    }
+
+                    if let Some(block_name) = block_name {
+                        new_module_cache.blocks.insert(
+                            block_name.clone(),
+                            self.normalize_premises(env.module_id, &block_name, &new_premises),
+                        );
+                    }
                 }
             }
             if !node.has_next() {

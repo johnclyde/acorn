@@ -155,6 +155,21 @@ impl Proposition {
         }
     }
 
+    // When we have a constraint, we prove the type is inhabited, which exports as vacuous.
+    pub fn inhabited(module: ModuleId, type_name: &str, range: Range) -> Proposition {
+        let value = AcornValue::Bool(true);
+        let source_type =
+            SourceType::TypeDefinition(type_name.to_string(), "constraint".to_string());
+        Proposition {
+            value,
+            source: Source {
+                module,
+                range,
+                source_type,
+            },
+        }
+    }
+
     pub fn type_definition(
         value: AcornValue,
         module: ModuleId,

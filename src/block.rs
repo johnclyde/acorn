@@ -453,6 +453,9 @@ impl Node {
         match &self.claim.source.source_type {
             SourceType::Theorem(name) => name.clone(),
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
+            SourceType::TypeDefinition(type_name, suffix) => {
+                Some(format!("{}.{}", type_name, suffix))
+            }
             _ => None,
         }
     }
