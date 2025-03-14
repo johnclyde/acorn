@@ -133,6 +133,10 @@ pub struct Builder<'a> {
     // This plus searches_full can sum to more than searches_total because we run both sometimes.
     pub searches_filtered: i32,
 
+    // The number of searches where we had to do a fallback, running the filtered prover and then
+    // the full prover.
+    pub searches_fallback: i32,
+
     // The total number of clauses activated.
     pub clauses_activated: i32,
 
@@ -164,6 +168,7 @@ impl<'a> Builder<'a> {
             searches_success: 0,
             searches_full: 0,
             searches_filtered: 0,
+            searches_fallback: 0,
             clauses_activated: 0,
             clauses_sum_square_activated: 0,
             clauses_total: 0,
@@ -439,8 +444,8 @@ impl<'a> Builder<'a> {
         }
         println!("{}/{} OK", self.goals_success, self.goals_total);
         println!(
-            "{} searches performed ({} full, {} filtered)",
-            self.searches_total, self.searches_full, self.searches_filtered
+            "{} searches performed ({} full, {} filtered, {} fallback)",
+            self.searches_total, self.searches_full, self.searches_filtered, self.searches_fallback
         );
         if self.searches_total > 0 {
             let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;

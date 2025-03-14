@@ -624,9 +624,14 @@ impl Project {
                 builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
                 return filtered_prover;
             }
+            builder.searches_fallback += 1;
+            // println!(
+            //     "filtered fail. falling back. line {}: {}",
+            //     goal_context.first_line, goal_context.description
+            // );
         }
 
-        // Fall back to the full prover
+        // Try the full prover
         builder.searches_full += 1;
         full_prover.set_goal(goal_context);
         let start = std::time::Instant::now();
