@@ -78,10 +78,6 @@ struct SubtermInfo {
 
     // The inspiration id for a subterm is the first activated concrete proof step that contains it.
     inspiration_id: usize,
-
-    // The depth of the subterm is the maximum depth of a clause that needs to be activated
-    // to use this subterm.
-    depth: u32,
 }
 
 // A SubtermLocation describes somewhere that the subterm exists among the activated clauses.
@@ -313,14 +309,7 @@ impl ActiveSet {
                     let id1 = self.graph.insert_term(&u_subterm);
                     for rewrite in &rewrites {
                         let id2 = self.graph.insert_term(&rewrite.term);
-                        self.add_to_term_graph(
-                            rewrite.pattern_id,
-                            Some(target_id),
-                            Some(target_step.depth),
-                            id1,
-                            id2,
-                            true,
-                        );
+                        self.add_to_term_graph(rewrite.pattern_id, Some(target_id), id1, id2, true);
                     }
 
                     // Populate the subterm info.
@@ -330,7 +319,6 @@ impl ActiveSet {
                         locations: vec![],
                         rewrites,
                         inspiration_id: target_id,
-                        depth: target_step.depth,
                     });
                     self.subterm_map.insert(u_subterm.clone(), id);
                     self.subterm_unifier.insert(u_subterm, id);
@@ -443,7 +431,6 @@ impl ActiveSet {
                 self.add_to_term_graph(
                     pattern_id,
                     Some(subterm_info.inspiration_id),
-                    Some(subterm_info.depth),
                     id1,
                     id2,
                     true,
@@ -745,16 +732,15 @@ impl ActiveSet {
         &mut self,
         pattern_id: usize,
         inspiration_id: Option<usize>,
-        inspiration_depth: Option<u32>,
         term1: TermId,
         term2: TermId,
         equal: bool,
     ) {
         if equal {
             self.graph
-                .set_terms_equal(term1, term2, pattern_id, inspiration_id, inspiration_depth);
+                .set_terms_equal(term1, term2, pattern_id, inspiration_id);
         } else {
-            assert!(inspiration_depth.is_none());
+            assert!(inspiration_id.is_none());
             self.graph.set_terms_not_equal(term1, term2, pattern_id);
         }
     }
@@ -771,7 +757,7 @@ impl ActiveSet {
             let left = self.graph.insert_term(&literal.left);
             let right = self.graph.insert_term(&literal.right);
 
-            self.add_to_term_graph(activated_id, None, None, left, right, literal.positive);
+            self.add_to_term_graph(activated_id, None, left, right, literal.positive);
 
             // The activated step could be rewritten immediately.
             self.activate_rewrite_target(activated_id, &activated_step, output);
@@ -846,7 +832,7 @@ impl ActiveSet {
         output: &mut HashSet<usize>,
     ) {
         let mut pending = vec![];
-        for i in step.active_dependencies() {
+        for i in step.active_dependencies(include_inspiration) {
             pending.push(i);
         }
         while !pending.is_empty() {
@@ -855,7 +841,7 @@ impl ActiveSet {
                 continue;
             }
             output.insert(i);
-            for j in self.get_step(i).active_dependencies() {
+            for j in self.get_step(i).active_dependencies(include_inspiration) {
                 pending.push(j);
             }
         }

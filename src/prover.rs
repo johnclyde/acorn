@@ -336,9 +336,11 @@ impl Prover {
             }
             Rule::EqualityFactoring(source)
             | Rule::EqualityResolution(source)
-            | Rule::FunctionElimination(source)
-            | Rule::Specialization(source) => {
+            | Rule::FunctionElimination(source) => {
                 answer.push(("source".to_string(), ProofStepId::Active(*source)));
+            }
+            Rule::Specialization(info) => {
+                answer.push(("pattern".to_string(), ProofStepId::Active(info.pattern_id)));
             }
             Rule::MultipleRewrite(info) => {
                 answer.push((
@@ -498,14 +500,14 @@ impl Prover {
             truthiness = truthiness.combine(rewrite_step.truthiness);
 
             // Check whether we need to explicitly add a specialized clause to the proof.
-            match rewrite_info.subterm_depth {
-                None | Some(0) => {
+            let inspiration_id = match rewrite_info.inspiration_id {
+                Some(id) => id,
+                None => {
                     // No extra specialized clause needed
                     active_ids.push(rewrite_info.pattern_id);
                     max_depth = max_depth.max(rewrite_step.depth);
                     continue;
                 }
-                Some(_) => {}
             };
 
             // Create a new proof step, without activating it, to express the
@@ -518,7 +520,12 @@ impl Prover {
                 continue;
             }
             new_clauses.insert(clause.clone());
-            let step = ProofStep::new_specialization(rewrite_info.pattern_id, rewrite_step, clause);
+            let step = ProofStep::new_specialization(
+                rewrite_info.pattern_id,
+                inspiration_id,
+                rewrite_step,
+                clause,
+            );
             max_depth = max_depth.max(step.depth);
             let passive_id = self.useful_passive.len() as u32;
             self.useful_passive.push(step);
