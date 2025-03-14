@@ -13,7 +13,7 @@ mod prover_test {
         project: &mut Project,
         module_name: &str,
         goal_name: &str,
-    ) -> (Outcome, Result<Vec<String>, CodeGenError>) {
+    ) -> (Prover, Outcome, Result<Vec<String>, CodeGenError>) {
         let module_id = project
             .load_module_by_name(module_name)
             .expect("load failed");
@@ -40,10 +40,13 @@ mod prover_test {
             Some(proof) => proof.to_code(&env.bindings),
             None => Err(CodeGenError::NoProof),
         };
-        (outcome, code)
+        (prover, outcome, code)
     }
 
-    fn prove_as_main(text: &str, goal_name: &str) -> (Outcome, Result<Vec<String>, CodeGenError>) {
+    fn prove_as_main(
+        text: &str,
+        goal_name: &str,
+    ) -> (Prover, Outcome, Result<Vec<String>, CodeGenError>) {
         let mut project = Project::new_mock();
         project.mock("/mock/main.ac", text);
         prove(&mut project, "main", goal_name)
@@ -51,7 +54,7 @@ mod prover_test {
 
     // Does one proof on the provided text.
     fn prove_text(text: &str, goal_name: &str) -> Outcome {
-        prove_as_main(text, goal_name).0
+        prove_as_main(text, goal_name).1
     }
 
     // Verifies all the goals in the provided text, returning any non-Success outcome.
@@ -97,7 +100,7 @@ mod prover_test {
     }
 
     fn expect_proof(text: &str, goal_name: &str, expected: &[&str]) {
-        let (outcome, code) = prove_as_main(text, goal_name);
+        let (_, outcome, code) = prove_as_main(text, goal_name);
         assert_eq!(outcome, Outcome::Success);
         let actual = code.expect("code generation failed");
         assert_eq!(actual, expected);
@@ -105,7 +108,7 @@ mod prover_test {
 
     // Expects the prover to find a proof that's one of the provided ones.
     fn expect_proof_in(text: &str, goal_name: &str, expected: &[&[&str]]) {
-        let (outcome, code) = prove_as_main(text, goal_name);
+        let (_, outcome, code) = prove_as_main(text, goal_name);
         assert_eq!(outcome, Outcome::Success);
         let actual = code.expect("code generation failed");
 
@@ -843,7 +846,7 @@ mod prover_test {
             theorem goal(a: bar.Bar, b: bar.Bar) { bar.morph(a) = bar.morph(b) }
         "#,
         );
-        let (outcome, _) = prove(&mut p, "main", "goal");
+        let (_, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
     }
 
@@ -1351,7 +1354,7 @@ mod prover_test {
             }
         "#,
         );
-        let (outcome, _) = prove(&mut p, "main", "goal");
+        let (_, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
     }
 
@@ -1738,11 +1741,11 @@ mod prover_test {
             }
         "#,
         );
-        let (outcome, _) = prove(&mut p, "main", "check_first");
+        let (_, outcome, _) = prove(&mut p, "main", "check_first");
         assert_eq!(outcome, Outcome::Success);
-        let (outcome, _) = prove(&mut p, "main", "check_second");
+        let (_, outcome, _) = prove(&mut p, "main", "check_second");
         assert_eq!(outcome, Outcome::Success);
-        let (outcome, _) = prove(&mut p, "main", "check_new");
+        let (_, outcome, _) = prove(&mut p, "main", "check_new");
         assert_eq!(outcome, Outcome::Success);
     }
 
@@ -1789,5 +1792,37 @@ mod prover_test {
             }
         "#;
         verify_succeeds(text);
+    }
+
+    #[test]
+    fn test_useful_fact_extraction() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            type Foo: axiom
+            let foo: Foo -> Bool = axiom
+            let bar: Foo = axiom
+            let baz: Foo = axiom
+            axiom foo_bar {
+                foo(bar)
+            }
+            axiom foo_bar_imp_foo_baz {
+                foo(bar) implies foo(baz)
+            }
+            theorem goal {
+               foo(baz)
+            }
+        "#,
+        );
+        let (prover, outcome, _) = prove(&mut p, "main", "goal");
+        assert_eq!(outcome, Outcome::Success);
+        let mut names = prover
+            .useful_fact_qualified_names()
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, &["foo_bar", "foo_bar_imp_foo_baz"]);
     }
 }
