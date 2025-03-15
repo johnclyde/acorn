@@ -894,19 +894,20 @@ impl Prover {
     // Gets the qualified name of every fact that was used in the proof.
     // This includes the "inspiration" facts that were used to find the proof but are
     // not mathematically necessary for the proof to be valid.
-    pub fn useful_fact_names(&self) -> HashSet<(ModuleId, String)> {
-        let proof = self.get_uncondensed_proof(true).unwrap();
-        let mut result = HashSet::new();
-        for (_, step) in &proof.all_steps {
+    pub fn get_useful_fact_names(&self, names: &mut HashSet<(ModuleId, String)>) {
+        let proof = match self.get_uncondensed_proof(true) {
+            Some(proof) => proof,
+            None => return,
+        };
+        for (_, step) in proof.all_steps {
             if step.truthiness == Truthiness::Hypothetical {
                 continue;
             }
             if let Rule::Assumption(ai) = &step.rule {
                 if let Some(qn) = ai.source.qualified_fact_name() {
-                    result.insert(qn);
+                    names.insert(qn);
                 }
             }
         }
-        result
     }
 }

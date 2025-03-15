@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod prover_test {
     use core::panic;
+    use std::collections::HashSet;
 
     use acorn::code_gen_error::CodeGenError;
     use acorn::module::LoadState;
@@ -1817,8 +1818,9 @@ mod prover_test {
         );
         let (prover, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
-        let mut names = prover
-            .useful_fact_names()
+        let mut name_set = HashSet::new();
+        prover.get_useful_fact_names(&mut name_set);
+        let mut names = name_set
             .into_iter()
             .map(|(_, name)| name)
             .collect::<Vec<_>>();

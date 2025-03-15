@@ -596,9 +596,7 @@ impl Project {
             }
 
             // Gather the premises used by this proof
-            prover.useful_fact_names().iter().for_each(|fact| {
-                new_premises.insert(fact.clone());
-            });
+            prover.get_useful_fact_names(new_premises);
         }
     }
 
