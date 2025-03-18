@@ -27,5 +27,4 @@ jobs:
         run: .\build.bat --build_dir onnxruntime\build\Windows ^
           --config Release --parallel --skip_tests ^
           --enable_msvc_static_runtime ^
-          --cmake_generator "Visual Studio 17 2022" ^
-          --enable_logging
+          --cmake_generator "Visual Studio 17 2022"

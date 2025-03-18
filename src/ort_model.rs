@@ -3,7 +3,9 @@ use std::path::Path;
 use std::sync::Once;
 
 use ndarray::{Axis, IxDyn};
-use ort::{CPUExecutionProvider, GraphOptimizationLevel, Session};
+use ort::execution_providers::CPUExecutionProvider;
+use ort::session::builder::GraphOptimizationLevel;
+use ort::session::Session;
 
 use crate::features::Features;
 use crate::scorer::Scorer;
