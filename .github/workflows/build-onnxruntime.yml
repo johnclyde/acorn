@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  ONNXRUNTIME_VERSION: v1.20.1
+  ONNXRUNTIME_VERSION: v1.21.0
 
 jobs:
   build-onnxruntime:
