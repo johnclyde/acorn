@@ -36,10 +36,10 @@ jobs:
           exit 1
 
       # For debugging, if ONNX stuff isn't working.
-      # - name: Show ONNX Runtime files
-      #   run: |
-      #     echo ORT_LIB_LOCATION: ${{ env.ORT_LIB_LOCATION }}
-      #     Get-ChildItem -Path ${{ env.ORT_LIB_LOCATION }} -Recurse
+      - name: Show ONNX Runtime files
+        run: |
+          echo ORT_LIB_LOCATION: ${{ env.ORT_LIB_LOCATION }}
+          Get-ChildItem -Path ${{ env.ORT_LIB_LOCATION }} -Recurse
 
       - name: Cache Cargo Build
         uses: actions/cache@v4
