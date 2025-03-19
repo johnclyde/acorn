@@ -1209,15 +1209,32 @@ impl Environment {
         &mut self,
         _project: &mut Project,
         statement: &Statement,
-        _ts: &TypeclassStatement,
+        ts: &TypeclassStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
+        if self.bindings.name_in_use(ts.instance_name.text()) {
+            return Err(statement.error(&format!(
+                "{} already defined in this scope",
+                ts.instance_name
+            )));
+        }
+        if self.bindings.name_in_use(ts.typeclass_name.text()) {
+            return Err(statement.error(&format!(
+                "{} already defined in this scope",
+                ts.typeclass_name
+            )));
+        }
 
-        todo!("implement add_typeclass_statement");
-        // Rough outline of what to do.
-        // Add instance_name to the environment as a type variable.
-        // Handle the constant expressions like regular constants.
-        // Handle the theorems like regular theorems.
+        // TODO: add typeclass_name as a typeclass
+        // TODO: capture the instance : typeclass relationship
+
+        self.bindings.add_arbitrary_type(ts.instance_name.text());
+
+        // TODO: Handle the constant expressions like regular constants.
+        // TODO: Handle the theorems like regular theorems.
+
+        self.bindings.remove_type(ts.instance_name.text());
+        Ok(())
     }
 
     // Adds a statement to the environment.
