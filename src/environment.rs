@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
@@ -726,7 +726,7 @@ impl Environment {
 
             // For the duration of the structure definition, the type parameters are
             // treated as arbitrary types.
-            arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.text()));
+            arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.text(), None));
             param_names.push(type_param.text().to_string());
         }
 
@@ -1212,23 +1212,29 @@ impl Environment {
         ts: &TypeclassStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        if self.bindings.name_in_use(ts.instance_name.text()) {
-            return Err(statement.error(&format!(
-                "{} already defined in this scope",
-                ts.instance_name
-            )));
+        let instance_name = ts.instance_name.text();
+        if self.bindings.name_in_use(instance_name) {
+            return Err(
+                statement.error(&format!("{} already defined in this scope", instance_name))
+            );
         }
-        if self.bindings.name_in_use(ts.typeclass_name.text()) {
-            return Err(statement.error(&format!(
-                "{} already defined in this scope",
-                ts.typeclass_name
-            )));
+        let typeclass_name = ts.typeclass_name.text();
+        if self.bindings.name_in_use(typeclass_name) {
+            return Err(
+                statement.error(&format!("{} already defined in this scope", typeclass_name))
+            );
         }
+        let typeclass = Typeclass {
+            module_id: self.module_id,
+            name: typeclass_name.to_string(),
+        };
+        self.bindings
+            .add_typeclass(typeclass_name, typeclass.clone());
 
-        // TODO: add typeclass_name as a typeclass
         // TODO: capture the instance : typeclass relationship
 
-        self.bindings.add_arbitrary_type(ts.instance_name.text());
+        self.bindings
+            .add_arbitrary_type(instance_name, Some(&typeclass));
 
         // TODO: Handle the constant expressions like regular constants.
         // TODO: Handle the theorems like regular theorems.
@@ -1479,7 +1485,7 @@ impl Environment {
                     if self.bindings.name_in_use(token.text()) {
                         return Err(token.error("type parameter already defined in this scope"));
                     }
-                    params.push(self.bindings.add_arbitrary_type(token.text()));
+                    params.push(self.bindings.add_arbitrary_type(token.text(), None));
                     param_names.push(token.text().to_string());
                 }
                 let instance_type = potential.resolve(params, &cs.name_token)?;

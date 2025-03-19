@@ -106,7 +106,7 @@ impl Block {
         // Inside the block, the type parameters are arbitrary types.
         let param_pairs: Vec<(String, AcornType)> = type_params
             .iter()
-            .map(|s| (s.clone(), subenv.bindings.add_arbitrary_type(&s)))
+            .map(|s| (s.clone(), subenv.bindings.add_arbitrary_type(&s, None)))
             .collect();
 
         // Inside the block, the arguments are constants.
