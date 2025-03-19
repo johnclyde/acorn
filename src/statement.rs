@@ -216,10 +216,10 @@ pub struct TypeclassTheorem {
 pub struct TypeclassStatement {
     // The definition of the typeclass uses a named instance type.
     // Like Self in Rust, but "Self" would be weird mathematically.
-    pub instance_type: Token,
+    pub instance_name: Token,
 
-    // The name of the typeclass.
-    pub name: Token,
+    // The name of the typeclass being defined.
+    pub typeclass_name: Token,
 
     // Each instance type in the typeclass has a list of constants that must be defined.
     // This is a list of (name, type) pairs.
@@ -925,8 +925,8 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     first_token: keyword,
                     last_token: token,
                     statement: StatementInfo::Typeclass(TypeclassStatement {
-                        instance_type,
-                        name: typeclass_name,
+                        instance_name: instance_type,
+                        typeclass_name,
                         constants,
                         theorems,
                     }),
@@ -1190,7 +1190,11 @@ impl Statement {
 
             StatementInfo::Typeclass(ts) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "typeclass {}: {} {{\n", ts.instance_type, ts.name)?;
+                write!(
+                    f,
+                    "typeclass {}: {} {{\n",
+                    ts.instance_name, ts.typeclass_name
+                )?;
                 for (name, type_expr) in &ts.constants {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }

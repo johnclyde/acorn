@@ -15,7 +15,7 @@ use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
     Body, DefineStatement, FunctionSatisfyStatement, InductiveStatement, LetStatement, Statement,
-    StatementInfo, StructureStatement, TheoremStatement,
+    StatementInfo, StructureStatement, TheoremStatement, TypeclassStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -1205,6 +1205,21 @@ impl Environment {
         Ok(())
     }
 
+    fn add_typeclass_statement(
+        &mut self,
+        _project: &mut Project,
+        statement: &Statement,
+        _ts: &TypeclassStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+
+        todo!("implement add_typeclass_statement");
+        // Rough outline of what to do.
+        // Add instance_name to the environment as a type variable.
+        // Handle the constant expressions like regular constants.
+        // Handle the theorems like regular theorems.
+    }
+
     // Adds a statement to the environment.
     // If the statement has a body, this call creates a sub-environment and adds the body
     // to that sub-environment.
@@ -1647,9 +1662,7 @@ impl Environment {
                     .error("not all cases are covered in match statement"))
             }
 
-            StatementInfo::Typeclass(_ts) => {
-                todo!("handle typeclass statement");
-            }
+            StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
         }
     }
 
