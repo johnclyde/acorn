@@ -713,14 +713,14 @@ impl Environment {
             statement.first_line(),
             ss.first_right_brace.line_number,
         );
-        if self.bindings.has_type_name(&ss.name) {
+        if self.bindings.name_in_use(&ss.name) {
             return Err(statement.error("type name already defined in this scope"));
         }
 
         let mut arbitrary_params = vec![];
         let mut param_names = vec![];
         for type_param in &ss.type_params {
-            if self.bindings.has_type_name(type_param.text()) {
+            if self.bindings.name_in_use(type_param.text()) {
                 return Err(statement.error("type parameter already defined in this scope"));
             }
 
@@ -940,7 +940,7 @@ impl Environment {
         is: &InductiveStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        if self.bindings.has_type_name(&is.name) {
+        if self.bindings.name_in_use(&is.name) {
             return Err(statement.error("type name already defined in this scope"));
         }
         let range = Range {
