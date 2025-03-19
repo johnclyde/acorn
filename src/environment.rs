@@ -1207,7 +1207,7 @@ impl Environment {
 
     fn add_typeclass_statement(
         &mut self,
-        _project: &mut Project,
+        project: &mut Project,
         statement: &Statement,
         ts: &TypeclassStatement,
     ) -> compilation::Result<()> {
@@ -1230,14 +1230,23 @@ impl Environment {
         };
         self.bindings
             .add_typeclass(typeclass_name, typeclass.clone());
-
-        // TODO: capture the instance : typeclass relationship
-
         self.bindings
             .add_arbitrary_type(instance_name, Some(&typeclass));
 
-        // TODO: Handle the constant expressions like regular constants.
-        // TODO: Handle the theorems like regular theorems.
+        for (constant_name, type_expr) in &ts.constants {
+            let arb_type = self.bindings.evaluate_type(project, type_expr)?;
+            let var_type = arb_type.to_generic();
+            let full_name = format!("{}.{}", typeclass_name, constant_name);
+            if self.bindings.name_in_use(&full_name) {
+                return Err(
+                    statement.error(&format!("{} already defined in this scope", full_name))
+                );
+            }
+            self.bindings
+                .add_constant(&full_name, vec![], var_type, None, None);
+        }
+
+        // TODO: Handle the typeclass theorems.
 
         self.bindings.remove_type(ts.instance_name.text());
         Ok(())

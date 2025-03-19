@@ -203,9 +203,9 @@ pub struct MatchStatement {
     pub cases: Vec<(Expression, Body)>,
 }
 
-// A typeclass theorem is a theorem that must be proven for an instance type, to show
+// A typeclass condition is a theorem that must be proven for an instance type, to show
 // that it belongs to the typeclass.
-pub struct TypeclassTheorem {
+pub struct TypeclassCondition {
     pub name: Token,
     pub args: Vec<Declaration>,
     pub claim: Expression,
@@ -227,8 +227,8 @@ pub struct TypeclassStatement {
     // For example, all groups must define the identity, of the type of the group elements.
     pub constants: Vec<(Token, Expression)>,
 
-    // Theorems that must be proven for the typeclass to be valid.
-    pub theorems: Vec<TypeclassTheorem>,
+    // Conditions that must be proven for the typeclass to be valid.
+    pub conditions: Vec<TypeclassCondition>,
 }
 
 // Acorn is a statement-based language. There are several types.
@@ -909,7 +909,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     tokens.expect_type(TokenType::Colon)?;
     let typeclass_name = tokens.expect_type_name()?;
     let mut constants = vec![];
-    let mut theorems = vec![];
+    let mut conditions = vec![];
     tokens.expect_type(TokenType::LeftBrace)?;
     while let Some(token) = tokens.next() {
         match token.token_type {
@@ -917,8 +917,8 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 continue;
             }
             TokenType::RightBrace => {
-                if constants.is_empty() && theorems.is_empty() {
-                    return Err(token.error("typeclasses must have some constants or theorems"));
+                if constants.is_empty() && conditions.is_empty() {
+                    return Err(token.error("typeclasses must have some constants or conditions"));
                 }
 
                 return Ok(Statement {
@@ -928,7 +928,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         instance_name: instance_type,
                         typeclass_name,
                         constants,
-                        theorems,
+                        conditions,
                     }),
                 });
             }
@@ -939,12 +939,12 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
                         let (claim, _) =
                             Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
-                        let theorem = TypeclassTheorem {
+                        let condition = TypeclassCondition {
                             name: token,
                             args,
                             claim,
                         };
-                        theorems.push(theorem);
+                        conditions.push(condition);
                     }
                     Some(TokenType::Colon) => {
                         tokens.next();
@@ -1198,7 +1198,7 @@ impl Statement {
                 for (name, type_expr) in &ts.constants {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }
-                for theorem in &ts.theorems {
+                for theorem in &ts.conditions {
                     write!(f, "{}{}", new_indentation, theorem.name)?;
                     write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
                 }
