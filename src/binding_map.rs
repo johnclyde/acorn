@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, PotentialType, UnresolvedType};
+use crate::acorn_type::{AcornType, PotentialType, Typeclass, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -71,8 +71,14 @@ pub struct BindingMap {
     // to get a specific type.
     type_names: BTreeMap<String, PotentialType>,
 
-    // Maps the type object to the name of a type.
+    // Maps the type object to its name in this environment.
     reverse_type_names: HashMap<PotentialType, String>,
+
+    // Maps the name of a type to the typeclass.
+    typeclass_names: BTreeMap<String, Typeclass>,
+
+    // Maps the typeclass to its name in this environment.
+    reverse_typeclass_names: HashMap<Typeclass, String>,
 
     // Maps an identifier name to its type.
     // Has entries for both defined constants and aliases.
@@ -318,6 +324,8 @@ impl BindingMap {
             module,
             type_names: BTreeMap::new(),
             reverse_type_names: HashMap::new(),
+            typeclass_names: BTreeMap::new(),
+            reverse_typeclass_names: HashMap::new(),
             identifier_types: HashMap::new(),
             constants: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
@@ -337,10 +345,12 @@ impl BindingMap {
 
     pub fn name_in_use(&self, name: &str) -> bool {
         self.type_names.contains_key(name)
+            || self.typeclass_names.contains_key(name)
             || self.identifier_types.contains_key(name)
             || self.modules.contains_key(name)
     }
 
+    // Adds both directions for a name <-> type correspondence.
     fn insert_type_name(&mut self, name: String, potential_type: PotentialType) {
         if self.name_in_use(&name) {
             panic!("type name {} already bound", name);
@@ -421,6 +431,20 @@ impl BindingMap {
         self.insert_type_name(name.to_string(), potential);
     }
 
+    // Adds a name for this typeclass.
+    pub fn add_typeclass(&mut self, name: &str, typeclass: Typeclass) {
+        if self.name_in_use(name) {
+            panic!("name {} is already bound", name);
+        }
+        // There can be multiple names for a typeclass.
+        // If we already have a name for the reverse lookup, we don't overwrite it.
+        if !self.reverse_typeclass_names.contains_key(&typeclass) {
+            self.reverse_typeclass_names
+                .insert(typeclass.clone(), name.to_string());
+        }
+        self.typeclass_names.insert(name.to_string(), typeclass);
+    }
+
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
@@ -471,6 +495,10 @@ impl BindingMap {
 
     pub fn has_type_name(&self, type_name: &str) -> bool {
         self.type_names.contains_key(type_name)
+    }
+
+    pub fn get_typeclass_for_name(&self, typeclass_name: &str) -> Option<&Typeclass> {
+        self.typeclass_names.get(typeclass_name)
     }
 
     pub fn has_identifier(&self, identifier: &str) -> bool {
