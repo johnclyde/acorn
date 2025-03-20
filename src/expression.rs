@@ -218,6 +218,65 @@ impl Declaration {
     }
 }
 
+// A single type parameter that may or may not have a typeclass, like "G: Group".
+#[derive(Debug)]
+pub struct TypeParam {
+    name: Token,
+    typeclass: Option<Expression>,
+}
+
+impl fmt::Display for TypeParam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.typeclass {
+            None => write!(f, "{}", self.name),
+            Some(typeclass) => write!(f, "{}: {}", self.name, typeclass),
+        }
+    }
+}
+
+impl TypeParam {
+    // Parse a single type parameter.
+    fn parse(tokens: &mut TokenIter) -> Result<TypeParam> {
+        let token = tokens.expect_type(TokenType::Identifier)?;
+        let param = TypeParam {
+            name: token,
+            typeclass: None,
+        };
+        Ok(param)
+    }
+
+    // Parses a type parameter list, if it's there.
+    // If the tokens don't start with '<', just return an empty list.
+    pub fn parse_list(tokens: &mut TokenIter) -> Result<Vec<TypeParam>> {
+        if tokens.peek_type() != Some(TokenType::LessThan) {
+            return Ok(vec![]);
+        }
+        tokens.next();
+        let mut params = vec![];
+        loop {
+            let param = TypeParam::parse(tokens)?;
+            params.push(param);
+            let token = tokens.expect_token()?;
+            match token.token_type {
+                TokenType::GreaterThan => {
+                    break;
+                }
+                TokenType::Comma => {
+                    continue;
+                }
+                _ => {
+                    return Err(token.error("expected '>' or ',' in type params"));
+                }
+            }
+        }
+        Ok(params)
+    }
+
+    pub fn token_vec(params: &[TypeParam]) -> Vec<Token> {
+        params.iter().map(|p| p.name.clone()).collect()
+    }
+}
+
 // We use terminators to tell the expression parser when it is allowed to stop.
 // This exists to make error messages more readable.
 pub enum Terminator {

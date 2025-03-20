@@ -1,7 +1,7 @@
 use tower_lsp::lsp_types::Range;
 
 use crate::compilation::{Error, ErrorSource, Result};
-use crate::expression::{Declaration, Expression, Terminator};
+use crate::expression::{Declaration, Expression, Terminator, TypeParam};
 use crate::token::{Token, TokenIter, TokenType};
 
 use std::fmt;
@@ -38,7 +38,7 @@ pub struct DefineStatement {
     pub name_token: Token,
 
     // For templated definitions
-    pub type_params: Vec<Token>,
+    pub type_params: Vec<TypeParam>,
 
     // A list of the named arg types, like "a: int" and "b: int".
     pub args: Vec<Declaration>,
@@ -317,7 +317,7 @@ fn parse_block(tokens: &mut TokenIter) -> Result<(Vec<Statement>, Token)> {
 // Parse a list of type parameters. For example:
 // <T, U>
 // If there are no type parameters, returns an empty list.
-fn parse_params(tokens: &mut TokenIter) -> Result<Vec<Token>> {
+fn old_parse_params(tokens: &mut TokenIter) -> Result<Vec<Token>> {
     if tokens.peek_type() != Some(TokenType::LessThan) {
         return Ok(vec![]);
     }
@@ -406,7 +406,7 @@ fn parse_theorem_statement(
         Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => None,
         _ => Some(tokens.expect_variable_name(false)?.text().to_string()),
     };
-    let type_params = parse_params(tokens)?;
+    let type_params = old_parse_params(tokens)?;
     let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
     let (claim, claim_right_brace) =
         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
@@ -524,7 +524,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
 // Parses a define statement where the "define" keyword has already been found.
 fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_variable_name(false)?;
-    let type_params = parse_params(tokens)?;
+    let type_params = TypeParam::parse_list(tokens)?;
     let (args, _) = parse_args(tokens, TokenType::RightArrow)?;
     let (return_type, _) = Expression::parse_type(tokens, Terminator::Is(TokenType::LeftBrace))?;
     let (return_value, last_token) =
@@ -639,7 +639,7 @@ fn parse_if_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statemen
 // Parses a structure statement where the "structure" keyword has already been found.
 fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
-    let type_params = parse_params(tokens)?;
+    let type_params = old_parse_params(tokens)?;
     tokens.expect_type(TokenType::LeftBrace)?;
     let mut fields = vec![];
     while let Some(token) = tokens.peek() {
@@ -825,7 +825,7 @@ fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
 // Parses a class statement where the "class" keyword has already been found.
 fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
-    let type_params = parse_params(tokens)?;
+    let type_params = old_parse_params(tokens)?;
     let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
     let (statements, right_brace) = parse_block(tokens)?;
     let body = Body {
@@ -972,7 +972,22 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     Err(keyword.error("unterminated typeclass statement"))
 }
 
-fn write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
+fn old_write_type_params(f: &mut fmt::Formatter, type_params: &[Token]) -> fmt::Result {
+    if type_params.len() == 0 {
+        return Ok(());
+    }
+    write!(f, "<")?;
+    for (i, param) in type_params.iter().enumerate() {
+        if i > 0 {
+            write!(f, ", ")?;
+        }
+        write!(f, "{}", param)?;
+    }
+    write!(f, ">")?;
+    Ok(())
+}
+
+fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParam]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
     }
@@ -1011,7 +1026,7 @@ fn write_theorem(
     claim: &Expression,
 ) -> fmt::Result {
     let new_indentation = add_indent(indentation);
-    write_type_params(f, type_params)?;
+    old_write_type_params(f, type_params)?;
     write_args(f, args)?;
     write!(f, " {{\n{}{}\n{}}}", new_indentation, claim, indentation)?;
     Ok(())
@@ -1112,7 +1127,7 @@ impl Statement {
             StatementInfo::Structure(ss) => {
                 let new_indentation = add_indent(indentation);
                 write!(f, "structure {}", ss.name)?;
-                write_type_params(f, &ss.type_params)?;
+                old_write_type_params(f, &ss.type_params)?;
                 write!(f, " {{\n")?;
                 for (name, type_expr) in &ss.fields {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
@@ -1160,7 +1175,7 @@ impl Statement {
 
             StatementInfo::Class(cs) => {
                 write!(f, "class {}", cs.name)?;
-                write_type_params(f, &cs.type_params)?;
+                old_write_type_params(f, &cs.type_params)?;
                 write_block(f, &cs.body.statements, indentation)
             }
 

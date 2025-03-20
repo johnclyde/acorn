@@ -2351,4 +2351,34 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_typeclass_in_define_template() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            define squared<T: Magma>(a: T) -> T {
+                a.mul(a)
+            }
+            "#,
+        );
+    }
+
+    // #[test]
+    // fn test_env_typeclass_in_theorem_template() {
+    //     let mut env = Environment::new_test();
+    //     env.add(
+    //         r#"
+    //         typeclass M: Magma {
+    //             mul: (M, M) -> M
+    //         }
+    //         theorem wrong_but_syntactic<Q: Magma>(a: Q, b: Q) {
+    //             a.mul(b) = b.mul(a)
+    //         }
+    //         "#,
+    //     );
+    // }
 }
