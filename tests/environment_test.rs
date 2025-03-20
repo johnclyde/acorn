@@ -2445,7 +2445,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 second: T
             }
 
-            class MagmaPair<T> {
+            class MagmaPair<T: Magma> {
                 define prod(self) -> T {
                     self.first.mul(self.second)
                 }
