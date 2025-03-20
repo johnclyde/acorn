@@ -2,12 +2,12 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, PotentialType, Typeclass, UnresolvedType};
+use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource};
-use crate::expression::{Declaration, Expression, Terminator, TypeParam};
+use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
 use crate::termination_checker::TerminationChecker;
@@ -406,7 +406,11 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
-        let arbitrary_type = AcornType::Arbitrary(name.to_string(), typeclass.cloned());
+        let param = TypeParam {
+            name: name.to_string(),
+            typeclass: typeclass.cloned(),
+        };
+        let arbitrary_type = AcornType::Arbitrary(param);
         let potential = PotentialType::Resolved(arbitrary_type.clone());
         self.insert_type_name(name.to_string(), potential);
         arbitrary_type
@@ -1183,10 +1187,10 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         let base_type = instance.get_type();
 
-        let (module, type_name) = match base_type {
-            AcornType::Data(module, type_name, _) => (module, type_name),
-            AcornType::Arbitrary(name, typeclass) | AcornType::Variable(name, typeclass) => {
-                let typeclass = match typeclass {
+        let (module, type_name) = match &base_type {
+            AcornType::Data(module, type_name, _) => (*module, type_name),
+            AcornType::Arbitrary(param) | AcornType::Variable(param) => {
+                let typeclass = match &param.typeclass {
                     Some(t) => t,
                     None => {
                         return Err(
@@ -1194,7 +1198,7 @@ impl BindingMap {
                         );
                     }
                 };
-                (typeclass.module_id, typeclass.name)
+                (typeclass.module_id, &typeclass.name)
             }
             _ => {
                 return Err(source.error(&format!(
@@ -2055,7 +2059,7 @@ impl BindingMap {
     pub fn evaluate_scoped_value(
         &mut self,
         project: &Project,
-        type_params: &[TypeParam],
+        type_params: &[TypeParamExpr],
         args: &[Declaration],
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
@@ -2160,7 +2164,7 @@ impl BindingMap {
                     // But, externally we need to make it polymorphic.
                     let generic_params = type_param_names
                         .iter()
-                        .map(|name| AcornType::Variable(name.to_string(), None))
+                        .map(|name| AcornType::Variable(TypeParam::unconstrained(name)))
                         .collect();
                     let derecursed =
                         internal_value.set_params(self.module, function_name, &generic_params);

@@ -19,7 +19,7 @@ impl UnresolvedType {
     // Just sticks fake names in there to print.
     pub fn to_display_type(&self) -> AcornType {
         let params = (0..self.num_params)
-            .map(|i| AcornType::Arbitrary(format!("T{}", i), None))
+            .map(|i| AcornType::Arbitrary(TypeParam::unconstrained(&format!("T{}", i))))
             .collect();
         AcornType::Data(self.module_id, self.name.clone(), params)
     }
@@ -144,6 +144,22 @@ pub struct Typeclass {
     pub name: String,
 }
 
+// A type parameter is a way of naming a type by its properties.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct TypeParam {
+    pub name: String,
+    pub typeclass: Option<Typeclass>,
+}
+
+impl TypeParam {
+    pub fn unconstrained(name: &str) -> TypeParam {
+        TypeParam {
+            name: name.to_string(),
+            typeclass: None,
+        }
+    }
+}
+
 // Every AcornValue has an AcornType.
 // This is the "richer" form of a type. The environment uses these types; the prover uses ids.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -184,11 +200,11 @@ pub enum AcornType {
 
     // A type variable represents an unknown type, possibly belonging to a particular typeclass.
     // Expressions with type variables can be instantiated to particular types.
-    Variable(String, Option<Typeclass>),
+    Variable(TypeParam),
 
     // An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
     // but we don't know anything else about it.
-    Arbitrary(String, Option<Typeclass>),
+    Arbitrary(TypeParam),
 }
 
 impl AcornType {
@@ -205,7 +221,7 @@ impl AcornType {
     // Whether this type contains the given type variable within it somewhere.
     pub fn has_type_variable(&self, name: &str) -> bool {
         match self {
-            AcornType::Variable(vname, _) => vname == name,
+            AcornType::Variable(param) => param.name == name,
             AcornType::Function(function_type) => {
                 for arg_type in &function_type.arg_types {
                     if arg_type.has_type_variable(name) {
@@ -253,11 +269,12 @@ impl AcornType {
     }
 
     // Replaces type variables in the provided list with the corresponding type.
+    // Note that this does not check if typeclasses match.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> AcornType {
         match self {
-            AcornType::Variable(name, None) => {
+            AcornType::Variable(param) => {
                 for (param_name, param_type) in params {
-                    if name == param_name {
+                    if &param.name == param_name {
                         return param_type.clone();
                     }
                 }
@@ -291,12 +308,12 @@ impl AcornType {
         mapping: &mut HashMap<String, AcornType>,
     ) -> bool {
         match (self, instance) {
-            (AcornType::Variable(name, _), _) => {
-                if let Some(t) = mapping.get(name) {
+            (AcornType::Variable(param), _) => {
+                if let Some(t) = mapping.get(&param.name) {
                     // This type variable is already mapped
                     return t == instance;
                 }
-                mapping.insert(name.clone(), instance.clone());
+                mapping.insert(param.name.clone(), instance.clone());
                 true
             }
             (AcornType::Function(f), AcornType::Function(g)) => {
@@ -334,7 +351,7 @@ impl AcornType {
     // Converts all arbitrary types to type variables.
     pub fn to_generic(&self) -> AcornType {
         match self {
-            AcornType::Arbitrary(name, tc) => AcornType::Variable(name.to_string(), tc.clone()),
+            AcornType::Arbitrary(param) => AcornType::Variable(param.clone()),
             AcornType::Function(ftype) => AcornType::new_functional(
                 ftype.arg_types.iter().map(|t| t.to_generic()).collect(),
                 ftype.return_type.to_generic(),
@@ -368,7 +385,7 @@ impl AcornType {
     // Converts all type variables to arbitrary types.
     pub fn to_arbitrary(&self) -> AcornType {
         match self {
-            AcornType::Variable(name, tc) => AcornType::Arbitrary(name.to_string(), tc.clone()),
+            AcornType::Variable(param) => AcornType::Arbitrary(param.clone()),
             AcornType::Function(ftype) => AcornType::new_functional(
                 ftype.arg_types.iter().map(|t| t.to_arbitrary()).collect(),
                 ftype.return_type.to_arbitrary(),
@@ -412,9 +429,9 @@ impl fmt::Display for AcornType {
             }
             AcornType::Function(function_type) => write!(f, "{}", function_type),
             AcornType::Empty => write!(f, "empty"),
-            AcornType::Variable(name, tc) | AcornType::Arbitrary(name, tc) => {
-                write!(f, "{}", name)?;
-                if let Some(tc) = tc {
+            AcornType::Variable(param) | AcornType::Arbitrary(param) => {
+                write!(f, "{}", param.name)?;
+                if let Some(tc) = param.typeclass.as_ref() {
                     write!(f, ": {}", tc.name)?;
                 }
                 Ok(())

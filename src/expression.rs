@@ -220,12 +220,12 @@ impl Declaration {
 
 // A single type parameter that may or may not have a typeclass, like "G: Group".
 #[derive(Debug)]
-pub struct TypeParam {
+pub struct TypeParamExpr {
     pub name: Token,
     pub typeclass: Option<Expression>,
 }
 
-impl fmt::Display for TypeParam {
+impl fmt::Display for TypeParamExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.typeclass {
             None => write!(f, "{}", self.name),
@@ -234,10 +234,10 @@ impl fmt::Display for TypeParam {
     }
 }
 
-impl TypeParam {
+impl TypeParamExpr {
     // Parses a type parameter list, if it's there.
     // If the tokens don't start with '<', just return an empty list.
-    pub fn parse_list(tokens: &mut TokenIter) -> Result<Vec<TypeParam>> {
+    pub fn parse_list(tokens: &mut TokenIter) -> Result<Vec<TypeParamExpr>> {
         if tokens.peek_type() != Some(TokenType::LessThan) {
             return Ok(vec![]);
         }
@@ -255,7 +255,7 @@ impl TypeParam {
             } else {
                 (None, terminator)
             };
-            params.push(TypeParam { name, typeclass });
+            params.push(TypeParamExpr { name, typeclass });
             match terminator.token_type {
                 TokenType::GreaterThan => {
                     break;

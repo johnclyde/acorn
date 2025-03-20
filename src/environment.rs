@@ -3,7 +3,7 @@ use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::{AcornType, Typeclass};
+use crate::acorn_type::{AcornType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
@@ -188,7 +188,7 @@ impl Environment {
         let param_names = self.bindings.get_params(name);
         let params = param_names
             .into_iter()
-            .map(|name| AcornType::Variable(name, None))
+            .map(|name| AcornType::Variable(TypeParam::unconstrained(&name)))
             .collect();
         let constant = AcornValue::new_constant(
             self.module_id,
