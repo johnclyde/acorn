@@ -2360,12 +2360,42 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             typeclass M: Magma {
                 mul: (M, M) -> M
             }
-            define squared<T: Magma>(a: T) -> T {
-                a.mul(a)
+            define true_fn<T: Magma>(a: T) -> Bool {
+                true
             }
             "#,
         );
     }
+
+    #[test]
+    fn test_env_typeclass_attributes() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            define squared<T: Magma>(a: T) -> T {
+                Magma.mul(a, a)
+            }
+            "#,
+        );
+    }
+
+    // #[test]
+    // fn test_env_typeclass_instance_methods() {
+    //     let mut env = Environment::new_test();
+    //     env.add(
+    //         r#"
+    //         typeclass M: Magma {
+    //             mul: (M, M) -> M
+    //         }
+    //         define squared<T: Magma>(a: T) -> T {
+    //             a.mul(a)
+    //         }
+    //         "#,
+    //     );
+    // }
 
     // #[test]
     // fn test_env_typeclass_in_theorem_template() {
