@@ -1193,9 +1193,10 @@ impl BindingMap {
                 let typeclass = match &param.typeclass {
                     Some(t) => t,
                     None => {
-                        return Err(
-                            source.error(&format!("unqualified type {} has no attributes", name))
-                        );
+                        return Err(source.error(&format!(
+                            "unqualified type {} has no attributes",
+                            param.name
+                        )));
                     }
                 };
                 (typeclass.module_id, &typeclass.name)
