@@ -2012,10 +2012,14 @@ impl BindingMap {
 
     fn evaluate_typeclass(
         &self,
-        _project: &Project,
-        _expression: &Expression,
+        project: &Project,
+        expression: &Expression,
     ) -> compilation::Result<Typeclass> {
-        todo!("evaluate_typeclass");
+        let entity = self.evaluate_entity(&mut Stack::new(), project, expression)?;
+        match entity {
+            NamedEntity::Typeclass(tc) => Ok(tc),
+            _ => Err(expression.error("expected a typeclass")),
+        }
     }
 
     // Evaluate an expression that creates a new scope for a single value inside it.
