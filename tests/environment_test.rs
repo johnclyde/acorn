@@ -2453,4 +2453,30 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_typeclasses_match_between_structure_and_class() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            
+            structure MagmaPair<T> {
+                first: T
+                second: T
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            class MagmaPair<T: Magma> {
+                define prod(self) -> T {
+                    self.first.mul(self.second)
+                }
+            }
+            "#,
+        );
+    }
 }
