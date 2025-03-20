@@ -221,8 +221,8 @@ impl Declaration {
 // A single type parameter that may or may not have a typeclass, like "G: Group".
 #[derive(Debug)]
 pub struct TypeParam {
-    name: Token,
-    typeclass: Option<Expression>,
+    pub name: Token,
+    pub typeclass: Option<Expression>,
 }
 
 impl fmt::Display for TypeParam {
@@ -269,10 +269,6 @@ impl TypeParam {
             }
         }
         Ok(params)
-    }
-
-    pub fn token_vec(params: &[TypeParam]) -> Vec<Token> {
-        params.iter().map(|p| p.name.clone()).collect()
     }
 }
 

@@ -7,7 +7,7 @@ use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource};
-use crate::expression::{Declaration, Expression, Terminator};
+use crate::expression::{Declaration, Expression, Terminator, TypeParam};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
 use crate::termination_checker::TerminationChecker;
@@ -1964,6 +1964,14 @@ impl BindingMap {
         Ok(PotentialValue::Resolved(value))
     }
 
+    fn evaluate_typeclass(
+        &self,
+        _project: &Project,
+        _expression: &Expression,
+    ) -> compilation::Result<Typeclass> {
+        todo!("evaluate_typeclass");
+    }
+
     // Evaluate an expression that creates a new scope for a single value inside it.
     // This could be the statement of a theorem, the definition of a function, or other similar things.
     //
@@ -1997,7 +2005,7 @@ impl BindingMap {
     pub fn evaluate_scoped_value(
         &mut self,
         project: &Project,
-        type_param_tokens: &[Token],
+        type_params: &[TypeParam],
         args: &[Declaration],
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
@@ -2012,12 +2020,18 @@ impl BindingMap {
     )> {
         // Bind all the type parameters and arguments
         let mut type_param_names: Vec<String> = vec![];
-        for token in type_param_tokens {
-            if self.type_names.contains_key(token.text()) {
-                return Err(token.error("cannot redeclare a type in a generic type list"));
+        for param in type_params {
+            if self.type_names.contains_key(param.name.text()) {
+                return Err(param
+                    .name
+                    .error("cannot redeclare a type in a generic type list"));
             }
-            self.add_arbitrary_type(token.text(), None);
-            type_param_names.push(token.text().to_string());
+            let typeclass = match param.typeclass.as_ref() {
+                Some(e) => Some(self.evaluate_typeclass(project, e)?),
+                None => None,
+            };
+            self.add_arbitrary_type(param.name.text(), typeclass.as_ref());
+            type_param_names.push(param.name.text().to_string());
         }
         let mut stack = Stack::new();
         let (arg_names, internal_arg_types) =

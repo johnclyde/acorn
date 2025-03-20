@@ -9,7 +9,6 @@ use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource};
-use crate::expression::TypeParam;
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::project::{LoadError, Project};
@@ -425,7 +424,7 @@ impl Environment {
         let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
                 project,
-                &TypeParam::token_vec(&ds.type_params),
+                &ds.type_params,
                 &ds.args,
                 Some(&ds.return_type),
                 &ds.return_value,
@@ -722,14 +721,17 @@ impl Environment {
         let mut arbitrary_params = vec![];
         let mut param_names = vec![];
         for type_param in &ss.type_params {
-            if self.bindings.name_in_use(type_param.text()) {
+            if self.bindings.name_in_use(type_param.name.text()) {
                 return Err(statement.error("type parameter already defined in this scope"));
             }
 
             // For the duration of the structure definition, the type parameters are
             // treated as arbitrary types.
-            arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.text(), None));
-            param_names.push(type_param.text().to_string());
+            arbitrary_params.push(
+                self.bindings
+                    .add_arbitrary_type(type_param.name.text(), None),
+            );
+            param_names.push(type_param.name.text().to_string());
         }
 
         // Parse the fields before adding the struct type so that we can't have
@@ -930,7 +932,7 @@ impl Environment {
 
         // Clean up the type parameters
         for type_param in &ss.type_params {
-            self.bindings.remove_type(type_param.text());
+            self.bindings.remove_type(type_param.name.text());
         }
         Ok(())
     }
@@ -1493,12 +1495,17 @@ impl Environment {
                 };
                 let mut params = vec![];
                 let mut param_names = vec![];
-                for token in &cs.type_params {
-                    if self.bindings.name_in_use(token.text()) {
-                        return Err(token.error("type parameter already defined in this scope"));
+                for type_param in &cs.type_params {
+                    if self.bindings.name_in_use(type_param.name.text()) {
+                        return Err(type_param
+                            .name
+                            .error("type parameter already defined in this scope"));
                     }
-                    params.push(self.bindings.add_arbitrary_type(token.text(), None));
-                    param_names.push(token.text().to_string());
+                    params.push(
+                        self.bindings
+                            .add_arbitrary_type(type_param.name.text(), None),
+                    );
+                    param_names.push(type_param.name.text().to_string());
                 }
                 let instance_type = potential.resolve(params, &cs.name_token)?;
                 match &instance_type {
@@ -1546,8 +1553,8 @@ impl Environment {
                         }
                     }
                 }
-                for token in &cs.type_params {
-                    self.bindings.remove_type(token.text());
+                for type_param in &cs.type_params {
+                    self.bindings.remove_type(type_param.name.text());
                 }
                 Ok(())
             }
