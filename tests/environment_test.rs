@@ -2411,4 +2411,23 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_typechecking_with_typeclasses() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            theorem wrong_by_typecheck<Q: Magma>(a: Q, b: Q) {
+                a.mul(b) = b.mul
+            }
+            "#,
+        );
+    }
 }
