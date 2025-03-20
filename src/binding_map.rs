@@ -266,6 +266,7 @@ enum NamedEntity {
     Value(AcornValue),
     Type(AcornType),
     Module(ModuleId),
+    Typeclass(Typeclass),
 
     // A constant that we don't know the specific type of yet.
     UnresolvedValue(UnresolvedConstant),
@@ -292,6 +293,9 @@ impl NamedEntity {
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a value"))
             }
+            NamedEntity::Typeclass(_) => {
+                Err(source.error("name refers to a typeclass but we expected a value"))
+            }
             NamedEntity::UnresolvedValue(u) => {
                 // TODO: should we typecheck?
                 Ok(PotentialValue::Unresolved(u))
@@ -309,6 +313,9 @@ impl NamedEntity {
             NamedEntity::UnresolvedType(u) => Ok(PotentialType::Unresolved(u)),
             NamedEntity::Module(_) => {
                 Err(source.error("name refers to a module but we expected a type"))
+            }
+            NamedEntity::Typeclass(_) => {
+                Err(source.error("name refers to a typeclass but we expected a type"))
             }
             NamedEntity::UnresolvedValue(_) => {
                 Err(source.error("name refers to an unresolved value but we expected a type"))
@@ -501,6 +508,10 @@ impl BindingMap {
         self.typeclass_names.get(typeclass_name)
     }
 
+    pub fn has_typeclass_name(&self, typeclass_name: &str) -> bool {
+        self.typeclass_names.contains_key(typeclass_name)
+    }
+
     pub fn has_identifier(&self, identifier: &str) -> bool {
         self.identifier_types.contains_key(identifier)
     }
@@ -664,30 +675,40 @@ impl BindingMap {
         }
     }
 
+    fn get_attribute_completions(
+        &self,
+        project: &Project,
+        module: ModuleId,
+        base_name: &str,
+        prefix: &str,
+    ) -> Option<Vec<CompletionItem>> {
+        let bindings = if module == self.module {
+            &self
+        } else {
+            project.get_bindings(module).unwrap()
+        };
+        let mut answer = vec![];
+        let full_prefix = format!("{}.{}", base_name, prefix);
+        for key in keys_with_prefix(&bindings.constants, &full_prefix) {
+            let completion = CompletionItem {
+                label: key.split('.').last()?.to_string(),
+                kind: Some(CompletionItemKind::FIELD),
+                ..Default::default()
+            };
+            answer.push(completion);
+        }
+        Some(answer)
+    }
+
     // Gets completions when we are typing a member name.
-    fn get_member_completions(
+    fn get_type_attribute_completions(
         &self,
         project: &Project,
         t: &AcornType,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
-        let mut answer = vec![];
         if let AcornType::Data(module, type_name, _) = t {
-            let bindings = if *module == self.module {
-                &self
-            } else {
-                project.get_bindings(*module).unwrap()
-            };
-            let full_prefix = format!("{}.{}", type_name, prefix);
-            for key in keys_with_prefix(&bindings.constants, &full_prefix) {
-                let completion = CompletionItem {
-                    label: key.split('.').last()?.to_string(),
-                    kind: Some(CompletionItemKind::FIELD),
-                    ..Default::default()
-                };
-                answer.push(completion);
-            }
-            Some(answer)
+            self.get_attribute_completions(project, *module, type_name, prefix)
         } else {
             None
         }
@@ -717,18 +738,26 @@ impl BindingMap {
                     return bindings.get_completions(project, partial, true);
                 }
                 NamedEntity::Type(t) => {
-                    return self.get_member_completions(project, &t, partial);
+                    return self.get_type_attribute_completions(project, &t, partial);
                 }
                 NamedEntity::Value(v) => {
                     let t = v.get_type();
-                    return self.get_member_completions(project, &t, partial);
+                    return self.get_type_attribute_completions(project, &t, partial);
+                }
+                NamedEntity::Typeclass(tc) => {
+                    return self.get_attribute_completions(
+                        project,
+                        tc.module_id,
+                        &tc.name,
+                        partial,
+                    );
                 }
                 NamedEntity::UnresolvedValue(u) => {
-                    return self.get_member_completions(project, &u.generic_type, partial);
+                    return self.get_type_attribute_completions(project, &u.generic_type, partial);
                 }
                 NamedEntity::UnresolvedType(ut) => {
                     let display_type = ut.to_display_type();
-                    return self.get_member_completions(project, &display_type, partial);
+                    return self.get_type_attribute_completions(project, &display_type, partial);
                 }
             }
         }
@@ -1076,7 +1105,7 @@ impl BindingMap {
         type_name: &str,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if let Some(nc) = self.evaluate_class_variable(project, module, type_name, s) {
+        if let Some(nc) = self.evaluate_type_attribute(project, module, type_name, s) {
             match nc {
                 PotentialValue::Resolved(value) => return Ok(value),
                 PotentialValue::Unresolved(_) => {
@@ -1097,7 +1126,7 @@ impl BindingMap {
         let initial_str = &s[..s.len() - 1];
         let initial_num =
             self.evaluate_number_with_type(token, project, module, type_name, initial_str)?;
-        let read_fn = match self.evaluate_class_variable(project, module, type_name, "read") {
+        let read_fn = match self.evaluate_type_attribute(project, module, type_name, "read") {
             Some(PotentialValue::Resolved(f)) => f,
             Some(PotentialValue::Unresolved(_)) => {
                 return Err(token.error(&format!(
@@ -1116,8 +1145,8 @@ impl BindingMap {
         Ok(value)
     }
 
-    // Evaluates a name scoped by a type name, like MyClass.foo
-    fn evaluate_class_variable(
+    // Evaluates a name scoped by a class or typeclass name, like MyClass.foo
+    fn evaluate_type_attribute(
         &self,
         project: &Project,
         module: ModuleId,
@@ -1218,7 +1247,7 @@ impl BindingMap {
                         )?;
                         return Ok(NamedEntity::Value(value));
                     }
-                    match self.evaluate_class_variable(project, module, &type_name, name) {
+                    match self.evaluate_type_attribute(project, module, &type_name, name) {
                         Some(PotentialValue::Resolved(value)) => {
                             if !params.is_empty() {
                                 return Err(name_token.error("unexpected double type resolution"));
@@ -1236,7 +1265,7 @@ impl BindingMap {
                             }
                         }
                         None => Err(name_token
-                            .error(&format!("{} has no member named '{}'", type_name, name))),
+                            .error(&format!("{} has no attribute named '{}'", type_name, name))),
                     }
                 } else {
                     Err(name_token.error("expected a data type"))
@@ -1249,16 +1278,26 @@ impl BindingMap {
                     Err(name_token.error("could not load bindings for module"))
                 }
             }
-            Some(NamedEntity::UnresolvedValue(_)) => {
-                Err(name_token.error("cannot access members of unresolved types"))
-            }
-            Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_class_variable(project, ut.module_id, &ut.name, name) {
+            Some(NamedEntity::Typeclass(tc)) => {
+                match self.evaluate_type_attribute(project, tc.module_id, &tc.name, name) {
                     Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
                     Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
                     None => {
                         Err(name_token
-                            .error(&format!("{} has no member named '{}'", ut.name, name)))
+                            .error(&format!("{} has no attribute named '{}'", tc.name, name)))
+                    }
+                }
+            }
+            Some(NamedEntity::UnresolvedValue(_)) => {
+                Err(name_token.error("cannot access members of unresolved types"))
+            }
+            Some(NamedEntity::UnresolvedType(ut)) => {
+                match self.evaluate_type_attribute(project, ut.module_id, &ut.name, name) {
+                    Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
+                    Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
+                    None => {
+                        Err(name_token
+                            .error(&format!("{} has no attribute named '{}'", ut.name, name)))
                     }
                 }
             }
@@ -1280,6 +1319,9 @@ impl BindingMap {
                                 }
                                 _ => Err(name_token.error("unknown type")),
                             }
+                        } else if self.has_typeclass_name(name) {
+                            let tc = self.get_typeclass_for_name(name).unwrap();
+                            Ok(NamedEntity::Typeclass(tc.clone()))
                         } else if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
@@ -1469,6 +1511,9 @@ impl BindingMap {
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
+            NamedEntity::Typeclass(_) => {
+                Err(name_token.error("cannot import typeclasses indirectly"))
+            }
 
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_alias(
@@ -1628,6 +1673,7 @@ impl BindingMap {
                         }
                         NamedEntity::Type(_)
                         | NamedEntity::Module(_)
+                        | NamedEntity::Typeclass(_)
                         | NamedEntity::UnresolvedType(_) => {
                             return Err(token.error("expected a value"));
                         }
