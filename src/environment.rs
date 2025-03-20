@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
@@ -1242,8 +1243,9 @@ impl Environment {
                     statement.error(&format!("{} already defined in this scope", full_name))
                 );
             }
+            let params = vec![instance_name.to_string()];
             self.bindings
-                .add_constant(&full_name, vec![], var_type, None, None);
+                .add_constant(&full_name, params, var_type, None, None);
         }
 
         // TODO: Handle the typeclass theorems.
