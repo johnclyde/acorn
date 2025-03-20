@@ -172,7 +172,8 @@ pub struct ImportStatement {
     pub names: Vec<Token>,
 }
 
-// A class statement defines some class variables and instance methods that are scoped to the class.
+// A class statement defines additional attributes for a type.
+// They can be accessed either by the class name, or via an instance of the class.
 pub struct ClassStatement {
     pub name: String,
     pub name_token: Token,
