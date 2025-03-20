@@ -15,8 +15,9 @@ use crate::project::{LoadError, Project};
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
-    Body, DefineStatement, FunctionSatisfyStatement, InductiveStatement, LetStatement, Statement,
-    StatementInfo, StructureStatement, TheoremStatement, TypeclassStatement,
+    Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
+    LetStatement, Statement, StatementInfo, StructureStatement, TheoremStatement,
+    TypeclassStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -1209,6 +1210,85 @@ impl Environment {
         Ok(())
     }
 
+    fn add_class_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        cs: &ClassStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+        let potential = match self.bindings.get_type_for_name(&cs.name) {
+            Some(potential) => potential.clone(),
+            None => {
+                return Err(cs
+                    .name_token
+                    .error(&format!("undefined type name '{}'", cs.name)));
+            }
+        };
+        let mut params = vec![];
+        let mut param_names = vec![];
+        for type_param in &cs.type_params {
+            if self.bindings.name_in_use(type_param.name.text()) {
+                return Err(type_param
+                    .name
+                    .error("type parameter already defined in this scope"));
+            }
+            let typeclass = match type_param.typeclass.as_ref() {
+                Some(tc) => Some(self.bindings.evaluate_typeclass(project, tc)?),
+                None => None,
+            };
+            params.push(
+                self.bindings
+                    .add_arbitrary_type(type_param.name.text(), typeclass),
+            );
+            param_names.push(type_param.name.text().to_string());
+        }
+        let instance_type = potential.resolve(params, &cs.name_token)?;
+        match &instance_type {
+            AcornType::Data(module, name, _) => {
+                if module != &self.module_id {
+                    return Err(cs
+                        .name_token
+                        .error("we can only bind members to types in the current module"));
+                }
+                if name != &cs.name {
+                    return Err(cs
+                        .name_token
+                        .error("we cannot bind members to type aliases"));
+                }
+            }
+            _ => {
+                return Err(cs
+                    .name_token
+                    .error(&format!("we can only bind members to data types")));
+            }
+        }
+
+        for substatement in &cs.body.statements {
+            match &substatement.statement {
+                StatementInfo::Let(ls) => {
+                    self.add_let_statement(project, Some(&cs.name), ls, substatement.range())?;
+                }
+                StatementInfo::Define(ds) => {
+                    self.add_define_statement(
+                        project,
+                        Some((&cs.name, &param_names, &instance_type)),
+                        ds,
+                        substatement.range(),
+                    )?;
+                }
+                _ => {
+                    return Err(substatement
+                        .error("only let and define statements are allowed in class bodies"));
+                }
+            }
+        }
+        for type_param in &cs.type_params {
+            self.bindings.remove_type(type_param.name.text());
+        }
+        Ok(())
+    }
+
     fn add_typeclass_statement(
         &mut self,
         project: &mut Project,
@@ -1235,7 +1315,7 @@ impl Environment {
         self.bindings
             .add_typeclass(typeclass_name, typeclass.clone());
         self.bindings
-            .add_arbitrary_type(instance_name, Some(&typeclass));
+            .add_arbitrary_type(instance_name, Some(typeclass));
 
         for (constant_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
@@ -1483,81 +1563,7 @@ impl Environment {
                 Ok(())
             }
 
-            StatementInfo::Class(cs) => {
-                self.add_other_lines(statement);
-                let potential = match self.bindings.get_type_for_name(&cs.name) {
-                    Some(potential) => potential.clone(),
-                    None => {
-                        return Err(cs
-                            .name_token
-                            .error(&format!("undefined type name '{}'", cs.name)));
-                    }
-                };
-                let mut params = vec![];
-                let mut param_names = vec![];
-                for type_param in &cs.type_params {
-                    if self.bindings.name_in_use(type_param.name.text()) {
-                        return Err(type_param
-                            .name
-                            .error("type parameter already defined in this scope"));
-                    }
-                    params.push(
-                        self.bindings
-                            .add_arbitrary_type(type_param.name.text(), None),
-                    );
-                    param_names.push(type_param.name.text().to_string());
-                }
-                let instance_type = potential.resolve(params, &cs.name_token)?;
-                match &instance_type {
-                    AcornType::Data(module, name, _) => {
-                        if module != &self.module_id {
-                            return Err(cs
-                                .name_token
-                                .error("we can only bind members to types in the current module"));
-                        }
-                        if name != &cs.name {
-                            return Err(cs
-                                .name_token
-                                .error("we cannot bind members to type aliases"));
-                        }
-                    }
-                    _ => {
-                        return Err(cs
-                            .name_token
-                            .error(&format!("we can only bind members to data types")));
-                    }
-                }
-
-                for substatement in &cs.body.statements {
-                    match &substatement.statement {
-                        StatementInfo::Let(ls) => {
-                            self.add_let_statement(
-                                project,
-                                Some(&cs.name),
-                                ls,
-                                substatement.range(),
-                            )?;
-                        }
-                        StatementInfo::Define(ds) => {
-                            self.add_define_statement(
-                                project,
-                                Some((&cs.name, &param_names, &instance_type)),
-                                ds,
-                                substatement.range(),
-                            )?;
-                        }
-                        _ => {
-                            return Err(substatement.error(
-                                "only let and define statements are allowed in class bodies",
-                            ));
-                        }
-                    }
-                }
-                for type_param in &cs.type_params {
-                    self.bindings.remove_type(type_param.name.text());
-                }
-                Ok(())
-            }
+            StatementInfo::Class(cs) => self.add_class_statement(project, statement, cs),
 
             StatementInfo::Numerals(ds) => {
                 self.add_other_lines(statement);

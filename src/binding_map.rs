@@ -402,13 +402,13 @@ impl BindingMap {
     // Adds an arbitrary type to the binding map.
     // This indicates a type parameter that is coming into scope.
     // Panics if the name is already bound.
-    pub fn add_arbitrary_type(&mut self, name: &str, typeclass: Option<&Typeclass>) -> AcornType {
+    pub fn add_arbitrary_type(&mut self, name: &str, typeclass: Option<Typeclass>) -> AcornType {
         if self.name_in_use(name) {
             panic!("type name {} already bound", name);
         }
         let param = TypeParam {
             name: name.to_string(),
-            typeclass: typeclass.cloned(),
+            typeclass,
         };
         let arbitrary_type = AcornType::Arbitrary(param);
         let potential = PotentialType::Resolved(arbitrary_type.clone());
@@ -2015,7 +2015,7 @@ impl BindingMap {
         Ok(PotentialValue::Resolved(value))
     }
 
-    fn evaluate_typeclass(
+    pub fn evaluate_typeclass(
         &self,
         project: &Project,
         expression: &Expression,
@@ -2085,7 +2085,7 @@ impl BindingMap {
                 Some(e) => Some(self.evaluate_typeclass(project, e)?),
                 None => None,
             };
-            self.add_arbitrary_type(param.name.text(), typeclass.as_ref());
+            self.add_arbitrary_type(param.name.text(), typeclass);
             type_param_names.push(param.name.text().to_string());
         }
         let mut stack = Stack::new();
