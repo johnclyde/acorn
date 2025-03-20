@@ -235,16 +235,6 @@ impl fmt::Display for TypeParam {
 }
 
 impl TypeParam {
-    // Parse a single type parameter.
-    fn parse(tokens: &mut TokenIter) -> Result<TypeParam> {
-        let token = tokens.expect_type(TokenType::Identifier)?;
-        let param = TypeParam {
-            name: token,
-            typeclass: None,
-        };
-        Ok(param)
-    }
-
     // Parses a type parameter list, if it's there.
     // If the tokens don't start with '<', just return an empty list.
     pub fn parse_list(tokens: &mut TokenIter) -> Result<Vec<TypeParam>> {
@@ -254,10 +244,19 @@ impl TypeParam {
         tokens.next();
         let mut params = vec![];
         loop {
-            let param = TypeParam::parse(tokens)?;
-            params.push(param);
-            let token = tokens.expect_token()?;
-            match token.token_type {
+            let name = tokens.expect_type(TokenType::Identifier)?;
+            let terminator = tokens.expect_token()?;
+            let (typeclass, terminator) = if terminator.token_type == TokenType::Colon {
+                let (typeclass, terminator) = Expression::parse_type(
+                    tokens,
+                    Terminator::Or(TokenType::Comma, TokenType::GreaterThan),
+                )?;
+                (Some(typeclass), terminator)
+            } else {
+                (None, terminator)
+            };
+            params.push(TypeParam { name, typeclass });
+            match terminator.token_type {
                 TokenType::GreaterThan => {
                     break;
                 }
@@ -265,7 +264,7 @@ impl TypeParam {
                     continue;
                 }
                 _ => {
-                    return Err(token.error("expected '>' or ',' in type params"));
+                    return Err(terminator.error("expected '>' or ',' after each type param"));
                 }
             }
         }
