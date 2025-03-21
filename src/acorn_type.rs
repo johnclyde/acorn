@@ -11,16 +11,20 @@ pub struct UnresolvedType {
     // The name of this type.
     pub name: String,
 
-    // How many parameters we need to instantiate this type.
-    pub num_params: usize,
+    // The parameters we need to instantiate this type, along with their typeclass if any..
+    pub params: Vec<Option<Typeclass>>,
 }
 
 impl UnresolvedType {
     // Just sticks fake names in there to print.
     pub fn to_display_type(&self) -> AcornType {
-        let params = (0..self.num_params)
-            .map(|i| AcornType::Arbitrary(TypeParam::unconstrained(&format!("T{}", i))))
-            .collect();
+        let mut params = vec![];
+        for (i, param) in self.params.iter().enumerate() {
+            params.push(AcornType::Variable(TypeParam {
+                name: format!("T{}", i),
+                typeclass: param.clone(),
+            }));
+        }
         AcornType::Data(self.module_id, self.name.clone(), params)
     }
 }
@@ -37,6 +41,19 @@ pub enum PotentialType {
 
 impl PotentialType {
     // Resolves the type given the parameters.
+    // Every replacement must be a type variable being replaced with an arbitrary type.
+    pub fn invertible_resolve(
+        self,
+        params: Vec<AcornType>,
+        source: &dyn ErrorSource,
+    ) -> Result<AcornType> {
+        if let PotentialType::Unresolved(_ut) = &self {
+            // TODO: check typeclasses
+        }
+        self.resolve(params, source)
+    }
+
+    // Resolves the type given the parameters.
     // Reports an error if the parameters don't match what we expected.
     pub fn resolve(self, params: Vec<AcornType>, source: &dyn ErrorSource) -> Result<AcornType> {
         match self {
@@ -48,11 +65,11 @@ impl PotentialType {
                 }
             }
             PotentialType::Unresolved(ut) => {
-                if params.len() != ut.num_params {
+                if params.len() != ut.params.len() {
                     Err(source.error(&format!(
                         "type {} expects {} parameters, but got {}",
                         ut.name,
-                        ut.num_params,
+                        ut.params.len(),
                         params.len()
                     )))
                 } else {

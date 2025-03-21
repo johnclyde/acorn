@@ -186,15 +186,15 @@ impl Environment {
 
         // This constant can be generic, with type variables in it.
         let constant_type_clone = self.bindings.get_type_for_identifier(name).unwrap().clone();
-        let param_names = self.bindings.get_params(name);
-        let params = param_names
+        let const_params = self.bindings.get_params(name);
+        let var_params = const_params
             .into_iter()
-            .map(|name| AcornType::Variable(TypeParam::unconstrained(&name)))
+            .map(|p| AcornType::Variable(p))
             .collect();
         let constant = AcornValue::new_constant(
             self.module_id,
             name.to_string(),
-            params,
+            var_params,
             constant_type_clone,
         );
 
@@ -386,7 +386,7 @@ impl Environment {
     fn add_define_statement(
         &mut self,
         project: &Project,
-        class_info: Option<(&str, &Vec<String>, &AcornType)>,
+        class_info: Option<(&str, &Vec<TypeParam>, &AcornType)>,
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -401,7 +401,7 @@ impl Environment {
                 .name_token
                 .error("parametrized functions may only be defined at the top level"));
         }
-        let (class_name, class_param_names, class_type) = class_info
+        let (class_name, class_params, class_type) = class_info
             .map(|(a, b, c)| (Some(a), Some(b), Some(c)))
             .unwrap_or((None, None, None));
         let name = if let Some(class_name) = &class_name {
@@ -452,23 +452,18 @@ impl Environment {
         if let Some(v) = unbound_value {
             let mut fn_value = AcornValue::new_lambda(arg_types, v);
 
-            let param_names = if let Some(class_param_names) = class_param_names {
+            let params = if let Some(class_params) = class_params {
                 // When a class is parametrized, the member gets parameters from the class.
                 fn_value = fn_value.to_generic();
-                class_param_names.clone()
+                class_params.clone()
             } else {
                 // When there's no class, we just have the function's own type parameters.
                 fn_param_names
             };
 
             // Add the function value to the environment
-            self.bindings.add_constant(
-                &name,
-                param_names,
-                fn_value.get_type(),
-                Some(fn_value),
-                None,
-            );
+            self.bindings
+                .add_constant(&name, params, fn_value.get_type(), Some(fn_value), None);
         } else {
             let new_axiom_type = AcornType::new_functional(arg_types, value_type);
             self.bindings
@@ -720,19 +715,16 @@ impl Environment {
         }
 
         let mut arbitrary_params = vec![];
-        let mut param_names = vec![];
-        for type_param in &ss.type_params {
-            if self.bindings.name_in_use(type_param.name.text()) {
-                return Err(statement.error("type parameter already defined in this scope"));
-            }
-
+        let type_params = self
+            .bindings
+            .evaluate_type_params(project, &ss.type_params)?;
+        for type_param in &type_params {
             // For the duration of the structure definition, the type parameters are
             // treated as arbitrary types.
             arbitrary_params.push(
                 self.bindings
-                    .add_arbitrary_type(type_param.name.text(), None),
+                    .add_arbitrary_type(&type_param.name, type_param.typeclass.clone()),
             );
-            param_names.push(type_param.name.text().to_string());
         }
 
         // Parse the fields before adding the struct type so that we can't have
@@ -788,9 +780,8 @@ impl Environment {
 
         // The member functions take the type itself to a particular member.
         // These may be unresolved values.
-        let potential_type = self
-            .bindings
-            .add_potential_type(&ss.name, ss.type_params.len());
+        let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
+        let potential_type = self.bindings.add_potential_type(&ss.name, typeclasses);
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
@@ -798,7 +789,7 @@ impl Environment {
                 AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
             self.bindings.add_constant(
                 &member_fn_name,
-                param_names.clone(),
+                type_params.clone(),
                 member_fn_type.to_generic(),
                 None,
                 None,
@@ -811,7 +802,7 @@ impl Environment {
         let new_fn_type = AcornType::new_functional(field_types.clone(), struct_type.clone());
         self.bindings.add_constant(
             &new_fn_name,
-            param_names,
+            type_params.clone(),
             new_fn_type.to_generic(),
             None,
             Some((struct_type.clone(), 0, 1)),
@@ -1225,23 +1216,15 @@ impl Environment {
                     .error(&format!("undefined type name '{}'", cs.name)));
             }
         };
+        let type_params = self
+            .bindings
+            .evaluate_type_params(project, &cs.type_params)?;
         let mut params = vec![];
-        let mut param_names = vec![];
-        for type_param in &cs.type_params {
-            if self.bindings.name_in_use(type_param.name.text()) {
-                return Err(type_param
-                    .name
-                    .error("type parameter already defined in this scope"));
-            }
-            let typeclass = match type_param.typeclass.as_ref() {
-                Some(tc) => Some(self.bindings.evaluate_typeclass(project, tc)?),
-                None => None,
-            };
+        for param in &type_params {
             params.push(
                 self.bindings
-                    .add_arbitrary_type(type_param.name.text(), typeclass),
+                    .add_arbitrary_type(&param.name, param.typeclass.clone()),
             );
-            param_names.push(type_param.name.text().to_string());
         }
         let instance_type = potential.resolve(params, &cs.name_token)?;
         match &instance_type {
@@ -1272,7 +1255,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        Some((&cs.name, &param_names, &instance_type)),
+                        Some((&cs.name, &type_params, &instance_type)),
                         ds,
                         substatement.range(),
                     )?;
@@ -1315,7 +1298,7 @@ impl Environment {
         self.bindings
             .add_typeclass(typeclass_name, typeclass.clone());
         self.bindings
-            .add_arbitrary_type(instance_name, Some(typeclass));
+            .add_arbitrary_type(instance_name, Some(typeclass.clone()));
 
         for (constant_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
@@ -1326,9 +1309,12 @@ impl Environment {
                     statement.error(&format!("{} already defined in this scope", full_name))
                 );
             }
-            let params = vec![instance_name.to_string()];
+            let type_param = TypeParam {
+                name: instance_name.to_string(),
+                typeclass: Some(typeclass.clone()),
+            };
             self.bindings
-                .add_constant(&full_name, params, var_type, None, None);
+                .add_constant(&full_name, vec![type_param], var_type, None, None);
         }
 
         // TODO: Handle the typeclass theorems.
@@ -1360,7 +1346,7 @@ impl Environment {
                     )));
                 }
                 if ts.type_expr.is_axiom() {
-                    self.bindings.add_potential_type(&ts.name, 0);
+                    self.bindings.add_potential_type(&ts.name, vec![]);
                 } else {
                     let potential = self
                         .bindings

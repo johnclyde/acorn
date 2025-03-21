@@ -133,7 +133,7 @@ pub struct UnresolvedConstant {
     // The type parameters are all the type variables used in the definition of this constant,
     // in their canonical order. Each of these type parameters should be referenced in the type of
     // the constant itself. Otherwise we would not be able to infer them.
-    params: Vec<String>,
+    params: Vec<TypeParam>,
 
     // The generic type uses the params.
     generic_type: AcornType,
@@ -157,7 +157,7 @@ impl UnresolvedConstant {
             .params
             .iter()
             .zip(params.iter())
-            .map(|(name, t)| (name.clone(), t.clone()))
+            .map(|(param, t)| (param.name.clone(), t.clone()))
             .collect();
         let resolved_type = self.generic_type.instantiate(&named_params);
         Ok(AcornValue::new_constant(
@@ -218,9 +218,9 @@ impl PotentialValue {
 
 #[derive(Clone)]
 struct ConstantInfo {
-    // The names of the type parameters this constant was defined with, if any.
+    // The type parameters this constant was defined with, if any.
     // These type parameters can be used in the definition.
-    params: Vec<String>,
+    params: Vec<TypeParam>,
 
     // The definition of this constant, if it has one.
     definition: Option<AcornValue>,
@@ -382,8 +382,12 @@ impl BindingMap {
         t
     }
 
-    pub fn add_potential_type(&mut self, name: &str, num_params: usize) -> PotentialType {
-        if num_params == 0 {
+    pub fn add_potential_type(
+        &mut self,
+        name: &str,
+        params: Vec<Option<Typeclass>>,
+    ) -> PotentialType {
+        if params.len() == 0 {
             return PotentialType::Resolved(self.add_data_type(name));
         }
         if self.name_in_use(name) {
@@ -392,7 +396,7 @@ impl BindingMap {
         let ut = UnresolvedType {
             module_id: self.module,
             name: name.to_string(),
-            num_params,
+            params,
         };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
@@ -492,7 +496,7 @@ impl BindingMap {
         self.identifier_types.get(identifier)
     }
 
-    pub fn get_params(&self, identifier: &str) -> Vec<String> {
+    pub fn get_params(&self, identifier: &str) -> Vec<TypeParam> {
         match self.constants.get(identifier) {
             Some(info) => info.params.clone(),
             None => vec![],
@@ -528,7 +532,7 @@ impl BindingMap {
 
     // Returns the defined value and its parameters in their canonical order.
     // Returns None if there is no definition.
-    pub fn get_definition_and_params(&self, name: &str) -> Option<(&AcornValue, &[String])> {
+    pub fn get_definition_and_params(&self, name: &str) -> Option<(&AcornValue, &[TypeParam])> {
         let info = self.constants.get(name)?;
         Some((info.definition.as_ref()?, &info.params))
     }
@@ -549,7 +553,7 @@ impl BindingMap {
     pub fn add_constant(
         &mut self,
         name: &str,
-        params: Vec<String>,
+        params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<(AcornType, usize, usize)>,
@@ -1594,15 +1598,15 @@ impl BindingMap {
         // Determine the parameters for the instance function
         let mut named_params = vec![];
         let mut instance_params = vec![];
-        for param_name in &unresolved.params {
-            match mapping.get(param_name) {
+        for param in &unresolved.params {
+            match mapping.get(&param.name) {
                 Some(t) => {
-                    named_params.push((param_name.clone(), t.clone()));
+                    named_params.push((param.name.clone(), t.clone()));
                     instance_params.push(t.clone());
                 }
                 None => {
                     return Err(
-                        source.error(&format!("parameter {} could not be inferred", param_name))
+                        source.error(&format!("parameter {} could not be inferred", &param.name))
                     );
                 }
             }
@@ -1853,10 +1857,10 @@ impl BindingMap {
                                 }
                                 let mut named_params = vec![];
                                 let mut instance_params = vec![];
-                                for (name, expr) in unresolved.params.iter().zip(exprs.iter()) {
+                                for (param, expr) in unresolved.params.iter().zip(exprs.iter()) {
                                     let type_param = self.evaluate_type(project, expr)?;
                                     instance_params.push(type_param.clone());
-                                    named_params.push((name.clone(), type_param));
+                                    named_params.push((param.name.clone(), type_param));
                                 }
                                 let resolved_type =
                                     unresolved.generic_type.instantiate(&named_params);
@@ -2027,6 +2031,32 @@ impl BindingMap {
         }
     }
 
+    pub fn evaluate_type_params(
+        &self,
+        project: &Project,
+        exprs: &[TypeParamExpr],
+    ) -> compilation::Result<Vec<TypeParam>> {
+        let mut answer: Vec<TypeParam> = vec![];
+        for expr in exprs {
+            let name = expr.name.text().to_string();
+            if self.name_in_use(&name) {
+                return Err(expr.name.error("name already in use in this module"));
+            }
+            if answer.iter().any(|tp| tp.name == name) {
+                return Err(expr.name.error("duplicate type parameter"));
+            }
+            let typeclass = match expr.typeclass.as_ref() {
+                Some(e) => Some(self.evaluate_typeclass(project, e).unwrap()),
+                None => None,
+            };
+            answer.push(TypeParam {
+                name: expr.name.text().to_string(),
+                typeclass,
+            });
+        }
+        Ok(answer)
+    }
+
     // Evaluate an expression that creates a new scope for a single value inside it.
     // This could be the statement of a theorem, the definition of a function, or other similar things.
     //
@@ -2043,7 +2073,7 @@ impl BindingMap {
     // This function mutates the binding map but sets it back to its original state when finished.
     //
     // Returns a tuple with:
-    //   a list of type parameter names
+    //   a list of type parameters
     //   a list of argument names
     //   a list of argument types
     //   an optional unbound value. (None means axiom.)
@@ -2060,33 +2090,23 @@ impl BindingMap {
     pub fn evaluate_scoped_value(
         &mut self,
         project: &Project,
-        type_params: &[TypeParamExpr],
+        type_param_exprs: &[TypeParamExpr],
         args: &[Declaration],
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_type: Option<&AcornType>,
         function_name: Option<&str>,
     ) -> compilation::Result<(
-        Vec<String>,
+        Vec<TypeParam>,
         Vec<String>,
         Vec<AcornType>,
         Option<AcornValue>,
         AcornType,
     )> {
         // Bind all the type parameters and arguments
-        let mut type_param_names: Vec<String> = vec![];
-        for param in type_params {
-            if self.type_names.contains_key(param.name.text()) {
-                return Err(param
-                    .name
-                    .error("cannot redeclare a type in a generic type list"));
-            }
-            let typeclass = match param.typeclass.as_ref() {
-                Some(e) => Some(self.evaluate_typeclass(project, e)?),
-                None => None,
-            };
-            self.add_arbitrary_type(param.name.text(), typeclass);
-            type_param_names.push(param.name.text().to_string());
+        let type_params = self.evaluate_type_params(project, &type_param_exprs)?;
+        for param in &type_params {
+            self.add_arbitrary_type(&param.name, param.typeclass.clone());
         }
         let mut stack = Stack::new();
         let (arg_names, internal_arg_types) =
@@ -2134,8 +2154,8 @@ impl BindingMap {
         };
 
         // Reset the bindings
-        for name in type_param_names.iter().rev() {
-            self.remove_type(&name);
+        for param in type_params.iter().rev() {
+            self.remove_type(&param.name);
         }
         if let Some(function_name) = function_name {
             self.remove_constant(&function_name);
@@ -2146,10 +2166,10 @@ impl BindingMap {
         // parameters that we created. But, we are not quite doing that, we are just genericizing
         // all or nothing.
         // TODO: do this the right way.
-        if type_param_names.is_empty() {
+        if type_params.is_empty() {
             // Just keep the types as they are.
             Ok((
-                type_param_names,
+                type_params,
                 arg_names,
                 internal_arg_types,
                 internal_value,
@@ -2163,9 +2183,9 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
-                    let generic_params = type_param_names
+                    let generic_params = type_params
                         .iter()
-                        .map(|name| AcornType::Variable(TypeParam::unconstrained(name)))
+                        .map(|param| AcornType::Variable(param.clone()))
                         .collect();
                     let derecursed =
                         internal_value.set_params(self.module, function_name, &generic_params);
@@ -2183,7 +2203,7 @@ impl BindingMap {
             let external_value_type = internal_value_type.to_generic();
 
             Ok((
-                type_param_names,
+                type_params,
                 arg_names,
                 external_arg_types,
                 external_value,
