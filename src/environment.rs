@@ -721,10 +721,7 @@ impl Environment {
         for type_param in &type_params {
             // For the duration of the structure definition, the type parameters are
             // treated as arbitrary types.
-            arbitrary_params.push(
-                self.bindings
-                    .add_arbitrary_type(&type_param.name, type_param.typeclass.clone()),
-            );
+            arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.clone()));
         }
 
         // Parse the fields before adding the struct type so that we can't have
@@ -1221,10 +1218,7 @@ impl Environment {
             .evaluate_type_params(project, &cs.type_params)?;
         let mut params = vec![];
         for param in &type_params {
-            params.push(
-                self.bindings
-                    .add_arbitrary_type(&param.name, param.typeclass.clone()),
-            );
+            params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
         let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
         match &instance_type {
@@ -1297,8 +1291,11 @@ impl Environment {
         };
         self.bindings
             .add_typeclass(typeclass_name, typeclass.clone());
-        self.bindings
-            .add_arbitrary_type(instance_name, Some(typeclass.clone()));
+        let type_param = TypeParam {
+            name: instance_name.to_string(),
+            typeclass: Some(typeclass.clone()),
+        };
+        self.bindings.add_arbitrary_type(type_param.clone());
 
         for (constant_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
@@ -1309,12 +1306,8 @@ impl Environment {
                     statement.error(&format!("{} already defined in this scope", full_name))
                 );
             }
-            let type_param = TypeParam {
-                name: instance_name.to_string(),
-                typeclass: Some(typeclass.clone()),
-            };
             self.bindings
-                .add_constant(&full_name, vec![type_param], var_type, None, None);
+                .add_constant(&full_name, vec![type_param.clone()], var_type, None, None);
         }
 
         // TODO: Handle the typeclass theorems.
