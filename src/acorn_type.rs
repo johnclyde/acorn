@@ -168,15 +168,6 @@ pub struct TypeParam {
     pub typeclass: Option<Typeclass>,
 }
 
-impl TypeParam {
-    pub fn unconstrained(name: &str) -> TypeParam {
-        TypeParam {
-            name: name.to_string(),
-            typeclass: None,
-        }
-    }
-}
-
 // Every AcornValue has an AcornType.
 // This is the "richer" form of a type. The environment uses these types; the prover uses ids.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
