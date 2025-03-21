@@ -2479,4 +2479,21 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_operator_on_typeclass() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            
+            // Not true but syntactically valid
+            theorem commutative<T: Magma>(a: T, b: T) {
+                a * b = b * a
+            }
+            "#,
+        );
+    }
 }
