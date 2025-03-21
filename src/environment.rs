@@ -16,8 +16,8 @@ use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
     Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
-    LetStatement, Statement, StatementInfo, StructureStatement, TheoremStatement,
-    TypeclassStatement,
+    InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,
+    TheoremStatement, TypeclassStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -1316,6 +1316,16 @@ impl Environment {
         Ok(())
     }
 
+    fn add_instance_statement(
+        &mut self,
+        _project: &mut Project,
+        statement: &Statement,
+        _is: &InstanceStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+        todo!("add_instance_statement");
+    }
+
     // Adds a statement to the environment.
     // If the statement has a body, this call creates a sub-environment and adds the body
     // to that sub-environment.
@@ -1690,6 +1700,8 @@ impl Environment {
             }
 
             StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
+
+            StatementInfo::Instance(is) => self.add_instance_statement(project, statement, is),
         }
     }
 

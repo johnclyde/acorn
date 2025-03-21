@@ -232,6 +232,19 @@ pub struct TypeclassStatement {
     pub conditions: Vec<TypeclassCondition>,
 }
 
+// An instance statement describes how a type is an instance of a typeclass.
+pub struct InstanceStatement {
+    // The type that is an instance of the typeclass.
+    pub type_name: Token,
+
+    // The typeclass that the type is an instance of.
+    pub typeclass: Expression,
+
+    // The body of the instance statement contains a definition of each constant the typeclass
+    // requires.
+    pub body: Body,
+}
+
 // Acorn is a statement-based language. There are several types.
 // Each type has its own struct.
 pub struct Statement {
@@ -266,6 +279,7 @@ pub enum StatementInfo {
     Problem(Body),
     Match(MatchStatement),
     Typeclass(TypeclassStatement),
+    Instance(InstanceStatement),
 }
 
 const ONE_INDENT: &str = "    ";
@@ -945,6 +959,30 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     Err(keyword.error("unterminated typeclass statement"))
 }
 
+fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+    let type_name = tokens.expect_type_name()?;
+    tokens.expect_type(TokenType::Colon)?;
+    let (typeclass, left_brace) =
+        Expression::parse_type(tokens, Terminator::Is(TokenType::LeftBrace))?;
+    let (statements, right_brace) = parse_block(tokens)?;
+    let body = Body {
+        left_brace,
+        statements,
+        right_brace: right_brace.clone(),
+    };
+    let is = InstanceStatement {
+        type_name,
+        typeclass,
+        body,
+    };
+    let statement = Statement {
+        first_token: keyword,
+        last_token: right_brace,
+        statement: StatementInfo::Instance(is),
+    };
+    Ok(statement)
+}
+
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParamExpr]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
@@ -1177,6 +1215,11 @@ impl Statement {
                 }
                 write!(f, "{}}}", indentation)
             }
+
+            StatementInfo::Instance(is) => {
+                write!(f, "instance {}: {}", is.type_name, is.typeclass)?;
+                write_block(f, &is.body.statements, indentation)
+            }
         }
     }
 
@@ -1307,6 +1350,11 @@ impl Statement {
                     TokenType::Typeclass => {
                         let keyword = tokens.next().unwrap();
                         let s = parse_typeclass_statement(keyword, tokens)?;
+                        return Ok((Some(s), None));
+                    }
+                    TokenType::Instance => {
+                        let keyword = tokens.next().unwrap();
+                        let s = parse_instance_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     _ => {
@@ -1911,4 +1959,14 @@ mod tests {
     //         }
     //     }"});
     // }
+
+    #[test]
+    fn test_parsing_instance_statement() {
+        ok(indoc! {"
+        instance State: Magma {
+            define mul(self, other: State) -> State {
+                State.dirty
+            }
+        }"});
+    }
 }
