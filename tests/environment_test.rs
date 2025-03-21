@@ -2523,4 +2523,32 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_instance_statement_needs_all_definitions() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass B: Bimagma {
+                mul1: (B, B) -> B
+                mul2: (B, B) -> B
+            }
+
+            inductive State {
+                clean
+                dirty
+            }
+            "#,
+        );
+        // Needs to also define mul2
+        env.bad(
+            r#"
+            instance State: Bimagma {
+                define mul1(self, other: State) -> State {
+                    State.clean
+                }
+            }
+            "#,
+        );
+    }
 }
