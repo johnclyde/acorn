@@ -923,6 +923,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 let next_type = tokens.peek_type();
                 match next_type {
                     Some(TokenType::LeftParen) => {
+                        // Theorem with args
                         let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
                         let (claim, _) =
                             Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
@@ -933,7 +934,20 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         };
                         conditions.push(condition);
                     }
+                    Some(TokenType::LeftBrace) => {
+                        // Theorem with no args
+                        tokens.next();
+                        let (claim, _) =
+                            Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
+                        let condition = TypeclassCondition {
+                            name: token,
+                            args: vec![],
+                            claim,
+                        };
+                        conditions.push(condition);
+                    }
                     Some(TokenType::Colon) => {
+                        // Constant
                         tokens.next();
                         let (type_expr, t) = Expression::parse_type(
                             tokens,
@@ -1212,6 +1226,7 @@ impl Statement {
                 for theorem in &ts.conditions {
                     write!(f, "{}{}", new_indentation, theorem.name)?;
                     write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
+                    write!(f, "\n")?;
                 }
                 write!(f, "{}}}", indentation)
             }
@@ -1930,22 +1945,18 @@ mod tests {
         }"});
     }
 
-    // #[test]
-    // fn test_parsing_typeclass_statement_theorems() {
-    //     ok(indoc! {"
-    //     typeclass T: MyTypeclass {
-    //         two_nonequal {
-    //             exists(x: T, y: T) {
-    //               x != y
-    //             }
-    //         }
-    //         always_a_third(x: T, y: Y) {
-    //             exists(z: T) {
-    //               x != z and y != z
-    //             }
-    //         }
-    //     }"});
-    // }
+    #[test]
+    fn test_parsing_typeclass_statement_theorems() {
+        ok(indoc! {"
+        typeclass T: MyTypeclass {
+            two_nonequal {
+                exists(x: T, y: T) { x != y }
+            }
+            always_a_third(x: T, y: Y) {
+                exists(z: T) { x != z and y != z }
+            }
+        }"});
+    }
 
     // #[test]
     // fn test_parsing_typeclass_statement_general() {
