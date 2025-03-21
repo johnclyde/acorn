@@ -3,7 +3,7 @@ use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::{AcornType, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
@@ -1318,12 +1318,48 @@ impl Environment {
 
     fn add_instance_statement(
         &mut self,
-        _project: &mut Project,
+        project: &mut Project,
         statement: &Statement,
-        _is: &InstanceStatement,
+        is: &InstanceStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        todo!("add_instance_statement");
+        let instance_name = is.type_name.text();
+        let instance_type = match self.bindings.get_type_for_name(&instance_name) {
+            Some(PotentialType::Resolved(t)) => t.clone(),
+            Some(_) => {
+                return Err(is.type_name.error("parametrized types cannot be used here"));
+            }
+            None => {
+                return Err(is
+                    .type_name
+                    .error(&format!("undefined type name '{}'", instance_name)));
+            }
+        };
+        let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
+        let scope_name = format!("{}.{}", instance_name, typeclass.name);
+        for substatement in &is.body.statements {
+            match &substatement.statement {
+                StatementInfo::Let(ls) => {
+                    self.add_let_statement(project, Some(&scope_name), ls, substatement.range())?;
+                }
+                StatementInfo::Define(ds) => {
+                    if !ds.type_params.is_empty() {
+                        return Err(substatement.error("type parameters are not allowed here"));
+                    }
+                    self.add_define_statement(
+                        project,
+                        Some((&scope_name, &vec![], &instance_type)),
+                        ds,
+                        substatement.range(),
+                    )?;
+                }
+                _ => {
+                    return Err(substatement
+                        .error("only let and define statements are allowed in instance bodies"));
+                }
+            }
+        }
+        Ok(())
     }
 
     // Adds a statement to the environment.
