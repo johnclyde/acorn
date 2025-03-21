@@ -1226,7 +1226,7 @@ impl Environment {
                     .add_arbitrary_type(&param.name, param.typeclass.clone()),
             );
         }
-        let instance_type = potential.resolve(params, &cs.name_token)?;
+        let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
         match &instance_type {
             AcornType::Data(module, name, _) => {
                 if module != &self.module_id {

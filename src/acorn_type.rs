@@ -47,8 +47,31 @@ impl PotentialType {
         params: Vec<AcornType>,
         source: &dyn ErrorSource,
     ) -> Result<AcornType> {
-        if let PotentialType::Unresolved(_ut) = &self {
-            // TODO: check typeclasses
+        if let PotentialType::Unresolved(ut) = &self {
+            if ut.params.len() != params.len() {
+                return Err(source.error(&format!(
+                    "type {} expects {} parameters, but got {}",
+                    ut.name,
+                    ut.params.len(),
+                    params.len()
+                )));
+            }
+            for (i, (typeclass, param_type)) in ut.params.iter().zip(params.iter()).enumerate() {
+                match param_type {
+                    AcornType::Arbitrary(param) => {
+                        if typeclass != &param.typeclass {
+                            return Err(source.error(&format!(
+                                "expected param {} to have typeclass {:?}, but got {:?}",
+                                i, typeclass, param.typeclass
+                            )));
+                        }
+                    }
+                    _ => {
+                        // Can this even happen?
+                        return Err(source.error("bad parameter syntax"));
+                    }
+                }
+            }
         }
         self.resolve(params, source)
     }
@@ -73,6 +96,7 @@ impl PotentialType {
                         params.len()
                     )))
                 } else {
+                    // TODO: check that params obeys ut's typeclasses
                     Ok(AcornType::Data(ut.module_id, ut.name, params))
                 }
             }
