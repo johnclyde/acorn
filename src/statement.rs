@@ -1958,18 +1958,16 @@ mod tests {
         }"});
     }
 
-    // #[test]
-    // fn test_parsing_typeclass_statement_general() {
-    //     ok(indoc! {"
-    //     typeclass F: Foo {
-    //         bar: (F, F) -> Bool
-    //         some_bar(x: F) {
-    //             exists(y: F) {
-    //               x.bar(y)
-    //             }
-    //         }
-    //     }"});
-    // }
+    #[test]
+    fn test_parsing_typeclass_statement_general() {
+        ok(indoc! {"
+        typeclass F: Foo {
+            bar: (F, F) -> Bool
+            some_bar(x: F) {
+                exists(y: F) { x.bar(y) }
+            }
+        }"});
+    }
 
     #[test]
     fn test_parsing_instance_statement() {
