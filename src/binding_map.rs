@@ -1319,39 +1319,64 @@ impl BindingMap {
                 Ok(NamedEntity::Value(value))
             }
             Some(NamedEntity::Type(t)) => {
-                if let AcornType::Data(module, type_name, params) = t {
-                    if name_token.token_type == TokenType::Numeral {
-                        let value = self.evaluate_number_with_type(
-                            name_token,
-                            project,
-                            module,
-                            &type_name,
-                            name_token.text(),
-                        )?;
-                        return Ok(NamedEntity::Value(value));
-                    }
-                    match self.evaluate_type_attribute(project, module, &type_name, name) {
-                        Some(PotentialValue::Resolved(value)) => {
-                            if !params.is_empty() {
-                                return Err(name_token.error("unexpected double type resolution"));
-                            }
-                            Ok(NamedEntity::Value(value))
+                match &t {
+                    AcornType::Data(module, type_name, params) => {
+                        if name_token.token_type == TokenType::Numeral {
+                            let value = self.evaluate_number_with_type(
+                                name_token,
+                                project,
+                                *module,
+                                &type_name,
+                                name_token.text(),
+                            )?;
+                            return Ok(NamedEntity::Value(value));
                         }
-                        Some(PotentialValue::Unresolved(u)) => {
-                            if params.is_empty() {
-                                // Leave it unresolved
-                                Ok(NamedEntity::UnresolvedValue(u))
-                            } else {
-                                // Resolve it with the params from the class name
-                                let value = u.resolve(name_token, params)?;
+                        match self.evaluate_type_attribute(project, *module, &type_name, name) {
+                            Some(PotentialValue::Resolved(value)) => {
+                                if !params.is_empty() {
+                                    return Err(
+                                        name_token.error("unexpected double type resolution")
+                                    );
+                                }
                                 Ok(NamedEntity::Value(value))
                             }
+                            Some(PotentialValue::Unresolved(u)) => {
+                                if params.is_empty() {
+                                    // Leave it unresolved
+                                    Ok(NamedEntity::UnresolvedValue(u))
+                                } else {
+                                    // Resolve it with the params from the class name
+                                    let value = u.resolve(name_token, params.clone())?;
+                                    Ok(NamedEntity::Value(value))
+                                }
+                            }
+                            None => Err(name_token.error(&format!(
+                                "{} has no attribute named '{}'",
+                                type_name, name
+                            ))),
                         }
-                        None => Err(name_token
-                            .error(&format!("{} has no attribute named '{}'", type_name, name))),
                     }
-                } else {
-                    Err(name_token.error("expected a data type"))
+                    AcornType::Arbitrary(param) if param.typeclass.is_some() => {
+                        let typeclass = param.typeclass.as_ref().unwrap();
+                        match self.evaluate_type_attribute(
+                            project,
+                            typeclass.module_id,
+                            &typeclass.name,
+                            name,
+                        ) {
+                            Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
+                            Some(PotentialValue::Unresolved(u)) => {
+                                // Resolve it with the arbitrary type itself
+                                let value = u.resolve(name_token, vec![t.clone()])?;
+                                Ok(NamedEntity::Value(value))
+                            }
+                            None => Err(name_token.error(&format!(
+                                "{} has no attribute named '{}'",
+                                typeclass.name, name
+                            ))),
+                        }
+                    }
+                    _ => Err(name_token.error("this type cannot have attributes")),
                 }
             }
             Some(NamedEntity::Module(module)) => {
