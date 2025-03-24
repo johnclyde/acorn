@@ -479,6 +479,19 @@ impl BindingMap {
         self.typeclasses.insert(name.to_string(), info);
     }
 
+    pub fn get_typeclass_info<'a>(
+        &'a self,
+        project: &'a Project,
+        typeclass: &Typeclass,
+    ) -> &'a TypeclassInfo {
+        let bindings = if typeclass.module_id == self.module {
+            &self
+        } else {
+            project.get_bindings(typeclass.module_id).unwrap()
+        };
+        bindings.typeclasses.get(&typeclass.name).unwrap()
+    }
+
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.

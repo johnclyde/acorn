@@ -2525,7 +2525,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_instance_statement_needs_all_definitions() {
+    fn test_env_instance_statement_needs_all_attributes() {
         let mut env = Environment::new_test();
         env.add(
             r#"

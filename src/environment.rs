@@ -1366,6 +1366,19 @@ impl Environment {
                 }
             }
         }
+
+        // Check that all the typeclass attributes are implemented.
+        let info = self.bindings.get_typeclass_info(&project, &typeclass);
+        for attr_name in info.attributes.keys() {
+            let full_name = format!("{}.{}.{}", instance_name, typeclass.name, attr_name);
+            if !self.bindings.name_in_use(&full_name) {
+                return Err(statement.error(&format!(
+                    "missing implementation for attribute '{}'",
+                    full_name
+                )));
+            }
+        }
+
         Ok(())
     }
 
