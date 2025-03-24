@@ -2797,14 +2797,21 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             flag: Bool
         }
         type Foo: axiom
+        type Bar: axiom
+        instance Bar: Flagged {
+            let flag: Bool = true
+        }
         define get_flag<F: Flagged>(x: F) -> Bool {
             F.flag
+        }
+        theorem goal_bar(b: Bar) {
+            get_flag(b)
         }
         "#,
         );
         env.bad(
             r#"
-        theorem goal(f: Foo) {
+        theorem goal_foo(f: Foo) {
             get_flag(f)
         }
         "#,
