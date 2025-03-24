@@ -31,9 +31,6 @@ pub struct BindingMap {
     // Maps the type object to its name in this environment.
     reverse_type_names: HashMap<PotentialType, String>,
 
-    // Information about the typeclasses that were defined within this module.
-    typeclasses: HashMap<String, TypeclassInfo>,
-
     // Maps the name of a type to the typeclass.
     // Includes typeclasses that were imported from other modules.
     typeclass_names: BTreeMap<String, Typeclass>,
@@ -41,6 +38,9 @@ pub struct BindingMap {
     // Maps the typeclass to its name in this environment.
     // Includes every typeclass that has a top-level name in this environment.
     reverse_typeclass_names: HashMap<Typeclass, String>,
+
+    // Attribute names of both classes and typeclasses defined in this module.
+    attributes: HashMap<String, HashSet<String>>,
 
     // Maps an identifier name to its type.
     // Has entries for both defined constants and aliases.
@@ -265,15 +265,6 @@ fn keys_with_prefix<'a, T>(
         .map(|(key, _)| key)
 }
 
-#[derive(Clone)]
-pub struct TypeclassInfo {
-    // The instance name used in the definition of the attribute types.
-    pub instance_name: String,
-
-    // The types should have type variables named with instance_name.
-    pub attributes: HashMap<String, AcornType>,
-}
-
 // A name can refer to any of these things.
 #[derive(Debug)]
 enum NamedEntity {
@@ -347,7 +338,7 @@ impl BindingMap {
             reverse_type_names: HashMap::new(),
             typeclass_names: BTreeMap::new(),
             reverse_typeclass_names: HashMap::new(),
-            typeclasses: HashMap::new(),
+            attributes: HashMap::new(),
             identifier_types: HashMap::new(),
             constants: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
@@ -472,24 +463,47 @@ impl BindingMap {
         self.typeclass_names.insert(name.to_string(), typeclass);
     }
 
-    pub fn add_typeclass_info(&mut self, name: &str, info: TypeclassInfo) {
-        if self.typeclasses.contains_key(name) {
-            panic!("typeclass {} already defined", name);
+    fn add_attribute(&mut self, name: &str, attribute: String) {
+        if self.attributes.contains_key(name) {
+            self.attributes.get_mut(name).unwrap().insert(attribute);
+        } else {
+            let mut set = HashSet::new();
+            set.insert(attribute);
+            self.attributes.insert(name.to_string(), set);
         }
-        self.typeclasses.insert(name.to_string(), info);
     }
 
-    pub fn get_typeclass_info<'a>(
+    fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
+        if module_id == self.module {
+            self
+        } else {
+            project.get_bindings(module_id).unwrap()
+        }
+    }
+
+    pub fn has_attribute(
+        &self,
+        project: &Project,
+        module_id: ModuleId,
+        entity: &str,
+        attr: &str,
+    ) -> bool {
+        self.get_bindings(project, module_id)
+            .attributes
+            .get(entity)
+            .map_or(false, |set| set.contains(attr))
+    }
+
+    pub fn get_attributes<'a>(
         &'a self,
         project: &'a Project,
-        typeclass: &Typeclass,
-    ) -> &'a TypeclassInfo {
-        let bindings = if typeclass.module_id == self.module {
-            &self
-        } else {
-            project.get_bindings(typeclass.module_id).unwrap()
-        };
-        bindings.typeclasses.get(&typeclass.name).unwrap()
+        module_id: ModuleId,
+        name: &str,
+    ) -> &'a HashSet<String> {
+        self.get_bindings(project, module_id)
+            .attributes
+            .get(name)
+            .unwrap()
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -621,6 +635,9 @@ impl BindingMap {
             constructor,
         };
         self.constants.insert(name.to_string(), info);
+        if let Some((entity_name, attribute)) = name.rsplit_once('.') {
+            self.add_attribute(entity_name, attribute.to_string());
+        }
     }
 
     // Be really careful about this, it seems likely to break things.

@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::binding_map::{BindingMap, PotentialValue, Stack, TypeclassInfo};
+use crate::binding_map::{BindingMap, PotentialValue, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource};
 use crate::fact::Fact;
@@ -1274,20 +1274,12 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let instance_name = ts.instance_name.text();
-        let mut info = TypeclassInfo {
-            instance_name: instance_name.to_string(),
-            attributes: HashMap::new(),
-        };
         if self.bindings.name_in_use(instance_name) {
-            return Err(
-                statement.error(&format!("{} already defined in this scope", instance_name))
-            );
+            return Err(statement.error(&format!("{} already defined", instance_name)));
         }
         let typeclass_name = ts.typeclass_name.text();
         if self.bindings.name_in_use(typeclass_name) {
-            return Err(
-                statement.error(&format!("{} already defined in this scope", typeclass_name))
-            );
+            return Err(statement.error(&format!("{} is already defined", typeclass_name)));
         }
         let typeclass = Typeclass {
             module_id: self.module_id,
@@ -1304,13 +1296,9 @@ impl Environment {
         for (constant_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.to_generic();
-            info.attributes
-                .insert(constant_name.to_string(), var_type.clone());
             let full_name = format!("{}.{}", typeclass_name, constant_name);
             if self.bindings.name_in_use(&full_name) {
-                return Err(
-                    statement.error(&format!("{} already defined in this scope", full_name))
-                );
+                return Err(statement.error(&format!("{} is already defined", full_name)));
             }
             self.bindings
                 .add_constant(&full_name, vec![type_param.clone()], var_type, None, None);
@@ -1319,7 +1307,6 @@ impl Environment {
         // TODO: Handle the typeclass theorems.
 
         self.bindings.remove_type(ts.instance_name.text());
-        self.bindings.add_typeclass_info(typeclass_name, info);
         Ok(())
     }
 
@@ -1353,6 +1340,17 @@ impl Environment {
                     if !ds.type_params.is_empty() {
                         return Err(substatement.error("type parameters are not allowed here"));
                     }
+                    if !self.bindings.has_attribute(
+                        project,
+                        typeclass.module_id,
+                        &typeclass.name,
+                        &ds.name,
+                    ) {
+                        return Err(substatement.error(&format!(
+                            "typeclass '{}' does not have an attribute '{}'",
+                            typeclass.name, ds.name
+                        )));
+                    }
                     self.add_define_statement(
                         project,
                         Some((&scope_name, &vec![], &instance_type)),
@@ -1368,8 +1366,10 @@ impl Environment {
         }
 
         // Check that all the typeclass attributes are implemented.
-        let info = self.bindings.get_typeclass_info(&project, &typeclass);
-        for attr_name in info.attributes.keys() {
+        let required = self
+            .bindings
+            .get_attributes(&project, typeclass.module_id, &typeclass.name);
+        for attr_name in required {
             let full_name = format!("{}.{}.{}", instance_name, typeclass.name, attr_name);
             if !self.bindings.name_in_use(&full_name) {
                 return Err(statement.error(&format!(
