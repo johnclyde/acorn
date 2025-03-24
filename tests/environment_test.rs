@@ -2580,4 +2580,30 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_instance_attributes_must_match_type() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+
+            inductive State {
+                clean
+                dirty
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            instance State: Magma {
+                define mul(self, other: State) -> Bool {
+                    true
+                }
+            }
+            "#,
+        );
+    }
 }

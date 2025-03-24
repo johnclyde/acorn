@@ -1340,17 +1340,6 @@ impl Environment {
                     if !ds.type_params.is_empty() {
                         return Err(substatement.error("type parameters are not allowed here"));
                     }
-                    if !self.bindings.has_attribute(
-                        project,
-                        typeclass.module_id,
-                        &typeclass.name,
-                        &ds.name,
-                    ) {
-                        return Err(substatement.error(&format!(
-                            "typeclass '{}' does not have an attribute '{}'",
-                            typeclass.name, ds.name
-                        )));
-                    }
                     self.add_define_statement(
                         project,
                         Some((&scope_name, &vec![], &instance_type)),
@@ -1359,7 +1348,38 @@ impl Environment {
                     )?;
 
                     // Check that the types align
-                    // XXX
+                    let typeclass_attr_name = format!("{}.{}", typeclass.name, ds.name);
+                    let typeclass_attr = match self
+                        .bindings
+                        .get_bindings(&project, typeclass.module_id)
+                        .get_constant_value(&typeclass_attr_name)
+                    {
+                        Some(v) => v,
+                        None => {
+                            return Err(substatement.error(&format!(
+                                "typeclass '{}' does not have an attribute '{}'",
+                                typeclass.name, ds.name
+                            )));
+                        }
+                    };
+                    let resolved_attr_type = match typeclass_attr {
+                        PotentialValue::Resolved(t) => t.get_type(),
+                        PotentialValue::Unresolved(uc) => uc
+                            .resolve(substatement, vec![instance_type.clone()])?
+                            .get_type(),
+                    };
+                    let instance_attr_name = format!("{}.{}", scope_name, ds.name);
+                    let instance_attr = self
+                        .bindings
+                        .get_constant_value(&instance_attr_name)
+                        .unwrap();
+                    let instance_attr_type = instance_attr.get_type();
+                    if instance_attr_type != resolved_attr_type {
+                        return Err(substatement.error(&format!(
+                            "type mismatch for attribute '{}': expected {}, found {}",
+                            ds.name, resolved_attr_type, instance_attr_type
+                        )));
+                    }
                 }
                 _ => {
                     return Err(substatement

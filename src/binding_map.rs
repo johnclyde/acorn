@@ -145,7 +145,7 @@ pub struct UnresolvedConstant {
 }
 
 impl UnresolvedConstant {
-    fn resolve(
+    pub fn resolve(
         &self,
         source: &dyn ErrorSource,
         params: Vec<AcornType>,
@@ -473,25 +473,12 @@ impl BindingMap {
         }
     }
 
-    fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
+    pub fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
         if module_id == self.module {
             self
         } else {
             project.get_bindings(module_id).unwrap()
         }
-    }
-
-    pub fn has_attribute(
-        &self,
-        project: &Project,
-        module_id: ModuleId,
-        entity: &str,
-        attr: &str,
-    ) -> bool {
-        self.get_bindings(project, module_id)
-            .attributes
-            .get(entity)
-            .map_or(false, |set| set.contains(attr))
     }
 
     pub fn get_attributes<'a>(
