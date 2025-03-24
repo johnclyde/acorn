@@ -2763,7 +2763,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_typechecking_captures_instance_relationships() {
+    fn test_env_bool_not_instance_of_anything() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2783,6 +2783,29 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             r#"
         theorem goal {
             get_flag(true)
+        }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_env_typechecking_captures_instance_relationships() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+        typeclass F: Flagged {
+            flag: Bool
+        }
+        type Foo: axiom
+        define get_flag<F: Flagged>(x: F) -> Bool {
+            F.flag
+        }
+        "#,
+        );
+        env.bad(
+            r#"
+        theorem goal(f: Foo) {
+            get_flag(f)
         }
         "#,
         );
