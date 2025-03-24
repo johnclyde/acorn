@@ -463,16 +463,6 @@ impl BindingMap {
         self.name_to_typeclass.insert(name.to_string(), typeclass);
     }
 
-    fn add_attribute(&mut self, name: &str, attribute: String) {
-        if self.attributes.contains_key(name) {
-            self.attributes.get_mut(name).unwrap().insert(attribute);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(attribute);
-            self.attributes.insert(name.to_string(), set);
-        }
-    }
-
     pub fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
         if module_id == self.module {
             self
@@ -623,7 +613,16 @@ impl BindingMap {
         };
         self.constant_info.insert(name.to_string(), info);
         if let Some((entity_name, attribute)) = name.rsplit_once('.') {
-            self.add_attribute(entity_name, attribute.to_string());
+            if self.attributes.contains_key(entity_name) {
+                self.attributes
+                    .get_mut(entity_name)
+                    .unwrap()
+                    .insert(attribute.to_string());
+            } else {
+                let mut set = HashSet::new();
+                set.insert(attribute.to_string());
+                self.attributes.insert(entity_name.to_string(), set);
+            }
         }
     }
 
@@ -1248,17 +1247,13 @@ impl BindingMap {
                 )));
             }
         };
-        let bindings = if module == self.module {
-            self
-        } else {
-            project.get_bindings(module).unwrap()
-        };
-
         let constant_name = format!("{}.{}", type_name, name);
-        let function = if let Some(f) = bindings.get_constant_value(&constant_name) {
-            f
-        } else {
-            return Err(source.error(&format!("unknown attribute '{}'", constant_name)));
+        let function = match self
+            .get_bindings(&project, module)
+            .get_constant_value(&constant_name)
+        {
+            Some(f) => f,
+            None => return Err(source.error(&format!("unknown attribute '{}'", constant_name))),
         };
         self.apply_potential(source, function, vec![instance], None)
     }
