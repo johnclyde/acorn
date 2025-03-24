@@ -1335,6 +1335,15 @@ impl Environment {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(project, Some(&scope_name), ls, substatement.range())?;
+
+                    self.bindings.typecheck_instance_attribute(
+                        &project,
+                        instance_name,
+                        &instance_type,
+                        &typeclass,
+                        &ls.name,
+                        substatement,
+                    )?;
                 }
                 StatementInfo::Define(ds) => {
                     if !ds.type_params.is_empty() {
