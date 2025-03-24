@@ -2817,4 +2817,27 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_typeclasses_can_have_conditions() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+        typeclass S: Singleton {
+            value: S
+
+            unique(x: S) {
+                x = S.value
+            }
+        }
+
+        theorem are_equal<S: Singleton>(a: S, b: S) {
+            a = b
+        } by {
+            Singleton.unique(a)
+            Singleton.unique(b)
+        }
+        "#,
+        );
+    }
 }

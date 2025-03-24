@@ -1316,7 +1316,9 @@ impl Environment {
                 .add_constant(&full_name, vec![type_param.clone()], var_type, None, None);
         }
 
-        // TODO: Handle the typeclass theorems.
+        if !ts.conditions.is_empty() {
+            todo!("handle typeclass conditions");
+        }
 
         self.bindings.remove_type(ts.instance_name.text());
         Ok(())
