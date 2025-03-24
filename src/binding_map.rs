@@ -1695,7 +1695,7 @@ impl BindingMap {
                 return Err(source.error(&format!("argument {} ({}) has unresolved type", i, arg)));
             }
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
-            if !arg_type.match_instance(&arg.get_type(), &mut mapping) {
+            if !arg_type.match_instance(&arg.get_type(), &|_, _, _| true, &mut mapping) {
                 return Err(source.error(&format!(
                     "for argument {}, expected type {:?}, but got {:?}",
                     i,

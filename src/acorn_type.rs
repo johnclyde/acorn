@@ -330,13 +330,19 @@ impl AcornType {
     }
 
     // Figures out whether it is possible to instantiate self to get instance.
+    //
     // Fills in a mapping for any parametric types that need to be specified, in order to make it match.
     // This will include "Foo" -> Parameter("Foo") mappings for types that should remain the same.
     // Every parameter used in self will get a mapping entry.
+    //
+    // "validator" is a function that checks whether a typeclass is valid for a given type.
+    // This is abstracted out because the prover and the compiler have different ideas of what is valid.
+    //
     // Returns whether it was successful.
     pub fn match_instance(
         &self,
         instance: &AcornType,
+        validator: &dyn Fn(&ModuleId, &str, &Typeclass) -> bool,
         mapping: &mut HashMap<String, AcornType>,
     ) -> bool {
         match (self, instance) {
@@ -345,6 +351,26 @@ impl AcornType {
                     // This type variable is already mapped
                     return t == instance;
                 }
+                if let Some(typeclass) = param.typeclass.as_ref() {
+                    match instance {
+                        AcornType::Data(module_id, name, _) => {
+                            if !validator(module_id, name, typeclass) {
+                                return false;
+                            }
+                        }
+                        AcornType::Arbitrary(param) | AcornType::Variable(param) => {
+                            match &param.typeclass {
+                                Some(tc) => {
+                                    if tc != typeclass {
+                                        return false;
+                                    }
+                                }
+                                None => return false,
+                            }
+                        }
+                        _ => return false,
+                    }
+                }
                 mapping.insert(param.name.clone(), instance.clone());
                 true
             }
@@ -352,11 +378,14 @@ impl AcornType {
                 if f.arg_types.len() != g.arg_types.len() {
                     return false;
                 }
-                if !f.return_type.match_instance(&g.return_type, mapping) {
+                if !f
+                    .return_type
+                    .match_instance(&g.return_type, validator, mapping)
+                {
                     return false;
                 }
                 for (f_arg_type, g_arg_type) in f.arg_types.iter().zip(&g.arg_types) {
-                    if !f_arg_type.match_instance(g_arg_type, mapping) {
+                    if !f_arg_type.match_instance(g_arg_type, validator, mapping) {
                         return false;
                     }
                 }
@@ -370,7 +399,7 @@ impl AcornType {
                     return false;
                 }
                 for (g_param, i_param) in g_params.iter().zip(i_params) {
-                    if !g_param.match_instance(i_param, mapping) {
+                    if !g_param.match_instance(i_param, validator, mapping) {
                         return false;
                     }
                 }
