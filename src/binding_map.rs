@@ -463,7 +463,8 @@ impl BindingMap {
         self.name_to_typeclass.insert(name.to_string(), typeclass);
     }
 
-    pub fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
+    // A helper to get the bindings from the project if needed bindings.
+    fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
         if module_id == self.module {
             self
         } else {
@@ -481,6 +482,48 @@ impl BindingMap {
             .attributes
             .get(name)
             .unwrap()
+    }
+
+    // Call this after an instance attribute has been defined to typecheck it.
+    pub fn typecheck_instance_attribute(
+        &self,
+        project: &Project,
+        instance_name: &str,
+        instance_type: &AcornType,
+        typeclass: &Typeclass,
+        attr_name: &str,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
+        let scope_name = format!("{}.{}", instance_name, typeclass.name);
+        let typeclass_attr_name = format!("{}.{}", typeclass.name, attr_name);
+        let typeclass_attr = match self
+            .get_bindings(&project, typeclass.module_id)
+            .get_constant_value(&typeclass_attr_name)
+        {
+            Some(v) => v,
+            None => {
+                return Err(source.error(&format!(
+                    "typeclass '{}' does not have an attribute '{}'",
+                    typeclass.name, attr_name
+                )));
+            }
+        };
+        let resolved_attr_type = match typeclass_attr {
+            PotentialValue::Resolved(t) => t.get_type(),
+            PotentialValue::Unresolved(uc) => {
+                uc.resolve(source, vec![instance_type.clone()])?.get_type()
+            }
+        };
+        let instance_attr_name = format!("{}.{}", scope_name, attr_name);
+        let instance_attr = self.get_constant_value(&instance_attr_name).unwrap();
+        let instance_attr_type = instance_attr.get_type();
+        if instance_attr_type != resolved_attr_type {
+            return Err(source.error(&format!(
+                "type mismatch for attribute '{}': expected {}, found {}",
+                attr_name, resolved_attr_type, instance_attr_type
+            )));
+        }
+        Ok(())
     }
 
     // Returns a PotentialValue representing this name, if there is one.
