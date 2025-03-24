@@ -2725,4 +2725,25 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_forbid_instance_on_alias() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass F: Flagged {
+                flag: Bool
+            }
+            type Foo: axiom
+            type Bar: Foo
+            "#,
+        );
+        env.bad(
+            r#"
+            instance Bar: Flagged {
+                let flag: Bool = true
+            }
+            "#,
+        );
+    }
 }
