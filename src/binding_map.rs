@@ -26,18 +26,18 @@ pub struct BindingMap {
     // Maps the name of a type to the type object.
     // Includes unresolved names like List that don't have enough information
     // to get a specific type.
-    type_names: BTreeMap<String, PotentialType>,
+    name_to_type: BTreeMap<String, PotentialType>,
 
     // Maps the type object to its name in this environment.
-    reverse_type_names: HashMap<PotentialType, String>,
+    type_to_name: HashMap<PotentialType, String>,
 
     // Maps the name of a type to the typeclass.
     // Includes typeclasses that were imported from other modules.
-    typeclass_names: BTreeMap<String, Typeclass>,
+    name_to_typeclass: BTreeMap<String, Typeclass>,
 
     // Maps the typeclass to its name in this environment.
     // Includes every typeclass that has a top-level name in this environment.
-    reverse_typeclass_names: HashMap<Typeclass, String>,
+    typeclass_to_name: HashMap<Typeclass, String>,
 
     // Attribute names of both classes and typeclasses defined in this module.
     attributes: HashMap<String, HashSet<String>>,
@@ -69,10 +69,10 @@ pub struct BindingMap {
     // Names that refer to other modules.
     // After "import foo", "foo" refers to a module.
     // It's important that these are in alphabetical order, so that dependency hashes are consistent.
-    modules: BTreeMap<String, ModuleId>,
+    name_to_module: BTreeMap<String, ModuleId>,
 
     // The local name for imported modules.
-    reverse_modules: HashMap<ModuleId, String>,
+    module_to_name: HashMap<ModuleId, String>,
 
     // The default data type to use for numeric literals.
     default: Option<(ModuleId, String)>,
@@ -334,17 +334,17 @@ impl BindingMap {
         assert!(module >= FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
-            type_names: BTreeMap::new(),
-            reverse_type_names: HashMap::new(),
-            typeclass_names: BTreeMap::new(),
-            reverse_typeclass_names: HashMap::new(),
+            name_to_type: BTreeMap::new(),
+            type_to_name: HashMap::new(),
+            name_to_typeclass: BTreeMap::new(),
+            typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
             identifier_types: HashMap::new(),
             constants: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
             canonical_to_alias: HashMap::new(),
-            modules: BTreeMap::new(),
-            reverse_modules: HashMap::new(),
+            name_to_module: BTreeMap::new(),
+            module_to_name: HashMap::new(),
             default: None,
             theorems: HashSet::new(),
         };
@@ -357,10 +357,10 @@ impl BindingMap {
     ////////////////////////////////////////////////////////////////////////////////
 
     pub fn name_in_use(&self, name: &str) -> bool {
-        self.type_names.contains_key(name)
-            || self.typeclass_names.contains_key(name)
+        self.name_to_type.contains_key(name)
+            || self.name_to_typeclass.contains_key(name)
             || self.identifier_types.contains_key(name)
-            || self.modules.contains_key(name)
+            || self.name_to_module.contains_key(name)
     }
 
     // Adds both directions for a name <-> type correspondence.
@@ -370,11 +370,11 @@ impl BindingMap {
         }
         // There can be multiple names for a type.
         // If we already have a name for the reverse lookup, we don't overwrite it.
-        if !self.reverse_type_names.contains_key(&potential_type) {
-            self.reverse_type_names
+        if !self.type_to_name.contains_key(&potential_type) {
+            self.type_to_name
                 .insert(potential_type.clone(), name.clone());
         }
-        self.type_names.insert(name, potential_type);
+        self.name_to_type.insert(name, potential_type);
     }
 
     // Adds a new data type to the binding map.
@@ -456,11 +456,11 @@ impl BindingMap {
         }
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
-        if !self.reverse_typeclass_names.contains_key(&typeclass) {
-            self.reverse_typeclass_names
+        if !self.typeclass_to_name.contains_key(&typeclass) {
+            self.typeclass_to_name
                 .insert(typeclass.clone(), name.to_string());
         }
-        self.typeclass_names.insert(name.to_string(), typeclass);
+        self.name_to_typeclass.insert(name.to_string(), typeclass);
     }
 
     fn add_attribute(&mut self, name: &str, attribute: String) {
@@ -551,19 +551,19 @@ impl BindingMap {
 
     // Gets the type for a type name, not for an identifier.
     pub fn get_type_for_name(&self, type_name: &str) -> Option<&PotentialType> {
-        self.type_names.get(type_name)
+        self.name_to_type.get(type_name)
     }
 
     pub fn has_type_name(&self, type_name: &str) -> bool {
-        self.type_names.contains_key(type_name)
+        self.name_to_type.contains_key(type_name)
     }
 
     pub fn get_typeclass_for_name(&self, typeclass_name: &str) -> Option<&Typeclass> {
-        self.typeclass_names.get(typeclass_name)
+        self.name_to_typeclass.get(typeclass_name)
     }
 
     pub fn has_typeclass_name(&self, typeclass_name: &str) -> bool {
-        self.typeclass_names.contains_key(typeclass_name)
+        self.name_to_typeclass.contains_key(typeclass_name)
     }
 
     pub fn has_identifier(&self, identifier: &str) -> bool {
@@ -586,7 +586,7 @@ impl BindingMap {
     // All other modules that we directly depend on, besides this one.
     // Sorted by the name of the import, so that the order will be consistent.
     pub fn direct_dependencies(&self) -> Vec<ModuleId> {
-        self.modules.values().copied().collect()
+        self.name_to_module.values().copied().collect()
     }
 
     pub fn set_default(&mut self, module: ModuleId, type_name: String) {
@@ -687,7 +687,7 @@ impl BindingMap {
     // Type variables and arbitrary variables should get removed when they go out of scope.
     // Other sorts of types shouldn't be getting removed.
     pub fn remove_type(&mut self, name: &str) {
-        match self.type_names.remove(name) {
+        match self.name_to_type.remove(name) {
             Some(p) => match &p {
                 PotentialType::Unresolved(ut) => {
                     panic!("removing type {} which is unresolved", ut.name);
@@ -697,7 +697,7 @@ impl BindingMap {
                         AcornType::Variable(..) | AcornType::Arbitrary(..) => {}
                         _ => panic!("unexpectedly removing type: {}", name),
                     }
-                    self.reverse_type_names.remove(&p);
+                    self.type_to_name.remove(&p);
                 }
             },
             None => panic!("removing type {} which is already not present", name),
@@ -709,12 +709,12 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("module name {} already bound", name);
         }
-        self.modules.insert(name.to_string(), module);
-        self.reverse_modules.insert(module, name.to_string());
+        self.name_to_module.insert(name.to_string(), module);
+        self.module_to_name.insert(module, name.to_string());
     }
 
     pub fn is_module(&self, name: &str) -> bool {
-        self.modules.contains_key(name)
+        self.name_to_module.contains_key(name)
     }
 
     // Whether this value is calling a theorem on some arguments.
@@ -860,9 +860,9 @@ impl BindingMap {
 
         if first_char.map(|c| c.is_uppercase()).unwrap_or(true) {
             // Types
-            for key in keys_with_prefix(&self.type_names, prefix) {
+            for key in keys_with_prefix(&self.name_to_type, prefix) {
                 if importing {
-                    let data_type = self.type_names.get(key)?;
+                    let data_type = self.name_to_type.get(key)?;
                     match data_type {
                         PotentialType::Resolved(AcornType::Data(module, name, _)) => {
                             if module != &self.module || name != key {
@@ -914,7 +914,7 @@ impl BindingMap {
                 if token.token_type == TokenType::Axiom {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
-                if let Some(t) = self.type_names.get(token.text()) {
+                if let Some(t) = self.name_to_type.get(token.text()) {
                     Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))
@@ -1363,7 +1363,7 @@ impl BindingMap {
                 match name_token.token_type {
                     TokenType::Identifier => {
                         if self.is_module(name) {
-                            match self.modules.get(name) {
+                            match self.name_to_module.get(name) {
                                 Some(module) => Ok(NamedEntity::Module(*module)),
                                 None => Err(name_token.error("unknown module")),
                             }
@@ -2338,7 +2338,7 @@ impl BindingMap {
 
         // Check if there's a local alias for this exact type
         if let Some(name) = self
-            .reverse_type_names
+            .type_to_name
             .get(&PotentialType::Resolved(acorn_type.clone()))
         {
             return Ok(Expression::generate_identifier(name));
@@ -2354,7 +2354,7 @@ impl BindingMap {
             }
 
             // Reference this type via referencing the imported module
-            if let Some(module_name) = self.reverse_modules.get(module) {
+            if let Some(module_name) = self.module_to_name.get(module) {
                 let base_expr = Expression::generate_identifier_chain(&[module_name, type_name]);
                 return self.parametrize_expr(base_expr, params);
             }
@@ -2478,7 +2478,7 @@ impl BindingMap {
         }
 
         // Refer to this constant using its module
-        match self.reverse_modules.get(&module) {
+        match self.module_to_name.get(&module) {
             Some(module_name) => {
                 parts.insert(0, module_name);
                 Ok(Expression::generate_identifier_chain(&parts))
