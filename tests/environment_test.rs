@@ -2498,7 +2498,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_instance_statement() {
+    fn test_env_instance_statement_define() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2553,7 +2553,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_instance_statement_no_extra_attributes() {
+    fn test_env_instance_statement_no_extra_define() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2582,7 +2582,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_instance_attributes_must_match_type() {
+    fn test_env_instance_defines_must_match_type() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2633,6 +2633,76 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
             theorem commutative(a: State, b: State) {
                 Magma.mul(a, b) = Magma.mul(b, a)
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_env_instance_statement_let() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass P: PointedSet {
+                basepoint: P
+            }
+
+            inductive Z2 {
+                zero
+                one
+            }
+
+            instance Z2: PointedSet {
+                let basepoint: Z2 = Z2.zero
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_env_instance_statement_no_extra_let() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass P: PointedSet {
+                basepoint: P
+            }
+
+            inductive Z2 {
+                zero
+                one
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            instance Z2: PointedSet {
+                let basepoint: Z2 = Z2.zero
+                let other: Z2 = Z2.one
+            }
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_env_instance_lets_must_match_type() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass P: PointedSet {
+                basepoint: P
+            }
+
+            inductive Z2 {
+                zero
+                one
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            instance Z2: PointedSet {
+                let basepoint: Bool = true
             }
             "#,
         );
