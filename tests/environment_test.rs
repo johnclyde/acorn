@@ -2608,7 +2608,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_reference_instance_attributes() {
+    fn test_env_using_typeclass_methods() {
         let mut env = Environment::new_test();
         env.add(
             r#"
@@ -2632,7 +2632,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
 
             theorem commutative(a: State, b: State) {
-                State.Magma.mul(a, b) = State.Magma.mul(b, a)
+                Magma.mul(a, b) = Magma.mul(b, a)
             }
             "#,
         );
