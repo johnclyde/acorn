@@ -13,49 +13,6 @@ use crate::project::Project;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
 
-// A representation of the variables on the stack.
-pub struct Stack {
-    // Maps the name of the variable to their depth and their type.
-    vars: HashMap<String, (AtomId, AcornType)>,
-}
-
-impl Stack {
-    pub fn new() -> Self {
-        Stack {
-            vars: HashMap::new(),
-        }
-    }
-
-    pub fn names(&self) -> Vec<&str> {
-        let mut answer: Vec<&str> = vec![""; self.vars.len()];
-        for (name, (i, _)) in &self.vars {
-            answer[*i as usize] = name;
-        }
-        answer
-    }
-
-    pub fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
-        let i = self.vars.len() as AtomId;
-        self.vars.insert(name, (i, acorn_type));
-        i
-    }
-
-    fn remove(&mut self, name: &str) {
-        self.vars.remove(name);
-    }
-
-    pub fn remove_all(&mut self, names: &[String]) {
-        for name in names {
-            self.remove(name);
-        }
-    }
-
-    // Returns the depth and type of the variable with this name.
-    fn get(&self, name: &str) -> Option<&(AtomId, AcornType)> {
-        self.vars.get(name)
-    }
-}
-
 // In order to convert an Expression to an AcornValue, we need to convert the string representation
 // of types, variable names, and constant names into numeric identifiers, detect name collisions,
 // and typecheck everything.
@@ -74,10 +31,15 @@ pub struct BindingMap {
     // Maps the type object to its name in this environment.
     reverse_type_names: HashMap<PotentialType, String>,
 
+    // Information about the typeclasses that were defined within this module.
+    typeclasses: HashMap<String, TypeclassInfo>,
+
     // Maps the name of a type to the typeclass.
+    // Includes typeclasses that were imported from other modules.
     typeclass_names: BTreeMap<String, Typeclass>,
 
     // Maps the typeclass to its name in this environment.
+    // Includes every typeclass that has a top-level name in this environment.
     reverse_typeclass_names: HashMap<Typeclass, String>,
 
     // Maps an identifier name to its type.
@@ -119,6 +81,49 @@ pub struct BindingMap {
     // Inside the block containing the proof of a theorem, the name is not considered to
     // be a theorem.
     theorems: HashSet<String>,
+}
+
+// A representation of the variables on the stack.
+pub struct Stack {
+    // Maps the name of the variable to their depth and their type.
+    vars: HashMap<String, (AtomId, AcornType)>,
+}
+
+impl Stack {
+    pub fn new() -> Self {
+        Stack {
+            vars: HashMap::new(),
+        }
+    }
+
+    pub fn names(&self) -> Vec<&str> {
+        let mut answer: Vec<&str> = vec![""; self.vars.len()];
+        for (name, (i, _)) in &self.vars {
+            answer[*i as usize] = name;
+        }
+        answer
+    }
+
+    pub fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
+        let i = self.vars.len() as AtomId;
+        self.vars.insert(name, (i, acorn_type));
+        i
+    }
+
+    fn remove(&mut self, name: &str) {
+        self.vars.remove(name);
+    }
+
+    pub fn remove_all(&mut self, names: &[String]) {
+        for name in names {
+            self.remove(name);
+        }
+    }
+
+    // Returns the depth and type of the variable with this name.
+    fn get(&self, name: &str) -> Option<&(AtomId, AcornType)> {
+        self.vars.get(name)
+    }
 }
 
 // A generic constant that we don't know the type of yet.
@@ -260,6 +265,15 @@ fn keys_with_prefix<'a, T>(
         .map(|(key, _)| key)
 }
 
+#[derive(Clone)]
+pub struct TypeclassInfo {
+    // The instance name used in the definition of the attribute types.
+    pub instance_name: String,
+
+    // The types should have type variables named with instance_name.
+    pub attributes: HashMap<String, AcornType>,
+}
+
 // A name can refer to any of these things.
 #[derive(Debug)]
 enum NamedEntity {
@@ -333,6 +347,7 @@ impl BindingMap {
             reverse_type_names: HashMap::new(),
             typeclass_names: BTreeMap::new(),
             reverse_typeclass_names: HashMap::new(),
+            typeclasses: HashMap::new(),
             identifier_types: HashMap::new(),
             constants: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
@@ -455,6 +470,13 @@ impl BindingMap {
                 .insert(typeclass.clone(), name.to_string());
         }
         self.typeclass_names.insert(name.to_string(), typeclass);
+    }
+
+    pub fn add_typeclass_info(&mut self, name: &str, info: TypeclassInfo) {
+        if self.typeclasses.contains_key(name) {
+            panic!("typeclass {} already defined", name);
+        }
+        self.typeclasses.insert(name.to_string(), info);
     }
 
     // Returns a PotentialValue representing this name, if there is one.

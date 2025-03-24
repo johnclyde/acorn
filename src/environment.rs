@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::binding_map::{BindingMap, PotentialValue, Stack};
+use crate::binding_map::{BindingMap, PotentialValue, Stack, TypeclassInfo};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource};
 use crate::fact::Fact;
@@ -1274,6 +1274,10 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let instance_name = ts.instance_name.text();
+        let mut info = TypeclassInfo {
+            instance_name: instance_name.to_string(),
+            attributes: HashMap::new(),
+        };
         if self.bindings.name_in_use(instance_name) {
             return Err(
                 statement.error(&format!("{} already defined in this scope", instance_name))
@@ -1300,6 +1304,8 @@ impl Environment {
         for (constant_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.to_generic();
+            info.attributes
+                .insert(constant_name.to_string(), var_type.clone());
             let full_name = format!("{}.{}", typeclass_name, constant_name);
             if self.bindings.name_in_use(&full_name) {
                 return Err(
@@ -1313,6 +1319,7 @@ impl Environment {
         // TODO: Handle the typeclass theorems.
 
         self.bindings.remove_type(ts.instance_name.text());
+        self.bindings.add_typeclass_info(typeclass_name, info);
         Ok(())
     }
 
