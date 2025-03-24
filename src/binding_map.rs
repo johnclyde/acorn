@@ -81,6 +81,9 @@ pub struct BindingMap {
     // Inside the block containing the proof of a theorem, the name is not considered to
     // be a theorem.
     theorems: HashSet<String>,
+
+    // Stores the instance-of relationships for classes that were defined in this module.
+    instance_of: HashSet<(String, Typeclass)>,
 }
 
 // A representation of the variables on the stack.
@@ -347,6 +350,7 @@ impl BindingMap {
             module_to_name: HashMap::new(),
             default: None,
             theorems: HashSet::new(),
+            instance_of: HashSet::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -487,12 +491,12 @@ impl BindingMap {
     // Call this after an instance attribute has been defined to typecheck it.
     pub fn typecheck_instance_attribute(
         &self,
+        source: &dyn ErrorSource,
         project: &Project,
         instance_name: &str,
         instance_type: &AcornType,
         typeclass: &Typeclass,
         attr_name: &str,
-        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
         let typeclass_attr_name = format!("{}.{}", typeclass.name, attr_name);
@@ -524,6 +528,11 @@ impl BindingMap {
             )));
         }
         Ok(())
+    }
+
+    pub fn set_instance_of(&mut self, instance_name: &str, typeclass: Typeclass) {
+        self.instance_of
+            .insert((instance_name.to_string(), typeclass));
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -1298,7 +1307,7 @@ impl BindingMap {
             Some(f) => f,
             None => return Err(source.error(&format!("unknown attribute '{}'", constant_name))),
         };
-        self.apply_potential(source, function, vec![instance], None)
+        self.apply_potential(source, project, function, vec![instance], None)
     }
 
     // Evaluates a single name, which may be namespaced to another named entity.
@@ -1643,6 +1652,7 @@ impl BindingMap {
     pub fn apply_potential(
         &self,
         source: &dyn ErrorSource,
+        project: &Project,
         potential: PotentialValue,
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
@@ -1654,7 +1664,7 @@ impl BindingMap {
                 value
             }
             PotentialValue::Unresolved(u) => {
-                self.resolve_function(source, u, args, expected_type)?
+                self.resolve_function(source, project, u, args, expected_type)?
             }
         };
         Ok(value)
@@ -1663,6 +1673,7 @@ impl BindingMap {
     fn resolve_function(
         &self,
         source: &dyn ErrorSource,
+        _project: &Project,
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
@@ -1737,7 +1748,7 @@ impl BindingMap {
             args.push(arg);
         }
 
-        self.resolve_function(source, unresolved, args, expected_type)
+        self.resolve_function(source, project, unresolved, args, expected_type)
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.

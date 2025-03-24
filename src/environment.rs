@@ -836,6 +836,7 @@ impl Environment {
         for (i, member_fn) in member_fns.iter().enumerate() {
             let member_arg = self.bindings.apply_potential(
                 &ss.fields[i].0,
+                project,
                 member_fn.clone(),
                 vec![object_var.clone()],
                 None,
@@ -872,9 +873,13 @@ impl Environment {
         // An object can be recreated by new'ing from its members. Ie:
         // Pair.new(Pair.first(p), Pair.second(p)) = p.
         // This is the "new equation" for a struct type.
-        let recreated =
-            self.bindings
-                .apply_potential(&ss.name_token, new_fn.clone(), member_args, None)?;
+        let recreated = self.bindings.apply_potential(
+            &ss.name_token,
+            project,
+            new_fn.clone(),
+            member_args,
+            None,
+        )?;
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
         let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
@@ -902,12 +907,13 @@ impl Environment {
             .collect::<Vec<_>>();
         let new_application =
             self.bindings
-                .apply_potential(&ss.name_token, new_fn, var_args, None)?;
+                .apply_potential(&ss.name_token, project, new_fn, var_args, None)?;
         for i in 0..ss.fields.len() {
             let (field_name_token, field_type_expr) = &ss.fields[i];
             let member_fn = &member_fns[i];
             let applied = self.bindings.apply_potential(
                 field_name_token,
+                project,
                 member_fn.clone(),
                 vec![new_application.clone()],
                 None,
@@ -1344,12 +1350,12 @@ impl Environment {
                     self.add_let_statement(project, Some(&scope_name), ls, substatement.range())?;
 
                     self.bindings.typecheck_instance_attribute(
+                        substatement,
                         &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ls.name,
-                        substatement,
                     )?;
                 }
                 StatementInfo::Define(ds) => {
@@ -1364,12 +1370,12 @@ impl Environment {
                     )?;
 
                     self.bindings.typecheck_instance_attribute(
+                        substatement,
                         &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ds.name,
-                        substatement,
                     )?;
                 }
                 _ => {
@@ -1393,6 +1399,9 @@ impl Environment {
             }
         }
 
+        // TODO: add a node to prove that the instance satisfies the typeclass
+
+        self.bindings.set_instance_of(instance_name, typeclass);
         Ok(())
     }
 
