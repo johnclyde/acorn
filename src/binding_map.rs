@@ -83,7 +83,7 @@ pub struct BindingMap {
     theorems: HashSet<String>,
 
     // Stores the instance-of relationships for classes that were defined in this module.
-    instance_of: HashSet<(String, Typeclass)>,
+    instance_of: HashMap<String, HashSet<Typeclass>>,
 }
 
 // A representation of the variables on the stack.
@@ -350,7 +350,7 @@ impl BindingMap {
             module_to_name: HashMap::new(),
             default: None,
             theorems: HashSet::new(),
-            instance_of: HashSet::new(),
+            instance_of: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -531,8 +531,16 @@ impl BindingMap {
     }
 
     pub fn set_instance_of(&mut self, instance_name: &str, typeclass: Typeclass) {
-        self.instance_of
-            .insert((instance_name.to_string(), typeclass));
+        if self.instance_of.contains_key(instance_name) {
+            self.instance_of
+                .get_mut(instance_name)
+                .unwrap()
+                .insert(typeclass);
+        } else {
+            let mut set = HashSet::new();
+            set.insert(typeclass);
+            self.instance_of.insert(instance_name.to_string(), set);
+        }
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -1670,10 +1678,23 @@ impl BindingMap {
         Ok(value)
     }
 
+    fn is_instance_of(
+        &self,
+        project: &Project,
+        module_id: ModuleId,
+        type_name: &str,
+        typeclass: &Typeclass,
+    ) -> bool {
+        self.get_bindings(project, module_id)
+            .instance_of
+            .get(type_name)
+            .map_or(false, |set| set.contains(typeclass))
+    }
+
     fn resolve_function(
         &self,
         source: &dyn ErrorSource,
-        _project: &Project,
+        project: &Project,
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
@@ -1695,7 +1716,13 @@ impl BindingMap {
                 return Err(source.error(&format!("argument {} ({}) has unresolved type", i, arg)));
             }
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
-            if !arg_type.match_instance(&arg.get_type(), &|_, _, _| true, &mut mapping) {
+            if !arg_type.match_instance(
+                &arg.get_type(),
+                &|module_id, type_name, typeclass| {
+                    self.is_instance_of(&project, *module_id, type_name, typeclass)
+                },
+                &mut mapping,
+            ) {
                 return Err(source.error(&format!(
                     "for argument {}, expected type {:?}, but got {:?}",
                     i,
