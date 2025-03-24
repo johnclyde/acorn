@@ -1335,6 +1335,7 @@ impl Environment {
                     .error(&format!("undefined type name '{}'", instance_name)));
             }
         };
+        self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
         for substatement in &is.body.statements {
