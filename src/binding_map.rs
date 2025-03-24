@@ -26,10 +26,10 @@ pub struct BindingMap {
     // Maps the name of a type to the type object.
     // Includes unresolved names like List that don't have enough information
     // to get a specific type.
-    name_to_type: BTreeMap<String, PotentialType>,
+    typename_to_type: BTreeMap<String, PotentialType>,
 
     // Maps the type object to its name in this environment.
-    type_to_name: HashMap<PotentialType, String>,
+    type_to_typename: HashMap<PotentialType, String>,
 
     // Maps the name of a type to the typeclass.
     // Includes typeclasses that were imported from other modules.
@@ -46,14 +46,14 @@ pub struct BindingMap {
     // Has entries for both defined constants and aliases.
     // Note that for generic types, this stores the type using the same generic variables
     // that were used in the definition.
-    identifier_types: HashMap<String, AcornType>,
+    identifier_to_type: HashMap<String, AcornType>,
 
     // Maps the name of a constant defined in this scope to information about it.
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
     // entirety of this environment.
     // Doesn't handle aliases.
     // Includes "<datatype>.<constant>" for members.
-    constants: BTreeMap<String, ConstantInfo>,
+    constant_info: BTreeMap<String, ConstantInfo>,
 
     // The canonical identifier of a constant value is the first place it is defined.
     // There may be other names in this environment that refer to the same thing.
@@ -334,13 +334,13 @@ impl BindingMap {
         assert!(module >= FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
-            name_to_type: BTreeMap::new(),
-            type_to_name: HashMap::new(),
+            typename_to_type: BTreeMap::new(),
+            type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
             typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
-            identifier_types: HashMap::new(),
-            constants: BTreeMap::new(),
+            identifier_to_type: HashMap::new(),
+            constant_info: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
@@ -357,9 +357,9 @@ impl BindingMap {
     ////////////////////////////////////////////////////////////////////////////////
 
     pub fn name_in_use(&self, name: &str) -> bool {
-        self.name_to_type.contains_key(name)
+        self.typename_to_type.contains_key(name)
             || self.name_to_typeclass.contains_key(name)
-            || self.identifier_types.contains_key(name)
+            || self.identifier_to_type.contains_key(name)
             || self.name_to_module.contains_key(name)
     }
 
@@ -370,11 +370,11 @@ impl BindingMap {
         }
         // There can be multiple names for a type.
         // If we already have a name for the reverse lookup, we don't overwrite it.
-        if !self.type_to_name.contains_key(&potential_type) {
-            self.type_to_name
+        if !self.type_to_typename.contains_key(&potential_type) {
+            self.type_to_typename
                 .insert(potential_type.clone(), name.clone());
         }
-        self.name_to_type.insert(name, potential_type);
+        self.typename_to_type.insert(name, potential_type);
     }
 
     // Adds a new data type to the binding map.
@@ -510,7 +510,7 @@ impl BindingMap {
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
-        let constant_type = self.identifier_types.get(name)?.clone();
+        let constant_type = self.identifier_to_type.get(name)?.clone();
 
         // Aliases
         if let Some(pv) = self.alias_to_canonical.get(name) {
@@ -518,7 +518,7 @@ impl BindingMap {
         }
 
         // Constants defined here
-        let params = self.constants.get(name)?.params.clone();
+        let params = self.constant_info.get(name)?.params.clone();
         if params.is_empty() {
             Some(PotentialValue::Resolved(AcornValue::new_constant(
                 self.module,
@@ -539,11 +539,11 @@ impl BindingMap {
     // Gets the type for an identifier, not for a type name.
     // E.g. if let x: Nat = 0, then get_type("x") will give you Nat.
     pub fn get_type_for_identifier(&self, identifier: &str) -> Option<&AcornType> {
-        self.identifier_types.get(identifier)
+        self.identifier_to_type.get(identifier)
     }
 
     pub fn get_params(&self, identifier: &str) -> Vec<TypeParam> {
-        match self.constants.get(identifier) {
+        match self.constant_info.get(identifier) {
             Some(info) => info.params.clone(),
             None => vec![],
         }
@@ -551,11 +551,11 @@ impl BindingMap {
 
     // Gets the type for a type name, not for an identifier.
     pub fn get_type_for_name(&self, type_name: &str) -> Option<&PotentialType> {
-        self.name_to_type.get(type_name)
+        self.typename_to_type.get(type_name)
     }
 
     pub fn has_type_name(&self, type_name: &str) -> bool {
-        self.name_to_type.contains_key(type_name)
+        self.typename_to_type.contains_key(type_name)
     }
 
     pub fn get_typeclass_for_name(&self, typeclass_name: &str) -> Option<&Typeclass> {
@@ -567,19 +567,19 @@ impl BindingMap {
     }
 
     pub fn has_identifier(&self, identifier: &str) -> bool {
-        self.identifier_types.contains_key(identifier)
+        self.identifier_to_type.contains_key(identifier)
     }
 
     // Returns the defined value, if there is a defined value.
     // If there isn't, returns None.
     pub fn get_definition(&self, name: &str) -> Option<&AcornValue> {
-        self.constants.get(name)?.definition.as_ref()
+        self.constant_info.get(name)?.definition.as_ref()
     }
 
     // Returns the defined value and its parameters in their canonical order.
     // Returns None if there is no definition.
     pub fn get_definition_and_params(&self, name: &str) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constants.get(name)?;
+        let info = self.constant_info.get(name)?;
         Some((info.definition.as_ref()?, &info.params))
     }
 
@@ -626,7 +626,7 @@ impl BindingMap {
             panic!("there should not be arbitrary types in parametrized constant types");
         }
 
-        self.identifier_types
+        self.identifier_to_type
             .insert(name.to_string(), constant_type);
 
         let info = ConstantInfo {
@@ -634,7 +634,7 @@ impl BindingMap {
             definition,
             constructor,
         };
-        self.constants.insert(name.to_string(), info);
+        self.constant_info.insert(name.to_string(), info);
         if let Some((entity_name, attribute)) = name.rsplit_once('.') {
             self.add_attribute(entity_name, attribute.to_string());
         }
@@ -645,8 +645,8 @@ impl BindingMap {
         if !self.name_in_use(name) {
             panic!("removing constant {} which is already not present", name);
         }
-        self.identifier_types.remove(name);
-        self.constants.remove(name);
+        self.identifier_to_type.remove(name);
+        self.constant_info.remove(name);
     }
 
     // Adds a local alias for an already-existing constant value.
@@ -660,7 +660,7 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("cannot alias name {} because it is already bound", name);
         }
-        self.identifier_types
+        self.identifier_to_type
             .insert(name.to_string(), value.get_type());
         let canonical = (canonical_module, canonical_name);
         if canonical_module != self.module {
@@ -673,7 +673,7 @@ impl BindingMap {
     }
 
     pub fn is_constant(&self, name: &str) -> bool {
-        self.constants.contains_key(name)
+        self.constant_info.contains_key(name)
     }
 
     pub fn mark_as_theorem(&mut self, name: &str) {
@@ -687,7 +687,7 @@ impl BindingMap {
     // Type variables and arbitrary variables should get removed when they go out of scope.
     // Other sorts of types shouldn't be getting removed.
     pub fn remove_type(&mut self, name: &str) {
-        match self.name_to_type.remove(name) {
+        match self.typename_to_type.remove(name) {
             Some(p) => match &p {
                 PotentialType::Unresolved(ut) => {
                     panic!("removing type {} which is unresolved", ut.name);
@@ -697,7 +697,7 @@ impl BindingMap {
                         AcornType::Variable(..) | AcornType::Arbitrary(..) => {}
                         _ => panic!("unexpectedly removing type: {}", name),
                     }
-                    self.type_to_name.remove(&p);
+                    self.type_to_typename.remove(&p);
                 }
             },
             None => panic!("removing type {} which is already not present", name),
@@ -746,7 +746,7 @@ impl BindingMap {
         };
         let mut answer = vec![];
         let full_prefix = format!("{}.{}", base_name, prefix);
-        for key in keys_with_prefix(&bindings.constants, &full_prefix) {
+        for key in keys_with_prefix(&bindings.constant_info, &full_prefix) {
             let completion = CompletionItem {
                 label: key.split('.').last()?.to_string(),
                 kind: Some(CompletionItemKind::FIELD),
@@ -835,7 +835,7 @@ impl BindingMap {
                 }
             }
             // Constants
-            for key in keys_with_prefix(&self.constants, prefix) {
+            for key in keys_with_prefix(&self.constant_info, prefix) {
                 if key.contains('.') {
                     continue;
                 }
@@ -860,9 +860,9 @@ impl BindingMap {
 
         if first_char.map(|c| c.is_uppercase()).unwrap_or(true) {
             // Types
-            for key in keys_with_prefix(&self.name_to_type, prefix) {
+            for key in keys_with_prefix(&self.typename_to_type, prefix) {
                 if importing {
-                    let data_type = self.name_to_type.get(key)?;
+                    let data_type = self.typename_to_type.get(key)?;
                     match data_type {
                         PotentialType::Resolved(AcornType::Data(module, name, _)) => {
                             if module != &self.module || name != key {
@@ -914,7 +914,7 @@ impl BindingMap {
                 if token.token_type == TokenType::Axiom {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
-                if let Some(t) = self.name_to_type.get(token.text()) {
+                if let Some(t) = self.typename_to_type.get(token.text()) {
                     Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))
@@ -1072,7 +1072,7 @@ impl BindingMap {
                 } else {
                     project.get_bindings(module).unwrap()
                 };
-                bindings.constants.get(name).unwrap()
+                bindings.constant_info.get(name).unwrap()
             }
             None => return Err(source.error("invalid pattern")),
         };
@@ -2271,7 +2271,7 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.module_id == self.module && !self.constants.contains_key(&c.name) {
+                if c.module_id == self.module && !self.constant_info.contains_key(&c.name) {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.to_string(), c.instance_type.clone());
                 }
@@ -2338,7 +2338,7 @@ impl BindingMap {
 
         // Check if there's a local alias for this exact type
         if let Some(name) = self
-            .type_to_name
+            .type_to_typename
             .get(&PotentialType::Resolved(acorn_type.clone()))
         {
             return Ok(Expression::generate_identifier(name));
@@ -2700,7 +2700,7 @@ impl BindingMap {
 
     // Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let env_type = match self.identifier_types.get(name) {
+        let env_type = match self.identifier_to_type.get(name) {
             Some(t) => t,
             None => panic!("{} not found", name),
         };

@@ -1357,6 +1357,9 @@ impl Environment {
                         ds,
                         substatement.range(),
                     )?;
+
+                    // Check that the types align
+                    // XXX
                 }
                 _ => {
                     return Err(substatement
