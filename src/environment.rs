@@ -241,6 +241,30 @@ impl Environment {
         None
     }
 
+    // Returns an error if this isn't the canonical name (and module) for the class.
+    fn check_canonical_classname(
+        &self,
+        name_token: &Token,
+        class_type: &AcornType,
+    ) -> compilation::Result<()> {
+        match &class_type {
+            AcornType::Data(module, name, _) => {
+                if module != &self.module_id {
+                    return Err(
+                        name_token.error("we can only bind members to types in the current module")
+                    );
+                }
+                if name != &name_token.text() {
+                    return Err(name_token.error("we cannot bind members to type aliases"));
+                }
+            }
+            _ => {
+                return Err(name_token.error(&format!("we can only bind members to data types")));
+            }
+        }
+        Ok(())
+    }
+
     // Adds a conditional block to the environment.
     // Takes the condition, the range to associate with the condition, the first line of
     // the conditional block, and finally the body itself.
@@ -1221,25 +1245,7 @@ impl Environment {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
         let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
-        match &instance_type {
-            AcornType::Data(module, name, _) => {
-                if module != &self.module_id {
-                    return Err(cs
-                        .name_token
-                        .error("we can only bind members to types in the current module"));
-                }
-                if name != &cs.name {
-                    return Err(cs
-                        .name_token
-                        .error("we cannot bind members to type aliases"));
-                }
-            }
-            _ => {
-                return Err(cs
-                    .name_token
-                    .error(&format!("we can only bind members to data types")));
-            }
-        }
+        self.check_canonical_classname(&cs.name_token, &instance_type)?;
 
         for substatement in &cs.body.statements {
             match &substatement.statement {
