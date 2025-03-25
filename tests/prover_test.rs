@@ -1889,7 +1889,7 @@ mod prover_test {
     }
 
     // #[test]
-    // fn test_prover_handles_instance_constants() {
+    // fn test_prover_handles_parametrized_constants() {
     //     let text = r#"
     //         inductive Z1 {
     //             zero

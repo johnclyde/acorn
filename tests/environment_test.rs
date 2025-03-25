@@ -2709,6 +2709,31 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_env_parametrizing_typeclass_constant() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+            typeclass P: PointedSet {
+                basepoint: P
+            }
+
+            inductive Z2 {
+                zero
+                one
+            }
+
+            instance Z2: PointedSet {
+                let basepoint: Z2 = Z2.zero
+            }
+
+            theorem goal {
+                Z2.zero = PointedSet.basepoint<Z2>
+            }
+            "#,
+        );
+    }
+
+    #[test]
     fn test_env_forbid_class_on_alias() {
         let mut env = Environment::new_test();
         env.add(
