@@ -1446,7 +1446,12 @@ impl Environment {
             .bindings
             .get_attributes(&project, typeclass.module_id, &typeclass.name);
         for attr_name in required {
-            let full_name = format!("{}.{}.{}", instance_name, typeclass.name, attr_name);
+            let tc_attr_name = format!("{}.{}", typeclass.name, attr_name);
+            if self.bindings.is_theorem(&tc_attr_name) {
+                // Theorems don't require an implementation
+                continue;
+            }
+            let full_name = format!("{}.{}", instance_name, tc_attr_name);
             if !self.bindings.name_in_use(&full_name) {
                 return Err(statement.error(&format!(
                     "missing implementation for attribute '{}'",

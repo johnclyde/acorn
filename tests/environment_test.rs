@@ -2840,4 +2840,32 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_instance_statement_accepts_by_block() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+        typeclass S: Singleton {
+            value: S
+
+            unique(x: S) {
+                x = S.value
+            }
+        }
+
+        inductive Z1 {
+            zero
+        }
+
+        instance Z1: Singleton {
+            let value: Z1 = Z1.zero
+        } by {
+            forall(x: Z1) {
+                x = Z1.zero
+            }
+        }
+        "#,
+        );
+    }
 }
