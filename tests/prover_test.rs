@@ -1863,6 +1863,28 @@ mod prover_test {
         verify_fails(text);
     }
 
+    #[test]
+    fn test_prover_succeeds_on_good_instance() {
+        let text = r#"
+            inductive Z1 {
+                zero
+            }
+
+            typeclass S: Singleton {
+                value: S
+
+                unique(x: S) {
+                    x = S.value
+                }
+            }
+
+            instance Z1: Singleton {
+                let value: Z1 = Z1.zero
+            }
+        "#;
+        verify_succeeds(text);
+    }
+
     // #[test]
     // fn test_prover_respects_typeclasses() {
     //     // all_equal should not be misapplied to Z2.
