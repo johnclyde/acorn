@@ -1888,31 +1888,31 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    // #[test]
-    // fn test_prover_handles_parametrized_constants() {
-    //     let text = r#"
-    //         inductive Z1 {
-    //             zero
-    //         }
+    #[test]
+    fn test_prover_handles_parametrized_constants() {
+        let text = r#"
+            inductive Z1 {
+                zero
+            }
 
-    //         typeclass S: Singleton {
-    //             value: S
+            typeclass S: Singleton {
+                value: S
 
-    //             unique(x: S) {
-    //                 x = S.value
-    //             }
-    //         }
+                unique(x: S) {
+                    x = S.value
+                }
+            }
 
-    //         instance Z1: Singleton {
-    //             let value: Z1 = Z1.zero
-    //         }
+            instance Z1: Singleton {
+                let value: Z1 = Z1.zero
+            }
 
-    //         theorem goal {
-    //             Z1.zero = Singleton.value<Z1>
-    //         }
-    //     "#;
-    //     verify_succeeds(text);
-    // }
+            theorem goal {
+                Z1.zero = Singleton.value<Z1>
+            }
+        "#;
+        verify_succeeds(text);
+    }
 
     // #[test]
     // fn test_prover_fails_on_bad_instance() {
