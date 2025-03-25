@@ -199,7 +199,7 @@ impl PotentialValue {
     }
 
     // Convert this to a value, or return an error if it's unresolved.
-    pub fn value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
+    fn as_value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
         match self {
             PotentialValue::Unresolved(u) => {
                 Err(source.error(&format!("value {} has unresolved type", u.name)))
@@ -220,6 +220,15 @@ impl PotentialValue {
         match &self {
             PotentialValue::Unresolved(u) => u.generic_type.clone(),
             PotentialValue::Resolved(v) => v.get_type(),
+        }
+    }
+
+    fn as_unresolved(self, source: &dyn ErrorSource) -> compilation::Result<UnresolvedConstant> {
+        match self {
+            PotentialValue::Unresolved(u) => Ok(u),
+            PotentialValue::Resolved(v) => {
+                Err(source.error(&format!("expected unresolved value, but found {}", v)))
+            }
         }
     }
 }
@@ -489,7 +498,12 @@ impl BindingMap {
     }
 
     // Call this after an instance attribute has been defined to typecheck it.
-    pub fn typecheck_instance_attribute(
+    // Returns (resolved typeclass attribute, defined instance attribute).
+    // The resolved typeclass attribute is like
+    // Ring.add<Int>
+    // and the defined instance attribute is the one that we defined, before
+    // proving that Int was actually a Ring.
+    pub fn check_instance_attribute(
         &self,
         source: &dyn ErrorSource,
         project: &Project,
@@ -497,7 +511,7 @@ impl BindingMap {
         instance_type: &AcornType,
         typeclass: &Typeclass,
         attr_name: &str,
-    ) -> compilation::Result<()> {
+    ) -> compilation::Result<(AcornValue, AcornValue)> {
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
         let typeclass_attr_name = format!("{}.{}", typeclass.name, attr_name);
         let typeclass_attr = match self
@@ -512,14 +526,12 @@ impl BindingMap {
                 )));
             }
         };
-        let resolved_attr_type = match typeclass_attr {
-            PotentialValue::Resolved(t) => t.get_type(),
-            PotentialValue::Unresolved(uc) => {
-                uc.resolve(source, vec![instance_type.clone()])?.get_type()
-            }
-        };
+        let uc = typeclass_attr.as_unresolved(source)?;
+        let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
+        let resolved_attr_type = resolved_attr.get_type();
         let instance_attr_name = format!("{}.{}", scope_name, attr_name);
         let instance_attr = self.get_constant_value(&instance_attr_name).unwrap();
+        let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
         if instance_attr_type != resolved_attr_type {
             return Err(source.error(&format!(
@@ -527,7 +539,7 @@ impl BindingMap {
                 attr_name, resolved_attr_type, instance_attr_type
             )));
         }
-        Ok(())
+        Ok((resolved_attr, instance_attr))
     }
 
     pub fn set_instance_of(&mut self, instance_name: &str, typeclass: Typeclass) {
@@ -1788,7 +1800,7 @@ impl BindingMap {
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
         let potential = self.evaluate_potential_value(stack, project, expression, expected_type)?;
-        potential.value(expression)
+        potential.as_value(expression)
     }
 
     // Evaluates an expression that could describe a value, but could also describe

@@ -332,11 +332,13 @@ impl Environment {
         Ok(last_claim)
     }
 
-    // Adds a "let" statement to the environment, that may be within a class block.
+    // Adds a "let" statement to the environment.
+    // This can also be in a class, typeclass, or instance block.
     fn add_let_statement(
         &mut self,
         project: &Project,
         class: Option<&str>,
+        typeclass: Option<&str>,
         ls: &LetStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -355,9 +357,11 @@ impl Environment {
                 ls.name
             )));
         }
-        let name = match class {
-            Some(c) => format!("{}.{}", c, ls.name),
-            None => ls.name.clone(),
+        let name = match (class, typeclass) {
+            (Some(c), Some(tc)) => format!("{}.{}.{}", c, tc, ls.name),
+            (None, Some(tc)) => format!("{}.{}", tc, ls.name),
+            (Some(c), _) => format!("{}.{}", c, ls.name),
+            (None, None) => ls.name.clone(),
         };
         if self.bindings.name_in_use(&name) {
             return Err(ls.name_token.error(&format!(
@@ -1256,7 +1260,13 @@ impl Environment {
         for substatement in &cs.body.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
-                    self.add_let_statement(project, Some(&cs.name), ls, substatement.range())?;
+                    self.add_let_statement(
+                        project,
+                        Some(&cs.name),
+                        None,
+                        ls,
+                        substatement.range(),
+                    )?;
                 }
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
@@ -1400,19 +1410,26 @@ impl Environment {
         self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
+        let mut pairs = vec![];
         for substatement in &is.definitions.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
-                    self.add_let_statement(project, Some(&scope_name), ls, substatement.range())?;
+                    self.add_let_statement(
+                        project,
+                        Some(instance_name),
+                        Some(&typeclass.name),
+                        ls,
+                        substatement.range(),
+                    )?;
 
-                    self.bindings.typecheck_instance_attribute(
+                    pairs.push(self.bindings.check_instance_attribute(
                         substatement,
                         &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ls.name,
-                    )?;
+                    )?);
                 }
                 StatementInfo::Define(ds) => {
                     if !ds.type_params.is_empty() {
@@ -1425,14 +1442,14 @@ impl Environment {
                         substatement.range(),
                     )?;
 
-                    self.bindings.typecheck_instance_attribute(
+                    pairs.push(self.bindings.check_instance_attribute(
                         substatement,
                         &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ds.name,
-                    )?;
+                    )?);
                 }
                 _ => {
                     return Err(substatement
@@ -1441,7 +1458,7 @@ impl Environment {
             }
         }
 
-        // Checking that the instance relationship is valid.
+        // Check that we have all implementations.
         let attributes =
             self.bindings
                 .get_attributes(&project, typeclass.module_id, &typeclass.name);
@@ -1452,6 +1469,7 @@ impl Environment {
                 // Conditions don't have an implementation
                 continue;
             }
+
             if !self.bindings.name_in_use(&full_name) {
                 return Err(statement.error(&format!(
                     "missing implementation for attribute '{}'",
@@ -1501,7 +1519,7 @@ impl Environment {
 
             StatementInfo::Let(ls) => {
                 self.add_other_lines(statement);
-                self.add_let_statement(project, None, ls, statement.range())
+                self.add_let_statement(project, None, None, ls, statement.range())
             }
 
             StatementInfo::Define(ds) => {
