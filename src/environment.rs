@@ -1347,10 +1347,21 @@ impl Environment {
             }
             let unbound_claim = unbound_claim
                 .ok_or_else(|| condition.claim.error("conditions must have values"))?;
-            let external_claim = AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
+            let external_claim =
+                AcornValue::new_forall(arg_types.clone(), unbound_claim.clone()).to_generic();
             if let Err(message) = external_claim.validate() {
                 return Err(condition.claim.error(&message));
             }
+            let lambda_claim =
+                AcornValue::new_lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
+            let theorem_type = lambda_claim.get_type();
+            self.bindings.add_constant(
+                &full_name,
+                vec![type_param.clone()],
+                theorem_type.clone(),
+                Some(lambda_claim),
+                None,
+            );
 
             let prop = Proposition::theorem(
                 true,
