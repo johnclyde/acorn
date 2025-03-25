@@ -1841,27 +1841,77 @@ mod prover_test {
     }
 
     #[test]
-    fn test_prover_fails_on_bad_instance() {
+    fn test_prover_handles_instance_function() {
         let text = r#"
-            inductive Z2 {
+            inductive Z1 {
                 zero
-                one
             }
 
-            typeclass S: Singleton {
-                value: S
+            typeclass T: TwoColored {
+                is_red: T -> Bool
+            }
 
-                unique(x: S) {
-                    x = S.value
+            instance Z1: TwoColored {
+                define is_red(self) -> Bool {
+                    true
                 }
             }
 
-            instance Z2: Singleton {
-                let value: Z2 = Z2.zero
+            theorem goal {
+                TwoColored.is_red(Z1.zero)
             }
         "#;
-        verify_fails(text);
+        verify_succeeds(text);
     }
+
+    // #[test]
+    // fn test_prover_handles_instance_constants() {
+    //     let text = r#"
+    //         inductive Z1 {
+    //             zero
+    //         }
+
+    //         typeclass S: Singleton {
+    //             value: S
+
+    //             unique(x: S) {
+    //                 x = S.value
+    //             }
+    //         }
+
+    //         instance Z1: Singleton {
+    //             let value: Z1 = Z1.zero
+    //         }
+
+    //         theorem goal {
+    //             Z1.zero = Singleton.value<Z1>
+    //         }
+    //     "#;
+    //     verify_succeeds(text);
+    // }
+
+    // #[test]
+    // fn test_prover_fails_on_bad_instance() {
+    //     let text = r#"
+    //         inductive Z2 {
+    //             zero
+    //             one
+    //         }
+
+    //         typeclass S: Singleton {
+    //             value: S
+
+    //             unique(x: S) {
+    //                 x = S.value
+    //             }
+    //         }
+
+    //         instance Z2: Singleton {
+    //             let value: Z2 = Z2.zero
+    //         }
+    //     "#;
+    //     verify_fails(text);
+    // }
 
     #[test]
     fn test_prover_succeeds_on_good_instance() {

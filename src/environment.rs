@@ -1441,17 +1441,17 @@ impl Environment {
             }
         }
 
-        // Check that all the typeclass attributes are implemented.
-        let required = self
-            .bindings
-            .get_attributes(&project, typeclass.module_id, &typeclass.name);
-        for attr_name in required {
+        // Checking that the instance relationship is valid.
+        let attributes =
+            self.bindings
+                .get_attributes(&project, typeclass.module_id, &typeclass.name);
+        for attr_name in attributes {
             let tc_attr_name = format!("{}.{}", typeclass.name, attr_name);
+            let full_name = format!("{}.{}", instance_name, tc_attr_name);
             if self.bindings.is_theorem(&tc_attr_name) {
-                // Theorems don't require an implementation
+                // Conditions don't have an implementation
                 continue;
             }
-            let full_name = format!("{}.{}", instance_name, tc_attr_name);
             if !self.bindings.name_in_use(&full_name) {
                 return Err(statement.error(&format!(
                     "missing implementation for attribute '{}'",
