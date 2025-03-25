@@ -93,11 +93,23 @@ mod prover_test {
     }
 
     fn verify_succeeds(text: &str) {
-        assert_eq!(verify(text), Outcome::Success);
+        let outcome = verify(text);
+        if outcome != Outcome::Success {
+            panic!(
+                "We expected verification to return Success, but we got {}.",
+                outcome
+            );
+        }
     }
 
     fn verify_fails(text: &str) {
-        assert_eq!(verify(text), Outcome::Exhausted);
+        let outcome = verify(text);
+        if outcome != Outcome::Exhausted {
+            panic!(
+                "We expected verification to return Exhausted, but we got {}.",
+                outcome
+            );
+        }
     }
 
     fn expect_proof(text: &str, goal_name: &str, expected: &[&str]) {
@@ -1826,6 +1838,29 @@ mod prover_test {
             .collect::<Vec<_>>();
         names.sort();
         assert_eq!(names, &["foo_bar", "foo_bar_imp_foo_baz"]);
+    }
+
+    #[test]
+    fn test_prover_fails_on_bad_instance() {
+        let text = r#"
+            inductive Z2 {
+                zero
+                one
+            }
+
+            typeclass S: Singleton {
+                value: S
+
+                unique(x: S) {
+                    x = S.value
+                }
+            }
+
+            instance Z2: Singleton {
+                let value: Z2 = Z2.zero
+            }
+        "#;
+        verify_fails(text);
     }
 
     // #[test]
