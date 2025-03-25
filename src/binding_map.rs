@@ -1981,14 +1981,6 @@ impl BindingMap {
             Expression::Apply(function_expr, args_expr) => {
                 let function =
                     self.evaluate_potential_value(stack, project, function_expr, None)?;
-                let function_type = function.get_type();
-
-                let function_type = match function_type {
-                    AcornType::Function(f) => f,
-                    _ => {
-                        return Err(function_expr.error("expected a function"));
-                    }
-                };
 
                 // Handle the case where the "args" are actually type parameters.
                 let arg_exprs = match args_expr.as_ref() {
@@ -2026,12 +2018,19 @@ impl BindingMap {
                             exprs
                         }
                     }
-                    e => {
-                        println!("XXX applying to: {:#?}", e);
+                    _ => {
                         return Err(args_expr.error("expected a comma-separated list"));
                     }
                 };
 
+                // Typecheck the function
+                let function_type = function.get_type();
+                let function_type = match function_type {
+                    AcornType::Function(f) => f,
+                    _ => {
+                        return Err(function_expr.error("cannot apply a non-function"));
+                    }
+                };
                 if function_type.arg_types.len() < arg_exprs.len() {
                     return Err(args_expr.error(&format!(
                         "expected <= {} arguments, but got {}",
