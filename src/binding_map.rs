@@ -223,7 +223,10 @@ impl PotentialValue {
         }
     }
 
-    fn as_unresolved(self, source: &dyn ErrorSource) -> compilation::Result<UnresolvedConstant> {
+    pub fn as_unresolved(
+        self,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<UnresolvedConstant> {
         match self {
             PotentialValue::Unresolved(u) => Ok(u),
             PotentialValue::Resolved(v) => {
@@ -1788,6 +1791,46 @@ impl BindingMap {
         }
 
         self.resolve_function(source, project, unresolved, args, expected_type)
+    }
+
+    // This creates a version of a typeclass condition that is specialized to a particular
+    // class that isn't an instance of the typeclass.
+    // We use this when we haven't proven that a type is an instance of a typeclass yet.
+    // So for example instead of resolving:
+    //   Ring.add<T> -> Ring.add<Int>
+    // we resolve:
+    //   Ring.add<T> -> Int.Ring.add
+    // TODO: does this work right for typeclasses outside this module? I don't think so.
+    pub fn pseudo_instantiate_condition(
+        &self,
+        source: &dyn ErrorSource,
+        instance_type: &AcornType,
+        typeclass: &Typeclass,
+        condition_name: &str,
+    ) -> compilation::Result<AcornValue> {
+        let tc_condition_name = format!("{}.{}", &typeclass.name, condition_name);
+        let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
+            Some((d, p)) => (d, p),
+            None => {
+                return Err(source.error(&format!(
+                    "could not find definition for typeclass condition {}",
+                    tc_condition_name
+                )));
+            }
+        };
+        if params.len() != 1 {
+            return Err(source.error(&format!(
+                "typeclass condition {} should have one parameter",
+                tc_condition_name
+            )));
+        }
+        // We are explicitly instantiating in a way that would fail typechecking.
+        let unsafe_param = (params[0].name.clone(), instance_type.clone());
+        let _unsafe_instance = def.instantiate(&[unsafe_param]);
+
+        // TODO: Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
+        // Then actually return something.
+        Ok(AcornValue::Bool(true))
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.

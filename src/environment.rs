@@ -160,7 +160,7 @@ impl Environment {
 
     // Adds a node to the environment tree.
     // This also macro-expands theorem names into their definitions.
-    // Ideally, that would happen during expression parsing.
+    // Ideally, that would happen during expression parsing. (Maybe?)
     // However, it needs to work with templated theorems, which makes it tricky/hacky to do the
     // type inference.
     pub fn add_node(
@@ -1410,6 +1410,7 @@ impl Environment {
         self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
+        // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
         for substatement in &is.definitions.statements {
             match &substatement.statement {
@@ -1462,14 +1463,23 @@ impl Environment {
         let attributes =
             self.bindings
                 .get_attributes(&project, typeclass.module_id, &typeclass.name);
+        let mut conditions = vec![];
         for attr_name in attributes {
             let tc_attr_name = format!("{}.{}", typeclass.name, attr_name);
-            let full_name = format!("{}.{}", instance_name, tc_attr_name);
             if self.bindings.is_theorem(&tc_attr_name) {
-                // Conditions don't have an implementation
+                // Conditions don't have an implementation.
+                // We do gather them for verification.
+                let condition = self.bindings.pseudo_instantiate_condition(
+                    statement,
+                    &instance_type,
+                    &typeclass,
+                    &attr_name,
+                )?;
+                conditions.push(condition);
                 continue;
             }
 
+            let full_name = format!("{}.{}", instance_name, tc_attr_name);
             if !self.bindings.name_in_use(&full_name) {
                 return Err(statement.error(&format!(
                     "missing implementation for attribute '{}'",
@@ -1478,6 +1488,8 @@ impl Environment {
             }
         }
 
+        // After the instance statement, we know that the defined constants are equal to
+        // their parametrized versions. We gather those into a single proposition.
         let equalities = pairs
             .into_iter()
             .map(|(left, right)| AcornValue::new_equals(left, right))
@@ -1492,6 +1504,7 @@ impl Environment {
         );
 
         // TODO: add a block to prove that the instance satisfies the typeclass.
+        // Use "conditions".
         // For now we just assume it, by setting this node structural with no block.
         self.add_node(project, true, prop, None);
 
