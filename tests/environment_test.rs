@@ -2893,4 +2893,23 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_must_resolve_typeclass_constants() {
+        let mut env = Environment::new_test();
+        env.add(
+            r#"
+        typeclass P: PointedSet {
+            zero: P
+        }
+        "#,
+        );
+        env.bad(
+            r#"
+        theorem goal {
+            PointedSet.zero = PointedSet.zero
+        }
+        "#,
+        );
+    }
 }
