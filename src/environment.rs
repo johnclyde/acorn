@@ -1478,7 +1478,22 @@ impl Environment {
             }
         }
 
-        // TODO: add a node to prove that the instance satisfies the typeclass
+        let equalities = pairs
+            .into_iter()
+            .map(|(left, right)| AcornValue::new_equals(left, right))
+            .collect();
+        let claim = AcornValue::reduce(BinaryOp::And, equalities);
+        let prop = Proposition::theorem(
+            false,
+            claim,
+            self.module_id,
+            statement.range(),
+            Some(scope_name.clone()),
+        );
+
+        // TODO: add a block to prove that the instance satisfies the typeclass.
+        // For now we just assume it, by setting this node structural with no block.
+        self.add_node(project, true, prop, None);
 
         self.bindings.set_instance_of(instance_name, typeclass);
         Ok(())
