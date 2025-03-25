@@ -1316,8 +1316,51 @@ impl Environment {
                 .add_constant(&full_name, vec![type_param.clone()], var_type, None, None);
         }
 
-        if !ts.conditions.is_empty() {
-            todo!("handle typeclass conditions");
+        for condition in &ts.conditions {
+            // Conditions are similar to theorems, but they don't get proven at the typeclass level.
+            // So they don't have blocks.
+            // They do get proven, but in the instance statement, not in the typeclass statement.
+            let range = Range {
+                start: condition.name.start_pos(),
+                end: condition.claim.last_token().end_pos(),
+            };
+            let full_name = format!("{}.{}", typeclass_name, condition.name.text());
+            if self.bindings.name_in_use(&full_name) {
+                return Err(condition
+                    .name
+                    .error(&format!("{} is already defined", full_name)));
+            }
+            self.definition_ranges.insert(full_name.clone(), range);
+
+            let (bad_params, _, arg_types, unbound_claim, _) =
+                self.bindings.evaluate_scoped_value(
+                    project,
+                    &[],
+                    &condition.args,
+                    None,
+                    &condition.claim,
+                    None,
+                    None,
+                )?;
+            if !bad_params.is_empty() {
+                return Err(condition.name.error("type parameters are not allowed here"));
+            }
+            let unbound_claim = unbound_claim
+                .ok_or_else(|| condition.claim.error("conditions must have values"))?;
+            let external_claim = AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
+            if let Err(message) = external_claim.validate() {
+                return Err(condition.claim.error(&message));
+            }
+
+            let prop = Proposition::theorem(
+                true,
+                external_claim,
+                self.module_id,
+                range,
+                Some(full_name.clone()),
+            );
+            self.add_node(project, true, prop, None);
+            self.bindings.mark_as_theorem(&full_name);
         }
 
         self.bindings.remove_type(ts.instance_name.text());
