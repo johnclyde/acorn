@@ -1864,29 +1864,29 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    // #[test]
-    // fn test_prover_handles_instance_define() {
-    //     let text = r#"
-    //         inductive Z1 {
-    //             zero
-    //         }
+    #[test]
+    fn test_prover_handles_instance_define() {
+        let text = r#"
+            inductive Z1 {
+                zero
+            }
 
-    //         typeclass T: TwoColored {
-    //             is_red: T -> Bool
-    //         }
+            typeclass T: TwoColored {
+                is_red: T -> Bool
+            }
 
-    //         instance Z1: TwoColored {
-    //             define is_red(self) -> Bool {
-    //                 true
-    //             }
-    //         }
+            instance Z1: TwoColored {
+                define is_red(self) -> Bool {
+                    true
+                }
+            }
 
-    //         theorem goal {
-    //             TwoColored.is_red(Z1.zero)
-    //         }
-    //     "#;
-    //     verify_succeeds(text);
-    // }
+            theorem goal {
+                TwoColored.is_red(Z1.zero)
+            }
+        "#;
+        verify_succeeds(text);
+    }
 
     // #[test]
     // fn test_prover_handles_instance_constants() {
