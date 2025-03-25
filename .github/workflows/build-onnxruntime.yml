@@ -2,6 +2,8 @@ name: Build ONNX Runtime
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
 
 env:
   ONNXRUNTIME_VERSION: v1.21.0
