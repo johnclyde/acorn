@@ -1400,7 +1400,7 @@ impl Environment {
         self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
         let scope_name = format!("{}.{}", instance_name, typeclass.name);
-        for substatement in &is.body.statements {
+        for substatement in &is.definitions.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(project, Some(&scope_name), ls, substatement.range())?;
