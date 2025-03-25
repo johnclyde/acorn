@@ -2026,7 +2026,10 @@ impl BindingMap {
                             exprs
                         }
                     }
-                    _ => return Err(args_expr.error("expected a comma-separated list")),
+                    e => {
+                        println!("XXX applying to: {:#?}", e);
+                        return Err(args_expr.error("expected a comma-separated list"));
+                    }
                 };
 
                 if function_type.arg_types.len() < arg_exprs.len() {

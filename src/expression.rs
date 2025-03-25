@@ -331,6 +331,13 @@ impl Expression {
         }
     }
 
+    fn is_grouping(&self) -> bool {
+        match self {
+            Expression::Grouping(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn print_one_level(&self) {
         match self {
             Expression::Singleton(token) => {
@@ -714,6 +721,15 @@ impl ErrorSource for PartialExpression {
     }
 }
 
+impl PartialExpression {
+    fn is_grouping(&self) -> bool {
+        match self {
+            PartialExpression::Expression(e) => e.is_grouping(),
+            _ => false,
+        }
+    }
+}
+
 // Create partial expressions from tokens.
 // termination determines what tokens are allowed to be the terminator.
 // Consumes the terminating token from the iterator and returns it.
@@ -1017,10 +1033,15 @@ fn group_type_parameters(partials: &mut VecDeque<PartialExpression>) -> Result<(
 
                 // Make a partial expression for the type params
                 let params = combine_partial_expressions(middle, ExpressionType::Type, &opening)?;
-                let grouped = Expression::Grouping(opening, Box::new(params), closing);
+                let grouped =
+                    Expression::Grouping(opening.clone(), Box::new(params), closing.clone());
 
                 // Reassemble the whole thing
+                partials.push_back(PartialExpression::ImplicitApply(opening));
                 partials.push_back(PartialExpression::Expression(grouped));
+                if right.front().map_or(false, |p| p.is_grouping()) {
+                    partials.push_back(PartialExpression::ImplicitApply(closing));
+                }
                 partials.extend(right);
             }
             None => return Ok(()),

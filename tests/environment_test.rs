@@ -2190,9 +2190,9 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
 
-        // For now, I don't want this to work because I'm afraid it will be hard to parse.
-        // Once we have dependent types, maybe we can make this work too.
-        env.bad(
+        // Originally this intentionally didn't work.
+        // But need this syntax to work for typeclasses anyway.
+        env.add(
             r#"
             let p3: Pair<Foo, Bar> = Pair.new<Foo, Bar>(f, b)
             "#,
