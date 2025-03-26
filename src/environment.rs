@@ -1547,7 +1547,7 @@ impl Environment {
                 end: is.definitions.right_brace.end_pos(),
             };
             let block_params = BlockParams::TypeRequirement(conditions_claim, range);
-            let _block = Block::new(
+            let block = Block::new(
                 project,
                 &self,
                 vec![], // no type params
@@ -1557,13 +1557,15 @@ impl Environment {
                 statement.last_line(),
                 is.body.as_ref(),
             )?;
-            let _conditions_prop = Proposition::instance(
+            let conditions_prop = Proposition::instance(
                 None,
                 self.module_id,
                 statement.range(),
                 instance_name,
                 &typeclass.name,
             );
+            let index = self.add_node(project, false, conditions_prop, Some(block));
+            self.add_node_lines(index, &statement.range());
         }
 
         // After the instance statement, we know that the defined constants are equal to

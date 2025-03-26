@@ -1814,7 +1814,7 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         let tc_condition_name = format!("{}.{}", &typeclass.name, condition_name);
         let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
-            Some((d, p)) => (d, p),
+            Some((def, params)) => (def, params),
             None => {
                 return Err(source.error(&format!(
                     "could not find definition for typeclass condition {}",
@@ -1829,8 +1829,12 @@ impl BindingMap {
             )));
         }
         // We are explicitly instantiating in a way that would fail typechecking.
+        let universal = match def.clone() {
+            AcornValue::Lambda(args, val) => AcornValue::ForAll(args, val),
+            v => v,
+        };
         let unsafe_param = (params[0].name.clone(), instance_type.clone());
-        let unsafe_instance = def.instantiate(&[unsafe_param]);
+        let unsafe_instance = universal.instantiate(&[unsafe_param]);
 
         // Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
         let prefix = format!("{}.", typeclass.name);
