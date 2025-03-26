@@ -1961,12 +1961,8 @@ mod prover_test {
 
     #[test]
     fn test_prover_respects_typeclasses() {
-        // all_equal should not be misapplied to Z2.
+        // Singleton.unique should not be misapplied to Z2.
         let text = r#"
-            inductive Z1 {
-                zero
-            }
-
             inductive Z2 {
                 zero
                 one
@@ -1978,15 +1974,10 @@ mod prover_test {
 
             typeclass S: Singleton {
                 element: S
-            }
 
-            instance Z1: Singleton {
-                let element: Z1 = Z1.zero
-            }
-
-            // TODO: constrain/prove instead of axiom
-            axiom all_equal<S: Singleton>(x: S, y: S) {
-                is_equal(x, y)
+                unique(x: S, y: S) {
+                    is_equal(x, y)
+                }
             }
 
             theorem goal {
