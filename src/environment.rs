@@ -17,7 +17,7 @@ use crate::proposition::Proposition;
 use crate::statement::{
     Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
     InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,
-    TheoremStatement, TypeclassStatement,
+    TheoremStatement, TypeclassStatement, VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -623,6 +623,52 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings.mark_as_theorem(name);
         }
+
+        Ok(())
+    }
+
+    fn add_variable_satisfy_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        vss: &VariableSatisfyStatement,
+    ) -> compilation::Result<()> {
+        // We need to prove the general existence claim
+        let mut stack = Stack::new();
+        let (quant_names, quant_types) =
+            self.bindings
+                .bind_args(&mut stack, project, &vss.declarations, None)?;
+        let general_claim_value = self.bindings.evaluate_value_with_stack(
+            &mut stack,
+            project,
+            &vss.condition,
+            Some(&AcornType::Bool),
+        )?;
+        let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
+        let index = self.add_node(
+            project,
+            false,
+            Proposition::anonymous(general_claim, self.module_id, statement.range()),
+            None,
+        );
+        self.add_node_lines(index, &statement.range());
+
+        // Define the quantifiers as constants
+        for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
+            self.bindings
+                .add_constant(quant_name, vec![], quant_type.clone(), None, None);
+        }
+
+        // We can then assume the specific existence claim with the named constants
+        let specific_claim =
+            self.bindings
+                .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
+        self.add_node(
+            project,
+            true,
+            Proposition::anonymous(specific_claim, self.module_id, statement.range()),
+            None,
+        );
 
         Ok(())
     }
@@ -1651,47 +1697,7 @@ impl Environment {
             }
 
             StatementInfo::VariableSatisfy(vss) => {
-                // We need to prove the general existence claim
-                let mut stack = Stack::new();
-                let (quant_names, quant_types) =
-                    self.bindings
-                        .bind_args(&mut stack, project, &vss.declarations, None)?;
-                let general_claim_value = self.bindings.evaluate_value_with_stack(
-                    &mut stack,
-                    project,
-                    &vss.condition,
-                    Some(&AcornType::Bool),
-                )?;
-                let general_claim =
-                    AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
-                let index = self.add_node(
-                    project,
-                    false,
-                    Proposition::anonymous(general_claim, self.module_id, statement.range()),
-                    None,
-                );
-                self.add_node_lines(index, &statement.range());
-
-                // Define the quantifiers as constants
-                for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
-                    self.bindings
-                        .add_constant(quant_name, vec![], quant_type.clone(), None, None);
-                }
-
-                // We can then assume the specific existence claim with the named constants
-                let specific_claim = self.bindings.evaluate_value(
-                    project,
-                    &vss.condition,
-                    Some(&AcornType::Bool),
-                )?;
-                self.add_node(
-                    project,
-                    true,
-                    Proposition::anonymous(specific_claim, self.module_id, statement.range()),
-                    None,
-                );
-
-                Ok(())
+                self.add_variable_satisfy_statement(project, statement, vss)
             }
 
             StatementInfo::FunctionSatisfy(fss) => {
