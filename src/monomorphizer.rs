@@ -119,7 +119,7 @@ impl Monomorphizer {
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
         if fact.truthiness != Truthiness::Factual {
-            // We don't match to global facts because that would combinatorially explode.
+            // We don't monomorphize to match constants that are only seen globally.
             self.add_monomorphs(&fact.value);
         }
 
