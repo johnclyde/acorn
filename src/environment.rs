@@ -1471,6 +1471,7 @@ impl Environment {
                 // We do gather them for verification.
                 let condition = self.bindings.pseudo_instantiate_condition(
                     statement,
+                    &instance_name,
                     &instance_type,
                     &typeclass,
                     &attr_name,

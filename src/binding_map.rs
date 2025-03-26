@@ -1795,15 +1795,19 @@ impl BindingMap {
 
     // This creates a version of a typeclass condition that is specialized to a particular
     // class that isn't an instance of the typeclass.
+    // The class must be defined in this module.
+    //
     // We use this when we haven't proven that a type is an instance of a typeclass yet.
     // So for example instead of resolving:
     //   Ring.add<T> -> Ring.add<Int>
     // we resolve:
     //   Ring.add<T> -> Int.Ring.add
-    // TODO: does this work right for typeclasses outside this module? I don't think so.
+    //
+    // TODO: does this work right for typeclasses outside this module?
     pub fn pseudo_instantiate_condition(
         &self,
         source: &dyn ErrorSource,
+        instance_name: &str,
         instance_type: &AcornType,
         typeclass: &Typeclass,
         condition_name: &str,
@@ -1826,11 +1830,29 @@ impl BindingMap {
         }
         // We are explicitly instantiating in a way that would fail typechecking.
         let unsafe_param = (params[0].name.clone(), instance_type.clone());
-        let _unsafe_instance = def.instantiate(&[unsafe_param]);
+        let unsafe_instance = def.instantiate(&[unsafe_param]);
 
-        // TODO: Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
-        // Then actually return something.
-        Ok(AcornValue::Bool(true))
+        // Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
+        let prefix = format!("{}.", typeclass.name);
+        let safe_instance = unsafe_instance.replace_constants(0, &|c| {
+            if c.module_id == typeclass.module_id
+                && c.name.starts_with(&prefix)
+                && c.params.len() == 1
+                && &c.params[0] == instance_type
+            {
+                let full_name = format!("{}.{}", instance_name, tc_condition_name);
+                Some(AcornValue::new_constant(
+                    self.module,
+                    full_name,
+                    vec![],
+                    c.instance_type.clone(),
+                ))
+            } else {
+                None
+            }
+        });
+
+        Ok(safe_instance)
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.
