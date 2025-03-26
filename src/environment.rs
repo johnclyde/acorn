@@ -830,13 +830,13 @@ impl Environment {
                 Some(&AcornType::Bool),
             )?;
             let inhabited = AcornValue::Exists(field_types.clone(), Box::new(unbound.clone()));
-            let params = BlockParams::Constraint(inhabited, constraint.range());
+            let block_params = BlockParams::TypeRequirement(inhabited, constraint.range());
             let block = Block::new(
                 project,
                 &self,
                 vec![], // no type params
                 vec![], // no args, because we already handled them
-                params,
+                block_params,
                 statement.first_line(),
                 statement.last_line(),
                 ss.body.as_ref(),
@@ -1440,7 +1440,11 @@ impl Environment {
         statement: &Statement,
         is: &InstanceStatement,
     ) -> compilation::Result<()> {
-        self.add_other_lines(statement);
+        self.add_line_types(
+            LineType::Other,
+            statement.first_line(),
+            is.definitions.right_brace.line_number,
+        );
         let instance_name = is.type_name.text();
         let instance_type = match self.bindings.get_type_for_name(&instance_name) {
             Some(PotentialType::Resolved(t)) => t.clone(),
@@ -1536,8 +1540,30 @@ impl Environment {
         }
 
         if !conditions.is_empty() {
-            // We must prove that all the conditions hold for this instance.
-            let _conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
+            // We must prove in a block that all the conditions hold for this instance.
+            let conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
+            let range = Range {
+                start: statement.first_token.start_pos(),
+                end: is.definitions.right_brace.end_pos(),
+            };
+            let block_params = BlockParams::TypeRequirement(conditions_claim, range);
+            let _block = Block::new(
+                project,
+                &self,
+                vec![], // no type params
+                vec![], // no args
+                block_params,
+                statement.first_line(),
+                statement.last_line(),
+                is.body.as_ref(),
+            )?;
+            let _conditions_prop = Proposition::instance(
+                None,
+                self.module_id,
+                statement.range(),
+                instance_name,
+                &typeclass.name,
+            );
         }
 
         // After the instance statement, we know that the defined constants are equal to

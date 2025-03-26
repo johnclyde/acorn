@@ -79,10 +79,13 @@ pub enum BlockParams<'a> {
     // The scrutinee, the constructor, the pattern arguments, and the range of the pattern.
     MatchCase(AcornValue, AcornValue, Vec<(String, AcornType)>, Range),
 
-    // The value is the boolean existence condition that we must prove is true, in order
-    // for the constraint to express an inhabited type.
-    // The range is of the constraint portion of the statement.
-    Constraint(AcornValue, Range),
+    // A block that is required by the type system.
+    // This can either be proving that a constrained type is inhabited, or proving
+    // that a type obeys a typeclass relationship.
+    // Either way, there is some value that needs to be proved, that's synthetic in the sense
+    // that nothing like it explicitly appears in the code.
+    // The range tells us what to squiggle if this block fails.
+    TypeRequirement(AcornValue, Range),
 
     // No special params needed
     ForAll,
@@ -219,7 +222,7 @@ impl Block {
                 );
                 None
             }
-            BlockParams::Constraint(constraint, range) => {
+            BlockParams::TypeRequirement(constraint, range) => {
                 // We don't add any other given theorems.
                 Some(Goal::Prove(Proposition::anonymous(
                     constraint,
