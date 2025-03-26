@@ -24,6 +24,11 @@ pub enum SourceType {
     // The string is the name of the constant. It can be <Type>.<name> for members.
     ConstantDefinition(AcornValue, String),
 
+    // The fact that a type is an instance of a typeclass.
+    // Comes from an 'instance' statement.
+    // The strings are (type, typeclass).
+    Instance(String, String),
+
     // A premise for a block that contains the current environment
     Premise,
 
@@ -72,6 +77,9 @@ impl Source {
             SourceType::Anonymous => format!("line {}", self.user_visible_line()),
             SourceType::TypeDefinition(type_name, _) => format!("the '{}' definition", type_name),
             SourceType::ConstantDefinition(value, _) => format!("the '{}' definition", value),
+            SourceType::Instance(instance, tc) => {
+                format!("the '{}: {}' relationship", instance, tc)
+            }
             SourceType::Premise => "an assumed premise".to_string(),
             SourceType::NegatedGoal => "negating the goal".to_string(),
         }
@@ -101,6 +109,7 @@ impl Source {
                 Some(format!("{}.{}", type_name, member))
             }
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
+            SourceType::Instance(instance, tc) => Some(format!("{}.{}", instance, tc)),
             SourceType::Premise | SourceType::NegatedGoal => None,
         }
     }
@@ -200,6 +209,28 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::ConstantDefinition(constant, name.to_string()),
+            },
+        }
+    }
+
+    // A proposition that represents the instance relationship.
+    pub fn instance(
+        value: Option<AcornValue>,
+        module: ModuleId,
+        range: Range,
+        instance_name: &str,
+        typeclass_name: &str,
+    ) -> Proposition {
+        let value = value.unwrap_or(AcornValue::Bool(true));
+        Proposition {
+            value,
+            source: Source {
+                module,
+                range,
+                source_type: SourceType::Instance(
+                    instance_name.to_string(),
+                    typeclass_name.to_string(),
+                ),
             },
         }
     }

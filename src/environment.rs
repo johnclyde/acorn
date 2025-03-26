@@ -1535,8 +1535,10 @@ impl Environment {
             }
         }
 
-        // We must prove that all the conditions hold for this instance.
-        let _conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
+        if !conditions.is_empty() {
+            // We must prove that all the conditions hold for this instance.
+            let _conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
+        }
 
         // After the instance statement, we know that the defined constants are equal to
         // their parametrized versions. We gather those into a single proposition.
@@ -1545,12 +1547,12 @@ impl Environment {
             .map(|(left, right)| AcornValue::new_equals(left, right))
             .collect();
         let equalities_claim = AcornValue::reduce(BinaryOp::And, equalities);
-        let equalities_prop = Proposition::theorem(
-            false,
-            equalities_claim,
+        let equalities_prop = Proposition::instance(
+            Some(equalities_claim),
             self.module_id,
             statement.range(),
-            Some(scope_name.clone()),
+            instance_name,
+            &typeclass.name,
         );
         self.add_node(project, true, equalities_prop, None);
 
