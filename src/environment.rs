@@ -1535,26 +1535,26 @@ impl Environment {
             }
         }
 
+        // We must prove that all the conditions hold for this instance.
+        let _conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
+
         // After the instance statement, we know that the defined constants are equal to
         // their parametrized versions. We gather those into a single proposition.
         let equalities = pairs
             .into_iter()
             .map(|(left, right)| AcornValue::new_equals(left, right))
             .collect();
-        let claim = AcornValue::reduce(BinaryOp::And, equalities);
-        let prop = Proposition::theorem(
+        let equalities_claim = AcornValue::reduce(BinaryOp::And, equalities);
+        let equalities_prop = Proposition::theorem(
             false,
-            claim,
+            equalities_claim,
             self.module_id,
             statement.range(),
             Some(scope_name.clone()),
         );
+        self.add_node(project, true, equalities_prop, None);
 
-        // TODO: add a block to prove that the instance satisfies the typeclass.
-        // Use "conditions".
-        // For now we just assume it, by setting this node structural with no block.
-        self.add_node(project, true, prop, None);
-
+        // TODO: make sure this instance relationship isn't used to prove earlier statements.
         self.bindings.set_instance_of(instance_name, typeclass);
         Ok(())
     }
