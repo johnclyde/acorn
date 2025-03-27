@@ -64,7 +64,7 @@ impl PotentialValue {
         params: Vec<TypeParam>,
     ) -> PotentialValue {
         if params.is_empty() {
-            PotentialValue::Resolved(AcornValue::new_constant(
+            PotentialValue::Resolved(AcornValue::constant(
                 module_id,
                 name.to_string(),
                 vec![],

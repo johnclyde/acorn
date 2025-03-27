@@ -42,7 +42,7 @@ impl UnresolvedConstant {
             .map(|(param, t)| (param.name.clone(), t.clone()))
             .collect();
         let resolved_type = self.generic_type.instantiate(&named_params);
-        Ok(AcornValue::new_constant(
+        Ok(AcornValue::constant(
             self.module_id,
             self.name.clone(),
             params,

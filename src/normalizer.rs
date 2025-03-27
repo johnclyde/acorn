@@ -124,7 +124,7 @@ impl Normalizer {
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
         let name = format!("s{}", skolem_index);
-        AcornValue::new_constant(SKOLEM, name, vec![], acorn_type)
+        AcornValue::constant(SKOLEM, name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -170,7 +170,7 @@ impl Normalizer {
                 for quant in quants {
                     let skolem_type = AcornType::new_functional(stack.clone(), quant);
                     let skolem_fn = self.new_skolem_value(skolem_type);
-                    let replacement = AcornValue::new_apply(skolem_fn, args.clone());
+                    let replacement = AcornValue::apply(skolem_fn, args.clone());
                     replacements.push(replacement);
                 }
 
@@ -364,7 +364,7 @@ impl Normalizer {
             Err(NormalizationError(s)) => {
                 // value is essentially a subvalue with the universal quantifiers removed,
                 // so reconstruct it to display it nicely.
-                let reconstructed = AcornValue::new_forall(universal, value);
+                let reconstructed = AcornValue::forall(universal, value);
                 Normalization::Error(format!(
                     "\nerror converting {} to CNF:\n{}",
                     reconstructed, s
@@ -449,11 +449,11 @@ impl Normalizer {
             Atom::True => AcornValue::Bool(true),
             Atom::GlobalConstant(i) => {
                 let (module, name) = self.constant_map.get_global_info(*i);
-                AcornValue::new_constant(module, name.to_string(), vec![], acorn_type)
+                AcornValue::constant(module, name.to_string(), vec![], acorn_type)
             }
             Atom::LocalConstant(i) => {
                 let (module, name) = self.constant_map.get_local_info(*i);
-                AcornValue::new_constant(module, name.to_string(), vec![], acorn_type)
+                AcornValue::constant(module, name.to_string(), vec![], acorn_type)
             }
             Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {
@@ -469,7 +469,7 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                AcornValue::new_constant(SKOLEM, format!("s{}", i), vec![], acorn_type)
+                AcornValue::constant(SKOLEM, format!("s{}", i), vec![], acorn_type)
             }
         }
     }
@@ -481,7 +481,7 @@ impl Normalizer {
             .iter()
             .map(|t| self.denormalize_term(t, var_types))
             .collect();
-        AcornValue::new_apply(head, args)
+        AcornValue::apply(head, args)
     }
 
     fn denormalize_literal(&self, literal: &Literal, var_types: &mut Vec<AcornType>) -> AcornValue {
@@ -495,9 +495,9 @@ impl Normalizer {
         }
         let right = self.denormalize_term(&literal.right, var_types);
         if literal.positive {
-            AcornValue::new_equals(left, right)
+            AcornValue::equals(left, right)
         } else {
-            AcornValue::new_not_equals(left, right)
+            AcornValue::not_equals(left, right)
         }
     }
 
@@ -511,9 +511,9 @@ impl Normalizer {
         }
         let mut answer = denormalized_literals.pop().unwrap();
         for subvalue in denormalized_literals.into_iter().rev() {
-            answer = AcornValue::new_or(subvalue, answer);
+            answer = AcornValue::or(subvalue, answer);
         }
-        AcornValue::new_forall(var_types, answer)
+        AcornValue::forall(var_types, answer)
     }
 
     pub fn atom_str(&self, atom: &Atom) -> String {

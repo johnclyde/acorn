@@ -73,7 +73,7 @@ impl TerminationChecker {
                     // Let's just uncurry it. There's an extraneous clone but it's probably fine.
                     let combined_args =
                         subapp.args.iter().chain(app.args.iter()).cloned().collect();
-                    let uncurried = AcornValue::new_apply(*subapp.function.clone(), combined_args);
+                    let uncurried = AcornValue::apply(*subapp.function.clone(), combined_args);
                     self.traverse(&uncurried);
                     return;
                 }

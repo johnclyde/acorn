@@ -188,7 +188,7 @@ impl Block {
                 // The partial goal has variables 0..args.len() bound to the block's args,
                 // but there is one last variable that needs to be existentially quantified.
                 let partial_goal = unbound_goal.bind_values(0, 0, &arg_values);
-                let bound_goal = AcornValue::new_exists(vec![return_type], partial_goal);
+                let bound_goal = AcornValue::exists(vec![return_type], partial_goal);
                 assert!(!bound_goal.has_generic());
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
                 Some(Goal::Prove(prop))
@@ -211,8 +211,8 @@ impl Block {
                     );
                 }
                 // Inside the block, we can assume the pattern matches.
-                let applied = AcornValue::new_apply(constructor, arg_values);
-                let equality = AcornValue::new_equals(scrutinee, applied);
+                let applied = AcornValue::apply(constructor, arg_values);
+                let equality = AcornValue::equals(scrutinee, applied);
                 subenv.add_node(
                     project,
                     true,
@@ -316,7 +316,7 @@ impl Block {
             }
         });
 
-        AcornValue::new_forall(forall_types, AcornValue::new_exists(exists_types, replaced))
+        AcornValue::forall(forall_types, AcornValue::exists(exists_types, replaced))
     }
 
     // Returns a claim usable in the outer environment, and a range where it comes from.

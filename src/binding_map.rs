@@ -1096,7 +1096,7 @@ impl BindingMap {
                     )))
                 }
             };
-        let value = AcornValue::new_apply(read_fn, vec![initial_num, last_num]);
+        let value = AcornValue::apply(read_fn, vec![initial_num, last_num]);
         Ok(value)
     }
 
@@ -1452,7 +1452,7 @@ impl BindingMap {
         };
 
         fa.args.push(right_value);
-        let value = AcornValue::new_apply(*fa.function, fa.args);
+        let value = AcornValue::apply(*fa.function, fa.args);
         value.check_type(expression, expected_type)?;
         Ok(value)
     }
@@ -1527,7 +1527,7 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         let value = match potential {
             PotentialValue::Resolved(f) => {
-                let value = AcornValue::new_apply(f, args);
+                let value = AcornValue::apply(f, args);
                 value.check_type(source, expected_type)?;
                 value
             }
@@ -1611,7 +1611,7 @@ impl BindingMap {
 
         let instance_fn = unresolved.resolve(source, instance_params)?;
 
-        let value = AcornValue::new_apply(instance_fn, args);
+        let value = AcornValue::apply(instance_fn, args);
         value.check_type(source, expected_type)?;
         Ok(value)
     }
@@ -1688,7 +1688,7 @@ impl BindingMap {
                 && &c.params[0] == instance_type
             {
                 let full_name = format!("{}.{}", instance_name, tc_condition_name);
-                Some(AcornValue::new_constant(
+                Some(AcornValue::constant(
                     self.module,
                     full_name,
                     vec![],
@@ -1917,7 +1917,7 @@ impl BindingMap {
                                 }
                                 let resolved_type =
                                     unresolved.generic_type.instantiate(&named_params);
-                                let resolved = AcornValue::new_constant(
+                                let resolved = AcornValue::constant(
                                     unresolved.module_id,
                                     unresolved.name,
                                     instance_params,
@@ -1974,7 +1974,7 @@ impl BindingMap {
                             )?;
                             args.push(arg);
                         }
-                        let value = AcornValue::new_apply(function, args);
+                        let value = AcornValue::apply(function, args);
                         value.check_type(expression, expected_type)?;
                         value
                     }

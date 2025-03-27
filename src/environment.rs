@@ -197,7 +197,7 @@ impl Environment {
             .into_iter()
             .map(|p| AcornType::Variable(p))
             .collect();
-        let constant = AcornValue::new_constant(
+        let constant = AcornValue::constant(
             self.module_id,
             name.to_string(),
             var_params,
@@ -210,7 +210,7 @@ impl Environment {
                 .enumerate()
                 .map(|(i, acorn_type)| AcornValue::Variable(i as AtomId, acorn_type.clone()))
                 .collect();
-            let app = AcornValue::new_apply(constant.clone(), args);
+            let app = AcornValue::apply(constant.clone(), args);
             AcornValue::ForAll(
                 acorn_types,
                 Box::new(AcornValue::Binary(
@@ -220,7 +220,7 @@ impl Environment {
                 )),
             )
         } else {
-            AcornValue::new_equals(constant.clone(), definition)
+            AcornValue::equals(constant.clone(), definition)
         };
         let range = self.definition_ranges.get(name).unwrap().clone();
 
@@ -477,7 +477,7 @@ impl Environment {
         }
 
         if let Some(v) = unbound_value {
-            let mut fn_value = AcornValue::new_lambda(arg_types, v);
+            let mut fn_value = AcornValue::lambda(arg_types, v);
 
             let params = if let Some(class_params) = class_params {
                 // When a class is parametrized, the member gets parameters from the class.
@@ -547,7 +547,7 @@ impl Environment {
         }
 
         // Externally we use the theorem in unnamed, "forall" form
-        let external_claim = AcornValue::new_forall(arg_types.clone(), unbound_claim.clone());
+        let external_claim = AcornValue::forall(arg_types.clone(), unbound_claim.clone());
         if let Err(message) = external_claim.validate() {
             return Err(ts.claim.error(&message));
         }
@@ -573,7 +573,7 @@ impl Environment {
         // We define the theorem using "lambda" form.
         // The definition happens here, in the outside environment, because the
         // theorem is usable by name in this environment.
-        let lambda_claim = AcornValue::new_lambda(arg_types, unbound_claim);
+        let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
             self.bindings.add_constant(
@@ -739,8 +739,8 @@ impl Environment {
         self.bindings
             .add_constant(&fss.name, vec![], function_type.clone(), None, None);
         let function_constant =
-            AcornValue::new_constant(self.module_id, fss.name.clone(), vec![], function_type);
-        let function_term = AcornValue::new_apply(
+            AcornValue::constant(self.module_id, fss.name.clone(), vec![], function_type);
+        let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types
                 .iter()
@@ -969,7 +969,7 @@ impl Environment {
                 Box::new(AcornValue::Variable(i as AtomId, field_types[i].clone())),
             );
             let unbound_member_claim = if let Some(constraint) = &unbound_constraint {
-                AcornValue::new_implies(constraint.clone(), member_eq)
+                AcornValue::implies(constraint.clone(), member_eq)
             } else {
                 member_eq
             };
@@ -1071,7 +1071,7 @@ impl Environment {
                 .enumerate()
                 .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
                 .collect();
-            let i_app = AcornValue::new_apply(i_fn, i_vars);
+            let i_app = AcornValue::apply(i_fn, i_vars);
             for j in 0..i {
                 let (_, j_arg_types) = &constructors[j];
                 let j_fn = constructor_fns[j].clone();
@@ -1082,11 +1082,11 @@ impl Environment {
                         AcornValue::Variable((k + i_arg_types.len()) as AtomId, t.clone())
                     })
                     .collect();
-                let j_app = AcornValue::new_apply(j_fn, j_vars);
-                let inequality = AcornValue::new_not_equals(i_app.clone(), j_app);
+                let j_app = AcornValue::apply(j_fn, j_vars);
+                let inequality = AcornValue::not_equals(i_app.clone(), j_app);
                 let mut quantifiers = i_arg_types.clone();
                 quantifiers.extend(j_arg_types.clone());
-                let claim = AcornValue::new_forall(quantifiers, inequality);
+                let claim = AcornValue::forall(quantifiers, inequality);
                 self.add_node(
                     project,
                     true,
@@ -1114,14 +1114,14 @@ impl Environment {
                 .enumerate()
                 .map(|(k, t)| AcornValue::Variable((k + 1) as AtomId, t.clone()))
                 .collect();
-            let app = AcornValue::new_apply(constructor_fn.clone(), args);
+            let app = AcornValue::apply(constructor_fn.clone(), args);
             let var = AcornValue::Variable(0, inductive_type.clone());
-            let equality = AcornValue::new_equals(var, app);
-            let exists = AcornValue::new_exists(arg_types.clone(), equality);
+            let equality = AcornValue::equals(var, app);
+            let exists = AcornValue::exists(arg_types.clone(), equality);
             disjuncts.push(exists);
         }
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-        let claim = AcornValue::new_forall(vec![inductive_type.clone()], disjunction);
+        let claim = AcornValue::forall(vec![inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
         self.add_node(
             project,
@@ -1151,30 +1151,28 @@ impl Environment {
                 .enumerate()
                 .map(|(k, t)| AcornValue::Variable(k as AtomId, t.clone()))
                 .collect();
-            let lhs = AcornValue::new_apply(constructor_fn.clone(), left_args);
+            let lhs = AcornValue::apply(constructor_fn.clone(), left_args);
             let right_args = arg_types
                 .iter()
                 .enumerate()
                 .map(|(k, t)| AcornValue::Variable((k + arg_types.len()) as AtomId, t.clone()))
                 .collect();
-            let rhs = AcornValue::new_apply(constructor_fn.clone(), right_args);
-            let equality = AcornValue::new_equals(lhs, rhs);
+            let rhs = AcornValue::apply(constructor_fn.clone(), right_args);
+            let equality = AcornValue::equals(lhs, rhs);
 
             // Then construct the implication, that the corresponding args are equal.
             let mut conjuncts = vec![];
             for (i, arg_type) in arg_types.iter().enumerate() {
                 let left = AcornValue::Variable(i as AtomId, arg_type.clone());
                 let right = AcornValue::Variable((i + arg_types.len()) as AtomId, arg_type.clone());
-                let arg_equality = AcornValue::new_equals(left, right);
+                let arg_equality = AcornValue::equals(left, right);
                 conjuncts.push(arg_equality);
             }
             let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
             let mut forall_types = arg_types.clone();
             forall_types.extend_from_slice(&arg_types);
-            let claim = AcornValue::new_forall(
-                forall_types,
-                AcornValue::new_implies(equality, conjunction),
-            );
+            let claim =
+                AcornValue::forall(forall_types, AcornValue::implies(equality, conjunction));
             self.add_node(
                 project,
                 true,
@@ -1209,15 +1207,15 @@ impl Environment {
                 if arg_type == &inductive_type {
                     // The inductive case for this constructor includes a condition
                     // that the inductive hypothesis holds for this argument.
-                    conditions.push(AcornValue::new_apply(
+                    conditions.push(AcornValue::apply(
                         AcornValue::Variable(0, hyp_type.clone()),
                         vec![AcornValue::Variable(id, arg_type.clone())],
                     ));
                 }
             }
 
-            let new_instance = AcornValue::new_apply(constructor_fn.clone(), args);
-            let instance_claim = AcornValue::new_apply(
+            let new_instance = AcornValue::apply(constructor_fn.clone(), args);
+            let instance_claim = AcornValue::apply(
                 AcornValue::Variable(0, hyp_type.clone()),
                 vec![new_instance],
             );
@@ -1228,27 +1226,27 @@ impl Environment {
             } else {
                 // This is an inductive case. Given the conditions, we show that
                 // the inductive hypothesis holds for this constructor.
-                AcornValue::new_implies(
+                AcornValue::implies(
                     AcornValue::reduce(BinaryOp::And, conditions),
                     instance_claim,
                 )
             };
-            let conjunction_part = AcornValue::new_forall(arg_types.clone(), unbound);
+            let conjunction_part = AcornValue::forall(arg_types.clone(), unbound);
             conjuncts.push(conjunction_part);
         }
         let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
-        let conclusion = AcornValue::new_forall(
+        let conclusion = AcornValue::forall(
             vec![inductive_type.clone()],
-            AcornValue::new_apply(
+            AcornValue::apply(
                 AcornValue::Variable(0, hyp_type.clone()),
                 vec![AcornValue::Variable(1, inductive_type.clone())],
             ),
         );
-        let unbound_claim = AcornValue::new_implies(conjunction, conclusion);
+        let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
         let name = format!("{}.induction", is.name);
-        let lambda_claim = AcornValue::new_lambda(vec![hyp_type.clone()], unbound_claim.clone());
+        let lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         self.bindings.add_constant(
             &name,
             vec![],
@@ -1260,7 +1258,7 @@ impl Environment {
 
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
-        let forall_claim = AcornValue::new_forall(vec![hyp_type], unbound_claim);
+        let forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
         self.add_node(
             project,
             true,
@@ -1399,12 +1397,12 @@ impl Environment {
             let unbound_claim = unbound_claim
                 .ok_or_else(|| condition.claim.error("conditions must have values"))?;
             let external_claim =
-                AcornValue::new_forall(arg_types.clone(), unbound_claim.clone()).to_generic();
+                AcornValue::forall(arg_types.clone(), unbound_claim.clone()).to_generic();
             if let Err(message) = external_claim.validate() {
                 return Err(condition.claim.error(&message));
             }
             let lambda_claim =
-                AcornValue::new_lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
+                AcornValue::lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
             let theorem_type = lambda_claim.get_type();
             let full_name = condition_name.to_string();
             self.bindings.add_constant(
@@ -1567,7 +1565,7 @@ impl Environment {
         // their parametrized versions. We gather those into a single proposition.
         let equalities = pairs
             .into_iter()
-            .map(|(left, right)| AcornValue::new_equals(left, right))
+            .map(|(left, right)| AcornValue::equals(left, right))
             .collect();
         let equalities_claim = AcornValue::reduce(BinaryOp::And, equalities);
         let equalities_prop = Proposition::instance(
