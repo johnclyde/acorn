@@ -417,30 +417,34 @@ impl BindingMap {
     }
 
     // Adds both directions for a name <-> type correspondence.
+    // Panics if the name is already bound.
     fn insert_type_name(&mut self, name: String, potential_type: PotentialType) {
-        if self.name_in_use(&name) {
-            panic!("type name {} already bound", name);
-        }
         // There can be multiple names for a type.
         // If we already have a name for the reverse lookup, we don't overwrite it.
         if !self.type_to_typename.contains_key(&potential_type) {
             self.type_to_typename
                 .insert(potential_type.clone(), name.clone());
         }
-        self.typename_to_type.insert(name, potential_type);
+
+        match self.typename_to_type.entry(name) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(potential_type);
+            }
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                panic!("type name {} already bound", entry.key());
+            }
+        }
     }
 
     // Adds a new data type to the binding map.
     // Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str) -> AcornType {
-        if self.name_in_use(name) {
-            panic!("type name {} already bound", name);
-        }
         let t = AcornType::Data(self.module, name.to_string(), vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
     }
 
+    // Panics if the name is already bound.
     pub fn add_potential_type(
         &mut self,
         name: &str,
@@ -448,9 +452,6 @@ impl BindingMap {
     ) -> PotentialType {
         if params.len() == 0 {
             return PotentialType::Resolved(self.add_data_type(name));
-        }
-        if self.name_in_use(name) {
-            panic!("type name {} already bound", name);
         }
         let ut = UnresolvedType {
             module_id: self.module,
@@ -466,9 +467,6 @@ impl BindingMap {
     // This indicates a type parameter that is coming into scope.
     // Panics if the name is already bound.
     pub fn add_arbitrary_type(&mut self, param: TypeParam) -> AcornType {
-        if self.name_in_use(&param.name) {
-            panic!("type name {} already bound", &param.name);
-        }
         let name = param.name.to_string();
         let arbitrary_type = AcornType::Arbitrary(param);
         let potential = PotentialType::Resolved(arbitrary_type.clone());
