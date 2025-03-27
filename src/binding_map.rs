@@ -1232,9 +1232,7 @@ impl BindingMap {
                 Expression::Singleton(token) => token.text().to_string(),
                 _ => return Err(name_exp.error("expected a simple name in pattern")),
             };
-            if self.name_in_use(&name) {
-                return Err(name_exp.error(&format!("name '{}' is already bound", name)));
-            }
+            self.check_unqualified_name_available(name_exp, &name)?;
             // Check if we already saw this name
             if args.iter().any(|(n, _)| n == &name) {
                 return Err(name_exp.error(&format!(
@@ -1650,12 +1648,7 @@ impl BindingMap {
         module: ModuleId,
         name_token: &Token,
     ) -> compilation::Result<()> {
-        if self.name_in_use(&name_token.text()) {
-            return Err(name_token.error(&format!(
-                "name {} already bound in this module",
-                name_token.text()
-            )));
-        }
+        self.check_unqualified_name_available(name_token, &name_token.text())?;
         let bindings = match project.get_bindings(module) {
             Some(b) => b,
             None => {
@@ -2294,9 +2287,7 @@ impl BindingMap {
         let mut answer: Vec<TypeParam> = vec![];
         for expr in exprs {
             let name = expr.name.text().to_string();
-            if self.name_in_use(&name) {
-                return Err(expr.name.error("name already in use in this module"));
-            }
+            self.check_typename_available(&expr.name, &name)?;
             if answer.iter().any(|tp| tp.name == name) {
                 return Err(expr.name.error("duplicate type parameter"));
             }
@@ -2589,32 +2580,18 @@ impl BindingMap {
 
     // We use variables named x0, x1, x2, etc when new temporary variables are needed.
     // Find the next one that's available.
-    fn next_x_var(&self, next_x: &mut u32) -> String {
+    fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
-            let name = format!("x{}", next_x);
-            *next_x += 1;
-            if !self.name_in_use(&name) {
-                return name;
-            }
-        }
-    }
-
-    // We use variables named k0, k1, k2, etc when new constant names are needed.
-    // Find the next one that's available.
-    fn next_k_var(&self, next_k: &mut u32) -> String {
-        loop {
-            let name = format!("k{}", next_k);
-            *next_k += 1;
-            if !self.name_in_use(&name) {
-                return name;
+            let name = LocalConstantName::Unqualified(format!("{}{}", prefix, next_index));
+            *next_index += 1;
+            if !self.constant_name_in_use(&name) {
+                return name.to_string();
             }
         }
     }
 
     // If this value cannot be expressed in a single chunk of code, returns an error.
     // For example, it might refer to a constant that is not in scope.
-    // Takes a next_k parameter so that it can be used sequentially in the middle of
-    // a bunch of code generation.
     pub fn value_to_code(&self, value: &AcornValue) -> Result<String, CodeGenError> {
         let mut var_names = vec![];
         let mut next_x = 0;
@@ -2708,9 +2685,9 @@ impl BindingMap {
         let mut decls = vec![];
         for arg_type in quants {
             let var_name = if use_x {
-                self.next_x_var(next_x)
+                self.next_indexed_var('x', next_x)
             } else {
-                self.next_k_var(next_k)
+                self.next_indexed_var('k', next_k)
             };
             let name_token = TokenType::Identifier.new_token(&var_name);
             var_names.push(var_name);
