@@ -403,7 +403,7 @@ impl Environment {
         }
 
         self.bindings
-            .add_constant(&name, vec![], acorn_type, value, None);
+            .add_constant(&constant_name, vec![], acorn_type, value, None);
         self.definition_ranges.insert(name.clone(), range);
         self.add_identity_props(project, &name);
         Ok(())
@@ -447,7 +447,6 @@ impl Environment {
             )));
         }
 
-        let name = constant_name.to_string();
         // Calculate the function value
         let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
@@ -457,7 +456,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                Some(&name),
+                Some(&constant_name),
             )?;
 
         if let Some(class_type) = self_type {
@@ -489,16 +488,22 @@ impl Environment {
             };
 
             // Add the function value to the environment
-            self.bindings
-                .add_constant(&name, params, fn_value.get_type(), Some(fn_value), None);
+            self.bindings.add_constant(
+                &constant_name,
+                params,
+                fn_value.get_type(),
+                Some(fn_value),
+                None,
+            );
         } else {
             let new_axiom_type = AcornType::functional(arg_types, value_type);
             self.bindings
-                .add_constant(&name, fn_param_names, new_axiom_type, None, None);
+                .add_constant(&constant_name, fn_param_names, new_axiom_type, None, None);
         };
 
-        self.definition_ranges.insert(name.clone(), range);
-        self.add_identity_props(project, &name);
+        self.definition_ranges
+            .insert(constant_name.to_string(), range);
+        self.add_identity_props(project, &constant_name.to_string());
         Ok(())
     }
 
@@ -577,7 +582,7 @@ impl Environment {
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
             self.bindings.add_constant(
-                &name,
+                &LocalConstantName::unqualified(name),
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
@@ -650,8 +655,9 @@ impl Environment {
 
         // Define the quantifiers as constants
         for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
+            let name = LocalConstantName::unqualified(quant_name);
             self.bindings
-                .add_constant(quant_name, vec![], quant_type.clone(), None, None);
+                .add_constant(&name, vec![], quant_type.clone(), None, None);
         }
 
         // We can then assume the specific existence claim with the named constants
@@ -735,9 +741,10 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
+        let name = LocalConstantName::unqualified(&fss.name);
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         self.bindings
-            .add_constant(&fss.name, vec![], function_type.clone(), None, None);
+            .add_constant(&name, vec![], function_type.clone(), None, None);
         let function_constant =
             AcornValue::constant(self.module_id, fss.name.clone(), vec![], function_type);
         let function_term = AcornValue::apply(
@@ -849,7 +856,7 @@ impl Environment {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
             self.bindings.add_constant(
-                &member_fn_name.to_string(),
+                &member_fn_name,
                 type_params.clone(),
                 member_fn_type.to_generic(),
                 None,
@@ -865,7 +872,7 @@ impl Environment {
         let new_fn_name = LocalConstantName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         self.bindings.add_constant(
-            &new_fn_name.to_string(),
+            &new_fn_name,
             type_params.clone(),
             new_fn_type.to_generic(),
             None,
@@ -1048,7 +1055,7 @@ impl Environment {
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
             let constructor_type = AcornType::functional(type_list.clone(), inductive_type.clone());
             self.bindings.add_constant(
-                &constructor_name.to_string(),
+                &constructor_name,
                 vec![],
                 constructor_type,
                 None,
@@ -1244,7 +1251,7 @@ impl Environment {
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
-        let name = format!("{}.induction", is.name);
+        let name = LocalConstantName::attribute(&is.name, "induction");
         let lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         self.bindings.add_constant(
             &name,
@@ -1253,7 +1260,7 @@ impl Environment {
             Some(lambda_claim),
             None,
         );
-        self.bindings.mark_as_theorem(&name);
+        self.bindings.mark_as_theorem(&name.to_string());
 
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
@@ -1261,7 +1268,13 @@ impl Environment {
         self.add_node(
             project,
             true,
-            Proposition::theorem(true, forall_claim, self.module_id, range, Some(name)),
+            Proposition::theorem(
+                true,
+                forall_claim,
+                self.module_id,
+                range,
+                Some(name.to_string()),
+            ),
             None,
         );
 
@@ -1357,7 +1370,7 @@ impl Environment {
             self.bindings
                 .check_constant_name_available(attr_name, &constant_name)?;
             self.bindings.add_constant(
-                &constant_name.to_string(),
+                &constant_name,
                 vec![type_param.clone()],
                 var_type,
                 None,
@@ -1403,9 +1416,8 @@ impl Environment {
             let lambda_claim =
                 AcornValue::lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
             let theorem_type = lambda_claim.get_type();
-            let full_name = condition_name.to_string();
             self.bindings.add_constant(
-                &full_name,
+                &condition_name,
                 vec![type_param.clone()],
                 theorem_type.clone(),
                 Some(lambda_claim),
@@ -1417,10 +1429,10 @@ impl Environment {
                 external_claim,
                 self.module_id,
                 range,
-                Some(full_name.clone()),
+                Some(condition_name.to_string()),
             );
             self.add_node(project, true, prop, None);
-            self.bindings.mark_as_theorem(&full_name);
+            self.bindings.mark_as_theorem(&condition_name.to_string());
         }
 
         self.bindings.remove_type(ts.instance_name.text());

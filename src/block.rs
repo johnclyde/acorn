@@ -121,6 +121,7 @@ impl Block {
         // Inside the block, the arguments are constants.
         for (arg_name, generic_arg_type) in &args {
             let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
+            let arg_name = LocalConstantName::unqualified(arg_name);
             subenv
                 .bindings
                 .add_constant(&arg_name, vec![], specific_arg_type, None, None);
@@ -197,16 +198,14 @@ impl Block {
                 // Inside the block, the pattern arguments are constants.
                 let mut arg_values = vec![];
                 for (arg_name, arg_type) in pattern_args {
+                    let arg_name = LocalConstantName::unqualified(&arg_name);
                     subenv
                         .bindings
                         .add_constant(&arg_name, vec![], arg_type, None, None);
                     arg_values.push(
                         subenv
                             .bindings
-                            .get_constant_value(
-                                &PanicOnError,
-                                &LocalConstantName::unqualified(&arg_name),
-                            )?
+                            .get_constant_value(&PanicOnError, &arg_name)?
                             .force_value(),
                     );
                 }

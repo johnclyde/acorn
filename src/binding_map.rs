@@ -500,11 +500,11 @@ impl BindingMap {
 
     // Adds a constant.
     // Panics if the name is already bound.
-    // This can also add members, by providing a name like "Foo.bar".
     // The type and definition can be generic. If so, the parameters must be listed in params.
+    // This doesn't handle aliases intelligently.
     pub fn add_constant(
         &mut self,
-        name: &str,
+        name: &LocalConstantName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
@@ -537,6 +537,7 @@ impl BindingMap {
             definition,
             constructor,
         };
+        let name = name.to_string();
         self.constant_info.insert(name.to_string(), info);
         if let Some((entity_name, attribute)) = name.rsplit_once('.') {
             if self.attributes.contains_key(entity_name) {
@@ -553,12 +554,13 @@ impl BindingMap {
     }
 
     // Be really careful about this, it seems likely to break things.
-    fn remove_constant(&mut self, name: &str) {
+    fn remove_constant(&mut self, name: &LocalConstantName) {
+        let name = name.to_string();
         self.constant_name_to_type
-            .remove(name)
+            .remove(&name)
             .expect("constant name not in use");
         self.constant_info
-            .remove(name)
+            .remove(&name)
             .expect("constant name not in use");
     }
 
@@ -2149,7 +2151,7 @@ impl BindingMap {
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_type: Option<&AcornType>,
-        function_name: Option<&str>,
+        function_name: Option<&LocalConstantName>,
     ) -> compilation::Result<(
         Vec<TypeParam>,
         Vec<String>,
@@ -2241,8 +2243,11 @@ impl BindingMap {
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
-                    let derecursed =
-                        internal_value.set_params(self.module, function_name, &generic_params);
+                    let derecursed = internal_value.set_params(
+                        self.module,
+                        &function_name.to_string(),
+                        &generic_params,
+                    );
                     Some(derecursed.to_generic())
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
