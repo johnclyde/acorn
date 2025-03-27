@@ -13,6 +13,7 @@ use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
+use crate::unresolved_constant::UnresolvedConstant;
 
 // In order to convert an Expression to an AcornValue, we need to convert the string representation
 // of types, variable names, and constant names into numeric identifiers, detect name collisions,
@@ -130,54 +131,6 @@ impl Stack {
     }
 }
 
-// A generic constant that we don't know the type of yet.
-// It's more of a "constant with unresolved type" than an "unresolved constant".
-#[derive(Debug, Clone)]
-pub struct UnresolvedConstant {
-    module_id: ModuleId,
-
-    // The name can have a dot in it, indicating this value is <typename>.<constantname>.
-    name: String,
-
-    // The type parameters are all the type variables used in the definition of this constant,
-    // in their canonical order. Each of these type parameters should be referenced in the type of
-    // the constant itself. Otherwise we would not be able to infer them.
-    params: Vec<TypeParam>,
-
-    // The generic type uses the params.
-    generic_type: AcornType,
-}
-
-impl UnresolvedConstant {
-    pub fn resolve(
-        &self,
-        source: &dyn ErrorSource,
-        params: Vec<AcornType>,
-    ) -> compilation::Result<AcornValue> {
-        if params.len() != self.params.len() {
-            return Err(source.error(&format!(
-                "expected {} type parameters, but got {}",
-                self.params.len(),
-                params.len()
-            )));
-        }
-
-        let named_params: Vec<_> = self
-            .params
-            .iter()
-            .zip(params.iter())
-            .map(|(param, t)| (param.name.clone(), t.clone()))
-            .collect();
-        let resolved_type = self.generic_type.instantiate(&named_params);
-        Ok(AcornValue::new_constant(
-            self.module_id,
-            self.name.clone(),
-            params,
-            resolved_type,
-        ))
-    }
-}
-
 // Could be a value, but could also be an unresolved constant.
 #[derive(Debug, Clone)]
 pub enum PotentialValue {
@@ -209,7 +162,6 @@ impl PotentialValue {
         }
     }
 
-
     // If this is an unresolved value, it will have a generic type.
     pub fn get_type(&self) -> AcornType {
         match &self {
@@ -231,6 +183,7 @@ impl PotentialValue {
     }
 }
 
+// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
 struct ConstantInfo {
     // The type parameters this constant was defined with, if any.
@@ -1514,7 +1467,7 @@ impl BindingMap {
                         } else {
                             let constant_name = LocalConstantName::unqualified(name);
                             Ok(NamedEntity::new(
-                                self.get_constant_value(name_token, &constant_name)?
+                                self.get_constant_value(name_token, &constant_name)?,
                             ))
                         }
                     }
