@@ -449,7 +449,7 @@ impl<'a> Builder<'a> {
         );
         if self.searches_total > 0 {
             let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
-            println!("{:.1}% search success rate", success_percent);
+            println!("{:.2}% search success rate", success_percent);
             let num_activated = self.clauses_activated as f64 / self.searches_success as f64;
             println!("{:.2} average activations", num_activated);
             let mean_square_activated =
