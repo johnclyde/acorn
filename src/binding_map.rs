@@ -845,7 +845,7 @@ impl BindingMap {
                         arg_types.push(self.evaluate_type(project, arg_expr)?);
                     }
                     let return_type = self.evaluate_type(project, right)?;
-                    Ok(PotentialType::Resolved(AcornType::new_functional(
+                    Ok(PotentialType::Resolved(AcornType::functional(
                         arg_types,
                         return_type,
                     )))
@@ -2174,7 +2174,7 @@ impl BindingMap {
 
         if let Some(function_name) = function_name {
             let fn_type =
-                AcornType::new_functional(internal_arg_types.clone(), internal_value_type.clone());
+                AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
             self.add_constant(function_name, vec![], fn_type, None, None);

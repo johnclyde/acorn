@@ -277,7 +277,7 @@ impl ActiveSet {
 
         // Gather the output data
         let clause = Clause::new(literals);
-        let step = ProofStep::new_resolution(long_id, long_step, short_id, short_step, clause);
+        let step = ProofStep::resolution(long_id, long_step, short_id, short_step, clause);
         Some(step)
     }
 
@@ -340,7 +340,7 @@ impl ActiveSet {
                         continue;
                     }
 
-                    let ps = ProofStep::new_rewrite(
+                    let ps = ProofStep::rewrite(
                         rewrite.pattern_id,
                         &pattern_step,
                         target_id,
@@ -413,7 +413,7 @@ impl ActiveSet {
                         continue;
                     }
 
-                    let ps = ProofStep::new_rewrite(
+                    let ps = ProofStep::rewrite(
                         pattern_id,
                         pattern_step,
                         target_id,
@@ -668,11 +668,7 @@ impl ActiveSet {
         if self.is_known_long_clause(&simplified_clause) {
             return None;
         }
-        Some(ProofStep::new_simplified(
-            step,
-            &new_rules,
-            simplified_clause,
-        ))
+        Some(ProofStep::simplified(step, &new_rules, simplified_clause))
     }
 
     fn add_resolution_targets(
@@ -787,7 +783,7 @@ impl ActiveSet {
         // Unification-based inferences don't need to be done on specialization, because
         // they can operate directly on the general form.
         for new_clause in ActiveSet::equality_resolution(&activated_step.clause) {
-            output.push(ProofStep::new_direct(
+            output.push(ProofStep::direct(
                 &activated_step,
                 Rule::EqualityResolution(activated_id),
                 new_clause,
@@ -795,7 +791,7 @@ impl ActiveSet {
         }
 
         for clause in ActiveSet::equality_factoring(&activated_step.clause) {
-            output.push(ProofStep::new_direct(
+            output.push(ProofStep::direct(
                 &activated_step,
                 Rule::EqualityFactoring(activated_id),
                 clause,
@@ -803,7 +799,7 @@ impl ActiveSet {
         }
 
         for clause in ActiveSet::function_elimination(&activated_step.clause) {
-            output.push(ProofStep::new_direct(
+            output.push(ProofStep::direct(
                 &activated_step,
                 Rule::FunctionElimination(activated_id),
                 clause,

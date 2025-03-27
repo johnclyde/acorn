@@ -5,7 +5,7 @@ mod environment_test {
 
     #[test]
     fn test_fn_equality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("define idb1(x: Bool) -> Bool { x }");
         env.expect_type("idb1", "Bool -> Bool");
         env.add("define idb2(y: Bool) -> Bool { y }");
@@ -20,7 +20,7 @@ mod environment_test {
 
     #[test]
     fn test_forall_equality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let bsym1: Bool = forall(x: Bool) { x = x }");
         env.expect_type("bsym1", "Bool");
         env.add("let bsym2: Bool = forall(y: Bool) { y = y }");
@@ -35,7 +35,7 @@ mod environment_test {
 
     #[test]
     fn test_exists_equality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let bex1: Bool = exists(x: Bool) { x = x }");
         env.add("let bex2: Bool = exists(y: Bool) { y = y }");
         env.assert_def_eq("bex1", "bex2");
@@ -47,7 +47,7 @@ mod environment_test {
 
     #[test]
     fn test_arg_binding() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad("define qux(x: Bool, x: Bool) -> Bool { x }");
         assert!(!env.bindings.has_constant_name("x"));
         env.add("define qux(x: Bool, y: Bool) -> Bool { x }");
@@ -69,7 +69,7 @@ mod environment_test {
 
     #[test]
     fn test_no_double_grouped_arg_list() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("define foo(x: Bool, y: Bool) -> Bool { x }");
         env.add("let b: Bool = axiom");
         env.bad("foo((b, b))");
@@ -77,7 +77,7 @@ mod environment_test {
 
     #[test]
     fn test_argless_theorem() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let b: Bool = axiom");
         env.add("theorem foo { b or not b }");
         env.expect_def("foo", "(b or not b)");
@@ -85,14 +85,14 @@ mod environment_test {
 
     #[test]
     fn test_forall_value() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let p: Bool = forall(x: Bool) { x or not x }");
         env.expect_def("p", "forall(x0: Bool) { (x0 or not x0) }");
     }
 
     #[test]
     fn test_inline_function_value() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("define ander(a: Bool) -> (Bool -> Bool) { function(b: Bool) { a and b } }");
         env.expect_def(
             "ander",
@@ -102,7 +102,7 @@ mod environment_test {
 
     #[test]
     fn test_empty_if_block() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let b: Bool = axiom");
         env.add("if b {}");
     }
@@ -110,13 +110,13 @@ mod environment_test {
     #[test]
     fn test_empty_forall_statement() {
         // Allowed as statement but not as an expression.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("forall(b: Bool) {}");
     }
 
     #[test]
     fn test_nat_ac_piecewise() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
         env.add("let suc: Nat -> Nat = axiom");
@@ -179,7 +179,7 @@ mod environment_test {
 
     #[test]
     fn test_nat_ac_together() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
 // The axioms of Peano arithmetic.
@@ -223,7 +223,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_names_in_subenvs() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -238,7 +238,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_forall_subenv() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -251,7 +251,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_if_subenv() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -265,7 +265,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_let_satisfy_exports_names() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -280,7 +280,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_environment_with_function_satisfy() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -335,7 +335,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structure_new_definition() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         structure BoolPair {
@@ -352,7 +352,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     #[test]
     fn test_structure_cant_contain_itself() {
         // If you want a type to contain itself, it has to be inductive, not a structure.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
         structure InfiniteBools {
@@ -365,7 +365,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_inductive_new_definition() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         inductive Nat {
@@ -381,7 +381,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_inductive_constructor_can_be_member() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         inductive Nat {
@@ -397,7 +397,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_inductive_statements_must_have_base_case() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
         inductive Nat {
@@ -408,7 +408,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_russell_paradox() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
         structure NaiveSet {
@@ -420,7 +420,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_template_typechecking() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
         env.add("define eq<T>(a: T, b: T) -> Bool { a = b }");
@@ -433,14 +433,14 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_type_params_cleaned_up() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("define foo<T>(a: T) -> Bool { axiom }");
         assert!(env.bindings.get_type_for_typename("T").is_none());
     }
 
     #[test]
     fn test_if_condition_must_be_bool() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
         env.add("let b: Bool = axiom");
@@ -450,62 +450,62 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_reusing_type_name_as_var_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let Nat: Bool = axiom");
     }
 
     #[test]
     fn test_reusing_var_name_as_type_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let x: Bool = axiom");
         env.bad("type x: axiom");
     }
 
     #[test]
     fn test_reusing_type_name_as_fn_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("define Nat(x: Bool) -> Bool { x }");
     }
 
     #[test]
     fn test_reusing_type_name_as_theorem_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("theorem Nat(x: Bool): x = x");
     }
 
     #[test]
     fn test_reusing_type_name_as_exists_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let b: Bool = exists(x: Bool, Nat: Bool) { x = x }");
     }
 
     #[test]
     fn test_reusing_type_name_as_forall_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let b: Bool = forall(x: Bool, Nat: Bool) { x = x }");
     }
 
     #[test]
     fn test_reusing_type_name_as_lambda_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let f: (bool, bool) -> Bool = function(x: Bool, Nat: Bool) { x = x }");
     }
 
     #[test]
     fn test_parsing_true_false_keywords() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let b: Bool = true or false");
     }
 
     #[test]
     fn test_nothing_after_explicit_false() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let b: Bool = axiom");
         env.bad(
             r#"
@@ -519,7 +519,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_condition_must_be_valid() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             if a {
@@ -530,7 +530,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_inline_function_in_forall_block() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
         env.add("let suc: Nat -> Nat = axiom");
@@ -552,7 +552,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structs_must_be_capitalized() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             struct foo {
@@ -564,20 +564,20 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_axiomatic_types_must_be_capitalized() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad("type foo: axiom");
     }
 
     #[test]
     fn test_functional_definition_typechecking() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("define foo(f: Nat -> Nat) -> Bool { function(x: Nat) { true } }");
     }
 
     #[test]
     fn test_partial_application() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
         env.add("define add3(a: Nat, b: Nat, c: Nat) -> Nat { axiom }");
@@ -589,7 +589,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     #[test]
     fn test_else_on_new_line() {
         // This is ugly but it should work.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         let b: Bool = axiom
@@ -605,7 +605,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_arg_names_lowercased() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad("let f: Bool -> Bool = function(A: Bool) { true }");
         env.add("let f: Bool -> Bool = function(a: Bool) { true }");
         env.bad("forall(A: Bool) { true }");
@@ -618,13 +618,13 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_undefined_class_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad("class Foo {}");
     }
 
     #[test]
     fn test_class_variables() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -643,7 +643,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_instance_methods() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -656,7 +656,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_methods_on_type_aliases() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.add("type NatFn: Nat -> Nat");
         env.bad("class NatFn {}");
@@ -664,7 +664,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_first_arg_must_be_self() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -677,7 +677,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_self_variables() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let foo: Bool = exists(self) { true }");
         env.bad("let foo: Bool = forall(self) { true }");
@@ -686,35 +686,35 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_self_args_outside_class() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("define foo(self) -> Bool { true }");
     }
 
     #[test]
     fn test_no_self_as_forall_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("forall(self) { true }");
     }
 
     #[test]
     fn test_no_self_as_exists_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("exists(self) { true }");
     }
 
     #[test]
     fn test_no_self_as_lambda_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let f: Nat -> Bool = lambda(self) { true }");
     }
 
     #[test]
     fn test_using_member_function() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -730,7 +730,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_add() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -744,7 +744,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_sub() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -758,7 +758,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_mul() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -772,7 +772,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_div() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -786,7 +786,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_mod() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -800,7 +800,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_lt() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -814,7 +814,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_gt() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -828,7 +828,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_lte() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -842,7 +842,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_gte() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -856,7 +856,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_prefix_neg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -870,7 +870,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_self_must_have_correct_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -883,7 +883,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_dot_new() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -898,7 +898,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_defining_new() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -911,7 +911,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_using_methods_with_mismatched_self() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -926,7 +926,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_propositional_codegen() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("let b: Bool = axiom");
         env.bindings.expect_good_code("not b or b");
         env.bindings.expect_good_code("b and not b");
@@ -936,7 +936,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_operator_codegen() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -988,7 +988,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_magic_names_for_constants() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -1001,7 +1001,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_magic_names_for_struct_fields() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             struct MyStruct {
@@ -1013,7 +1013,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_numerals_statement() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Foo: axiom");
         env.add("numerals Foo");
         env.bad("numerals Bar");
@@ -1023,20 +1023,20 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_defining_top_level_numbers() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad("let 0: Nat = axiom");
     }
 
     #[test]
     fn test_no_top_level_numbers_without_a_numerals() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad("let foo: Bool = (0 = 0)");
     }
 
     #[test]
     fn test_multi_digit_unary() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Unary: axiom");
         env.add(
             r#"
@@ -1053,7 +1053,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_digits_must_be_correct_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -1066,7 +1066,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_read_must_have_correct_args() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -1081,7 +1081,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_read_must_return_correct_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add("type Nat: axiom");
         env.bad(
             r#"
@@ -1096,7 +1096,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_numeric_literal_codegen() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -1128,7 +1128,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_non_default_numeric_literals() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -1158,7 +1158,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_root_level_solve() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             let b: Bool = true or false
@@ -1171,7 +1171,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_nested_solve() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             let b: Bool = true or false
@@ -1186,7 +1186,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_infix_solve() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             let b: Bool = true or false
@@ -1199,7 +1199,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_solve_block_has_a_goal_path() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             let b: Bool = true or false
@@ -1212,7 +1212,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_basic_problem_statement() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             problem {
@@ -1226,7 +1226,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_based_definition() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1250,7 +1250,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_subenv() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1274,7 +1274,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_pattern_with_no_args() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1298,7 +1298,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_missing_cases() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1321,7 +1321,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_statement_missing_cases() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1344,7 +1344,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_pattern_must_be_constructor() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1377,7 +1377,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_statement_must_be_constructor() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1410,7 +1410,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_against_new() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Foo {
@@ -1430,7 +1430,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_no_repeating_variables() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1453,7 +1453,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_statement_no_repeating_variables() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1476,7 +1476,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_no_repeating_cases() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1505,7 +1505,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_statement_no_repeating_cases() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1534,7 +1534,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_results_check_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1556,7 +1556,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_match_value_with_let() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Foo {
@@ -1581,7 +1581,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_left_recursive_definition() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1604,7 +1604,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_right_recursive_definition() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1627,7 +1627,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_recursive_simple_infinite_loops() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             define loop(a: Bool) -> Bool {
@@ -1639,7 +1639,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_recursive_complicated_infinite_loops() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1679,7 +1679,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_templated_recursive_function() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1702,7 +1702,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_termination_checker_catches_functional_cheating() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1725,7 +1725,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_left_recursive_member_function() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1751,7 +1751,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_right_recursive_member_function() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             inductive Nat {
@@ -1777,7 +1777,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_anonymous_theorem_env() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             theorem {
@@ -1789,7 +1789,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_anonymous_theorem_env_with_args() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             theorem(a: Bool, b: Bool) {
@@ -1801,7 +1801,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_anonymous_axiom_env() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             axiom {
@@ -1813,7 +1813,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_anonymous_axiom_env_with_arg() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             axiom(a: Bool) {
@@ -1825,7 +1825,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structure_with_bad_constraint() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             structure Thing {
@@ -1841,7 +1841,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structure_with_good_constraint() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Thing {
@@ -1862,7 +1862,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structure_with_constraint_and_by_block() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Thing {
@@ -1881,7 +1881,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_implies_keyword_in_env() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             theorem {
@@ -1903,7 +1903,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_nested_functional_values() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             define both(f: Bool -> Bool) -> Bool {
@@ -1924,7 +1924,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_param_looking_thing() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -1947,7 +1947,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_params_with_arg_application() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -1971,7 +1971,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_generic_structure() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -1984,7 +1984,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_cant_reuse_type_param_name() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2017,7 +2017,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_generic_class_statement() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2036,7 +2036,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_no_params_on_member_functions() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure BoolPair {
@@ -2058,7 +2058,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_class_with_mismatched_num_params() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2078,7 +2078,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_aliases_for_generics() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2097,7 +2097,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_structures_cant_reuse_param_names() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             structure Pair<T, T> {
@@ -2110,7 +2110,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_struct_params_leave_scope() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2128,7 +2128,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_class_params_leave_scope() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2154,7 +2154,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_theorem_with_instantiated_arg_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2174,7 +2174,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_methods_on_generic_classes() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Foo: axiom
@@ -2201,7 +2201,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_generic_return_types() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Foo: axiom
@@ -2231,7 +2231,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     #[test]
     fn test_no_templated_define_inside_proof() {
         // This doesn't work correctly right now, so let's forbid it.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             theorem bar {
@@ -2261,7 +2261,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_aliasing_a_generic_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             structure Pair<T, U> {
@@ -2280,7 +2280,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     #[test]
     fn test_handling_functional_type_mismatch() {
         // This is a repro of a bug that crashed the released language server.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Foo: axiom
@@ -2304,7 +2304,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     #[test]
     fn test_proposition_must_typecheck_as_bool() {
         // The Real.bar(foo) line should cause it to fail.
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Real: axiom
@@ -2330,7 +2330,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_with_typeclass() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2342,7 +2342,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_with_bad_typeclass() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.bad(
             r#"
             typeclass M: Magma {
@@ -2354,7 +2354,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclass_in_define_template() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2369,7 +2369,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclass_attributes() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2384,7 +2384,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclass_instance_methods() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2399,7 +2399,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclass_in_theorem_template() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2414,7 +2414,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typechecking_with_typeclasses() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2433,7 +2433,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclass_in_structure() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2456,7 +2456,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclasses_match_between_structure_and_class() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2482,7 +2482,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_operator_on_typeclass() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2499,7 +2499,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_define() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2526,7 +2526,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_needs_all_attributes() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass B: Bimagma {
@@ -2554,7 +2554,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_no_extra_define() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2583,7 +2583,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_defines_must_match_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2609,7 +2609,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_using_typeclass_methods() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass M: Magma {
@@ -2640,7 +2640,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_let() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass P: PointedSet {
@@ -2661,7 +2661,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_no_extra_let() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass P: PointedSet {
@@ -2686,7 +2686,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_lets_must_match_type() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass P: PointedSet {
@@ -2710,7 +2710,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_parametrizing_typeclass_constant() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass P: PointedSet {
@@ -2735,7 +2735,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_forbid_class_on_alias() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Foo: axiom
@@ -2753,7 +2753,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_forbid_instance_on_alias() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass F: Flagged {
@@ -2774,7 +2774,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_arbitrary_type_attributes() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             typeclass F: Flagged {
@@ -2789,7 +2789,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_bool_not_instance_of_anything() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         typeclass F: Flagged {
@@ -2815,7 +2815,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typechecking_captures_instance_relationships() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         typeclass F: Flagged {
@@ -2845,7 +2845,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_typeclasses_can_have_conditions() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         typeclass S: Singleton {
@@ -2868,7 +2868,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_instance_statement_accepts_by_block() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         typeclass S: Singleton {
@@ -2896,7 +2896,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
 
     #[test]
     fn test_env_must_resolve_typeclass_constants() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
         typeclass P: PointedSet {

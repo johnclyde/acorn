@@ -306,7 +306,7 @@ impl AcornValue {
             AcornValue::Variable(_, t) => t.clone(),
             AcornValue::Application(t) => t.get_type(),
             AcornValue::Lambda(args, return_value) => {
-                AcornType::new_functional(args.clone(), return_value.get_type())
+                AcornType::functional(args.clone(), return_value.get_type())
             }
             AcornValue::Binary(_, _, _) => AcornType::Bool,
             AcornValue::Not(_) => AcornType::Bool,
@@ -1098,7 +1098,7 @@ impl AcornValue {
 
     // For an "if" among three boolean values, replace it with an equivalent value that
     // doesn't use if-then-else nodes.
-    fn new_if_replacement(a: AcornValue, b: AcornValue, c: AcornValue) -> AcornValue {
+    fn if_replacement(a: AcornValue, b: AcornValue, c: AcornValue) -> AcornValue {
         let (a, b, c) = (a.replace_if(), b.replace_if(), c.replace_if());
         let not_a_imp_c = AcornValue::implies(a.clone().negate(), c);
         let a_imp_b = AcornValue::implies(a, b);
@@ -1122,11 +1122,11 @@ impl AcornValue {
 
             AcornValue::Binary(_, _, _) | AcornValue::Application(_) => match self.extract_one_if()
             {
-                Some((a, b, c)) => AcornValue::new_if_replacement(a, b, c),
+                Some((a, b, c)) => AcornValue::if_replacement(a, b, c),
                 None => self,
             },
 
-            AcornValue::IfThenElse(a, b, c) => AcornValue::new_if_replacement(*a, *b, *c),
+            AcornValue::IfThenElse(a, b, c) => AcornValue::if_replacement(*a, *b, *c),
 
             AcornValue::Not(value) => AcornValue::Not(Box::new(value.replace_if())),
             AcornValue::ForAll(quants, value) => {

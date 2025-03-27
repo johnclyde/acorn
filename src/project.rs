@@ -162,7 +162,7 @@ impl Project {
         Some(Project::new(library_root, use_cache, use_cache))
     }
 
-    // A Project where nothing can be imported.
+    // Create a Project where nothing can be imported.
     pub fn new_mock() -> Project {
         let mock_dir = PathBuf::from("/mock");
         let mut p = Project::new(mock_dir, false, false);

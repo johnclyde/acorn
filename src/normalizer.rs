@@ -168,7 +168,7 @@ impl Normalizer {
                 // Each one will be a skolem function applied to the current stack.
                 let mut replacements = vec![];
                 for quant in quants {
-                    let skolem_type = AcornType::new_functional(stack.clone(), quant);
+                    let skolem_type = AcornType::functional(stack.clone(), quant);
                     let skolem_fn = self.new_skolem_value(skolem_type);
                     let replacement = AcornValue::apply(skolem_fn, args.clone());
                     replacements.push(replacement);
@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn test_nat_normalization() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         let mut norm = Normalizer::new();
         env.add("type Nat: axiom");
         env.add("let zero: Nat = axiom");
@@ -651,7 +651,7 @@ mod tests {
 
     #[test]
     fn test_bool_formulas() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         let mut norm = Normalizer::new();
         env.add("theorem one(a: Bool) { a -> a or (a or a) }");
         norm.check(&env, "one", &["not x0 or x0"]);
@@ -666,7 +666,7 @@ mod tests {
 
     #[test]
     fn test_tautology_elimination() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         let mut norm = Normalizer::new();
         env.add("type Nat: axiom");
         env.add("theorem one(n: Nat) { n = n }");
@@ -678,7 +678,7 @@ mod tests {
 
     #[test]
     fn test_nested_skolemization() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         let mut norm = Normalizer::new();
         env.add("type Nat: axiom");
         env.add("theorem exists_eq(x: Nat) { exists(y: Nat) { x = y } }");
@@ -687,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_second_order_binding() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -706,7 +706,7 @@ mod tests {
 
     #[test]
     fn test_boolean_equality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -727,7 +727,7 @@ mod tests {
 
     #[test]
     fn test_boolean_inequality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn test_functions_returning_lambdas() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -763,7 +763,7 @@ mod tests {
 
     #[test]
     fn test_functional_equality() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn test_normalizing_exists() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom
@@ -794,7 +794,7 @@ mod tests {
 
     #[test]
     fn test_denormalizing_disjunction() {
-        let mut env = Environment::new_test();
+        let mut env = Environment::test();
         env.add(
             r#"
             type Nat: axiom

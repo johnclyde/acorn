@@ -492,7 +492,7 @@ impl Environment {
             self.bindings
                 .add_constant(&name, params, fn_value.get_type(), Some(fn_value), None);
         } else {
-            let new_axiom_type = AcornType::new_functional(arg_types, value_type);
+            let new_axiom_type = AcornType::functional(arg_types, value_type);
             self.bindings
                 .add_constant(&name, fn_param_names, new_axiom_type, None, None);
         };
@@ -735,7 +735,7 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
-        let function_type = AcornType::new_functional(arg_types.clone(), return_type);
+        let function_type = AcornType::functional(arg_types.clone(), return_type);
         self.bindings
             .add_constant(&fss.name, vec![], function_type.clone(), None, None);
         let function_constant =
@@ -847,7 +847,7 @@ impl Environment {
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.iter().zip(&field_types) {
             let member_fn_type =
-                AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
+                AcornType::functional(vec![struct_type.clone()], field_type.clone());
             self.bindings.add_constant(
                 &member_fn_name.to_string(),
                 type_params.clone(),
@@ -863,7 +863,7 @@ impl Environment {
 
         // A "new" function to create one of these struct types.
         let new_fn_name = LocalConstantName::attribute(&ss.name, "new");
-        let new_fn_type = AcornType::new_functional(field_types.clone(), struct_type.clone());
+        let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         self.bindings.add_constant(
             &new_fn_name.to_string(),
             type_params.clone(),
@@ -1046,8 +1046,7 @@ impl Environment {
         let mut constructor_fns = vec![];
         let total = constructors.len();
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
-            let constructor_type =
-                AcornType::new_functional(type_list.clone(), inductive_type.clone());
+            let constructor_type = AcornType::functional(type_list.clone(), inductive_type.clone());
             self.bindings.add_constant(
                 &constructor_name.to_string(),
                 vec![],
@@ -1189,7 +1188,7 @@ impl Environment {
 
         // Structural induction.
         // The type for the inductive hypothesis.
-        let hyp_type = AcornType::new_functional(vec![inductive_type.clone()], AcornType::Bool);
+        let hyp_type = AcornType::functional(vec![inductive_type.clone()], AcornType::Bool);
         // x0 represents the inductive hypothesis.
         // Think of the inductive principle as (conjunction) -> (conclusion).
         // The conjunction is a case for each constructor.
@@ -2127,7 +2126,7 @@ impl Environment {
 // Methods used for integration testing.
 impl Environment {
     // Create a test version of the environment.
-    pub fn new_test() -> Self {
+    pub fn test() -> Self {
         use crate::module::FIRST_NORMAL;
         Environment::new(FIRST_NORMAL)
     }

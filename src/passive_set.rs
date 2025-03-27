@@ -237,7 +237,7 @@ impl PassiveSet {
                 None => continue,
             };
             let short_steps = &[(activated_id, activated_step)];
-            new_steps.push(ProofStep::new_simplified(step, short_steps, new_clause));
+            new_steps.push(ProofStep::simplified(step, short_steps, new_clause));
         }
 
         self.push_batch(new_steps);

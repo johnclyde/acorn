@@ -248,7 +248,7 @@ impl fmt::Display for ProofStep {
 impl ProofStep {
     // Construct a new assumption ProofStep that is not dependent on any other steps.
     // Assumptions are always depth zero, but eventually we may have to revisit that.
-    pub fn new_assumption(
+    pub fn assumption(
         clause: Clause,
         truthiness: Truthiness,
         source: &Source,
@@ -272,7 +272,7 @@ impl ProofStep {
 
     // Construct a new ProofStep that is a direct implication of a single activated step,
     // not requiring any other clauses.
-    pub fn new_direct(activated_step: &ProofStep, rule: Rule, clause: Clause) -> ProofStep {
+    pub fn direct(activated_step: &ProofStep, rule: Rule, clause: Clause) -> ProofStep {
         // Direct implication does not add to depth.
         let depth = activated_step.depth;
         let printable = clause.is_printable();
@@ -288,7 +288,7 @@ impl ProofStep {
     }
 
     // Construct a ProofStep that is a specialization of a general pattern.
-    pub fn new_specialization(
+    pub fn specialization(
         pattern_id: usize,
         inspiration_id: usize,
         pattern_step: &ProofStep,
@@ -310,7 +310,7 @@ impl ProofStep {
     }
 
     // Construct a new ProofStep via resolution.
-    pub fn new_resolution(
+    pub fn resolution(
         long_id: usize,
         long_step: &ProofStep,
         short_id: usize,
@@ -352,7 +352,7 @@ impl ProofStep {
 
     // Create a replacement for this clause that has extra simplification rules.
     // The long step doesn't have an id because it isn't activated.
-    pub fn new_simplified(
+    pub fn simplified(
         long_step: ProofStep,
         short_steps: &[(usize, &ProofStep)],
         clause: Clause,
@@ -383,7 +383,7 @@ impl ProofStep {
 
     // Construct a new ProofStep via rewriting.
     // We are replacing a subterm of the target literal with a new subterm.
-    pub fn new_rewrite(
+    pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
         target_id: usize,
@@ -436,7 +436,7 @@ impl ProofStep {
     }
 
     // A proof step for finding a contradiction via a series of rewrites.
-    pub fn new_multiple_rewrite(
+    pub fn multiple_rewrite(
         inequality_id: usize,
         active_ids: Vec<usize>,
         passive_ids: Vec<u32>,
@@ -462,7 +462,7 @@ impl ProofStep {
     }
 
     // Assumes the provided steps are indexed by passive id, and that we use all of them.
-    pub fn new_passive_contradiction(passive_steps: &[ProofStep]) -> ProofStep {
+    pub fn passive_contradiction(passive_steps: &[ProofStep]) -> ProofStep {
         let rule = Rule::PassiveContradiction(passive_steps.len() as u32);
         let mut truthiness = Truthiness::Factual;
         let mut depth = 0;
