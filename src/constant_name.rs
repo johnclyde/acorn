@@ -46,6 +46,20 @@ impl LocalConstantName {
     pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> LocalConstantName {
         LocalConstantName::Instance(tc.clone(), attr.to_string(), class.to_string())
     }
+
+    pub fn is_qualified(&self) -> bool {
+        match self {
+            LocalConstantName::Unqualified(_) => false,
+            _ => true,
+        }
+    }
+
+    pub fn as_attribute(&self) -> Option<(&str, &str)> {
+        match self {
+            LocalConstantName::Attribute(class, attr) => Some((class, attr)),
+            _ => None,
+        }
+    }
 }
 
 // The GlobalName provides a globally unique identifier for a constant.

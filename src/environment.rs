@@ -342,41 +342,38 @@ impl Environment {
     fn add_let_statement(
         &mut self,
         project: &Project,
-        class: Option<&str>,
-        typeclass: Option<&str>,
+        constant_name: LocalConstantName,
         ls: &LetStatement,
         range: Range,
     ) -> compilation::Result<()> {
-        if class.is_none() && ls.name_token.token_type == TokenType::Numeral {
-            return Err(ls
-                .name_token
-                .error("numeric literals may not be defined outside of a class"));
-        }
         if ls.name == "self"
             || ls.name == "new"
             || ls.name == "read"
-            || (class.is_some() && TokenType::is_magic_method_name(&ls.name))
+            || (constant_name.is_qualified() && TokenType::is_magic_method_name(&ls.name))
         {
             return Err(ls.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
                 ls.name
             )));
         }
-        let name = match (class, typeclass) {
-            (Some(c), Some(tc)) => format!("{}.{}.{}", c, tc, ls.name),
-            (None, Some(tc)) => format!("{}.{}", tc, ls.name),
-            (Some(c), _) => format!("{}.{}", c, ls.name),
-            (None, None) => ls.name.clone(),
-        };
-        if self.bindings.name_in_use(&name) {
+
+        if self.bindings.constant_name_in_use(&constant_name) {
             return Err(ls.name_token.error(&format!(
                 "constant name '{}' already defined in this scope",
-                name
+                &constant_name
             )));
         }
         let acorn_type = self.bindings.evaluate_type(project, &ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
-            if acorn_type != AcornType::Data(self.module_id, class.unwrap().to_string(), vec![]) {
+            let class_name = match constant_name.as_attribute() {
+                Some((class_name, _)) => class_name.to_string(),
+                _ => {
+                    return Err(ls
+                        .name_token
+                        .error("numeric literals must be class members"))
+                }
+            };
+            if acorn_type != AcornType::Data(self.module_id, class_name, vec![]) {
                 return Err(ls
                     .type_expr
                     .error("numeric class variables must be the class type"));
@@ -390,6 +387,7 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
+        let name = constant_name.to_string();
         if let Some(value) = &value {
             if let Some((canonical_module, canonical_name)) = value.as_simple_constant() {
                 // 'let x = y' creates an alias for y, not a new constant.
@@ -1313,8 +1311,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        Some(&cs.name),
-                        None,
+                        LocalConstantName::attribute(&cs.name, &ls.name),
                         ls,
                         substatement.range(),
                     )?;
@@ -1472,8 +1469,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        Some(instance_name),
-                        Some(&typeclass.name),
+                        LocalConstantName::instance(&typeclass, &ls.name, instance_name),
                         ls,
                         substatement.range(),
                     )?;
@@ -1628,7 +1624,12 @@ impl Environment {
 
             StatementInfo::Let(ls) => {
                 self.add_other_lines(statement);
-                self.add_let_statement(project, None, None, ls, statement.range())
+                self.add_let_statement(
+                    project,
+                    LocalConstantName::unqualified(&ls.name),
+                    ls,
+                    statement.range(),
+                )
             }
 
             StatementInfo::Define(ds) => {
