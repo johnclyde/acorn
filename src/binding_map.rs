@@ -405,8 +405,15 @@ impl BindingMap {
     }
 
     // Checks against names for both types and typeclasses because they can conflict.
-    pub fn typename_in_use(&self, name: &str) -> bool {
-        self.typename_to_type.contains_key(name) || self.name_to_typeclass.contains_key(name)
+    pub fn check_typename_available(
+        &self,
+        source: &dyn ErrorSource,
+        name: &str,
+    ) -> compilation::Result<()> {
+        if self.typename_to_type.contains_key(name) || self.name_to_typeclass.contains_key(name) {
+            return Err(source.error(&format!("name {} is already in use", name)));
+        }
+        Ok(())
     }
 
     // Adds both directions for a name <-> type correspondence.

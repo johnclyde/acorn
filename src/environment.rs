@@ -774,9 +774,8 @@ impl Environment {
             statement.first_line(),
             ss.first_right_brace.line_number,
         );
-        if self.bindings.typename_in_use(&ss.name) {
-            return Err(statement.error("type name already defined in this scope"));
-        }
+        self.bindings
+            .check_typename_available(statement, &ss.name)?;
 
         let mut arbitrary_params = vec![];
         let type_params = self
@@ -1003,9 +1002,8 @@ impl Environment {
         is: &InductiveStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        if self.bindings.typename_in_use(&is.name) {
-            return Err(statement.error("type name already defined in this scope"));
-        }
+        self.bindings
+            .check_typename_available(statement, &is.name)?;
         let range = Range {
             start: statement.first_token.start_pos(),
             end: is.name_token.end_pos(),
@@ -1333,13 +1331,11 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let instance_name = ts.instance_name.text();
-        if self.bindings.typename_in_use(instance_name) {
-            return Err(statement.error(&format!("{} already defined", instance_name)));
-        }
+        self.bindings
+            .check_typename_available(statement, instance_name)?;
         let typeclass_name = ts.typeclass_name.text();
-        if self.bindings.typename_in_use(typeclass_name) {
-            return Err(statement.error(&format!("{} is already defined", typeclass_name)));
-        }
+        self.bindings
+            .check_typename_available(statement, typeclass_name)?;
         let typeclass = Typeclass {
             module_id: self.module_id,
             name: typeclass_name.to_string(),
@@ -1595,12 +1591,8 @@ impl Environment {
         match &statement.statement {
             StatementInfo::Type(ts) => {
                 self.add_other_lines(statement);
-                if self.bindings.typename_in_use(&ts.name) {
-                    return Err(statement.error(&format!(
-                        "type name '{}' already defined in this scope",
-                        ts.name
-                    )));
-                }
+                self.bindings
+                    .check_typename_available(statement, &ts.name)?;
                 if ts.type_expr.is_axiom() {
                     self.bindings.add_potential_type(&ts.name, vec![]);
                 } else {
