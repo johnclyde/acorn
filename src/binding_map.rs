@@ -140,6 +140,10 @@ struct ConstantInfo {
     // These type parameters can be used in the definition.
     params: Vec<TypeParam>,
 
+    // The value for this constant. Not the definition, but the constant itself.
+    // If this is a generic constant, this value is unresolved.
+    value: PotentialValue,
+
     // The definition of this constant, if it has one.
     definition: Option<AcornValue>,
 
@@ -411,33 +415,23 @@ impl BindingMap {
 
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
-    // Returns None if this name does not refer to a constant.
-    pub fn get_constant_value(
+    pub fn get_constant_value<'a>(
         &self,
         source: &dyn ErrorSource,
         name: &LocalConstantName,
     ) -> compilation::Result<PotentialValue> {
         let string_name = name.to_string();
-        let constant_type = match self.constant_name_to_type.get(&string_name) {
-            Some(t) => t.clone(),
-            None => {
-                return Err(source.error(&format!("constant {} not found", name)));
-            }
-        };
 
-        // Aliases
+        // Look for aliases
         if let Some(pv) = self.alias_to_canonical.get(&string_name) {
             return Ok(pv.clone());
         }
 
-        // Constants defined in this module
-        let params = self.constant_info.get(&string_name).unwrap().params.clone();
-        Ok(PotentialValue::constant(
-            self.module,
-            name,
-            constant_type,
-            params,
-        ))
+        // Look at constants defined in this module
+        match self.constant_info.get(&string_name) {
+            Some(info) => Ok(info.value.clone()),
+            None => Err(source.error(&format!("constant {} not found", name))),
+        }
     }
 
     // Gets the type for an identifier, not for a type name.
@@ -528,12 +522,16 @@ impl BindingMap {
             panic!("there should not be arbitrary types in parametrized constant types");
         }
 
+        let value =
+            PotentialValue::constant(self.module, name, constant_type.clone(), params.clone());
+
         self.constant_name_to_type
             .insert(name.to_string(), constant_type)
             .map(|_| panic!("constant name {} already bound", name));
 
         let info = ConstantInfo {
             params,
+            value,
             definition,
             constructor,
         };
