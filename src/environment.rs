@@ -410,13 +410,14 @@ impl Environment {
 
     // Adds a "define" statement to the environment, that may be within a class block.
     //
-    // For a parametrized class, class_info should contain:
-    //   The class name.
-    //   The class type, parametrized with arbitrary types if the class is generic.
+    // The self type is the type of the "self" variable. If it's None, there can't be a self.
+    //
+    // The class params are the parameters for the overall class statement, if we are within one.
+    // They will become the parameters of the newly defined function.
     fn add_define_statement(
         &mut self,
         project: &Project,
-        class_name: Option<&str>,
+        constant_name: LocalConstantName,
         self_type: Option<&AcornType>,
         class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
@@ -433,16 +434,12 @@ impl Environment {
                 .name_token
                 .error("parametrized functions may only be defined at the top level"));
         }
-        let name = if let Some(class_name) = &class_name {
-            if !ds.type_params.is_empty() {
-                return Err(ds
-                    .name_token
-                    .error("member functions may not have type parameters"));
-            }
-            format!("{}.{}", class_name, ds.name)
-        } else {
-            ds.name.clone()
-        };
+        if self_type.is_some() && !ds.type_params.is_empty() {
+            return Err(ds
+                .name_token
+                .error("member functions may not have type parameters"));
+        }
+        let name = constant_name.to_string();
         if self.bindings.name_in_use(&name) {
             return Err(ds.name_token.error(&format!(
                 "function name '{}' already defined in this scope",
@@ -1317,7 +1314,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        Some(&cs.name),
+                        LocalConstantName::attribute(&cs.name, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1461,7 +1458,6 @@ impl Environment {
         };
         self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
-        let scope_name = format!("{}.{}", instance_name, typeclass.name);
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
         for substatement in &is.definitions.statements {
@@ -1489,7 +1485,7 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        Some(&scope_name),
+                        LocalConstantName::instance(&typeclass, &ds.name, instance_name),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1636,7 +1632,14 @@ impl Environment {
 
             StatementInfo::Define(ds) => {
                 self.add_other_lines(statement);
-                self.add_define_statement(project, None, None, None, ds, statement.range())
+                self.add_define_statement(
+                    project,
+                    LocalConstantName::unqualified(&ds.name),
+                    None,
+                    None,
+                    ds,
+                    statement.range(),
+                )
             }
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
