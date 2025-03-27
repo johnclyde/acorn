@@ -34,6 +34,20 @@ impl fmt::Display for LocalConstantName {
     }
 }
 
+impl LocalConstantName {
+    pub fn unqualified(name: &str) -> LocalConstantName {
+        LocalConstantName::Unqualified(name.to_string())
+    }
+
+    pub fn attribute(class: &str, attr: &str) -> LocalConstantName {
+        LocalConstantName::Attribute(class.to_string(), attr.to_string())
+    }
+
+    pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> LocalConstantName {
+        LocalConstantName::Instance(tc.clone(), attr.to_string(), class.to_string())
+    }
+}
+
 // The GlobalName provides a globally unique identifier for a constant.
 pub struct GlobalConstantName {
     pub module_id: ModuleId,

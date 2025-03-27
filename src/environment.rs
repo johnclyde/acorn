@@ -1535,11 +1535,7 @@ impl Environment {
                 continue;
             }
 
-            let name = LocalConstantName::Instance(
-                typeclass.clone(),
-                attr_name.to_string(),
-                instance_name.to_string(),
-            );
+            let name = LocalConstantName::instance(&typeclass, attr_name, instance_name);
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
