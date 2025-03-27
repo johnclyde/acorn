@@ -373,13 +373,6 @@ impl BindingMap {
     // Simple helper functions.
     ////////////////////////////////////////////////////////////////////////////////
 
-    pub fn name_in_use(&self, name: &str) -> bool {
-        self.typename_to_type.contains_key(name)
-            || self.name_to_typeclass.contains_key(name)
-            || self.constant_name_to_type.contains_key(name)
-            || self.name_to_module.contains_key(name)
-    }
-
     pub fn check_constant_name_available(
         &self,
         source: &dyn ErrorSource,
@@ -751,11 +744,12 @@ impl BindingMap {
 
     // Be really careful about this, it seems likely to break things.
     fn remove_constant(&mut self, name: &str) {
-        if !self.name_in_use(name) {
-            panic!("removing constant {} which is already not present", name);
-        }
-        self.constant_name_to_type.remove(name);
-        self.constant_info.remove(name);
+        self.constant_name_to_type
+            .remove(name)
+            .expect("constant name not in use");
+        self.constant_info
+            .remove(name)
+            .expect("constant name not in use");
     }
 
     // Adds a local alias for an already-existing constant value.
