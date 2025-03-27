@@ -136,10 +136,6 @@ impl Stack {
 // Information that the BindingMap stores about a constant.
 #[derive(Clone)]
 struct ConstantInfo {
-    // The type parameters this constant was defined with, if any.
-    // These type parameters can be used in the definition.
-    params: Vec<TypeParam>,
-
     // The value for this constant. Not the definition, but the constant itself.
     // If this is a generic constant, this value is unresolved.
     value: PotentialValue,
@@ -443,7 +439,7 @@ impl BindingMap {
 
     pub fn get_params(&self, identifier: &str) -> Vec<TypeParam> {
         match self.constant_info.get(identifier) {
-            Some(info) => info.params.clone(),
+            Some(info) => info.value.unresolved_params().to_vec(),
             None => vec![],
         }
     }
@@ -479,7 +475,7 @@ impl BindingMap {
     // Returns None if there is no definition.
     pub fn get_definition_and_params(&self, name: &str) -> Option<(&AcornValue, &[TypeParam])> {
         let info = self.constant_info.get(name)?;
-        Some((info.definition.as_ref()?, &info.params))
+        Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
     // All other modules that we directly depend on, besides this one.
@@ -530,7 +526,6 @@ impl BindingMap {
             .map(|_| panic!("constant name {} already bound", name));
 
         let info = ConstantInfo {
-            params,
             value,
             definition,
             constructor,

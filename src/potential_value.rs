@@ -5,6 +5,8 @@ use crate::constant_name::LocalConstantName;
 use crate::module::ModuleId;
 use crate::unresolved_constant::UnresolvedConstant;
 
+pub static EMPTY_TYPE_PARAMS: [TypeParam; 0] = [];
+
 // Could be a value, but could also be an unresolved constant.
 #[derive(Debug, Clone)]
 pub enum PotentialValue {
@@ -41,6 +43,14 @@ impl PotentialValue {
         match &self {
             PotentialValue::Unresolved(u) => u.generic_type.clone(),
             PotentialValue::Resolved(v) => v.get_type(),
+        }
+    }
+
+    // Gets the unresolved parameters, if this is unresolved.
+    pub fn unresolved_params(&self) -> &[TypeParam] {
+        match &self {
+            PotentialValue::Unresolved(u) => &u.params,
+            PotentialValue::Resolved(_) => &EMPTY_TYPE_PARAMS,
         }
     }
 
