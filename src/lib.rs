@@ -25,6 +25,7 @@ pub mod live_document;
 pub mod module;
 pub mod module_cache;
 pub mod monomorphizer;
+pub mod names;
 pub mod normalizer;
 pub mod ort_model;
 pub mod passive_set;
