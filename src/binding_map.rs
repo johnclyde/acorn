@@ -417,8 +417,8 @@ impl BindingMap {
         source: &dyn ErrorSource,
         name: &LocalConstantName,
     ) -> compilation::Result<PotentialValue> {
-        let name = name.to_string();
-        let constant_type = match self.constant_name_to_type.get(&name) {
+        let string_name = name.to_string();
+        let constant_type = match self.constant_name_to_type.get(&string_name) {
             Some(t) => t.clone(),
             None => {
                 return Err(source.error(&format!("constant {} not found", name)));
@@ -426,27 +426,18 @@ impl BindingMap {
         };
 
         // Aliases
-        if let Some(pv) = self.alias_to_canonical.get(&name) {
+        if let Some(pv) = self.alias_to_canonical.get(&string_name) {
             return Ok(pv.clone());
         }
 
-        // Constants defined here
-        let params = self.constant_info.get(&name).unwrap().params.clone();
-        if params.is_empty() {
-            Ok(PotentialValue::Resolved(AcornValue::new_constant(
-                self.module,
-                name.to_string(),
-                vec![],
-                constant_type,
-            )))
-        } else {
-            Ok(PotentialValue::Unresolved(UnresolvedConstant {
-                module_id: self.module,
-                name: name.to_string(),
-                params,
-                generic_type: constant_type,
-            }))
-        }
+        // Constants defined in this module
+        let params = self.constant_info.get(&string_name).unwrap().params.clone();
+        Ok(PotentialValue::constant(
+            self.module,
+            name,
+            constant_type,
+            params,
+        ))
     }
 
     // Gets the type for an identifier, not for a type name.

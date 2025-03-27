@@ -1,6 +1,8 @@
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
+use crate::constant_name::LocalConstantName;
+use crate::module::ModuleId;
 use crate::unresolved_constant::UnresolvedConstant;
 
 // Could be a value, but could also be an unresolved constant.
@@ -51,6 +53,30 @@ impl PotentialValue {
             PotentialValue::Resolved(v) => {
                 Err(source.error(&format!("expected unresolved value, but found {}", v)))
             }
+        }
+    }
+
+    // Create a constant. Can be unresolved, in which case we need params.
+    pub fn constant(
+        module_id: ModuleId,
+        name: &LocalConstantName,
+        constant_type: AcornType,
+        params: Vec<TypeParam>,
+    ) -> PotentialValue {
+        if params.is_empty() {
+            PotentialValue::Resolved(AcornValue::new_constant(
+                module_id,
+                name.to_string(),
+                vec![],
+                constant_type,
+            ))
+        } else {
+            PotentialValue::Unresolved(UnresolvedConstant {
+                module_id,
+                name: name.to_string(),
+                params,
+                generic_type: constant_type,
+            })
         }
     }
 }
