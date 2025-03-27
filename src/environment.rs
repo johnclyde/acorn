@@ -1348,15 +1348,19 @@ impl Environment {
         };
         self.bindings.add_arbitrary_type(type_param.clone());
 
-        for (constant_name, type_expr) in &ts.constants {
+        for (attr_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.to_generic();
-            let full_name = format!("{}.{}", typeclass_name, constant_name);
-            if self.bindings.name_in_use(&full_name) {
-                return Err(statement.error(&format!("{} is already defined", full_name)));
-            }
+            let constant_name = LocalConstantName::attribute(typeclass_name, attr_name.text());
             self.bindings
-                .add_constant(&full_name, vec![type_param.clone()], var_type, None, None);
+                .check_constant_name_available(attr_name, &constant_name)?;
+            self.bindings.add_constant(
+                &constant_name.to_string(),
+                vec![type_param.clone()],
+                var_type,
+                None,
+                None,
+            );
         }
 
         for condition in &ts.conditions {
@@ -1367,13 +1371,12 @@ impl Environment {
                 start: condition.name.start_pos(),
                 end: condition.claim.last_token().end_pos(),
             };
-            let full_name = format!("{}.{}", typeclass_name, condition.name.text());
-            if self.bindings.name_in_use(&full_name) {
-                return Err(condition
-                    .name
-                    .error(&format!("{} is already defined", full_name)));
-            }
-            self.definition_ranges.insert(full_name.clone(), range);
+            let condition_name =
+                LocalConstantName::attribute(&typeclass_name, &condition.name.text());
+            self.bindings
+                .check_constant_name_available(&condition.name, &condition_name)?;
+            self.definition_ranges
+                .insert(condition_name.to_string(), range);
 
             let (bad_params, _, arg_types, unbound_claim, _) =
                 self.bindings.evaluate_scoped_value(
@@ -1398,6 +1401,7 @@ impl Environment {
             let lambda_claim =
                 AcornValue::new_lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
             let theorem_type = lambda_claim.get_type();
+            let full_name = condition_name.to_string();
             self.bindings.add_constant(
                 &full_name,
                 vec![type_param.clone()],
