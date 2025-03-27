@@ -8,7 +8,7 @@ use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
-use crate::compilation::{self, Error, ErrorSource};
+use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::constant_name::LocalConstantName;
 use crate::fact::Fact;
 use crate::module::ModuleId;
@@ -854,7 +854,10 @@ impl Environment {
                 None,
                 None,
             );
-            member_fns.push(self.bindings.get_constant_value(&member_fn_name).unwrap());
+            member_fns.push(
+                self.bindings
+                    .get_constant_value(&PanicOnError, &member_fn_name)?,
+            );
         }
 
         // A "new" function to create one of these struct types.
@@ -867,7 +870,9 @@ impl Environment {
             None,
             Some((struct_type.clone(), 0, 1)),
         );
-        let new_fn = self.bindings.get_constant_value(&new_fn_name).unwrap();
+        let new_fn = self
+            .bindings
+            .get_constant_value(&PanicOnError, &new_fn_name)?;
 
         // Each object of this new type has certain properties.
         let object_var = AcornValue::Variable(0, struct_type.clone());
@@ -1051,8 +1056,7 @@ impl Environment {
             );
             constructor_fns.push(
                 self.bindings
-                    .get_constant_value(constructor_name)
-                    .unwrap()
+                    .get_constant_value(&PanicOnError, constructor_name)?
                     .force_value(),
             );
         }

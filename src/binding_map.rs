@@ -558,23 +558,14 @@ impl BindingMap {
         attr_name: &str,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
         let typeclass_attr_name = LocalConstantName::attribute(&typeclass.name, attr_name);
-        let typeclass_attr = match self
+        let typeclass_attr = self
             .get_bindings(&project, typeclass.module_id)
-            .get_constant_value(&typeclass_attr_name)
-        {
-            Some(v) => v,
-            None => {
-                return Err(source.error(&format!(
-                    "typeclass '{}' does not have an attribute '{}'",
-                    typeclass.name, attr_name
-                )));
-            }
-        };
+            .get_constant_value(source, &typeclass_attr_name)?;
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
         let instance_attr_name = LocalConstantName::instance(&typeclass, attr_name, instance_name);
-        let instance_attr = self.get_constant_value(&instance_attr_name).unwrap();
+        let instance_attr = self.get_constant_value(source, &instance_attr_name)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
         if instance_attr_type != resolved_attr_type {
@@ -599,29 +590,43 @@ impl BindingMap {
         }
     }
 
+    fn has_constant_value(&self, name: &LocalConstantName) -> bool {
+        let name = name.to_string();
+        self.constant_name_to_type.contains_key(&name)
+    }
+
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
-    pub fn get_constant_value(&self, name: &LocalConstantName) -> Option<PotentialValue> {
+    pub fn get_constant_value(
+        &self,
+        source: &dyn ErrorSource,
+        name: &LocalConstantName,
+    ) -> compilation::Result<PotentialValue> {
         let name = name.to_string();
-        let constant_type = self.constant_name_to_type.get(&name)?.clone();
+        let constant_type = match self.constant_name_to_type.get(&name) {
+            Some(t) => t.clone(),
+            None => {
+                return Err(source.error(&format!("constant {} not found", name)));
+            }
+        };
 
         // Aliases
         if let Some(pv) = self.alias_to_canonical.get(&name) {
-            return Some(pv.clone());
+            return Ok(pv.clone());
         }
 
         // Constants defined here
-        let params = self.constant_info.get(&name)?.params.clone();
+        let params = self.constant_info.get(&name).unwrap().params.clone();
         if params.is_empty() {
-            Some(PotentialValue::Resolved(AcornValue::new_constant(
+            Ok(PotentialValue::Resolved(AcornValue::new_constant(
                 self.module,
                 name.to_string(),
                 vec![],
                 constant_type,
             )))
         } else {
-            Some(PotentialValue::Unresolved(UnresolvedConstant {
+            Ok(PotentialValue::Unresolved(UnresolvedConstant {
                 module_id: self.module,
                 name: name.to_string(),
                 params,
@@ -1260,15 +1265,10 @@ impl BindingMap {
         type_name: &str,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if let Some(nc) = self.evaluate_type_attribute(project, module, type_name, s) {
-            match nc {
-                PotentialValue::Resolved(value) => return Ok(value),
-                PotentialValue::Unresolved(_) => {
-                    return Err(
-                        token.error(&format!("number {}.{} has unresolved type", type_name, s))
-                    );
-                }
-            }
+        if self.has_type_attribute(project, module, type_name, s) {
+            return self
+                .evaluate_type_attribute(token, project, module, type_name, s)?
+                .as_value(token);
         }
 
         if s.len() == 1 {
@@ -1281,40 +1281,52 @@ impl BindingMap {
         let initial_str = &s[..s.len() - 1];
         let initial_num =
             self.evaluate_number_with_type(token, project, module, type_name, initial_str)?;
-        let read_fn = match self.evaluate_type_attribute(project, module, type_name, "read") {
-            Some(PotentialValue::Resolved(f)) => f,
-            Some(PotentialValue::Unresolved(_)) => {
-                return Err(token.error(&format!(
-                    "read function {}.read has unresolved type",
-                    type_name
-                )))
-            }
-            None => {
-                return Err(token.error(&format!(
-                    "{}.read must be defined to read numeric literals",
-                    type_name
-                )))
-            }
-        };
+        let read_fn =
+            match self.evaluate_type_attribute(token, project, module, type_name, "read")? {
+                PotentialValue::Resolved(f) => f,
+                PotentialValue::Unresolved(_) => {
+                    return Err(token.error(&format!(
+                        "read function {}.read has unresolved type",
+                        type_name
+                    )))
+                }
+            };
         let value = AcornValue::new_apply(read_fn, vec![initial_num, last_num]);
         Ok(value)
     }
 
-    // Evaluates a name scoped by a class or typeclass name, like MyClass.foo
-    fn evaluate_type_attribute(
+    fn has_type_attribute(
         &self,
         project: &Project,
         module: ModuleId,
         type_name: &str,
         var_name: &str,
-    ) -> Option<PotentialValue> {
+    ) -> bool {
         let bindings = if module == self.module {
             &self
         } else {
             project.get_bindings(module).unwrap()
         };
         let constant_name = LocalConstantName::attribute(type_name, var_name);
-        bindings.get_constant_value(&constant_name)
+        bindings.has_constant_value(&constant_name)
+    }
+
+    // Evaluates a name scoped by a class or typeclass name, like MyClass.foo
+    fn evaluate_type_attribute(
+        &self,
+        source: &dyn ErrorSource,
+        project: &Project,
+        module: ModuleId,
+        type_name: &str,
+        var_name: &str,
+    ) -> compilation::Result<PotentialValue> {
+        let bindings = if module == self.module {
+            &self
+        } else {
+            project.get_bindings(module).unwrap()
+        };
+        let constant_name = LocalConstantName::attribute(type_name, var_name);
+        bindings.get_constant_value(source, &constant_name)
     }
 
     // Evaluates an expression that is supposed to describe a value, with an empty stack.
@@ -1360,13 +1372,9 @@ impl BindingMap {
             }
         };
         let constant_name = LocalConstantName::attribute(type_name, attr_name);
-        let function = match self
+        let function = self
             .get_bindings(&project, module)
-            .get_constant_value(&constant_name)
-        {
-            Some(f) => f,
-            None => return Err(source.error(&format!("unknown attribute '{}'", constant_name))),
-        };
+            .get_constant_value(source, &constant_name)?;
         self.apply_potential(source, project, function, vec![instance], None)
     }
 
@@ -1400,8 +1408,10 @@ impl BindingMap {
                             )?;
                             return Ok(NamedEntity::Value(value));
                         }
-                        match self.evaluate_type_attribute(project, *module, &type_name, name) {
-                            Some(PotentialValue::Resolved(value)) => {
+                        match self.evaluate_type_attribute(
+                            name_token, project, *module, &type_name, name,
+                        )? {
+                            PotentialValue::Resolved(value) => {
                                 if !params.is_empty() {
                                     return Err(
                                         name_token.error("unexpected double type resolution")
@@ -1409,7 +1419,7 @@ impl BindingMap {
                                 }
                                 Ok(NamedEntity::Value(value))
                             }
-                            Some(PotentialValue::Unresolved(u)) => {
+                            PotentialValue::Unresolved(u) => {
                                 if params.is_empty() {
                                     // Leave it unresolved
                                     Ok(NamedEntity::UnresolvedValue(u))
@@ -1419,30 +1429,23 @@ impl BindingMap {
                                     Ok(NamedEntity::Value(value))
                                 }
                             }
-                            None => Err(name_token.error(&format!(
-                                "{} has no attribute named '{}'",
-                                type_name, name
-                            ))),
                         }
                     }
                     AcornType::Arbitrary(param) if param.typeclass.is_some() => {
                         let typeclass = param.typeclass.as_ref().unwrap();
                         match self.evaluate_type_attribute(
+                            name_token,
                             project,
                             typeclass.module_id,
                             &typeclass.name,
                             name,
-                        ) {
-                            Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                            Some(PotentialValue::Unresolved(u)) => {
+                        )? {
+                            PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
+                            PotentialValue::Unresolved(u) => {
                                 // Resolve it with the arbitrary type itself
                                 let value = u.resolve(name_token, vec![t.clone()])?;
                                 Ok(NamedEntity::Value(value))
                             }
-                            None => Err(name_token.error(&format!(
-                                "{} has no attribute named '{}'",
-                                typeclass.name, name
-                            ))),
                         }
                     }
                     _ => Err(name_token.error("this type cannot have attributes")),
@@ -1456,26 +1459,30 @@ impl BindingMap {
                 }
             }
             Some(NamedEntity::Typeclass(tc)) => {
-                match self.evaluate_type_attribute(project, tc.module_id, &tc.name, name) {
-                    Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                    Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
-                    None => {
-                        Err(name_token
-                            .error(&format!("{} has no attribute named '{}'", tc.name, name)))
-                    }
+                match self.evaluate_type_attribute(
+                    name_token,
+                    project,
+                    tc.module_id,
+                    &tc.name,
+                    name,
+                )? {
+                    PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
+                    PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
                 }
             }
             Some(NamedEntity::UnresolvedValue(_)) => {
                 Err(name_token.error("cannot access members of unresolved types"))
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_type_attribute(project, ut.module_id, &ut.name, name) {
-                    Some(PotentialValue::Resolved(value)) => Ok(NamedEntity::Value(value)),
-                    Some(PotentialValue::Unresolved(u)) => Ok(NamedEntity::UnresolvedValue(u)),
-                    None => {
-                        Err(name_token
-                            .error(&format!("{} has no attribute named '{}'", ut.name, name)))
-                    }
+                match self.evaluate_type_attribute(
+                    name_token,
+                    project,
+                    ut.module_id,
+                    &ut.name,
+                    name,
+                )? {
+                    PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
+                    PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
                 }
             }
             None => {
@@ -1504,11 +1511,9 @@ impl BindingMap {
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
                         } else {
                             let constant_name = LocalConstantName::unqualified(name);
-                            if let Some(potential) = self.get_constant_value(&constant_name) {
-                                Ok(potential.to_named_entity())
-                            } else {
-                                Err(name_token.error(&format!("unknown identifier '{}'", name)))
-                            }
+                            Ok(self
+                                .get_constant_value(name_token, &constant_name)?
+                                .to_named_entity())
                         }
                     }
                     TokenType::Numeral => {

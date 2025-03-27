@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::compilation::{self, ErrorSource};
+use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::constant_name::LocalConstantName;
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
@@ -137,16 +137,14 @@ impl Block {
                 None
             }
             BlockParams::Theorem(theorem_name, theorem_range, premise, unbound_goal) => {
-                let arg_values = args
-                    .iter()
-                    .map(|(name, _)| {
-                        subenv
-                            .bindings
-                            .get_constant_value(&LocalConstantName::unqualified(name))
-                            .unwrap()
-                            .force_value()
-                    })
-                    .collect::<Vec<_>>();
+                let mut arg_values = vec![];
+                for (name, _) in &args {
+                    let arg_value = subenv
+                        .bindings
+                        .get_constant_value(&PanicOnError, &LocalConstantName::unqualified(name))?
+                        .force_value();
+                    arg_values.push(arg_value);
+                }
 
                 if let Some(name) = theorem_name {
                     // Within the theorem block, the theorem is treated like a function,
@@ -179,16 +177,14 @@ impl Block {
             }
             BlockParams::FunctionSatisfy(unbound_goal, return_type, range) => {
                 // In the block, we need to prove this goal in bound form, so bind args to it.
-                let arg_values = args
-                    .iter()
-                    .map(|(name, _)| {
-                        subenv
-                            .bindings
-                            .get_constant_value(&LocalConstantName::unqualified(name))
-                            .unwrap()
-                            .force_value()
-                    })
-                    .collect::<Vec<_>>();
+                let mut arg_values = vec![];
+                for (name, _) in &args {
+                    let arg_value = subenv
+                        .bindings
+                        .get_constant_value(&PanicOnError, &LocalConstantName::unqualified(name))?
+                        .force_value();
+                    arg_values.push(arg_value);
+                }
                 // The partial goal has variables 0..args.len() bound to the block's args,
                 // but there is one last variable that needs to be existentially quantified.
                 let partial_goal = unbound_goal.bind_values(0, 0, &arg_values);
@@ -207,8 +203,10 @@ impl Block {
                     arg_values.push(
                         subenv
                             .bindings
-                            .get_constant_value(&LocalConstantName::unqualified(&arg_name))
-                            .unwrap()
+                            .get_constant_value(
+                                &PanicOnError,
+                                &LocalConstantName::unqualified(&arg_name),
+                            )?
                             .force_value(),
                     );
                 }
