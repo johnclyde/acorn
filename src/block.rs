@@ -7,6 +7,7 @@ use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
+use crate::constant_name::LocalConstantName;
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -141,7 +142,7 @@ impl Block {
                     .map(|(name, _)| {
                         subenv
                             .bindings
-                            .get_constant_value(name)
+                            .get_constant_value(&LocalConstantName::unqualified(name))
                             .unwrap()
                             .force_value()
                     })
@@ -183,7 +184,7 @@ impl Block {
                     .map(|(name, _)| {
                         subenv
                             .bindings
-                            .get_constant_value(name)
+                            .get_constant_value(&LocalConstantName::unqualified(name))
                             .unwrap()
                             .force_value()
                     })
@@ -206,7 +207,7 @@ impl Block {
                     arg_values.push(
                         subenv
                             .bindings
-                            .get_constant_value(&arg_name)
+                            .get_constant_value(&LocalConstantName::unqualified(&arg_name))
                             .unwrap()
                             .force_value(),
                     );

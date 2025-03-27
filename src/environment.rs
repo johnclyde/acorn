@@ -800,7 +800,7 @@ impl Environment {
                     field_name_token.text()
                 )));
             }
-            let member_fn_name = format!("{}.{}", ss.name, field_name_token.text());
+            let member_fn_name = LocalConstantName::attribute(&ss.name, field_name_token.text());
             member_fn_names.push(member_fn_name);
         }
 
@@ -848,7 +848,7 @@ impl Environment {
             let member_fn_type =
                 AcornType::new_functional(vec![struct_type.clone()], field_type.clone());
             self.bindings.add_constant(
-                &member_fn_name,
+                &member_fn_name.to_string(),
                 type_params.clone(),
                 member_fn_type.to_generic(),
                 None,
@@ -858,10 +858,10 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
-        let new_fn_name = format!("{}.new", ss.name);
+        let new_fn_name = LocalConstantName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::new_functional(field_types.clone(), struct_type.clone());
         self.bindings.add_constant(
-            &new_fn_name,
+            &new_fn_name.to_string(),
             type_params.clone(),
             new_fn_type.to_generic(),
             None,
@@ -1029,7 +1029,7 @@ impl Environment {
                 // This provides a base case
                 has_base = true;
             }
-            let member_name = format!("{}.{}", is.name, name_token.text());
+            let member_name = LocalConstantName::attribute(&is.name, name_token.text());
             constructors.push((member_name, type_list));
         }
         if !has_base {
@@ -1043,7 +1043,7 @@ impl Environment {
             let constructor_type =
                 AcornType::new_functional(type_list.clone(), inductive_type.clone());
             self.bindings.add_constant(
-                constructor_name,
+                &constructor_name.to_string(),
                 vec![],
                 constructor_type,
                 None,

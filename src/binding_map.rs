@@ -557,8 +557,7 @@ impl BindingMap {
         typeclass: &Typeclass,
         attr_name: &str,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
-        let scope_name = format!("{}.{}", instance_name, typeclass.name);
-        let typeclass_attr_name = format!("{}.{}", typeclass.name, attr_name);
+        let typeclass_attr_name = LocalConstantName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = match self
             .get_bindings(&project, typeclass.module_id)
             .get_constant_value(&typeclass_attr_name)
@@ -574,7 +573,7 @@ impl BindingMap {
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
-        let instance_attr_name = format!("{}.{}", scope_name, attr_name);
+        let instance_attr_name = LocalConstantName::instance(&typeclass, attr_name, instance_name);
         let instance_attr = self.get_constant_value(&instance_attr_name).unwrap();
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
@@ -603,16 +602,17 @@ impl BindingMap {
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
-    pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
-        let constant_type = self.constant_name_to_type.get(name)?.clone();
+    pub fn get_constant_value(&self, name: &LocalConstantName) -> Option<PotentialValue> {
+        let name = name.to_string();
+        let constant_type = self.constant_name_to_type.get(&name)?.clone();
 
         // Aliases
-        if let Some(pv) = self.alias_to_canonical.get(name) {
+        if let Some(pv) = self.alias_to_canonical.get(&name) {
             return Some(pv.clone());
         }
 
         // Constants defined here
-        let params = self.constant_info.get(name)?.params.clone();
+        let params = self.constant_info.get(&name)?.params.clone();
         if params.is_empty() {
             Some(PotentialValue::Resolved(AcornValue::new_constant(
                 self.module,
@@ -1313,7 +1313,7 @@ impl BindingMap {
         } else {
             project.get_bindings(module).unwrap()
         };
-        let constant_name = format!("{}.{}", type_name, var_name);
+        let constant_name = LocalConstantName::attribute(type_name, var_name);
         bindings.get_constant_value(&constant_name)
     }
 
@@ -1334,7 +1334,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
         project: &Project,
         instance: AcornValue,
-        name: &str,
+        attr_name: &str,
     ) -> compilation::Result<AcornValue> {
         let base_type = instance.get_type();
 
@@ -1359,7 +1359,7 @@ impl BindingMap {
                 )));
             }
         };
-        let constant_name = format!("{}.{}", type_name, name);
+        let constant_name = LocalConstantName::attribute(type_name, attr_name);
         let function = match self
             .get_bindings(&project, module)
             .get_constant_value(&constant_name)
@@ -1502,10 +1502,13 @@ impl BindingMap {
                         } else if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
-                        } else if let Some(potential) = self.get_constant_value(name) {
-                            Ok(potential.to_named_entity())
                         } else {
-                            Err(name_token.error(&format!("unknown identifier '{}'", name)))
+                            let constant_name = LocalConstantName::unqualified(name);
+                            if let Some(potential) = self.get_constant_value(&constant_name) {
+                                Ok(potential.to_named_entity())
+                            } else {
+                                Err(name_token.error(&format!("unknown identifier '{}'", name)))
+                            }
                         }
                     }
                     TokenType::Numeral => {
