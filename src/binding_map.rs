@@ -209,12 +209,6 @@ impl PotentialValue {
         }
     }
 
-    fn to_named_entity(self) -> NamedEntity {
-        match self {
-            PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
-            PotentialValue::Resolved(v) => NamedEntity::Value(v),
-        }
-    }
 
     // If this is an unresolved value, it will have a generic type.
     pub fn get_type(&self) -> AcornType {
@@ -297,6 +291,14 @@ enum NamedEntity {
 }
 
 impl NamedEntity {
+    // Create a new NamedEntity from a PotentialValue
+    pub fn new(value: PotentialValue) -> Self {
+        match value {
+            PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
+            PotentialValue::Resolved(v) => NamedEntity::Value(v),
+        }
+    }
+
     // Convert this entity into a PotentialValue, erroring if it's not the right sort of entity.
     fn expect_potential_value(
         self,
@@ -1511,9 +1513,9 @@ impl BindingMap {
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
                         } else {
                             let constant_name = LocalConstantName::unqualified(name);
-                            Ok(self
-                                .get_constant_value(name_token, &constant_name)?
-                                .to_named_entity())
+                            Ok(NamedEntity::new(
+                                self.get_constant_value(name_token, &constant_name)?
+                            ))
                         }
                     }
                     TokenType::Numeral => {
