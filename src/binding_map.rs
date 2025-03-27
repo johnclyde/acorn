@@ -380,17 +380,27 @@ impl BindingMap {
             || self.name_to_module.contains_key(name)
     }
 
+    pub fn check_constant_name_available(
+        &self,
+        source: &dyn ErrorSource,
+        name: &LocalConstantName,
+    ) -> compilation::Result<()> {
+        if self.constant_name_in_use(&name) {
+            return Err(source.error(&format!("constant name {} is already in use", name)));
+        }
+        Ok(())
+    }
+
     // Returns an error if this name is already in use.
     pub fn check_unqualified_name_available(
         &self,
         source: &dyn ErrorSource,
         name: &str,
     ) -> compilation::Result<()> {
-        let name = LocalConstantName::Unqualified(name.to_string());
-        if self.constant_name_in_use(&name) {
-            return Err(source.error(&format!("name {} is already in use", name)));
-        }
-        Ok(())
+        self.check_constant_name_available(
+            source,
+            &LocalConstantName::Unqualified(name.to_string()),
+        )
     }
 
     pub fn constant_name_in_use(&self, name: &LocalConstantName) -> bool {
@@ -411,7 +421,7 @@ impl BindingMap {
         name: &str,
     ) -> compilation::Result<()> {
         if self.typename_to_type.contains_key(name) || self.name_to_typeclass.contains_key(name) {
-            return Err(source.error(&format!("name {} is already in use", name)));
+            return Err(source.error(&format!("typename {} is already in use", name)));
         }
         Ok(())
     }
@@ -431,7 +441,7 @@ impl BindingMap {
                 entry.insert(potential_type);
             }
             std::collections::btree_map::Entry::Occupied(entry) => {
-                panic!("type name {} already bound", entry.key());
+                panic!("typename {} already bound", entry.key());
             }
         }
     }
