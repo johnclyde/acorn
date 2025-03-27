@@ -240,6 +240,16 @@ pub enum AcornType {
 }
 
 impl AcornType {
+    // This just checks exact equality, without any generic stuff.
+    pub fn check_eq(&self, source: &dyn ErrorSource, expected: Option<&AcornType>) -> Result<()> {
+        if let Some(e) = expected {
+            if e != self {
+                return Err(source.error(&format!("expected type {}, but this is {}", e, self)));
+            }
+        }
+        Ok(())
+    }
+
     // Create the type, in non-curried form, for a function with the given arguments and return type.
     // arg_types can be empty.
     pub fn new_functional(arg_types: Vec<AcornType>, return_type: AcornType) -> AcornType {

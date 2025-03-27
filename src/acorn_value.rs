@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::acorn_type::AcornType;
 use crate::atom::AtomId;
+use crate::compilation::{self, ErrorSource};
 use crate::constant_map::ConstantKey;
 use crate::module::ModuleId;
 use crate::token::TokenType;
@@ -1758,6 +1759,18 @@ impl AcornValue {
                 }
             }
             _ => None,
+        }
+    }
+
+    pub fn check_type(
+        &self,
+        source: &dyn ErrorSource,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<()> {
+        if let Some(t) = expected_type {
+            self.get_type().check_eq(source, Some(t))
+        } else {
+            Ok(())
         }
     }
 }
