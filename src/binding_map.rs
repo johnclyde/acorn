@@ -380,9 +380,17 @@ impl BindingMap {
             || self.name_to_module.contains_key(name)
     }
 
-    pub fn lowercase_name_in_use(&self, name: &str) -> bool {
-        let lcn = LocalConstantName::Unqualified(name.to_string());
-        self.constant_name_in_use(&lcn)
+    // Returns an error if this name is already in use.
+    pub fn check_unqualified_name_available(
+        &self,
+        source: &dyn ErrorSource,
+        name: &str,
+    ) -> compilation::Result<()> {
+        let name = LocalConstantName::Unqualified(name.to_string());
+        if self.constant_name_in_use(&name) {
+            return Err(source.error(&format!("name {} is already in use", name)));
+        }
+        Ok(())
     }
 
     pub fn constant_name_in_use(&self, name: &LocalConstantName) -> bool {

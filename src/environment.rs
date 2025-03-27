@@ -439,14 +439,14 @@ impl Environment {
                 .name_token
                 .error("member functions may not have type parameters"));
         }
-        let name = constant_name.to_string();
-        if self.bindings.name_in_use(&name) {
+        if self.bindings.constant_name_in_use(&constant_name) {
             return Err(ds.name_token.error(&format!(
                 "function name '{}' already defined in this scope",
-                name
+                constant_name
             )));
         }
 
+        let name = constant_name.to_string();
         // Calculate the function value
         let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
@@ -516,12 +516,8 @@ impl Environment {
         };
 
         if let Some(name) = &ts.name {
-            if self.bindings.name_in_use(&name) {
-                return Err(statement.first_token.error(&format!(
-                    "theorem name '{}' already defined in this scope",
-                    name
-                )));
-            }
+            self.bindings
+                .check_unqualified_name_available(&statement.first_token, &name)?;
 
             self.definition_ranges
                 .insert(name.to_string(), range.clone());
@@ -683,12 +679,8 @@ impl Environment {
                 fss.name
             )));
         }
-        if self.bindings.name_in_use(&fss.name) {
-            return Err(statement.error(&format!(
-                "function name '{}' already defined in this scope",
-                fss.name
-            )));
-        }
+        self.bindings
+            .check_unqualified_name_available(statement, &fss.name)?;
 
         // Figure out the range for this function definition.
         // It's smaller than the whole function statement because it doesn't
@@ -782,7 +774,7 @@ impl Environment {
             statement.first_line(),
             ss.first_right_brace.line_number,
         );
-        if self.bindings.name_in_use(&ss.name) {
+        if self.bindings.typename_in_use(&ss.name) {
             return Err(statement.error("type name already defined in this scope"));
         }
 
@@ -1011,7 +1003,7 @@ impl Environment {
         is: &InductiveStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        if self.bindings.name_in_use(&is.name) {
+        if self.bindings.typename_in_use(&is.name) {
             return Err(statement.error("type name already defined in this scope"));
         }
         let range = Range {
@@ -1341,11 +1333,11 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let instance_name = ts.instance_name.text();
-        if self.bindings.name_in_use(instance_name) {
+        if self.bindings.typename_in_use(instance_name) {
             return Err(statement.error(&format!("{} already defined", instance_name)));
         }
         let typeclass_name = ts.typeclass_name.text();
-        if self.bindings.name_in_use(typeclass_name) {
+        if self.bindings.typename_in_use(typeclass_name) {
             return Err(statement.error(&format!("{} is already defined", typeclass_name)));
         }
         let typeclass = Typeclass {
@@ -1753,12 +1745,8 @@ impl Environment {
 
                 // Give a local name to the imported module
                 let local_name = is.components.last().unwrap();
-                if self.bindings.lowercase_name_in_use(local_name) {
-                    return Err(statement.error(&format!(
-                        "imported name '{}' already defined in this scope",
-                        local_name
-                    )));
-                }
+                self.bindings
+                    .check_unqualified_name_available(statement, local_name)?;
                 let full_name = is.components.join(".");
                 let module_id = match project.load_module_by_name(&full_name) {
                     Ok(module_id) => module_id,
