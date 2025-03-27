@@ -7,6 +7,7 @@ use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource};
+use crate::constant_name::LocalConstantName;
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::project::Project;
@@ -42,11 +43,11 @@ pub struct BindingMap {
     // Attribute names of both classes and typeclasses defined in this module.
     attributes: HashMap<String, HashSet<String>>,
 
-    // Maps an identifier name to its type.
-    // Has entries for both defined constants and aliases.
-    // Note that for generic types, this stores the type using the same generic variables
+    // Maps the name of a constant to the type of that constant.
+    // This also includes entries for aliases.
+    // For generic constants, this stores the type using the same type variables
     // that were used in the definition.
-    identifier_to_type: HashMap<String, AcornType>,
+    constant_name_to_type: HashMap<String, AcornType>,
 
     // Maps the name of a constant defined in this scope to information about it.
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
@@ -63,7 +64,7 @@ pub struct BindingMap {
 
     // Whenever a name from some other scope has a local alias in this one,
     // if we're generating code, we prefer to use the local name.
-    // Thus, preferred_names maps the canonical identifier to a local alias.
+    // For this reason, canonical_to_alias maps the canonical identifier to the preferred local alias.
     canonical_to_alias: HashMap<(ModuleId, String), String>,
 
     // Names that refer to other modules.
@@ -354,7 +355,7 @@ impl BindingMap {
             name_to_typeclass: BTreeMap::new(),
             typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
-            identifier_to_type: HashMap::new(),
+            constant_name_to_type: HashMap::new(),
             constant_info: BTreeMap::new(),
             alias_to_canonical: HashMap::new(),
             canonical_to_alias: HashMap::new(),
@@ -375,8 +376,24 @@ impl BindingMap {
     pub fn name_in_use(&self, name: &str) -> bool {
         self.typename_to_type.contains_key(name)
             || self.name_to_typeclass.contains_key(name)
-            || self.identifier_to_type.contains_key(name)
+            || self.constant_name_to_type.contains_key(name)
             || self.name_to_module.contains_key(name)
+    }
+
+    pub fn constant_name_in_use(&self, name: &LocalConstantName) -> bool {
+        match name {
+            LocalConstantName::Unqualified(name) => {
+                // Module names and constant names can conflict.
+                self.constant_name_to_type.contains_key(name)
+                    || self.name_to_module.contains_key(name)
+            }
+            _ => self.constant_name_to_type.contains_key(&name.to_string()),
+        }
+    }
+
+    // Checks against names for both types and typeclasses because they can conflict.
+    pub fn typename_in_use(&self, name: &str) -> bool {
+        self.typename_to_type.contains_key(name) || self.name_to_typeclass.contains_key(name)
     }
 
     // Adds both directions for a name <-> type correspondence.
@@ -562,7 +579,7 @@ impl BindingMap {
     // This can be either a resolved or unresolved value.
     // Returns None if this name does not refer to a constant.
     pub fn get_constant_value(&self, name: &str) -> Option<PotentialValue> {
-        let constant_type = self.identifier_to_type.get(name)?.clone();
+        let constant_type = self.constant_name_to_type.get(name)?.clone();
 
         // Aliases
         if let Some(pv) = self.alias_to_canonical.get(name) {
@@ -590,8 +607,9 @@ impl BindingMap {
 
     // Gets the type for an identifier, not for a type name.
     // E.g. if let x: Nat = 0, then get_type("x") will give you Nat.
-    pub fn get_type_for_identifier(&self, identifier: &str) -> Option<&AcornType> {
-        self.identifier_to_type.get(identifier)
+    // XXX
+    pub fn get_type_for_constant_name(&self, identifier: &str) -> Option<&AcornType> {
+        self.constant_name_to_type.get(identifier)
     }
 
     pub fn get_params(&self, identifier: &str) -> Vec<TypeParam> {
@@ -602,11 +620,11 @@ impl BindingMap {
     }
 
     // Gets the type for a type name, not for an identifier.
-    pub fn get_type_for_name(&self, type_name: &str) -> Option<&PotentialType> {
+    pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
         self.typename_to_type.get(type_name)
     }
 
-    pub fn has_type_name(&self, type_name: &str) -> bool {
+    pub fn has_typename(&self, type_name: &str) -> bool {
         self.typename_to_type.contains_key(type_name)
     }
 
@@ -618,8 +636,8 @@ impl BindingMap {
         self.name_to_typeclass.contains_key(typeclass_name)
     }
 
-    pub fn has_identifier(&self, identifier: &str) -> bool {
-        self.identifier_to_type.contains_key(identifier)
+    pub fn has_constant_name(&self, identifier: &str) -> bool {
+        self.constant_name_to_type.contains_key(identifier)
     }
 
     // Returns the defined value, if there is a defined value.
@@ -678,7 +696,7 @@ impl BindingMap {
             panic!("there should not be arbitrary types in parametrized constant types");
         }
 
-        self.identifier_to_type
+        self.constant_name_to_type
             .insert(name.to_string(), constant_type);
 
         let info = ConstantInfo {
@@ -706,7 +724,7 @@ impl BindingMap {
         if !self.name_in_use(name) {
             panic!("removing constant {} which is already not present", name);
         }
-        self.identifier_to_type.remove(name);
+        self.constant_name_to_type.remove(name);
         self.constant_info.remove(name);
     }
 
@@ -721,7 +739,7 @@ impl BindingMap {
         if self.name_in_use(name) {
             panic!("cannot alias name {} because it is already bound", name);
         }
-        self.identifier_to_type
+        self.constant_name_to_type
             .insert(name.to_string(), value.get_type());
         let canonical = (canonical_module, canonical_name);
         if canonical_module != self.module {
@@ -1449,8 +1467,8 @@ impl BindingMap {
                                 Some(module) => Ok(NamedEntity::Module(*module)),
                                 None => Err(name_token.error("unknown module")),
                             }
-                        } else if self.has_type_name(name) {
-                            match self.get_type_for_name(name) {
+                        } else if self.has_typename(name) {
+                            match self.get_type_for_typename(name) {
                                 Some(PotentialType::Resolved(t)) => {
                                     Ok(NamedEntity::Type(t.clone()))
                                 }
@@ -2871,7 +2889,7 @@ impl BindingMap {
 
     // Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let env_type = match self.identifier_to_type.get(name) {
+        let env_type = match self.constant_name_to_type.get(name) {
             Some(t) => t,
             None => panic!("{} not found", name),
         };

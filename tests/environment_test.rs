@@ -49,21 +49,21 @@ mod environment_test {
     fn test_arg_binding() {
         let mut env = Environment::new_test();
         env.bad("define qux(x: Bool, x: Bool) -> Bool { x }");
-        assert!(!env.bindings.has_identifier("x"));
+        assert!(!env.bindings.has_constant_name("x"));
         env.add("define qux(x: Bool, y: Bool) -> Bool { x }");
         env.expect_type("qux", "(Bool, Bool) -> Bool");
 
         env.bad("theorem foo(x: Bool, x: Bool) { x }");
-        assert!(!env.bindings.has_identifier("x"));
+        assert!(!env.bindings.has_constant_name("x"));
         env.add("theorem foo(x: Bool, y: Bool) { x }");
         env.expect_type("foo", "(Bool, Bool) -> Bool");
 
         env.bad("let bar: Bool = forall(x: Bool, x: Bool) { x = x }");
-        assert!(!env.bindings.has_identifier("x"));
+        assert!(!env.bindings.has_constant_name("x"));
         env.add("let bar: Bool = forall(x: Bool, y: Bool) { x = x }");
 
         env.bad("let baz: Bool = exists(x: Bool, x: Bool) { x = x }");
-        assert!(!env.bindings.has_identifier("x"));
+        assert!(!env.bindings.has_constant_name("x"));
         env.add("let baz: Bool = exists(x: Bool, y: Bool) { x = x }");
     }
 
@@ -133,20 +133,20 @@ mod environment_test {
         env.add("axiom suc_neq_zero(x: Nat) { suc(x) != zero }");
         env.expect_def("suc_neq_zero", "function(x0: Nat) { (suc(x0) != zero) }");
 
-        assert!(env.bindings.has_type_name("Nat"));
-        assert!(!env.bindings.has_identifier("Nat"));
+        assert!(env.bindings.has_typename("Nat"));
+        assert!(!env.bindings.has_constant_name("Nat"));
 
-        assert!(!env.bindings.has_type_name("zero"));
-        assert!(env.bindings.has_identifier("zero"));
+        assert!(!env.bindings.has_typename("zero"));
+        assert!(env.bindings.has_constant_name("zero"));
 
-        assert!(!env.bindings.has_type_name("one"));
-        assert!(env.bindings.has_identifier("one"));
+        assert!(!env.bindings.has_typename("one"));
+        assert!(env.bindings.has_constant_name("one"));
 
-        assert!(!env.bindings.has_type_name("suc"));
-        assert!(env.bindings.has_identifier("suc"));
+        assert!(!env.bindings.has_typename("suc"));
+        assert!(env.bindings.has_constant_name("suc"));
 
-        assert!(!env.bindings.has_type_name("foo"));
-        assert!(!env.bindings.has_identifier("foo"));
+        assert!(!env.bindings.has_typename("foo"));
+        assert!(!env.bindings.has_constant_name("foo"));
 
         env.add(
             "axiom induction(f: Nat -> Bool, n: Nat) {
@@ -435,7 +435,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     fn test_type_params_cleaned_up() {
         let mut env = Environment::new_test();
         env.add("define foo<T>(a: T) -> Bool { axiom }");
-        assert!(env.bindings.get_type_for_name("T").is_none());
+        assert!(env.bindings.get_type_for_typename("T").is_none());
     }
 
     #[test]

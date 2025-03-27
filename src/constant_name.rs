@@ -5,7 +5,7 @@ use crate::module::ModuleId;
 
 // The LocalName describes how a constant is named in the module that defines it.
 #[derive(Hash, Debug, Eq, PartialEq, Clone)]
-pub enum LocalName {
+pub enum LocalConstantName {
     // An unqualified name has no dots.
     Unqualified(String),
 
@@ -21,12 +21,12 @@ pub enum LocalName {
     Instance(Typeclass, String, String),
 }
 
-impl fmt::Display for LocalName {
+impl fmt::Display for LocalConstantName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LocalName::Unqualified(name) => write!(f, "{}", name),
-            LocalName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
-            LocalName::Instance(tc, attr, class) => {
+            LocalConstantName::Unqualified(name) => write!(f, "{}", name),
+            LocalConstantName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
+            LocalConstantName::Instance(tc, attr, class) => {
                 // TODO: Stop using this double-dot syntax.
                 write!(f, "{}.{}.{}", class, &tc.name, attr)
             }
@@ -35,7 +35,7 @@ impl fmt::Display for LocalName {
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
-pub struct GlobalName {
+pub struct GlobalConstantName {
     pub module_id: ModuleId,
-    pub local_name: LocalName,
+    pub local_name: LocalConstantName,
 }

@@ -185,7 +185,11 @@ impl Environment {
         };
 
         // This constant can be generic, with type variables in it.
-        let constant_type_clone = self.bindings.get_type_for_identifier(name).unwrap().clone();
+        let constant_type_clone = self
+            .bindings
+            .get_type_for_constant_name(name)
+            .unwrap()
+            .clone();
         let const_params = self.bindings.get_params(name);
         let var_params = const_params
             .into_iter()
@@ -1285,7 +1289,7 @@ impl Environment {
         cs: &ClassStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        let potential = match self.bindings.get_type_for_name(&cs.name) {
+        let potential = match self.bindings.get_type_for_typename(&cs.name) {
             Some(potential) => potential.clone(),
             None => {
                 return Err(cs
@@ -1446,7 +1450,7 @@ impl Environment {
             is.definitions.right_brace.line_number,
         );
         let instance_name = is.type_name.text();
-        let instance_type = match self.bindings.get_type_for_name(&instance_name) {
+        let instance_type = match self.bindings.get_type_for_typename(&instance_name) {
             Some(PotentialType::Resolved(t)) => t.clone(),
             Some(_) => {
                 return Err(is.type_name.error("parametrized types cannot be used here"));
