@@ -465,7 +465,7 @@ impl BindingMap {
 
     // Adds an arbitrary type to the binding map.
     // This indicates a type parameter that is coming into scope.
-    // Panics if the name is already bound.
+    // Panics if the param name is already bound.
     pub fn add_arbitrary_type(&mut self, param: TypeParam) -> AcornType {
         let name = param.name.to_string();
         let arbitrary_type = AcornType::Arbitrary(param);
@@ -474,12 +474,9 @@ impl BindingMap {
         arbitrary_type
     }
 
-    // Adds a new type name that's an alias for an existing type
+    // Adds a new type name that's an alias for an existing type.
+    // Panics if the alias is already bound.
     pub fn add_type_alias(&mut self, name: &str, potential: PotentialType) {
-        if self.name_in_use(name) {
-            panic!("type alias {} already bound", name);
-        }
-
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(module, type_name, params)) = &potential {
             if params.is_empty() {
@@ -501,17 +498,24 @@ impl BindingMap {
     }
 
     // Adds a name for this typeclass.
+    // Panics if the name is already bound.
     pub fn add_typeclass(&mut self, name: &str, typeclass: Typeclass) {
-        if self.name_in_use(name) {
-            panic!("name {} is already bound", name);
-        }
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
         if !self.typeclass_to_name.contains_key(&typeclass) {
             self.typeclass_to_name
                 .insert(typeclass.clone(), name.to_string());
         }
-        self.name_to_typeclass.insert(name.to_string(), typeclass);
+
+        // self.name_to_typeclass.insert(name.to_string(), typeclass);
+        match self.name_to_typeclass.entry(name.to_string()) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(typeclass);
+            }
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                panic!("typeclass name {} is already bound", entry.key());
+            }
+        }
     }
 
     // A helper to get the bindings from the project if needed bindings.
@@ -682,6 +686,7 @@ impl BindingMap {
     }
 
     // Adds a constant.
+    // Panics if the name is already bound.
     // This can also add members, by providing a name like "Foo.bar".
     // The type and definition can be generic. If so, the parameters must be listed in params.
     pub fn add_constant(
@@ -692,10 +697,6 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<(AcornType, usize, usize)>,
     ) {
-        if self.name_in_use(name) {
-            panic!("constant name {} already bound", name);
-        }
-
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
                 panic!("invalid definition for constant {}: {}", name, e);
@@ -715,7 +716,8 @@ impl BindingMap {
         }
 
         self.constant_name_to_type
-            .insert(name.to_string(), constant_type);
+            .insert(name.to_string(), constant_type)
+            .map(|_| panic!("constant name {} already bound", name));
 
         let info = ConstantInfo {
             params,
@@ -754,11 +756,11 @@ impl BindingMap {
         canonical_name: String,
         value: PotentialValue,
     ) {
-        if self.name_in_use(name) {
-            panic!("cannot alias name {} because it is already bound", name);
-        }
         self.constant_name_to_type
-            .insert(name.to_string(), value.get_type());
+            .insert(name.to_string(), value.get_type())
+            .map(|_| {
+                panic!("alias {} is already bound", name);
+            });
         let canonical = (canonical_module, canonical_name);
         if canonical_module != self.module {
             // Prefer this alias locally to using the qualified, canonical name
@@ -803,10 +805,11 @@ impl BindingMap {
 
     // Adds this name to the environment as a module.
     pub fn import_module(&mut self, name: &str, module: ModuleId) {
-        if self.name_in_use(name) {
-            panic!("module name {} already bound", name);
-        }
-        self.name_to_module.insert(name.to_string(), module);
+        self.name_to_module
+            .insert(name.to_string(), module)
+            .map(|_| {
+                panic!("module name {} already bound", name);
+            });
         self.module_to_name.insert(module, name.to_string());
     }
 
@@ -1134,11 +1137,7 @@ impl BindingMap {
                 }
             }
             let (name, acorn_type) = self.evaluate_declaration(project, declaration)?;
-            if self.name_in_use(&name) {
-                return Err(declaration
-                    .token()
-                    .error("cannot redeclare a name in an argument list"));
-            }
+            self.check_unqualified_name_available(declaration.token(), &name)?;
             if names.contains(&name) {
                 return Err(declaration
                     .token()
