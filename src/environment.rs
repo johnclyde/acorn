@@ -412,12 +412,12 @@ impl Environment {
     //
     // For a parametrized class, class_info should contain:
     //   The class name.
-    //   The class parameters.
-    //   The class type, with arbitrary types, already be bound into this environment.
+    //   The class type, parametrized with arbitrary types if with anything.
     fn add_define_statement(
         &mut self,
         project: &Project,
-        class_info: Option<(&str, &Vec<TypeParam>, &AcornType)>,
+        class_info: Option<(&str, &AcornType)>,
+        class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -432,9 +432,9 @@ impl Environment {
                 .name_token
                 .error("parametrized functions may only be defined at the top level"));
         }
-        let (class_name, class_params, class_type) = class_info
-            .map(|(a, b, c)| (Some(a), Some(b), Some(c)))
-            .unwrap_or((None, None, None));
+        let (class_name, class_type) = class_info
+            .map(|(a, b)| (Some(a), Some(b)))
+            .unwrap_or((None, None));
         let name = if let Some(class_name) = &class_name {
             if !ds.type_params.is_empty() {
                 return Err(ds
@@ -1319,7 +1319,8 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        Some((&cs.name, &type_params, &instance_type)),
+                        Some((&cs.name, &instance_type)),
+                        Some(&type_params),
                         ds,
                         substatement.range(),
                     )?;
@@ -1489,7 +1490,8 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        Some((&scope_name, &vec![], &instance_type)),
+                        Some((&scope_name, &instance_type)),
+                        None,
                         ds,
                         substatement.range(),
                     )?;
@@ -1634,7 +1636,7 @@ impl Environment {
 
             StatementInfo::Define(ds) => {
                 self.add_other_lines(statement);
-                self.add_define_statement(project, None, ds, statement.range())
+                self.add_define_statement(project, None, None, ds, statement.range())
             }
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
