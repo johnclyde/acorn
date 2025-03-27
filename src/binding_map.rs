@@ -437,7 +437,7 @@ impl BindingMap {
         self.constant_name_to_type.get(identifier)
     }
 
-    pub fn get_params(&self, identifier: &str) -> Vec<TypeParam> {
+    pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {
         match self.constant_info.get(identifier) {
             Some(info) => info.value.unresolved_params().to_vec(),
             None => vec![],
