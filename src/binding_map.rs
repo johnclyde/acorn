@@ -380,6 +380,11 @@ impl BindingMap {
             || self.name_to_module.contains_key(name)
     }
 
+    pub fn lowercase_name_in_use(&self, name: &str) -> bool {
+        let lcn = LocalConstantName::Unqualified(name.to_string());
+        self.constant_name_in_use(&lcn)
+    }
+
     pub fn constant_name_in_use(&self, name: &LocalConstantName) -> bool {
         match name {
             LocalConstantName::Unqualified(name) => {

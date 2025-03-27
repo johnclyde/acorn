@@ -9,6 +9,7 @@ use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, PotentialValue, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource};
+use crate::constant_name::LocalConstantName;
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::project::{LoadError, Project};
@@ -1534,12 +1535,15 @@ impl Environment {
                 continue;
             }
 
-            let full_name = format!("{}.{}", instance_name, tc_attr_name);
-            if !self.bindings.name_in_use(&full_name) {
-                return Err(statement.error(&format!(
-                    "missing implementation for attribute '{}'",
-                    full_name
-                )));
+            let name = LocalConstantName::Instance(
+                typeclass.clone(),
+                attr_name.to_string(),
+                instance_name.to_string(),
+            );
+            if !self.bindings.constant_name_in_use(&name) {
+                return Err(
+                    statement.error(&format!("missing implementation for attribute '{}'", name))
+                );
             }
         }
 
@@ -1609,7 +1613,7 @@ impl Environment {
         match &statement.statement {
             StatementInfo::Type(ts) => {
                 self.add_other_lines(statement);
-                if self.bindings.name_in_use(&ts.name) {
+                if self.bindings.typename_in_use(&ts.name) {
                     return Err(statement.error(&format!(
                         "type name '{}' already defined in this scope",
                         ts.name
@@ -1747,7 +1751,7 @@ impl Environment {
 
                 // Give a local name to the imported module
                 let local_name = is.components.last().unwrap();
-                if self.bindings.name_in_use(local_name) {
+                if self.bindings.lowercase_name_in_use(local_name) {
                     return Err(statement.error(&format!(
                         "imported name '{}' already defined in this scope",
                         local_name
