@@ -69,11 +69,6 @@ pub struct BindingMap {
     // The default data type to use for numeric literals.
     default: Option<(ModuleId, String)>,
 
-    // Whether this constant is the name of a theorem in this context.
-    // Inside the block containing the proof of a theorem, the name is not considered to
-    // be a theorem.
-    theorems: HashSet<String>,
-
     // Stores the instance-of relationships for classes that were defined in this module.
     instance_of: HashMap<String, HashSet<Typeclass>>,
 }
@@ -128,12 +123,15 @@ struct ConstantInfo {
     // If this is a generic constant, this value is unresolved.
     value: PotentialValue,
 
-    // Whether this is the canonical name for a constant, as opposed to an alias or an import.
-    canonical: bool,
-
     // The definition of this constant, if it has one.
     // Not included for aliases.
     definition: Option<AcornValue>,
+
+    // Whether this is the canonical name for a constant, as opposed to an alias or an import.
+    canonical: bool,
+
+    // Whether this is a theorem.
+    theorem: bool,
 
     // If this constant is a constructor and this is its canonical name, store:
     //   the type it constructs
@@ -167,7 +165,6 @@ impl BindingMap {
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
             default: None,
-            theorems: HashSet::new(),
             instance_of: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
@@ -499,10 +496,12 @@ impl BindingMap {
         let value =
             PotentialValue::constant(self.module, name, constant_type.clone(), params.clone());
 
+        // New constants start out not being theorems and are marked as a theorem later.
         let info = ConstantInfo {
             value: value.clone(),
             canonical: true,
             definition,
+            theorem: false,
             constructor,
         };
         self.constant_info.insert(name.to_string(), info);
@@ -532,6 +531,7 @@ impl BindingMap {
     }
 
     // Adds a local alias for an already-existing constant value.
+    // TODO: is aliasing theorems supposed to work?
     pub fn add_alias(
         &mut self,
         local_name: LocalConstantName,
@@ -553,22 +553,24 @@ impl BindingMap {
             ConstantInfo {
                 value,
                 canonical: false,
+                theorem: false,
                 definition: None,
                 constructor: None,
             },
         );
     }
 
-    pub fn is_constant(&self, name: &str) -> bool {
-        self.constant_info.contains_key(name)
-    }
-
     pub fn mark_as_theorem(&mut self, name: &str) {
-        self.theorems.insert(name.to_string());
+        self.constant_info
+            .get_mut(name)
+            .expect("marking theorem that doesn't exist")
+            .theorem = true;
     }
 
     pub fn is_theorem(&self, name: &str) -> bool {
-        self.theorems.contains(name)
+        self.constant_info
+            .get(name)
+            .map_or(false, |info| info.theorem)
     }
 
     // Type variables and arbitrary variables should get removed when they go out of scope.
@@ -730,16 +732,12 @@ impl BindingMap {
                 if importing {
                     match self.constant_info.get(key) {
                         Some(info) => {
-                            if !info.canonical {
-                                // Don't suggest aliases when importing
+                            if !info.canonical || info.theorem {
+                                // Don't suggest aliases or theorems when importing
                                 continue;
                             }
                         }
                         None => continue,
-                    }
-                    if self.theorems.contains(key) {
-                        // Don't suggest theorems when importing
-                        continue;
                     }
                 }
                 let completion = CompletionItem {
