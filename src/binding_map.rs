@@ -46,12 +46,6 @@ pub struct BindingMap {
     // Attribute names of both classes and typeclasses defined in this module.
     attributes: HashMap<String, HashSet<String>>,
 
-    // Maps the name of a constant to the type of that constant.
-    // This also includes entries for aliases.
-    // For generic constants, this stores the type using the same type variables
-    // that were used in the definition.
-    constant_name_to_type: HashMap<String, AcornType>,
-
     // Maps the name of a constant defined in this scope to information about it.
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
     // entirety of this environment.
@@ -168,7 +162,6 @@ impl BindingMap {
             name_to_typeclass: BTreeMap::new(),
             typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
-            constant_name_to_type: HashMap::new(),
             constant_info: BTreeMap::new(),
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
@@ -511,10 +504,6 @@ impl BindingMap {
         let value =
             PotentialValue::constant(self.module, name, constant_type.clone(), params.clone());
 
-        self.constant_name_to_type
-            .insert(name.to_string(), constant_type)
-            .map(|_| panic!("constant name {} already bound", name));
-
         let info = ConstantInfo {
             value,
             canonical: true,
@@ -540,9 +529,6 @@ impl BindingMap {
     // Be really careful about this, it seems likely to break things.
     fn remove_constant(&mut self, name: &LocalConstantName) {
         let name = name.to_string();
-        self.constant_name_to_type
-            .remove(&name)
-            .expect("constant name not in use");
         self.constant_info
             .remove(&name)
             .expect("constant name not in use");
@@ -556,11 +542,6 @@ impl BindingMap {
         canonical_name: String,
         value: PotentialValue,
     ) {
-        self.constant_name_to_type
-            .insert(name.to_string(), value.get_type())
-            .map(|_| {
-                panic!("alias {} is already bound", name);
-            });
         let canonical = (canonical_module, canonical_name);
         if canonical_module != self.module {
             // Prefer this alias locally to using the qualified, canonical name
