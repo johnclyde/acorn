@@ -55,15 +55,9 @@ pub struct BindingMap {
     // Maps the name of a constant defined in this scope to information about it.
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
     // entirety of this environment.
-    // Doesn't handle aliases.
+    // This also includes aliases.
     // Includes "<datatype>.<constant>" for members.
     constant_info: BTreeMap<String, ConstantInfo>,
-
-    // The canonical identifier of a constant value is the first place it is defined.
-    // There may be other names in this environment that refer to the same thing.
-    // When we create an AcornValue, we want to use the canonical name.
-    // The alias -> canonical value mapping is stored here.
-    alias_to_canonical: HashMap<String, PotentialValue>,
 
     // Whenever a name from some other scope has a local alias in this one,
     // if we're generating code, we prefer to use the local name.
@@ -140,13 +134,18 @@ struct ConstantInfo {
     // If this is a generic constant, this value is unresolved.
     value: PotentialValue,
 
+    // Whether this is the canonical name for a constant, as opposed to an alias or an import.
+    canonical: bool,
+
     // The definition of this constant, if it has one.
+    // Not included for aliases.
     definition: Option<AcornValue>,
 
-    // If this constant is a constructor, store:
+    // If this constant is a constructor and this is its canonical name, store:
     //   the type it constructs
     //   an index of which constructor it is
     //   how many total constructors there are
+    // Not included for aliases.
     constructor: Option<(AcornType, usize, usize)>,
 }
 
@@ -171,7 +170,6 @@ impl BindingMap {
             attributes: HashMap::new(),
             constant_name_to_type: HashMap::new(),
             constant_info: BTreeMap::new(),
-            alias_to_canonical: HashMap::new(),
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
@@ -417,13 +415,6 @@ impl BindingMap {
         name: &LocalConstantName,
     ) -> compilation::Result<PotentialValue> {
         let string_name = name.to_string();
-
-        // Look for aliases
-        if let Some(pv) = self.alias_to_canonical.get(&string_name) {
-            return Ok(pv.clone());
-        }
-
-        // Look at constants defined in this module
         match self.constant_info.get(&string_name) {
             Some(info) => Ok(info.value.clone()),
             None => Err(source.error(&format!("constant {} not found", name))),
@@ -527,6 +518,7 @@ impl BindingMap {
 
         let info = ConstantInfo {
             value,
+            canonical: true,
             definition,
             constructor,
         };
@@ -577,7 +569,15 @@ impl BindingMap {
                 .entry(canonical.clone())
                 .or_insert(name.to_string());
         }
-        self.alias_to_canonical.insert(name.to_string(), value);
+        self.constant_info.insert(
+            name.to_string(),
+            ConstantInfo {
+                value,
+                canonical: false,
+                definition: None,
+                constructor: None,
+            },
+        );
     }
 
     pub fn is_constant(&self, name: &str) -> bool {
@@ -749,9 +749,14 @@ impl BindingMap {
                     continue;
                 }
                 if importing {
-                    if self.alias_to_canonical.contains_key(key) {
-                        // Don't suggest aliases when importing
-                        continue;
+                    match self.constant_info.get(key) {
+                        Some(info) => {
+                            if !info.canonical {
+                                // Don't suggest aliases when importing
+                                continue;
+                            }
+                        }
+                        None => continue,
                     }
                     if self.theorems.contains(key) {
                         // Don't suggest theorems when importing
