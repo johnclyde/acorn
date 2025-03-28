@@ -81,3 +81,12 @@ pub struct GlobalConstantName {
     pub module_id: ModuleId,
     pub local_name: LocalConstantName,
 }
+
+impl GlobalConstantName {
+    pub fn new(module_id: ModuleId, local_name: LocalConstantName) -> GlobalConstantName {
+        GlobalConstantName {
+            module_id,
+            local_name,
+        }
+    }
+}

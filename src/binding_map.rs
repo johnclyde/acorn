@@ -7,7 +7,7 @@ use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource, PanicOnError};
-use crate::constant_name::LocalConstantName;
+use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::named_entity::NamedEntity;
@@ -437,8 +437,9 @@ impl BindingMap {
         self.name_to_typeclass.contains_key(typeclass_name)
     }
 
-    pub fn has_constant_name(&self, identifier: &str) -> bool {
-        self.constant_info.contains_key(identifier)
+    // Just use this for testing.
+    pub fn has_constant_name(&self, name: &str) -> bool {
+        self.constant_info.contains_key(name)
     }
 
     // Returns the defined value, if there is a defined value.
@@ -533,20 +534,22 @@ impl BindingMap {
     // Adds a local alias for an already-existing constant value.
     pub fn add_alias(
         &mut self,
-        name: &str,
-        canonical_module: ModuleId,
-        canonical_name: String,
+        local_name: LocalConstantName,
+        canonical_name: GlobalConstantName,
         value: PotentialValue,
     ) {
-        let canonical = (canonical_module, canonical_name);
-        if canonical_module != self.module {
+        let canonical = (
+            canonical_name.module_id,
+            canonical_name.local_name.to_string(),
+        );
+        if canonical_name.module_id != self.module {
             // Prefer this alias locally to using the qualified, canonical name
             self.canonical_to_alias
-                .entry(canonical.clone())
-                .or_insert(name.to_string());
+                .entry(canonical)
+                .or_insert(local_name.to_string());
         }
         self.constant_info.insert(
-            name.to_string(),
+            local_name.to_string(),
             ConstantInfo {
                 value,
                 canonical: false,
@@ -1442,6 +1445,7 @@ impl BindingMap {
         name_token: &Token,
     ) -> compilation::Result<()> {
         self.check_unqualified_name_available(name_token, &name_token.text())?;
+        let local_name = LocalConstantName::unqualified(name_token.text());
         let bindings = match project.get_bindings(module) {
             Some(b) => b,
             None => {
@@ -1455,12 +1459,9 @@ impl BindingMap {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some((ext_module, ext_name)) = value.as_simple_constant() {
-                    self.add_alias(
-                        &name_token.text(),
-                        ext_module,
-                        ext_name.to_string(),
-                        PotentialValue::Resolved(value),
-                    );
+                    let global_name =
+                        GlobalConstantName::new(ext_module, LocalConstantName::guess(ext_name));
+                    self.add_alias(local_name, global_name, PotentialValue::Resolved(value));
                     Ok(())
                 } else {
                     // I don't see how this branch can be reached.
@@ -1477,12 +1478,9 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedValue(uc) => {
-                self.add_alias(
-                    &name_token.text(),
-                    uc.module_id,
-                    uc.name.clone(),
-                    PotentialValue::Unresolved(uc),
-                );
+                let global_name =
+                    GlobalConstantName::new(uc.module_id, LocalConstantName::guess(&uc.name));
+                self.add_alias(local_name, global_name, PotentialValue::Unresolved(uc));
                 Ok(())
             }
 

@@ -9,7 +9,7 @@ use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
-use crate::constant_name::LocalConstantName;
+use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::potential_value::PotentialValue;
@@ -381,11 +381,14 @@ impl Environment {
         let name = constant_name.to_string();
         if let Some(value) = &value {
             if let Some((canonical_module, canonical_name)) = value.as_simple_constant() {
+                let global_name = GlobalConstantName::new(
+                    canonical_module,
+                    LocalConstantName::guess(canonical_name),
+                );
                 // 'let x = y' creates an alias for y, not a new constant.
                 self.bindings.add_alias(
-                    &name,
-                    canonical_module,
-                    canonical_name.to_string(),
+                    constant_name,
+                    global_name,
                     PotentialValue::Resolved(value.clone()),
                 );
                 return Ok(());
