@@ -32,7 +32,7 @@ pub struct BindingMap {
     // entirety of this environment.
     // This also includes aliases.
     // Includes "<datatype>.<constant>" for members.
-    constant_info: BTreeMap<String, ConstantInfo>,
+    constant_info: HashMap<String, ConstantInfo>,
 
     // Maps the name of a type to the type object.
     // Includes unresolved names like List that don't have enough information
@@ -160,7 +160,7 @@ impl BindingMap {
         assert!(module >= FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
-            constant_info: BTreeMap::new(),
+            constant_info: HashMap::new(),
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
