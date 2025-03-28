@@ -474,7 +474,8 @@ impl BindingMap {
     // Adds a constant.
     // Panics if the name is already bound.
     // The type and definition can be generic. If so, the parameters must be listed in params.
-    // This doesn't handle aliases intelligently.
+    // Don't call this for aliases, this doesn't handle aliases intelligently.
+    // Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
         name: &LocalConstantName,
@@ -482,7 +483,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<(AcornType, usize, usize)>,
-    ) {
+    ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
                 panic!("invalid definition for constant {}: {}", name, e);
@@ -505,7 +506,7 @@ impl BindingMap {
             PotentialValue::constant(self.module, name, constant_type.clone(), params.clone());
 
         let info = ConstantInfo {
-            value,
+            value: value.clone(),
             canonical: true,
             definition,
             constructor,
@@ -524,6 +525,8 @@ impl BindingMap {
                 self.attributes.insert(entity_name.to_string(), set);
             }
         }
+
+        value
     }
 
     // Be really careful about this, it seems likely to break things.
