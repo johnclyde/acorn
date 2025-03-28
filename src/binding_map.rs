@@ -413,7 +413,7 @@ impl BindingMap {
         }
     }
 
-    // Gets the type for an identifier, not for a type name.
+    // Gets the type for a constant.
     // E.g. if let x: Nat = 0, then get_type("x") will give you Nat.
     pub fn get_type_for_constant_name(&self, name: &str) -> Option<AcornType> {
         let info = self.constant_info.get(name)?;
