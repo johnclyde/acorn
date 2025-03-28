@@ -119,12 +119,15 @@ impl Block {
             .collect();
 
         // Inside the block, the arguments are constants.
+        let mut internal_args = vec![];
         for (arg_name, generic_arg_type) in &args {
             let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
             let arg_name = LocalConstantName::unqualified(arg_name);
-            subenv
-                .bindings
-                .add_constant(&arg_name, vec![], specific_arg_type, None, None);
+            let potential =
+                subenv
+                    .bindings
+                    .add_constant(&arg_name, vec![], specific_arg_type, None, None);
+            internal_args.push(potential.force_value());
         }
 
         let goal = match params {
@@ -138,15 +141,6 @@ impl Block {
                 None
             }
             BlockParams::Theorem(theorem_name, theorem_range, premise, unbound_goal) => {
-                let mut arg_values = vec![];
-                for (name, _) in &args {
-                    let arg_value = subenv
-                        .bindings
-                        .get_constant_value(&PanicOnError, &LocalConstantName::unqualified(name))?
-                        .force_value();
-                    arg_values.push(arg_value);
-                }
-
                 if let Some(name) = theorem_name {
                     // Within the theorem block, the theorem is treated like a function,
                     // with propositions to define its identity.
@@ -157,7 +151,7 @@ impl Block {
                 if let Some((unbound_premise, premise_range)) = premise {
                     // Add the premise to the environment, when proving the theorem.
                     // The premise is unbound, so we need to bind the block's arg values.
-                    let bound = unbound_premise.bind_values(0, 0, &arg_values);
+                    let bound = unbound_premise.bind_values(0, 0, &internal_args);
 
                     subenv.add_node(
                         project,
@@ -167,7 +161,9 @@ impl Block {
                     );
                 }
 
-                let bound_goal = unbound_goal.bind_values(0, 0, &arg_values).to_arbitrary();
+                let bound_goal = unbound_goal
+                    .bind_values(0, 0, &internal_args)
+                    .to_arbitrary();
                 Some(Goal::Prove(Proposition::theorem(
                     false,
                     bound_goal,
