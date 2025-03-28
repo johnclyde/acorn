@@ -6,7 +6,7 @@ use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass, Unresolv
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
-use crate::compilation::{self, ErrorSource};
+use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::constant_name::LocalConstantName;
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
@@ -212,10 +212,9 @@ impl BindingMap {
         match name {
             LocalConstantName::Unqualified(name) => {
                 // Module names and constant names can conflict.
-                self.constant_name_to_type.contains_key(name)
-                    || self.name_to_module.contains_key(name)
+                self.constant_info.contains_key(name) || self.name_to_module.contains_key(name)
             }
-            _ => self.constant_name_to_type.contains_key(&name.to_string()),
+            _ => self.constant_info.contains_key(&name.to_string()),
         }
     }
 
@@ -404,7 +403,7 @@ impl BindingMap {
 
     fn has_constant_value(&self, name: &LocalConstantName) -> bool {
         let name = name.to_string();
-        self.constant_name_to_type.contains_key(&name)
+        self.constant_info.contains_key(&name)
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -423,9 +422,9 @@ impl BindingMap {
 
     // Gets the type for an identifier, not for a type name.
     // E.g. if let x: Nat = 0, then get_type("x") will give you Nat.
-    // XXX
-    pub fn get_type_for_constant_name(&self, identifier: &str) -> Option<&AcornType> {
-        self.constant_name_to_type.get(identifier)
+    pub fn get_type_for_constant_name(&self, name: &str) -> Option<AcornType> {
+        let info = self.constant_info.get(name)?;
+        Some(info.value.get_type())
     }
 
     pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {
@@ -453,7 +452,7 @@ impl BindingMap {
     }
 
     pub fn has_constant_name(&self, identifier: &str) -> bool {
-        self.constant_name_to_type.contains_key(identifier)
+        self.constant_info.contains_key(identifier)
     }
 
     // Returns the defined value, if there is a defined value.
@@ -2694,10 +2693,11 @@ impl BindingMap {
 
     // Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let env_type = match self.constant_name_to_type.get(name) {
-            Some(t) => t,
-            None => panic!("{} not found", name),
-        };
+        let name = LocalConstantName::guess(name);
+        let value = self
+            .get_constant_value(&PanicOnError, &name)
+            .expect("no such constant");
+        let env_type = value.get_type();
         assert_eq!(env_type.to_string(), type_string);
     }
 

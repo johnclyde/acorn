@@ -187,22 +187,14 @@ impl Environment {
         };
 
         // This constant can be generic, with type variables in it.
-        let constant_type_clone = self
-            .bindings
-            .get_type_for_constant_name(name)
-            .unwrap()
-            .clone();
+        let constant_type = self.bindings.get_type_for_constant_name(name).unwrap();
         let const_params = self.bindings.unresolved_params(name);
         let var_params = const_params
             .into_iter()
             .map(|p| AcornType::Variable(p))
             .collect();
-        let constant = AcornValue::constant(
-            self.module_id,
-            name.to_string(),
-            var_params,
-            constant_type_clone,
-        );
+        let constant =
+            AcornValue::constant(self.module_id, name.to_string(), var_params, constant_type);
 
         let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
             let args: Vec<_> = acorn_types

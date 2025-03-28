@@ -60,6 +60,20 @@ impl LocalConstantName {
             _ => None,
         }
     }
+
+    // Just use this for testing.
+    pub fn guess(s: &str) -> LocalConstantName {
+        if s.contains('.') {
+            let parts: Vec<&str> = s.split('.').collect();
+            if parts.len() == 2 {
+                LocalConstantName::Attribute(parts[0].to_string(), parts[1].to_string())
+            } else {
+                panic!("Unguessable name format: {}", s);
+            }
+        } else {
+            LocalConstantName::Unqualified(s.to_string())
+        }
+    }
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
