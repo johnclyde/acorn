@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::compilation::{self, ErrorSource, PanicOnError};
+use crate::compilation::{self, ErrorSource};
 use crate::constant_name::LocalConstantName;
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
@@ -174,17 +174,9 @@ impl Block {
             }
             BlockParams::FunctionSatisfy(unbound_goal, return_type, range) => {
                 // In the block, we need to prove this goal in bound form, so bind args to it.
-                let mut arg_values = vec![];
-                for (name, _) in &args {
-                    let arg_value = subenv
-                        .bindings
-                        .get_constant_value(&PanicOnError, &LocalConstantName::unqualified(name))?
-                        .force_value();
-                    arg_values.push(arg_value);
-                }
                 // The partial goal has variables 0..args.len() bound to the block's args,
                 // but there is one last variable that needs to be existentially quantified.
-                let partial_goal = unbound_goal.bind_values(0, 0, &arg_values);
+                let partial_goal = unbound_goal.bind_values(0, 0, &internal_args);
                 let bound_goal = AcornValue::exists(vec![return_type], partial_goal);
                 assert!(!bound_goal.has_generic());
                 let prop = Proposition::anonymous(bound_goal, env.module_id, range);
@@ -195,15 +187,11 @@ impl Block {
                 let mut arg_values = vec![];
                 for (arg_name, arg_type) in pattern_args {
                     let arg_name = LocalConstantName::unqualified(&arg_name);
-                    subenv
-                        .bindings
-                        .add_constant(&arg_name, vec![], arg_type, None, None);
-                    arg_values.push(
+                    let potential =
                         subenv
                             .bindings
-                            .get_constant_value(&PanicOnError, &arg_name)?
-                            .force_value(),
-                    );
+                            .add_constant(&arg_name, vec![], arg_type, None, None);
+                    arg_values.push(potential.force_value());
                 }
                 // Inside the block, we can assume the pattern matches.
                 let applied = AcornValue::apply(constructor, arg_values);
