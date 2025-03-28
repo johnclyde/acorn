@@ -27,6 +27,13 @@ pub struct BindingMap {
     // The module all these names are in.
     module: ModuleId,
 
+    // Maps the name of a constant defined in this scope to information about it.
+    // Doesn't handle variables defined on the stack, only ones that will be in scope for the
+    // entirety of this environment.
+    // This also includes aliases.
+    // Includes "<datatype>.<constant>" for members.
+    constant_info: BTreeMap<String, ConstantInfo>,
+
     // Maps the name of a type to the type object.
     // Includes unresolved names like List that don't have enough information
     // to get a specific type.
@@ -47,12 +54,9 @@ pub struct BindingMap {
     // We use a map-to-nothing so that we can share autocomplete code.
     attributes: HashMap<String, BTreeMap<String, ()>>,
 
-    // Maps the name of a constant defined in this scope to information about it.
-    // Doesn't handle variables defined on the stack, only ones that will be in scope for the
-    // entirety of this environment.
-    // This also includes aliases.
-    // Includes "<datatype>.<constant>" for members.
-    constant_info: BTreeMap<String, ConstantInfo>,
+    // A map whose keys are the unqualified constants in this module.
+    // Used for completion.
+    unqualified: BTreeMap<String, ()>,
 
     // Whenever a name from some other scope has a local alias in this one,
     // if we're generating code, we prefer to use the local name.
@@ -156,12 +160,13 @@ impl BindingMap {
         assert!(module >= FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
+            constant_info: BTreeMap::new(),
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
             typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
-            constant_info: BTreeMap::new(),
+            unqualified: BTreeMap::new(),
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
@@ -507,17 +512,23 @@ impl BindingMap {
         };
         self.constant_info.insert(name.to_string(), info);
 
-        if let LocalConstantName::Attribute(entity_name, attribute) = name {
-            if self.attributes.contains_key(entity_name) {
-                self.attributes
-                    .get_mut(entity_name)
-                    .unwrap()
-                    .insert(attribute.to_string(), ());
-            } else {
-                let mut map = BTreeMap::new();
-                map.insert(attribute.to_string(), ());
-                self.attributes.insert(entity_name.to_string(), map);
+        match name {
+            LocalConstantName::Attribute(entity_name, attribute) => {
+                if self.attributes.contains_key(entity_name) {
+                    self.attributes
+                        .get_mut(entity_name)
+                        .unwrap()
+                        .insert(attribute.to_string(), ());
+                } else {
+                    let mut map = BTreeMap::new();
+                    map.insert(attribute.to_string(), ());
+                    self.attributes.insert(entity_name.to_string(), map);
+                }
             }
+            LocalConstantName::Unqualified(name) => {
+                self.unqualified.insert(name.to_string(), ());
+            }
+            _ => {}
         }
 
         value
@@ -525,6 +536,10 @@ impl BindingMap {
 
     // Be really careful about this, it seems likely to break things.
     fn remove_constant(&mut self, name: &LocalConstantName) {
+        if let LocalConstantName::Unqualified(word) = name {
+            // Remove the unqualified name from the list of unqualified names.
+            self.unqualified.remove(word);
+        }
         let name = name.to_string();
         self.constant_info
             .remove(&name)
@@ -726,12 +741,13 @@ impl BindingMap {
                 }
             }
             // Constants
-            for key in keys_with_prefix(&self.constant_info, prefix) {
+            for key in keys_with_prefix(&self.unqualified, prefix) {
                 if key.contains('.') {
                     continue;
                 }
+                let name = LocalConstantName::unqualified(key);
                 if importing {
-                    match self.constant_info.get(key) {
+                    match self.constant_info.get(&name.to_string()) {
                         Some(info) => {
                             if !info.canonical || info.theorem {
                                 // Don't suggest aliases or theorems when importing
