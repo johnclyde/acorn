@@ -645,20 +645,16 @@ impl BindingMap {
         base_name: &str,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
-        let bindings = if module == self.module {
-            &self
-        } else {
-            project.get_bindings(module).unwrap()
-        };
         let mut answer = vec![];
-        let full_prefix = format!("{}.{}", base_name, prefix);
-        for key in keys_with_prefix(&bindings.constant_info, &full_prefix) {
-            let completion = CompletionItem {
-                label: key.split('.').last()?.to_string(),
-                kind: Some(CompletionItemKind::FIELD),
-                ..Default::default()
-            };
-            answer.push(completion);
+        if let Some(map) = self.get_bindings(project, module).attributes.get(base_name) {
+            for key in keys_with_prefix(&map, &prefix) {
+                let completion = CompletionItem {
+                    label: key.clone(),
+                    kind: Some(CompletionItemKind::FIELD),
+                    ..Default::default()
+                };
+                answer.push(completion);
+            }
         }
         Some(answer)
     }
