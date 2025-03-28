@@ -401,7 +401,7 @@ impl BindingMap {
 
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
-    pub fn get_constant_value<'a>(
+    pub fn get_constant_value(
         &self,
         source: &dyn ErrorSource,
         name: &LocalConstantName,
@@ -411,13 +411,6 @@ impl BindingMap {
             Some(info) => Ok(info.value.clone()),
             None => Err(source.error(&format!("constant {} not found", name))),
         }
-    }
-
-    // Gets the type for a constant.
-    // E.g. if let x: Nat = 0, then get_type("x") will give you Nat.
-    pub fn get_type_for_constant_name(&self, name: &str) -> Option<AcornType> {
-        let info = self.constant_info.get(name)?;
-        Some(info.value.get_type())
     }
 
     pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {

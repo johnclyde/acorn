@@ -66,7 +66,15 @@ impl PotentialValue {
         }
     }
 
-    // Create a constant. Can be unresolved, in which case we need params.
+    // Resolve this into a value, using type variables for unknown parameters.
+    pub fn to_generic_value(self) -> AcornValue {
+        match self {
+            PotentialValue::Unresolved(u) => u.to_generic_value(),
+            PotentialValue::Resolved(v) => v,
+        }
+    }
+
+    // Create a potential value for a constant. Can be unresolved, in which case we need params.
     pub fn constant(
         module_id: ModuleId,
         name: &LocalConstantName,

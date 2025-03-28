@@ -49,4 +49,14 @@ impl UnresolvedConstant {
             resolved_type,
         ))
     }
+
+    // Turn this into a constant value by keeping each parameter as a type variable.
+    pub fn to_generic_value(self) -> AcornValue {
+        let params = self
+            .params
+            .into_iter()
+            .map(|p| AcornType::Variable(p))
+            .collect();
+        AcornValue::constant(self.module_id, self.name, params, self.generic_type)
+    }
 }

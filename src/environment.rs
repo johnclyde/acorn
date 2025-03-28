@@ -8,7 +8,7 @@ use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
-use crate::compilation::{self, Error, ErrorSource};
+use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::constant_name::LocalConstantName;
 use crate::fact::Fact;
 use crate::module::ModuleId;
@@ -179,8 +179,8 @@ impl Environment {
 
     // Adds a proposition, or multiple propositions, to represent the definition of the provided
     // constant.
-    pub fn add_identity_props(&mut self, project: &Project, name: &LocalConstantName) {
-        let name = name.to_string();
+    pub fn add_identity_props(&mut self, project: &Project, constant_name: &LocalConstantName) {
+        let name = constant_name.to_string();
         let definition = if let Some(d) = self.bindings.get_definition(&name) {
             d.clone()
         } else {
@@ -188,14 +188,11 @@ impl Environment {
         };
 
         // This constant can be generic, with type variables in it.
-        let constant_type = self.bindings.get_type_for_constant_name(&name).unwrap();
-        let const_params = self.bindings.unresolved_params(&name);
-        let var_params = const_params
-            .into_iter()
-            .map(|p| AcornType::Variable(p))
-            .collect();
-        let constant =
-            AcornValue::constant(self.module_id, name.to_string(), var_params, constant_type);
+        let constant = self
+            .bindings
+            .get_constant_value(&PanicOnError, constant_name)
+            .expect("bad add_identity_props call")
+            .to_generic_value();
 
         let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
             let args: Vec<_> = acorn_types
