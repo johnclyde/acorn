@@ -35,7 +35,7 @@ pub struct BindingMap {
     // Maps the type object to its name in this environment.
     type_to_typename: HashMap<PotentialType, String>,
 
-    // Maps the name of a type to the typeclass.
+    // Maps the name of a typeclass to the typeclass.
     // Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
@@ -44,7 +44,8 @@ pub struct BindingMap {
     typeclass_to_name: HashMap<Typeclass, String>,
 
     // Attribute names of both classes and typeclasses defined in this module.
-    attributes: HashMap<String, HashSet<String>>,
+    // We use a map-to-nothing so that we can share autocomplete code.
+    attributes: HashMap<String, BTreeMap<String, ()>>,
 
     // Maps the name of a constant defined in this scope to information about it.
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
@@ -336,7 +337,7 @@ impl BindingMap {
         project: &'a Project,
         module_id: ModuleId,
         name: &str,
-    ) -> &'a HashSet<String> {
+    ) -> &'a BTreeMap<String, ()> {
         self.get_bindings(project, module_id)
             .attributes
             .get(name)
@@ -511,11 +512,11 @@ impl BindingMap {
                 self.attributes
                     .get_mut(entity_name)
                     .unwrap()
-                    .insert(attribute.to_string());
+                    .insert(attribute.to_string(), ());
             } else {
-                let mut set = HashSet::new();
-                set.insert(attribute.to_string());
-                self.attributes.insert(entity_name.to_string(), set);
+                let mut map = BTreeMap::new();
+                map.insert(attribute.to_string(), ());
+                self.attributes.insert(entity_name.to_string(), map);
             }
         }
 
