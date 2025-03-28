@@ -4,6 +4,7 @@ use crate::acorn_type::AcornType;
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::constant_map::ConstantKey;
+use crate::constant_name::GlobalConstantName;
 use crate::module::ModuleId;
 use crate::token::TokenType;
 
@@ -1608,16 +1609,13 @@ impl AcornValue {
         }
     }
 
-    // Set parameters to the given constant in this value.
-    pub fn set_params(
-        self,
-        module_id: ModuleId,
-        name: &str,
-        params: &Vec<AcornType>,
-    ) -> AcornValue {
+    // Set parameters to the given constant wherever it occurs in this value.
+    pub fn set_params(self, name: &GlobalConstantName, params: &Vec<AcornType>) -> AcornValue {
         match self {
             // The only interesting case.
-            AcornValue::Constant(c) if c.module_id == module_id && c.name == name => {
+            AcornValue::Constant(c)
+                if c.module_id == name.module_id && c.name == name.local_name.to_string() =>
+            {
                 AcornValue::Constant(ConstantInstance {
                     module_id: c.module_id,
                     name: c.name,
@@ -1629,47 +1627,47 @@ impl AcornValue {
             // Otherwise just recurse.
             AcornValue::Constant(..) | AcornValue::Variable(..) | AcornValue::Bool(_) => self,
             AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
-                function: Box::new(app.function.set_params(module_id, name, params)),
+                function: Box::new(app.function.set_params(name, params)),
                 args: app
                     .args
                     .into_iter()
-                    .map(|x| x.set_params(module_id, name, params))
+                    .map(|x| x.set_params(name, params))
                     .collect(),
             }),
             AcornValue::Lambda(args, value) => {
-                AcornValue::Lambda(args, Box::new(value.set_params(module_id, name, params)))
+                AcornValue::Lambda(args, Box::new(value.set_params(name, params)))
             }
             AcornValue::ForAll(args, value) => {
-                AcornValue::ForAll(args, Box::new(value.set_params(module_id, name, params)))
+                AcornValue::ForAll(args, Box::new(value.set_params(name, params)))
             }
             AcornValue::Exists(args, value) => {
-                AcornValue::Exists(args, Box::new(value.set_params(module_id, name, params)))
+                AcornValue::Exists(args, Box::new(value.set_params(name, params)))
             }
             AcornValue::Binary(op, left, right) => AcornValue::Binary(
                 op,
-                Box::new(left.set_params(module_id, name, params)),
-                Box::new(right.set_params(module_id, name, params)),
+                Box::new(left.set_params(name, params)),
+                Box::new(right.set_params(name, params)),
             ),
             AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
-                Box::new(cond.set_params(module_id, name, params)),
-                Box::new(if_value.set_params(module_id, name, params)),
-                Box::new(else_value.set_params(module_id, name, params)),
+                Box::new(cond.set_params(name, params)),
+                Box::new(if_value.set_params(name, params)),
+                Box::new(else_value.set_params(name, params)),
             ),
             AcornValue::Match(scrutinee, cases) => {
-                let new_scrutinee = scrutinee.set_params(module_id, name, params);
+                let new_scrutinee = scrutinee.set_params(name, params);
                 let new_cases = cases
                     .into_iter()
                     .map(|(new_vars, pattern, result)| {
                         (
                             new_vars,
-                            pattern.set_params(module_id, name, params),
-                            result.set_params(module_id, name, params),
+                            pattern.set_params(name, params),
+                            result.set_params(name, params),
                         )
                     })
                     .collect();
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
-            AcornValue::Not(x) => AcornValue::Not(Box::new(x.set_params(module_id, name, params))),
+            AcornValue::Not(x) => AcornValue::Not(Box::new(x.set_params(name, params))),
         }
     }
 

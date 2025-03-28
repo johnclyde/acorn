@@ -2211,15 +2211,12 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
+                    let global_name = GlobalConstantName::new(self.module, function_name.clone());
                     let generic_params = type_params
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
-                    let derecursed = internal_value.set_params(
-                        self.module,
-                        &function_name.to_string(),
-                        &generic_params,
-                    );
+                    let derecursed = internal_value.set_params(&global_name, &generic_params);
                     Some(derecursed.to_generic())
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
