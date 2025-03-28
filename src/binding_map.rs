@@ -510,9 +510,9 @@ impl BindingMap {
             definition,
             constructor,
         };
-        let name = name.to_string();
         self.constant_info.insert(name.to_string(), info);
-        if let Some((entity_name, attribute)) = name.rsplit_once('.') {
+
+        if let LocalConstantName::Attribute(entity_name, attribute) = name {
             if self.attributes.contains_key(entity_name) {
                 self.attributes
                     .get_mut(entity_name)
