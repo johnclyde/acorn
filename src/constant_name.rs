@@ -77,6 +77,7 @@ impl LocalConstantName {
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct GlobalConstantName {
     pub module_id: ModuleId,
     pub local_name: LocalConstantName,
@@ -87,6 +88,14 @@ impl GlobalConstantName {
         GlobalConstantName {
             module_id,
             local_name,
+        }
+    }
+
+    // Only use this for testing.
+    pub fn guess(module_id: ModuleId, s: &str) -> GlobalConstantName {
+        GlobalConstantName {
+            module_id,
+            local_name: LocalConstantName::guess(s),
         }
     }
 }

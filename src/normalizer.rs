@@ -3,6 +3,7 @@ use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::constant_map::ConstantMap;
+use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::display::DisplayClause;
 use crate::environment::Environment;
 use crate::literal::Literal;
@@ -124,7 +125,8 @@ impl Normalizer {
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
         let name = format!("s{}", skolem_index);
-        AcornValue::constant(SKOLEM, name, vec![], acorn_type)
+        let global_name = GlobalConstantName::new(SKOLEM, LocalConstantName::Unqualified(name));
+        AcornValue::constant(global_name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -449,11 +451,11 @@ impl Normalizer {
             Atom::True => AcornValue::Bool(true),
             Atom::GlobalConstant(i) => {
                 let (module, name) = self.constant_map.get_global_info(*i);
-                AcornValue::constant(module, name.to_string(), vec![], acorn_type)
+                AcornValue::constant(GlobalConstantName::guess(module, name), vec![], acorn_type)
             }
             Atom::LocalConstant(i) => {
                 let (module, name) = self.constant_map.get_local_info(*i);
-                AcornValue::constant(module, name.to_string(), vec![], acorn_type)
+                AcornValue::constant(GlobalConstantName::guess(module, name), vec![], acorn_type)
             }
             Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {
@@ -469,7 +471,11 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                AcornValue::constant(SKOLEM, format!("s{}", i), vec![], acorn_type)
+                AcornValue::constant(
+                    GlobalConstantName::guess(SKOLEM, &format!("s{}", i)),
+                    vec![],
+                    acorn_type,
+                )
             }
         }
     }

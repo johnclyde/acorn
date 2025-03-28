@@ -475,7 +475,7 @@ impl BindingMap {
     // Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
-        name: &LocalConstantName,
+        local_name: &LocalConstantName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
@@ -483,7 +483,7 @@ impl BindingMap {
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
-                panic!("invalid definition for constant {}: {}", name, e);
+                panic!("invalid definition for constant {}: {}", local_name, e);
             }
             if params.is_empty() && definition.has_generic() {
                 panic!("there should not be generic types in non-parametrized definitions");
@@ -498,9 +498,8 @@ impl BindingMap {
         if !params.is_empty() && constant_type.has_arbitrary() {
             panic!("there should not be arbitrary types in parametrized constant types");
         }
-
-        let value =
-            PotentialValue::constant(self.module, name, constant_type.clone(), params.clone());
+        let global_name = GlobalConstantName::new(self.module, local_name.clone());
+        let value = PotentialValue::constant(global_name, constant_type.clone(), params.clone());
 
         // New constants start out not being theorems and are marked as a theorem later.
         let info = ConstantInfo {
@@ -510,9 +509,9 @@ impl BindingMap {
             theorem: false,
             constructor,
         };
-        self.constant_info.insert(name.to_string(), info);
+        self.constant_info.insert(local_name.to_string(), info);
 
-        match name {
+        match local_name {
             LocalConstantName::Attribute(entity_name, attribute) => {
                 if self.attributes.contains_key(entity_name) {
                     self.attributes
@@ -1489,9 +1488,7 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedValue(uc) => {
-                let global_name =
-                    GlobalConstantName::new(uc.module_id, LocalConstantName::guess(&uc.name));
-                self.add_alias(local_name, global_name, PotentialValue::Unresolved(uc));
+                self.add_alias(local_name, uc.name.clone(), PotentialValue::Unresolved(uc));
                 Ok(())
             }
 
@@ -1672,10 +1669,10 @@ impl BindingMap {
                 && c.params.len() == 1
                 && &c.params[0] == instance_type
             {
-                let full_name = format!("{}.{}", instance_name, tc_condition_name);
+                let local_name = LocalConstantName::attribute(instance_name, &tc_condition_name);
+                let global_name = GlobalConstantName::new(self.module, local_name);
                 Some(AcornValue::constant(
-                    self.module,
-                    full_name,
+                    global_name,
                     vec![],
                     c.instance_type.clone(),
                 ))
@@ -1903,7 +1900,6 @@ impl BindingMap {
                                 let resolved_type =
                                     unresolved.generic_type.instantiate(&named_params);
                                 let resolved = AcornValue::constant(
-                                    unresolved.module_id,
                                     unresolved.name,
                                     instance_params,
                                     resolved_type,

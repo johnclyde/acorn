@@ -1,8 +1,7 @@
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
-use crate::constant_name::LocalConstantName;
-use crate::module::ModuleId;
+use crate::constant_name::GlobalConstantName;
 use crate::unresolved_constant::UnresolvedConstant;
 
 pub static EMPTY_TYPE_PARAMS: [TypeParam; 0] = [];
@@ -22,7 +21,7 @@ impl PotentialValue {
     pub fn force_value(self) -> AcornValue {
         match self {
             PotentialValue::Unresolved(u) => {
-                panic!("tried to force unresolved constant {}", u.name);
+                panic!("tried to force unresolved constant {}", u.name.local_name);
             }
             PotentialValue::Resolved(c) => c,
         }
@@ -32,7 +31,7 @@ impl PotentialValue {
     pub fn as_value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
         match self {
             PotentialValue::Unresolved(u) => {
-                Err(source.error(&format!("value {} has unresolved type", u.name)))
+                Err(source.error(&format!("value {} has unresolved type", u.name.local_name)))
             }
             PotentialValue::Resolved(c) => Ok(c),
         }
@@ -76,22 +75,15 @@ impl PotentialValue {
 
     // Create a potential value for a constant. Can be unresolved, in which case we need params.
     pub fn constant(
-        module_id: ModuleId,
-        name: &LocalConstantName,
+        name: GlobalConstantName,
         constant_type: AcornType,
         params: Vec<TypeParam>,
     ) -> PotentialValue {
         if params.is_empty() {
-            PotentialValue::Resolved(AcornValue::constant(
-                module_id,
-                name.to_string(),
-                vec![],
-                constant_type,
-            ))
+            PotentialValue::Resolved(AcornValue::constant(name, vec![], constant_type))
         } else {
             PotentialValue::Unresolved(UnresolvedConstant {
-                module_id,
-                name: name.to_string(),
+                name,
                 params,
                 generic_type: constant_type,
             })

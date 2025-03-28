@@ -386,14 +386,13 @@ impl AcornValue {
     }
 
     pub fn constant(
-        module_id: ModuleId,
-        name: String,
+        name: GlobalConstantName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
         let ci = ConstantInstance {
-            module_id,
-            name,
+            module_id: name.module_id,
+            name: name.local_name.to_string(),
             params,
             instance_type,
         };

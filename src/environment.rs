@@ -734,12 +734,12 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
-        let name = LocalConstantName::unqualified(&fss.name);
+        let local_name = LocalConstantName::unqualified(&fss.name);
+        let global_name = GlobalConstantName::new(self.module_id, local_name.clone());
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         self.bindings
-            .add_constant(&name, vec![], function_type.clone(), None, None);
-        let function_constant =
-            AcornValue::constant(self.module_id, fss.name.clone(), vec![], function_type);
+            .add_constant(&local_name, vec![], function_type.clone(), None, None);
+        let function_constant = AcornValue::constant(global_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types
