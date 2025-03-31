@@ -72,19 +72,30 @@ impl ConstantMap {
         atom
     }
 
-    pub fn has_constant(&self, name: &GlobalConstantName) -> bool {
+    fn has_constant(&self, name: &GlobalConstantName) -> bool {
         let key = ConstantKey::from_name(name.clone());
         self.keymap.contains_key(&key)
     }
 
-    // Make the new module/name an alias to whatever the old one refers to.
-    pub fn add_alias(&mut self, new_name: &GlobalConstantName, old_name: &GlobalConstantName) {
-        assert!(!self.has_constant(new_name));
-        assert!(self.has_constant(old_name));
+    // This function is called when two constants are equal.
+    // We can add an alias if we have never seen one of them before.
+    // Returns true if we added an alias.
+    pub fn maybe_add_alias(
+        &mut self,
+        new_name: &GlobalConstantName,
+        old_name: &GlobalConstantName,
+    ) -> bool {
+        if self.has_constant(new_name) {
+            return false;
+        }
+        if !self.has_constant(old_name) {
+            return false;
+        }
         let new_key = ConstantKey::from_name(new_name.clone());
         let old_key = ConstantKey::from_name(old_name.clone());
         let atom = self.keymap[&old_key];
         self.keymap.insert(new_key, atom);
+        true
     }
 
     // Get information about a global constant.

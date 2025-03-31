@@ -408,12 +408,9 @@ impl Normalizer {
             // Check for defining one constant to equal another constant.
             if let Some(left_name) = left.as_simple_constant() {
                 if let Some(right_name) = right.as_simple_constant() {
-                    if self.constant_map.has_constant(&right_name)
-                        && !self.constant_map.has_constant(&left_name)
-                    {
-                        // Yep, this is defining one constant to be another one.
-                        // We can handle this in the constant map.
-                        self.constant_map.add_alias(&left_name, &right_name);
+                    // This is defining one constant to be another one.
+                    // Tell the constant map.
+                    if self.constant_map.maybe_add_alias(&left_name, &right_name) {
                         return Normalization::Clauses(vec![]);
                     }
                 }
