@@ -126,7 +126,7 @@ impl Block {
             let potential =
                 subenv
                     .bindings
-                    .add_constant(&arg_name, vec![], specific_arg_type, None, None);
+                    .add_constant(arg_name, vec![], specific_arg_type, None, None);
             internal_args.push(potential.force_value());
         }
 
@@ -190,7 +190,7 @@ impl Block {
                     let potential =
                         subenv
                             .bindings
-                            .add_constant(&arg_name, vec![], arg_type, None, None);
+                            .add_constant(arg_name, vec![], arg_type, None, None);
                     arg_values.push(potential.force_value());
                 }
                 // Inside the block, we can assume the pattern matches.

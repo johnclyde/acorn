@@ -481,7 +481,7 @@ impl BindingMap {
     // Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
-        local_name: &LocalConstantName,
+        local_name: LocalConstantName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
@@ -519,19 +519,13 @@ impl BindingMap {
 
         match local_name {
             LocalConstantName::Attribute(entity_name, attribute) => {
-                if self.attributes.contains_key(entity_name) {
-                    self.attributes
-                        .get_mut(entity_name)
-                        .unwrap()
-                        .insert(attribute.to_string(), ());
-                } else {
-                    let mut map = BTreeMap::new();
-                    map.insert(attribute.to_string(), ());
-                    self.attributes.insert(entity_name.to_string(), map);
-                }
+                self.attributes
+                    .entry(entity_name)
+                    .or_insert_with(BTreeMap::new)
+                    .insert(attribute, ());
             }
             LocalConstantName::Unqualified(name) => {
-                self.unqualified.insert(name.to_string(), ());
+                self.unqualified.insert(name, ());
             }
             _ => {}
         }
@@ -2139,7 +2133,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant(function_name, vec![], fn_type, None, None);
+            self.add_constant(function_name.clone(), vec![], fn_type, None, None);
         }
 
         // Evaluate the internal value using our modified bindings
