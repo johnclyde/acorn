@@ -4,8 +4,6 @@ use crate::acorn_type::AcornType;
 
 use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
-use crate::clause::Clause;
-use crate::literal::Literal;
 use crate::term::Term;
 
 pub type TypeId = u16;
@@ -59,39 +57,6 @@ impl TypeMap {
 
     pub fn get_type(&self, type_id: TypeId) -> &AcornType {
         &self.types[type_id as usize]
-    }
-
-    // Panics if the term has an invalid type id, or one that does not match its type.
-    // Checks all type ids in the term, recursively.
-    pub fn check_term(&self, term: &Term) {
-        // The head has type (A -> B) when the term has type B, so the term's type should
-        // have been constructed first.
-        assert!(term.get_term_type() <= term.get_head_type());
-
-        // Make sure the type you get when applying the head to its arguments is the
-        // same as the term type
-        let mut calculated_type = self.get_type(term.head_type).clone();
-        for arg in &term.args {
-            calculated_type = calculated_type.apply(self.get_type(arg.get_term_type()));
-        }
-        assert_eq!(calculated_type, *self.get_type(term.get_term_type()));
-
-        // Recurse
-        for arg in &term.args {
-            self.check_term(arg);
-        }
-    }
-
-    pub fn check_literal(&self, literal: &Literal) {
-        self.check_term(&literal.left);
-        self.check_term(&literal.right);
-        assert_eq!(literal.left.get_term_type(), literal.right.get_term_type());
-    }
-
-    pub fn check_clause(&self, clause: &Clause) {
-        for literal in &clause.literals {
-            self.check_literal(literal);
-        }
     }
 
     // The provided constant instance should be monomorphized.
