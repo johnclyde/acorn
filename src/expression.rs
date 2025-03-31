@@ -397,11 +397,7 @@ impl Expression {
     pub fn generate_identifier_chain(parts: &[&str]) -> Expression {
         let mut answer = Expression::generate_identifier(parts[0]);
         for part in &parts[1..] {
-            answer = Expression::Binary(
-                Box::new(answer),
-                TokenType::Dot.generate(),
-                Box::new(Expression::generate_identifier(part)),
-            );
+            answer = Expression::generate_dot(answer, Expression::generate_identifier(part));
         }
         answer
     }
@@ -462,6 +458,10 @@ impl Expression {
             );
         }
         Expression::Binary(Box::new(left), op.generate(), Box::new(right))
+    }
+
+    pub fn generate_dot(left: Expression, right: Expression) -> Expression {
+        Expression::Binary(Box::new(left), TokenType::Dot.generate(), Box::new(right))
     }
 
     // Converts this expression to a numeric digit, if possible.

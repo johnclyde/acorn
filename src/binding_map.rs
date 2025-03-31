@@ -2370,27 +2370,40 @@ impl BindingMap {
                 let type_name =
                     GlobalConstantName::new(name.module_id, LocalConstantName::unqualified(class));
                 let numeric_type = self.name_to_expr(&type_name)?;
-                return Ok(Expression::Binary(
-                    Box::new(numeric_type),
-                    TokenType::Dot.generate(),
-                    Box::new(Expression::Singleton(numeral)),
+                return Ok(Expression::generate_dot(
+                    numeric_type,
+                    Expression::Singleton(numeral),
                 ));
             }
         }
 
-        // TODO: this doesn't seem like the right thing to do
-        if let LocalConstantName::Instance(..) = &name.local_name {
-            return Err(CodeGenError::UnhandledValue(
-                "unexpected instance".to_string(),
+        // Instance names
+        if let LocalConstantName::Instance(typeclass, attr, instance) = &name.local_name {
+            let type_name = GlobalConstantName::new(
+                name.module_id,
+                LocalConstantName::unqualified(&typeclass.name),
+            );
+            let type_expr = self.name_to_expr(&type_name)?;
+            let dotted_expr =
+                Expression::generate_dot(type_expr, Expression::generate_identifier(attr));
+            let instance_expr = Expression::generate_identifier(instance);
+            let param_expr = Expression::generate_params(vec![instance_expr]);
+            return Ok(Expression::Apply(
+                Box::new(dotted_expr),
+                Box::new(param_expr),
             ));
         }
 
         // Handle local constants
         if name.module_id == self.module {
-            // TODO: this is just totally wrong
-            return Ok(Expression::generate_identifier(
-                &name.local_name.to_string(),
-            ));
+            return Ok(match &name.local_name {
+                LocalConstantName::Unqualified(word) => Expression::generate_identifier(word),
+                LocalConstantName::Attribute(left, right) => Expression::generate_dot(
+                    Expression::generate_identifier(left),
+                    Expression::generate_identifier(right),
+                ),
+                _ => panic!("control flow error"),
+            });
         }
 
         // Check if there's a local alias for this constant.
@@ -2405,11 +2418,7 @@ impl BindingMap {
             if let Some(type_alias) = self.canonical_to_alias.get(&type_name) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(attr);
-                return Ok(Expression::Binary(
-                    Box::new(lhs),
-                    TokenType::Dot.generate(),
-                    Box::new(rhs),
-                ));
+                return Ok(Expression::generate_dot(lhs, rhs));
             }
         }
 
