@@ -59,8 +59,10 @@ pub struct BindingMap {
 
     // Whenever a name from some other scope has a local alias in this one,
     // if we're generating code, we prefer to use the local name.
-    // For this reason, canonical_to_alias maps the canonical identifier to the preferred local alias.
-    canonical_to_alias: HashMap<(ModuleId, String), String>,
+    // This is not just constants, but also types and typeclasses.
+    // So, the GlobalConstantName is slightly misused.
+    // For this reason, canonical_to_alias maps the global name to the preferred local alias.
+    canonical_to_alias: HashMap<GlobalConstantName, String>,
 
     // Names that refer to other modules.
     // After "import foo", "foo" refers to a module.
@@ -286,25 +288,29 @@ impl BindingMap {
 
     // Adds a new type name that's an alias for an existing type.
     // Panics if the alias is already bound.
-    pub fn add_type_alias(&mut self, name: &str, potential: PotentialType) {
+    pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(module, type_name, params)) = &potential {
             if params.is_empty() {
+                let global_name =
+                    GlobalConstantName::new(*module, LocalConstantName::unqualified(type_name));
                 self.canonical_to_alias
-                    .entry((*module, type_name.clone()))
-                    .or_insert(name.to_string());
+                    .entry(global_name)
+                    .or_insert(alias.to_string());
             }
         }
 
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
+            let global_name =
+                GlobalConstantName::new(u.module_id, LocalConstantName::unqualified(&u.name));
             self.canonical_to_alias
-                .entry((u.module_id, u.name.clone()))
-                .or_insert(name.to_string());
+                .entry(global_name)
+                .or_insert(alias.to_string());
         }
 
-        self.insert_type_name(name.to_string(), potential);
+        self.insert_type_name(alias.to_string(), potential);
     }
 
     // Adds a name for this typeclass.
@@ -397,10 +403,6 @@ impl BindingMap {
         }
     }
 
-    fn has_constant_value(&self, name: &LocalConstantName) -> bool {
-        self.constant_info.contains_key(name)
-    }
-
     // Returns a PotentialValue representing this name, if there is one.
     // This can be either a resolved or unresolved value.
     pub fn get_constant_value(
@@ -413,14 +415,6 @@ impl BindingMap {
             None => Err(source.error(&format!("constant {} not found", name))),
         }
     }
-
-    // XXX
-    // pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {
-    //     match self.constant_info.get(identifier) {
-    //         Some(info) => info.value.unresolved_params().to_vec(),
-    //         None => vec![],
-    //     }
-    // }
 
     // Gets the type for a type name, not for an identifier.
     pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
@@ -546,17 +540,13 @@ impl BindingMap {
     pub fn add_alias(
         &mut self,
         local_name: LocalConstantName,
-        canonical_name: GlobalConstantName,
+        global_name: GlobalConstantName,
         value: PotentialValue,
     ) {
-        let canonical = (
-            canonical_name.module_id,
-            canonical_name.local_name.to_string(),
-        );
-        if canonical_name.module_id != self.module {
+        if global_name.module_id != self.module {
             // Prefer this alias locally to using the qualified, canonical name
             self.canonical_to_alias
-                .entry(canonical)
+                .entry(global_name.clone())
                 .or_insert(local_name.to_string());
         }
         self.constant_info.insert(
@@ -1090,7 +1080,7 @@ impl BindingMap {
             project.get_bindings(module).unwrap()
         };
         let constant_name = LocalConstantName::attribute(type_name, var_name);
-        bindings.has_constant_value(&constant_name)
+        bindings.constant_info.contains_key(&constant_name)
     }
 
     // Evaluates a name scoped by a class or typeclass name, like MyClass.foo
@@ -2300,8 +2290,9 @@ impl BindingMap {
         // Check if it's a type from a module that we have imported
         if let AcornType::Data(module, type_name, params) = acorn_type {
             // See if we have an alias
-            let key = (*module, type_name.clone());
-            if let Some(name) = self.canonical_to_alias.get(&key) {
+            let global_name =
+                GlobalConstantName::new(*module, LocalConstantName::unqualified(type_name));
+            if let Some(name) = self.canonical_to_alias.get(&global_name) {
                 let base_expr = Expression::generate_identifier(name);
                 return self.parametrize_expr(base_expr, params);
             }
@@ -2403,15 +2394,15 @@ impl BindingMap {
         }
 
         // Check if there's a local alias for this constant.
-        let key = (name.module_id, name.local_name.to_string());
-        if let Some(alias) = self.canonical_to_alias.get(&key) {
+        if let Some(alias) = self.canonical_to_alias.get(&name) {
             return Ok(Expression::generate_identifier(alias));
         }
 
-        // If it's a member function, check if there's a local alias for its struct.
+        // If it's a member function, check if there's a local alias for its class.
         if let LocalConstantName::Attribute(class, attr) = &name.local_name {
-            let key = (name.module_id, class.to_string());
-            if let Some(type_alias) = self.canonical_to_alias.get(&key) {
+            let type_name =
+                GlobalConstantName::new(name.module_id, LocalConstantName::unqualified(class));
+            if let Some(type_alias) = self.canonical_to_alias.get(&type_name) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::Binary(
