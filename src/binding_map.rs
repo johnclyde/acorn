@@ -2170,11 +2170,8 @@ impl BindingMap {
             )?;
 
             if let Some(function_name) = function_name {
-                let mut checker = TerminationChecker::new(
-                    self.module,
-                    function_name.to_string(),
-                    internal_arg_types.len(),
-                );
+                let global_name = GlobalConstantName::new(self.module, function_name.clone());
+                let mut checker = TerminationChecker::new(global_name, internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
                         value_expr.error("the compiler thinks this looks like an infinite loop")

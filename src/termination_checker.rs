@@ -1,13 +1,12 @@
 use crate::acorn_value::AcornValue;
 use crate::atom::AtomId;
-use crate::module::ModuleId;
+use crate::constant_name::GlobalConstantName;
 
 // The TerminationChecker determines whether recursive functions will always terminate,
 // because they always get called on a substructure of the input.
 pub struct TerminationChecker {
     // The function whose definition we are checking.
-    module: ModuleId,
-    function_name: String,
+    name: GlobalConstantName,
 
     // substructure[i] = j if x_i is a ubstructure of x_j, due to match relationships.
     // j is the smallest such j.
@@ -20,12 +19,11 @@ pub struct TerminationChecker {
 }
 
 impl TerminationChecker {
-    pub fn new(module: ModuleId, function_name: String, num_args: usize) -> Self {
+    pub fn new(name: GlobalConstantName, num_args: usize) -> Self {
         let substructure_map = (0..num_args).map(|i| Some(i as AtomId)).collect();
         let always_strict_sub = vec![true; num_args];
         TerminationChecker {
-            module,
-            function_name,
+            name,
             substructure_map,
             always_strict_sub,
         }
@@ -38,9 +36,7 @@ impl TerminationChecker {
                 // These values can't contain function calls within them, so they don't matter.
             }
             AcornValue::Constant(c) => {
-                if c.name.module_id == self.module
-                    && c.name.local_name.to_string() == self.function_name
-                {
+                if c.name == self.name {
                     // We are using the recursive function without calling it, so we can't
                     // really say that any of its arguments are always strict any more.
                     self.always_strict_sub = vec![false; self.always_strict_sub.len()];
@@ -80,29 +76,25 @@ impl TerminationChecker {
                     return;
                 }
 
-                if let Some(name) = app.function.as_name() {
-                    if name.module_id == self.module
-                        && name.local_name.to_string() == self.function_name
-                    {
-                        // This is a recursive call. Check the arguments for substructures.
-                        for i in 0..self.always_strict_sub.len() {
-                            if i >= app.args.len() {
-                                // This corresponds to partially binding the function arguments.
-                                // I think this is okay as long as some bound argument adheres to
-                                // the substructure argument.
-                                self.always_strict_sub[i] = false;
-                                continue;
-                            }
-
-                            let arg = &app.args[i];
-                            let strict_sub = if let AcornValue::Variable(j, _) = arg {
-                                let j = *j as usize;
-                                i != j && self.substructure_map[j] == Some(i as AtomId)
-                            } else {
-                                false
-                            };
-                            self.always_strict_sub[i] &= strict_sub;
+                if Some(&self.name) == app.function.as_name() {
+                    // This is a recursive call. Check the arguments for substructures.
+                    for i in 0..self.always_strict_sub.len() {
+                        if i >= app.args.len() {
+                            // This corresponds to partially binding the function arguments.
+                            // I think this is okay as long as some bound argument adheres to
+                            // the substructure argument.
+                            self.always_strict_sub[i] = false;
+                            continue;
                         }
+
+                        let arg = &app.args[i];
+                        let strict_sub = if let AcornValue::Variable(j, _) = arg {
+                            let j = *j as usize;
+                            i != j && self.substructure_map[j] == Some(i as AtomId)
+                        } else {
+                            false
+                        };
+                        self.always_strict_sub[i] &= strict_sub;
                     }
                 } else {
                     self.traverse(app.function.as_ref());
