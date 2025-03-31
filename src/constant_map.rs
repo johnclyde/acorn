@@ -11,16 +11,16 @@ use crate::module::SKOLEM;
 #[derive(Clone)]
 pub struct ConstantMap {
     // For global constant i in the prover, global_constants[i] is the corresponding GlobalConstantName.
-    // The AtomId -> GlobalConstantName lookup direction.
+    // Part of the Atom -> GlobalConstantName lookup direction.
     global_constants: Vec<Option<GlobalConstantName>>,
 
     // For local constant i in the prover, local_constants[i] is the corresponding GlobalConstantName.
-    // The AtomId -> GlobalConstantName lookup direction.
+    // Part of the Atom -> GlobalConstantName lookup direction.
     local_constants: Vec<Option<GlobalConstantName>>,
 
     // Inverse map of constants.
-    // The GlobalConstantName -> AtomId lookup direction.
-    name_to_id: HashMap<GlobalConstantName, Atom>,
+    // The GlobalConstantName -> Atom lookup direction.
+    name_to_atom: HashMap<GlobalConstantName, Atom>,
 }
 
 impl ConstantMap {
@@ -28,7 +28,7 @@ impl ConstantMap {
         ConstantMap {
             global_constants: vec![],
             local_constants: vec![],
-            name_to_id: HashMap::new(),
+            name_to_atom: HashMap::new(),
         }
     }
 
@@ -38,7 +38,7 @@ impl ConstantMap {
         if name.module_id == SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
         }
-        if let Some(&atom) = self.name_to_id.get(&name) {
+        if let Some(&atom) = self.name_to_atom.get(&name) {
             return atom;
         }
         let atom = if local {
@@ -50,17 +50,17 @@ impl ConstantMap {
             self.global_constants.push(Some(name.clone()));
             Atom::GlobalConstant(atom_id)
         };
-        self.name_to_id.insert(name, atom);
+        self.name_to_atom.insert(name, atom);
         atom
     }
 
-    // Get information about a global constant.
-    pub fn get_global_info(&self, atom_id: AtomId) -> &GlobalConstantName {
+    // Get the name corresponding to a particular global AtomId.
+    pub fn name_for_global_id(&self, atom_id: AtomId) -> &GlobalConstantName {
         &self.global_constants[atom_id as usize].as_ref().unwrap()
     }
 
-    // Get information about a local constant.
-    pub fn get_local_info(&self, atom_id: AtomId) -> &GlobalConstantName {
+    // Get the name corresponding to a particular local AtomId.
+    pub fn name_for_local_id(&self, atom_id: AtomId) -> &GlobalConstantName {
         &self.local_constants[atom_id as usize].as_ref().unwrap()
     }
 }
