@@ -2,7 +2,11 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::{Atom, AtomId};
-use crate::type_map::{TypeId, BOOL, EMPTY};
+
+pub type TypeId = u16;
+
+pub const EMPTY: TypeId = 0;
+pub const BOOL: TypeId = 1;
 
 // A term with no args is a plain atom.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

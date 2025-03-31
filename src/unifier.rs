@@ -1,8 +1,7 @@
 use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
-use crate::term::Term;
-use crate::type_map::TypeId;
+use crate::term::{Term, TypeId};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Scope {
@@ -442,7 +441,7 @@ impl Unifier {
 
 #[cfg(test)]
 mod tests {
-    use crate::type_map::BOOL;
+    use crate::term::BOOL;
 
     use super::*;
 

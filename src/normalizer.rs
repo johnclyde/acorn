@@ -8,8 +8,8 @@ use crate::display::DisplayClause;
 use crate::environment::Environment;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
-use crate::term::Term;
-use crate::type_map::{TypeId, TypeMap};
+use crate::term::{Term, TypeId};
+use crate::type_map::TypeMap;
 
 #[derive(Debug)]
 pub struct NormalizationError(pub String);

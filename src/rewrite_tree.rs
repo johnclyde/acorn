@@ -4,8 +4,7 @@
 use crate::atom::AtomId;
 use crate::literal::Literal;
 use crate::pattern_tree::{term_key_prefix, PatternTree, TermComponent};
-use crate::term::Term;
-use crate::type_map::TypeId;
+use crate::term::{Term, TypeId};
 
 // Each term can correspond with multiple RewriteValues.
 // This is the internal representation of the pattern, before it has been applied to a term.

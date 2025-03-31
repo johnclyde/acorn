@@ -4,12 +4,7 @@ use crate::acorn_type::AcornType;
 
 use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
-use crate::term::Term;
-
-pub type TypeId = u16;
-
-pub const EMPTY: TypeId = 0;
-pub const BOOL: TypeId = 1;
+use crate::term::{Term, TypeId};
 
 // The Acorn language allows a rich variety of types, where each value has an AcornType, and where
 // functions can be polymorphic.
@@ -90,6 +85,8 @@ impl TypeMap {
 
 #[cfg(test)]
 mod tests {
+    use crate::term::{BOOL, EMPTY};
+
     use super::*;
 
     #[test]

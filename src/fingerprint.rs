@@ -2,8 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::atom::Atom;
 use crate::literal::Literal;
-use crate::term::Term;
-use crate::type_map::TypeId;
+use crate::term::{Term, TypeId};
 
 // A fingerprint component describes the head of a term at a particular "path" from this term.
 // The path is the sequence of arg indices to get to that term

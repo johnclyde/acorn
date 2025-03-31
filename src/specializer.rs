@@ -1,6 +1,5 @@
 use crate::atom::{Atom, AtomId};
-use crate::term::Term;
-use crate::type_map::TypeId;
+use crate::term::{Term, TypeId};
 
 // A Specializer finds substitutions that specialize, to turn a more general term
 // into a more specific one.
