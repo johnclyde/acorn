@@ -31,8 +31,7 @@ pub struct BindingMap {
     // Doesn't handle variables defined on the stack, only ones that will be in scope for the
     // entirety of this environment.
     // This also includes aliases.
-    // Includes "<datatype>.<constant>" for members.
-    constant_info: HashMap<String, ConstantInfo>,
+    constant_info: HashMap<LocalConstantName, ConstantInfo>,
 
     // Maps the name of a type to the type object.
     // Includes unresolved names like List that don't have enough information
@@ -205,12 +204,13 @@ impl BindingMap {
     }
 
     pub fn constant_name_in_use(&self, name: &LocalConstantName) -> bool {
-        match name {
-            LocalConstantName::Unqualified(name) => {
-                // Module names and constant names can conflict.
-                self.constant_info.contains_key(name) || self.name_to_module.contains_key(name)
-            }
-            _ => self.constant_info.contains_key(&name.to_string()),
+        if self.constant_info.contains_key(name) {
+            return true;
+        }
+        if let LocalConstantName::Unqualified(word) = name {
+            self.name_to_module.contains_key(word)
+        } else {
+            false
         }
     }
 
@@ -398,8 +398,7 @@ impl BindingMap {
     }
 
     fn has_constant_value(&self, name: &LocalConstantName) -> bool {
-        let name = name.to_string();
-        self.constant_info.contains_key(&name)
+        self.constant_info.contains_key(name)
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -409,19 +408,19 @@ impl BindingMap {
         source: &dyn ErrorSource,
         name: &LocalConstantName,
     ) -> compilation::Result<PotentialValue> {
-        let string_name = name.to_string();
-        match self.constant_info.get(&string_name) {
+        match self.constant_info.get(name) {
             Some(info) => Ok(info.value.clone()),
             None => Err(source.error(&format!("constant {} not found", name))),
         }
     }
 
-    pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {
-        match self.constant_info.get(identifier) {
-            Some(info) => info.value.unresolved_params().to_vec(),
-            None => vec![],
-        }
-    }
+    // XXX
+    // pub fn unresolved_params(&self, identifier: &str) -> Vec<TypeParam> {
+    //     match self.constant_info.get(identifier) {
+    //         Some(info) => info.value.unresolved_params().to_vec(),
+    //         None => vec![],
+    //     }
+    // }
 
     // Gets the type for a type name, not for an identifier.
     pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
@@ -442,16 +441,14 @@ impl BindingMap {
 
     // Just use this for testing.
     pub fn has_constant_name(&self, name: &str) -> bool {
-        self.constant_info.contains_key(name)
+        let name = LocalConstantName::guess(name);
+        self.constant_info.contains_key(&name)
     }
 
     // Returns the defined value, if there is a defined value.
     // If there isn't, returns None.
     pub fn get_definition(&self, name: &LocalConstantName) -> Option<&AcornValue> {
-        self.constant_info
-            .get(&name.to_string())?
-            .definition
-            .as_ref()
+        self.constant_info.get(name)?.definition.as_ref()
     }
 
     // Returns the defined value and its parameters in their canonical order.
@@ -460,7 +457,7 @@ impl BindingMap {
         &self,
         name: &LocalConstantName,
     ) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(&name.to_string())?;
+        let info = self.constant_info.get(name)?;
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
@@ -515,7 +512,7 @@ impl BindingMap {
             theorem: false,
             constructor,
         };
-        self.constant_info.insert(local_name.to_string(), info);
+        self.constant_info.insert(local_name.clone(), info);
 
         match local_name {
             LocalConstantName::Attribute(entity_name, attribute) => {
@@ -539,7 +536,6 @@ impl BindingMap {
             // Remove the unqualified name from the list of unqualified names.
             self.unqualified.remove(word);
         }
-        let name = name.to_string();
         self.constant_info
             .remove(&name)
             .expect("constant name not in use");
@@ -564,7 +560,7 @@ impl BindingMap {
                 .or_insert(local_name.to_string());
         }
         self.constant_info.insert(
-            local_name.to_string(),
+            local_name,
             ConstantInfo {
                 value,
                 canonical: false,
@@ -575,7 +571,7 @@ impl BindingMap {
         );
     }
 
-    pub fn mark_as_theorem(&mut self, name: &str) {
+    pub fn mark_as_theorem(&mut self, name: &LocalConstantName) {
         self.constant_info
             .get_mut(name)
             .expect("marking theorem that doesn't exist")
@@ -584,7 +580,7 @@ impl BindingMap {
 
     pub fn is_theorem(&self, name: &LocalConstantName) -> bool {
         self.constant_info
-            .get(&name.to_string())
+            .get(&name)
             .map_or(false, |info| info.theorem)
     }
 
@@ -738,7 +734,7 @@ impl BindingMap {
                 }
                 let name = LocalConstantName::unqualified(key);
                 if importing {
-                    match self.constant_info.get(&name.to_string()) {
+                    match self.constant_info.get(&name) {
                         Some(info) => {
                             if !info.canonical || info.theorem {
                                 // Don't suggest aliases or theorems when importing
@@ -963,10 +959,7 @@ impl BindingMap {
         let info = match value.as_simple_constant() {
             Some(name) => {
                 let bindings = self.get_bindings(project, name.module_id);
-                bindings
-                    .constant_info
-                    .get(&name.local_name.to_string())
-                    .unwrap()
+                bindings.constant_info.get(&name.local_name).unwrap()
             }
             None => return Err(source.error("invalid pattern")),
         };
@@ -2230,9 +2223,7 @@ impl BindingMap {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
                 if c.name.module_id == self.module
-                    && !self
-                        .constant_info
-                        .contains_key(&c.name.local_name.to_string())
+                    && !self.constant_info.contains_key(&c.name.local_name)
                 {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.local_name.to_string(), c.instance_type.clone());

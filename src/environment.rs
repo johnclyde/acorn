@@ -615,7 +615,8 @@ impl Environment {
         );
         self.add_node_lines(index, &statement.range());
         if let Some(name) = &ts.name {
-            self.bindings.mark_as_theorem(name);
+            let name = LocalConstantName::unqualified(name);
+            self.bindings.mark_as_theorem(&name);
         }
 
         Ok(())
@@ -1244,7 +1245,7 @@ impl Environment {
             Some(lambda_claim),
             None,
         );
-        self.bindings.mark_as_theorem(&name.to_string());
+        self.bindings.mark_as_theorem(&name);
 
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
@@ -1416,7 +1417,7 @@ impl Environment {
                 Some(condition_name.to_string()),
             );
             self.add_node(project, true, prop, None);
-            self.bindings.mark_as_theorem(&condition_name.to_string());
+            self.bindings.mark_as_theorem(&condition_name);
         }
 
         self.bindings.remove_type(ts.instance_name.text());
