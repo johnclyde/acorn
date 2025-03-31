@@ -72,11 +72,6 @@ impl ConstantMap {
         atom
     }
 
-    fn has_constant(&self, name: &GlobalConstantName) -> bool {
-        let key = ConstantKey::from_name(name.clone());
-        self.keymap.contains_key(&key)
-    }
-
     // This function is called when two constants are equal.
     // We can add an alias if we have never seen one of them before.
     // Returns true if we added an alias.
@@ -85,14 +80,14 @@ impl ConstantMap {
         new_name: &GlobalConstantName,
         old_name: &GlobalConstantName,
     ) -> bool {
-        if self.has_constant(new_name) {
-            return false;
-        }
-        if !self.has_constant(old_name) {
-            return false;
-        }
         let new_key = ConstantKey::from_name(new_name.clone());
+        if self.keymap.contains_key(&new_key) {
+            return false;
+        }
         let old_key = ConstantKey::from_name(old_name.clone());
+        if !self.keymap.contains_key(&old_key) {
+            return false;
+        }
         let atom = self.keymap[&old_key];
         self.keymap.insert(new_key, atom);
         true
