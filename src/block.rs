@@ -398,9 +398,8 @@ impl Node {
                     .expect("missing module during add_proposition")
                     .bindings
             };
-            let local_name = c.name.local_name.to_string();
-            if bindings.is_theorem(&local_name) {
-                match bindings.get_definition_and_params(&local_name) {
+            if bindings.is_theorem(&c.name.local_name) {
+                match bindings.get_definition_and_params(&c.name.local_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {

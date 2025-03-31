@@ -181,7 +181,7 @@ impl Environment {
     // constant.
     pub fn add_identity_props(&mut self, project: &Project, constant_name: &LocalConstantName) {
         let name = constant_name.to_string();
-        let definition = if let Some(d) = self.bindings.get_definition(&name) {
+        let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
             return;
@@ -222,7 +222,7 @@ impl Environment {
         );
     }
 
-    pub fn get_definition(&self, name: &str) -> Option<&AcornValue> {
+    pub fn get_definition(&self, name: &LocalConstantName) -> Option<&AcornValue> {
         self.bindings.get_definition(name)
     }
 
@@ -1499,7 +1499,7 @@ impl Environment {
                 .get_attributes(&project, typeclass.module_id, &typeclass.name);
         let mut conditions = vec![];
         for attr_name in attributes.keys() {
-            let tc_attr_name = format!("{}.{}", typeclass.name, attr_name);
+            let tc_attr_name = LocalConstantName::attribute(&typeclass.name, attr_name);
             if self.bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.
@@ -2170,7 +2170,8 @@ impl Environment {
 
     // Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
-        let env_value = match self.bindings.get_definition(name) {
+        let name = LocalConstantName::guess(name);
+        let env_value = match self.bindings.get_definition(&name) {
             Some(t) => t,
             None => panic!("{} not found in environment", name),
         };
@@ -2179,15 +2180,19 @@ impl Environment {
 
     // Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
-        let def1 = self.bindings.get_definition(name1).unwrap();
-        let def2 = self.bindings.get_definition(name2).unwrap();
+        let name1 = LocalConstantName::guess(name1);
+        let def1 = self.bindings.get_definition(&name1).unwrap();
+        let name2 = LocalConstantName::guess(name2);
+        let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_eq!(def1, def2);
     }
 
     // Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
-        let def1 = self.bindings.get_definition(name1).unwrap();
-        let def2 = self.bindings.get_definition(name2).unwrap();
+        let name1 = LocalConstantName::guess(name1);
+        let def1 = self.bindings.get_definition(&name1).unwrap();
+        let name2 = LocalConstantName::guess(name2);
+        let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_ne!(def1, def2);
     }
 }

@@ -447,14 +447,20 @@ impl BindingMap {
 
     // Returns the defined value, if there is a defined value.
     // If there isn't, returns None.
-    pub fn get_definition(&self, name: &str) -> Option<&AcornValue> {
-        self.constant_info.get(name)?.definition.as_ref()
+    pub fn get_definition(&self, name: &LocalConstantName) -> Option<&AcornValue> {
+        self.constant_info
+            .get(&name.to_string())?
+            .definition
+            .as_ref()
     }
 
     // Returns the defined value and its parameters in their canonical order.
     // Returns None if there is no definition.
-    pub fn get_definition_and_params(&self, name: &str) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(name)?;
+    pub fn get_definition_and_params(
+        &self,
+        name: &LocalConstantName,
+    ) -> Option<(&AcornValue, &[TypeParam])> {
+        let info = self.constant_info.get(&name.to_string())?;
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
@@ -582,9 +588,9 @@ impl BindingMap {
             .theorem = true;
     }
 
-    pub fn is_theorem(&self, name: &str) -> bool {
+    pub fn is_theorem(&self, name: &LocalConstantName) -> bool {
         self.constant_info
-            .get(name)
+            .get(&name.to_string())
             .map_or(false, |info| info.theorem)
     }
 
@@ -627,7 +633,7 @@ impl BindingMap {
         match claim.is_named_function_call() {
             Some(global_name) => {
                 let bindings = self.get_bindings(project, global_name.module_id);
-                bindings.is_theorem(&global_name.local_name.to_string())
+                bindings.is_theorem(&global_name.local_name)
             }
             None => false,
         }
@@ -1634,7 +1640,7 @@ impl BindingMap {
         typeclass: &Typeclass,
         condition_name: &str,
     ) -> compilation::Result<AcornValue> {
-        let tc_condition_name = format!("{}.{}", &typeclass.name, condition_name);
+        let tc_condition_name = LocalConstantName::attribute(&typeclass.name, condition_name);
         let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
             Some((def, params)) => (def, params),
             None => {
@@ -1666,7 +1672,8 @@ impl BindingMap {
                 && c.params.len() == 1
                 && &c.params[0] == instance_type
             {
-                let local_name = LocalConstantName::attribute(instance_name, &tc_condition_name);
+                let local_name =
+                    LocalConstantName::instance(&typeclass, &condition_name, instance_name);
                 let global_name = GlobalConstantName::new(self.module, local_name);
                 Some(AcornValue::constant(
                     global_name,
