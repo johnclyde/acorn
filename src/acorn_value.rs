@@ -3,7 +3,6 @@ use std::fmt;
 use crate::acorn_type::AcornType;
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::constant_map::ConstantKey;
 use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::token::TokenType;
 
@@ -138,13 +137,6 @@ impl ConstantInstance {
             name: self.name.clone(),
             params: self.params.iter().map(|t| t.to_arbitrary()).collect(),
             instance_type: self.instance_type.to_arbitrary(),
-        }
-    }
-
-    pub fn key(&self) -> ConstantKey {
-        ConstantKey {
-            module: self.name.module_id,
-            name: self.name.local_name.to_string(),
         }
     }
 }

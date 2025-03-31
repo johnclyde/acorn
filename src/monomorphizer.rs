@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, ConstantInstance};
-use crate::constant_map::ConstantKey;
+use crate::constant_name::GlobalConstantName;
 use crate::fact::Fact;
 use crate::proof_step::Truthiness;
 
@@ -96,13 +96,13 @@ pub struct Monomorphizer {
     // The instantiations we have done for each constant.
     // Indexed by constant id.
     // Again, all of these instantiations are monomorphizations.
-    instantiations_for_constant: HashMap<ConstantKey, Vec<ConstantParams>>,
+    instantiations_for_constant: HashMap<GlobalConstantName, Vec<ConstantParams>>,
 
     // An index tracking wherever a generic constant is instantiated in the generic facts.
     // This is updated whenever we add a generic fact.
     // Lists (index in generic_facts, instantiation for the constant) for each occurrence.
     // The types could have all sorts of generic variables; it's whatever was in the fact.
-    generic_constants: HashMap<ConstantKey, Vec<(usize, ConstantParams)>>,
+    generic_constants: HashMap<GlobalConstantName, Vec<(usize, ConstantParams)>>,
 }
 
 impl Monomorphizer {
@@ -148,19 +148,16 @@ impl Monomorphizer {
 
         // Store a reference to our generic constants in the index
         for c in generic_constants.clone() {
-            let key = c.key();
-            let params = ConstantParams::new(c.params);
             self.generic_constants
-                .entry(key)
+                .entry(c.name)
                 .or_insert(vec![])
-                .push((i, params));
+                .push((i, ConstantParams::new(c.params)));
         }
 
         // Check how this new generic fact should be monomorphized
         for c in generic_constants {
-            let key = c.key();
             let instance_params = ConstantParams::new(c.params);
-            if let Some(monomorphs) = self.instantiations_for_constant.get(&key) {
+            if let Some(monomorphs) = self.instantiations_for_constant.get(&c.name) {
                 for monomorph_params in monomorphs.clone() {
                     self.try_to_monomorphize_fact(i, &monomorph_params, &instance_params);
                 }
@@ -193,7 +190,7 @@ impl Monomorphizer {
         params.assert_full();
         let monomorphs = self
             .instantiations_for_constant
-            .entry(constant.key())
+            .entry(constant.name.clone())
             .or_insert(vec![]);
         if monomorphs.contains(&params) {
             // We already have this monomorph
@@ -204,7 +201,7 @@ impl Monomorphizer {
         monomorphs.push(params.clone());
 
         // For every fact that mentions this constant, try to monomorphize the fact to match it.
-        if let Some(generic_constant) = self.generic_constants.get(&constant.key()) {
+        if let Some(generic_constant) = self.generic_constants.get(&constant.name) {
             for (fact_id, generic_params) in generic_constant.clone() {
                 self.try_to_monomorphize_fact(fact_id, &generic_params, &params);
             }
