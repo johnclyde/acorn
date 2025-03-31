@@ -1951,12 +1951,15 @@ impl Environment {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];
         for node in &self.nodes {
+            if !node.claim.source.importable {
+                continue;
+            }
             if let Some(filter) = filter {
                 let name = node
                     .claim
                     .source
                     .fact_name()
-                    .expect("exported fact has no name");
+                    .expect("importable fact has no name");
                 if !filter.contains(&name) {
                     continue;
                 }
