@@ -72,32 +72,17 @@ impl ConstantMap {
         atom
     }
 
-    pub fn has_constant(&self, module: ModuleId, name: &str) -> bool {
-        let key = ConstantKey {
-            module,
-            name: name.to_string(),
-        };
+    pub fn has_constant(&self, name: &GlobalConstantName) -> bool {
+        let key = ConstantKey::from_name(name.clone());
         self.keymap.contains_key(&key)
     }
 
     // Make the new module/name an alias to whatever the old one refers to.
-    pub fn add_alias(
-        &mut self,
-        new_module: ModuleId,
-        new_name: &str,
-        old_module: ModuleId,
-        old_name: &str,
-    ) {
-        assert!(!self.has_constant(new_module, new_name));
-        assert!(self.has_constant(old_module, old_name));
-        let new_key = ConstantKey {
-            module: new_module,
-            name: new_name.to_string(),
-        };
-        let old_key = ConstantKey {
-            module: old_module,
-            name: old_name.to_string(),
-        };
+    pub fn add_alias(&mut self, new_name: &GlobalConstantName, old_name: &GlobalConstantName) {
+        assert!(!self.has_constant(new_name));
+        assert!(self.has_constant(old_name));
+        let new_key = ConstantKey::from_name(new_name.clone());
+        let old_key = ConstantKey::from_name(old_name.clone());
         let atom = self.keymap[&old_key];
         self.keymap.insert(new_key, atom);
     }
