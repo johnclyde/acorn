@@ -63,7 +63,7 @@ pub struct Environment {
     pub nodes: Vec<Node>,
 
     // The region in the source document where a name was defined
-    definition_ranges: HashMap<String, Range>,
+    definition_ranges: HashMap<LocalConstantName, Range>,
 
     // Whether a plain "false" is anywhere in this environment.
     // This indicates that the environment is supposed to have contradictory facts.
@@ -180,7 +180,6 @@ impl Environment {
     // Adds a proposition, or multiple propositions, to represent the definition of the provided
     // constant.
     pub fn add_identity_props(&mut self, project: &Project, constant_name: &LocalConstantName) {
-        let name = constant_name.to_string();
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -212,8 +211,9 @@ impl Environment {
         } else {
             AcornValue::equals(constant.clone(), definition)
         };
-        let range = self.definition_ranges.get(&name).unwrap().clone();
+        let range = self.definition_ranges.get(&constant_name).unwrap().clone();
 
+        let name = constant_name.to_string();
         self.add_node(
             project,
             true,
@@ -378,7 +378,6 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        let name = constant_name.to_string();
         if let Some(value) = &value {
             if let Some(global_name) = value.as_simple_constant() {
                 // 'let x = y' creates an alias for y, not a new constant.
@@ -393,7 +392,7 @@ impl Environment {
 
         self.bindings
             .add_constant(constant_name.clone(), vec![], acorn_type, value, None);
-        self.definition_ranges.insert(name.clone(), range);
+        self.definition_ranges.insert(constant_name.clone(), range);
         self.add_identity_props(project, &constant_name);
         Ok(())
     }
@@ -495,8 +494,7 @@ impl Environment {
             );
         };
 
-        self.definition_ranges
-            .insert(constant_name.to_string(), range);
+        self.definition_ranges.insert(constant_name.clone(), range);
         self.add_identity_props(project, &constant_name);
         Ok(())
     }
@@ -518,9 +516,8 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings
                 .check_unqualified_name_available(&statement.first_token, &name)?;
-
-            self.definition_ranges
-                .insert(name.to_string(), range.clone());
+            let name = LocalConstantName::unqualified(name);
+            self.definition_ranges.insert(name, range.clone());
         }
 
         let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
@@ -691,8 +688,8 @@ impl Environment {
             start: statement.first_token.start_pos(),
             end: fss.satisfy_token.end_pos(),
         };
-        self.definition_ranges
-            .insert(fss.name.clone(), definition_range);
+        let name = LocalConstantName::unqualified(&fss.name);
+        self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
             project,
@@ -1375,8 +1372,7 @@ impl Environment {
                 LocalConstantName::attribute(&typeclass_name, &condition.name.text());
             self.bindings
                 .check_constant_name_available(&condition.name, &condition_name)?;
-            self.definition_ranges
-                .insert(condition_name.to_string(), range);
+            self.definition_ranges.insert(condition_name.clone(), range);
 
             let (bad_params, _, arg_types, unbound_claim, _) =
                 self.bindings.evaluate_scoped_value(
