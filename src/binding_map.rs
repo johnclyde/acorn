@@ -625,13 +625,9 @@ impl BindingMap {
     // Whether this value is calling a theorem on some arguments.
     pub fn is_citation(&self, project: &Project, claim: &AcornValue) -> bool {
         match claim.is_named_function_call() {
-            Some((module_id, name)) => {
-                if module_id == self.module {
-                    self.is_theorem(&name)
-                } else {
-                    let bindings = project.get_bindings(module_id).unwrap();
-                    bindings.is_theorem(&name)
-                }
+            Some(global_name) => {
+                let bindings = self.get_bindings(project, global_name.module_id);
+                bindings.is_theorem(&global_name.local_name.to_string())
             }
             None => false,
         }
@@ -965,13 +961,12 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
         let info = match value.as_simple_constant() {
-            Some((module, name)) => {
-                let bindings = if module == self.module {
-                    &self
-                } else {
-                    project.get_bindings(module).unwrap()
-                };
-                bindings.constant_info.get(&name).unwrap()
+            Some(name) => {
+                let bindings = self.get_bindings(project, name.module_id);
+                bindings
+                    .constant_info
+                    .get(&name.local_name.to_string())
+                    .unwrap()
             }
             None => return Err(source.error("invalid pattern")),
         };
@@ -1468,10 +1463,12 @@ impl BindingMap {
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
-                if let Some((ext_module, ext_name)) = value.as_simple_constant() {
-                    let global_name =
-                        GlobalConstantName::new(ext_module, LocalConstantName::guess(&ext_name));
-                    self.add_alias(local_name, global_name, PotentialValue::Resolved(value));
+                if let Some(global_name) = value.as_simple_constant() {
+                    self.add_alias(
+                        local_name,
+                        global_name.clone(),
+                        PotentialValue::Resolved(value),
+                    );
                     Ok(())
                 } else {
                     // I don't see how this branch can be reached.

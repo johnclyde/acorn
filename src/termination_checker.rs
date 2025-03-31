@@ -80,8 +80,10 @@ impl TerminationChecker {
                     return;
                 }
 
-                if let Some((module, name)) = app.function.as_name() {
-                    if module == self.module && name == self.function_name {
+                if let Some(name) = app.function.as_name() {
+                    if name.module_id == self.module
+                        && name.local_name.to_string() == self.function_name
+                    {
                         // This is a recursive call. Check the arguments for substructures.
                         for i in 0..self.always_strict_sub.len() {
                             if i >= app.args.len() {

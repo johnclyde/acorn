@@ -410,18 +410,22 @@ impl Normalizer {
     pub fn normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
         if let AcornValue::Binary(BinaryOp::Equals, left, right) = &value {
             // Check for defining one constant to equal another constant.
-            if let Some((left_module, left_name)) = left.as_simple_constant() {
-                if let Some((right_module, right_name)) = right.as_simple_constant() {
-                    if self.constant_map.has_constant(right_module, &right_name)
-                        && !self.constant_map.has_constant(left_module, &left_name)
+            if let Some(left_name) = left.as_simple_constant() {
+                if let Some(right_name) = right.as_simple_constant() {
+                    if self
+                        .constant_map
+                        .has_constant(right_name.module_id, &right_name.local_name.to_string())
+                        && !self
+                            .constant_map
+                            .has_constant(left_name.module_id, &left_name.local_name.to_string())
                     {
                         // Yep, this is defining one constant to be another one.
                         // We can handle this in the constant map.
                         self.constant_map.add_alias(
-                            left_module,
-                            &left_name,
-                            right_module,
-                            &right_name,
+                            left_name.module_id,
+                            &left_name.local_name.to_string(),
+                            right_name.module_id,
+                            &right_name.local_name.to_string(),
                         );
                         return Normalization::Clauses(vec![]);
                     }

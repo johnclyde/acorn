@@ -380,15 +380,11 @@ impl Environment {
         };
         let name = constant_name.to_string();
         if let Some(value) = &value {
-            if let Some((canonical_module, canonical_name)) = value.as_simple_constant() {
-                let global_name = GlobalConstantName::new(
-                    canonical_module,
-                    LocalConstantName::guess(&canonical_name),
-                );
+            if let Some(global_name) = value.as_simple_constant() {
                 // 'let x = y' creates an alias for y, not a new constant.
                 self.bindings.add_alias(
                     constant_name,
-                    global_name,
+                    global_name.clone(),
                     PotentialValue::Resolved(value.clone()),
                 );
                 return Ok(());

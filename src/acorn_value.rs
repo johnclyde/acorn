@@ -5,7 +5,6 @@ use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::constant_map::ConstantKey;
 use crate::constant_name::{GlobalConstantName, LocalConstantName};
-use crate::module::ModuleId;
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -1710,25 +1709,30 @@ impl AcornValue {
         }
     }
 
-    pub fn as_name(&self) -> Option<(ModuleId, String)> {
+    // If this is a plain constant, give access to its name.
+    // Otherwise, return None.
+    pub fn as_name(&self) -> Option<&GlobalConstantName> {
         match &self {
-            AcornValue::Constant(c) => Some((c.name.module_id, c.name.local_name.to_string())),
+            AcornValue::Constant(c) => Some(&c.name),
             _ => None,
         }
     }
 
-    pub fn is_named_function_call(&self) -> Option<(ModuleId, String)> {
+    // If this is a function call of a constant function, give access to its name.
+    pub fn is_named_function_call(&self) -> Option<&GlobalConstantName> {
         match self {
             AcornValue::Application(fa) => fa.function.as_name(),
             _ => None,
         }
     }
 
-    pub fn as_simple_constant(&self) -> Option<(ModuleId, String)> {
+    // If this is a constant with no parameters, give access to its name.
+    // Otherwise, return None.
+    pub fn as_simple_constant(&self) -> Option<&GlobalConstantName> {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    Some((c.name.module_id, c.name.local_name.to_string()))
+                    Some(&c.name)
                 } else {
                     None
                 }
