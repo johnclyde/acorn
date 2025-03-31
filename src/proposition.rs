@@ -47,6 +47,9 @@ pub struct Source {
 
     // How the expression at this location was turned into a proposition
     pub source_type: SourceType,
+
+    // Whether this source can be imported to other modules.
+    pub importable: bool,
 }
 
 impl Source {
@@ -55,6 +58,7 @@ impl Source {
             module: 0,
             range: Range::default(),
             source_type: SourceType::Anonymous,
+            importable: true,
         }
     }
 
@@ -149,6 +153,7 @@ impl Proposition {
                 module,
                 range,
                 source_type,
+                importable: true,
             },
         }
     }
@@ -160,6 +165,7 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::Anonymous,
+                importable: false,
             },
         }
     }
@@ -175,6 +181,7 @@ impl Proposition {
                 module,
                 range,
                 source_type,
+                importable: true,
             },
         }
     }
@@ -192,6 +199,7 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::TypeDefinition(type_name, member_name),
+                importable: true,
             },
         }
     }
@@ -202,6 +210,7 @@ impl Proposition {
         range: Range,
         constant: AcornValue,
         name: &str,
+        importable: bool,
     ) -> Proposition {
         Proposition {
             value,
@@ -209,6 +218,7 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::ConstantDefinition(constant, name.to_string()),
+                importable,
             },
         }
     }
@@ -231,6 +241,7 @@ impl Proposition {
                     instance_name.to_string(),
                     typeclass_name.to_string(),
                 ),
+                importable: true,
             },
         }
     }
@@ -242,6 +253,7 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::Premise,
+                importable: false,
             },
         }
     }
@@ -253,6 +265,7 @@ impl Proposition {
                 module: self.source.module,
                 range: self.source.range,
                 source_type: SourceType::NegatedGoal,
+                importable: false,
             },
         }
     }

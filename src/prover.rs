@@ -900,10 +900,11 @@ impl Prover {
             None => return,
         };
         for (_, step) in proof.all_steps {
-            if step.truthiness == Truthiness::Hypothetical {
-                continue;
-            }
             if let Rule::Assumption(ai) = &step.rule {
+                if !ai.source.importable {
+                    // Non-importable facts are local ones that don't count.
+                    continue;
+                }
                 if let Some(qn) = ai.source.qualified_fact_name() {
                     names.insert(qn);
                 }

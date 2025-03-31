@@ -217,7 +217,14 @@ impl Environment {
         self.add_node(
             project,
             true,
-            Proposition::constant_definition(claim, self.module_id, range, constant, &name),
+            Proposition::constant_definition(
+                claim,
+                self.module_id,
+                range,
+                constant,
+                &name,
+                self.depth == 0,
+            ),
             None,
         );
     }
@@ -756,6 +763,7 @@ impl Environment {
             definition_range,
             function_constant,
             &fss.name,
+            self.depth == 0,
         );
 
         let index = self.add_node(project, false, prop, Some(block));

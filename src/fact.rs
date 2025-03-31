@@ -37,6 +37,7 @@ impl Fact {
                     module: self.source.module,
                     range: self.source.range.clone(),
                     source_type: new_type,
+                    importable: self.source.importable,
                 }
             }
             _ => self.source.clone(),
