@@ -27,8 +27,7 @@ impl fmt::Display for LocalConstantName {
             LocalConstantName::Unqualified(name) => write!(f, "{}", name),
             LocalConstantName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
             LocalConstantName::Instance(tc, attr, class) => {
-                // TODO: Stop using this double-dot syntax.
-                write!(f, "{}.{}.{}", class, &tc.name, attr)
+                write!(f, "{}.{}<{}>", tc.name, attr, class)
             }
         }
     }
