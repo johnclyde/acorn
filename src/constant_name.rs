@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, vec};
 
 use crate::acorn_type::Typeclass;
 use crate::module::ModuleId;
@@ -58,6 +58,15 @@ impl LocalConstantName {
         match self {
             LocalConstantName::Attribute(class, attr) => Some((class, attr)),
             _ => None,
+        }
+    }
+
+    // Return this constant's name as a chain of strings, if that's possible.
+    pub fn name_chain(&self) -> Option<Vec<&str>> {
+        match self {
+            LocalConstantName::Unqualified(name) => Some(vec![name]),
+            LocalConstantName::Attribute(class, attr) => Some(vec![class, attr]),
+            LocalConstantName::Instance(..) => None,
         }
     }
 

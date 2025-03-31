@@ -2393,52 +2393,58 @@ impl BindingMap {
     //   module, the canonical module of the entity we are trying to express
     // is different from
     //   self.module, the module we are trying to express the name in
-    fn name_to_expr(&self, module: ModuleId, name: &str) -> Result<Expression, CodeGenError> {
-        let mut parts = name.split('.').collect::<Vec<_>>();
-
+    fn name_to_expr(&self, name: &GlobalConstantName) -> Result<Expression, CodeGenError> {
         // Handle numeric literals
-        if parts.len() == 2 && parts[1].chars().all(|ch| ch.is_ascii_digit()) {
-            let numeral = TokenType::Numeral.new_token(parts[1]);
+        if let LocalConstantName::Attribute(class, attr) = &name.local_name {
+            if attr.chars().all(|ch| ch.is_ascii_digit()) {
+                let numeral = TokenType::Numeral.new_token(attr);
 
-            // If it's the default type, we don't need to scope it
-            if let Some((default_module, default_type_name)) = &self.default {
-                if *default_module == module && default_type_name == parts[0] {
-                    return Ok(Expression::Singleton(numeral));
+                // If it's the default type, we don't need to scope it
+                if let Some((default_module, default_type_name)) = &self.default {
+                    if *default_module == name.module_id && default_type_name == class {
+                        return Ok(Expression::Singleton(numeral));
+                    }
                 }
-            }
 
-            // Otherwise, we need to scope it by the type
-            let numeric_type = self.name_to_expr(module, parts[0])?;
-            return Ok(Expression::Binary(
-                Box::new(numeric_type),
-                TokenType::Dot.generate(),
-                Box::new(Expression::Singleton(numeral)),
+                // Otherwise, we need to scope it by the type
+                let type_name =
+                    GlobalConstantName::new(name.module_id, LocalConstantName::unqualified(class));
+                let numeric_type = self.name_to_expr(&type_name)?;
+                return Ok(Expression::Binary(
+                    Box::new(numeric_type),
+                    TokenType::Dot.generate(),
+                    Box::new(Expression::Singleton(numeral)),
+                ));
+            }
+        }
+
+        // TODO: this doesn't seem like the right thing to do
+        if let LocalConstantName::Instance(..) = &name.local_name {
+            return Err(CodeGenError::UnhandledValue(
+                "unexpected instance".to_string(),
             ));
         }
 
-        if parts.len() > 2 {
-            return Err(CodeGenError::UnhandledValue("unexpected dots".to_string()));
-        }
-
         // Handle local constants
-        if module == self.module {
-            // TODO: this generates an identifier token with a dot, which is wrong
-            return Ok(Expression::generate_identifier(name));
+        if name.module_id == self.module {
+            // TODO: this is just totally wrong
+            return Ok(Expression::generate_identifier(
+                &name.local_name.to_string(),
+            ));
         }
 
         // Check if there's a local alias for this constant.
-        let key = (module, name.to_string());
+        let key = (name.module_id, name.local_name.to_string());
         if let Some(alias) = self.canonical_to_alias.get(&key) {
             return Ok(Expression::generate_identifier(alias));
         }
 
         // If it's a member function, check if there's a local alias for its struct.
-        if parts.len() == 2 {
-            let name = parts[0].to_string();
-            let key = (module, name);
+        if let LocalConstantName::Attribute(class, attr) = &name.local_name {
+            let key = (name.module_id, class.to_string());
             if let Some(type_alias) = self.canonical_to_alias.get(&key) {
                 let lhs = Expression::generate_identifier(type_alias);
-                let rhs = Expression::generate_identifier(parts[1]);
+                let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::Binary(
                     Box::new(lhs),
                     TokenType::Dot.generate(),
@@ -2448,12 +2454,16 @@ impl BindingMap {
         }
 
         // Refer to this constant using its module
-        match self.module_to_name.get(&module) {
+        match self.module_to_name.get(&name.module_id) {
             Some(module_name) => {
-                parts.insert(0, module_name);
+                let mut parts: Vec<&str> = vec![module_name];
+                parts.extend(name.local_name.name_chain().unwrap().into_iter());
                 Ok(Expression::generate_identifier_chain(&parts))
             }
-            None => Err(CodeGenError::UnimportedModule(module, name.to_string())),
+            None => Err(CodeGenError::UnimportedModule(
+                name.module_id,
+                name.local_name.to_string(),
+            )),
         }
     }
 
@@ -2609,7 +2619,7 @@ impl BindingMap {
                 // Here we are assuming that the context will be enough to disambiguate
                 // the type of the templated name.
                 // I'm not sure if this is a good assumption.
-                self.name_to_expr(c.name.module_id, &c.name.local_name.to_string())
+                self.name_to_expr(&c.name)
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
                 let condition = self.value_to_expr(condition, var_names, next_x, next_k)?;
