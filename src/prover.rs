@@ -16,7 +16,6 @@ use crate::goal::{Goal, GoalContext};
 use crate::interfaces::{ClauseInfo, InfoResult, Location, ProofStepInfo};
 use crate::literal::Literal;
 use crate::module::ModuleId;
-use crate::monomorphizer::Monomorphizer;
 use crate::normalizer::{Normalization, NormalizationError, Normalizer};
 use crate::passive_set::PassiveSet;
 use crate::project::Project;
@@ -31,9 +30,6 @@ pub struct Prover {
     // The normalizer is used when we are turning the facts and goals from the environment into
     // clauses that we can use internally.
     normalizer: Normalizer,
-
-    // The monomorphizer turns possibly-polymorphic facts into monomorphic facts that we use internally.
-    monomorphizer: Monomorphizer,
 
     // The "active" clauses are the ones we use for reasoning.
     active_set: ActiveSet,
@@ -117,7 +113,6 @@ impl Prover {
     pub fn new(project: &Project, verbose: bool) -> Prover {
         Prover {
             normalizer: Normalizer::new(),
-            monomorphizer: Monomorphizer::new(),
             active_set: ActiveSet::new(),
             passive_set: PassiveSet::new(),
             verbose,
@@ -133,8 +128,8 @@ impl Prover {
     // Add a fact to the prover.
     // The fact can be either polymorphic or monomorphic.
     pub fn add_fact(&mut self, fact: Fact) {
-        self.monomorphizer.add_fact(fact);
-        for fact in self.monomorphizer.take_facts() {
+        self.normalizer.monomorphizer.add_fact(fact);
+        for fact in self.normalizer.monomorphizer.take_facts() {
             self.add_monomorphic_fact(fact);
         }
     }
@@ -183,9 +178,10 @@ impl Prover {
         assert!(self.goal.is_none());
 
         // Add any monomorphic facts needed to match the goal.
-        self.monomorphizer
+        self.normalizer
+            .monomorphizer
             .add_monomorphs(&goal_context.goal.value());
-        for fact in self.monomorphizer.take_facts() {
+        for fact in self.normalizer.monomorphizer.take_facts() {
             self.add_monomorphic_fact(fact);
         }
 

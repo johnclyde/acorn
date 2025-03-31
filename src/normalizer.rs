@@ -8,6 +8,7 @@ use crate::display::DisplayClause;
 use crate::environment::Environment;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
+use crate::monomorphizer::Monomorphizer;
 use crate::term::{Term, TypeId};
 use crate::type_map::TypeMap;
 
@@ -102,6 +103,8 @@ impl Normalization {
 
 #[derive(Clone)]
 pub struct Normalizer {
+    pub monomorphizer: Monomorphizer,
+
     // Types of the skolem functions produced
     // Some of them are just constants, so we store an AcornType rather than a FunctionType
     skolem_types: Vec<AcornType>,
@@ -114,6 +117,7 @@ pub struct Normalizer {
 impl Normalizer {
     pub fn new() -> Normalizer {
         Normalizer {
+            monomorphizer: Monomorphizer::new(),
             skolem_types: vec![],
             type_map: TypeMap::new(),
             constant_map: ConstantMap::new(),
