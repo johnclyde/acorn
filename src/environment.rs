@@ -1503,12 +1503,11 @@ impl Environment {
             if self.bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.
-                let condition = self.bindings.pseudo_instantiate_condition(
+                let condition = self.bindings.unsafe_instantiate_condition(
                     statement,
-                    &instance_name,
-                    &instance_type,
                     &typeclass,
                     &attr_name,
+                    &instance_type,
                 )?;
                 conditions.push(condition);
                 continue;

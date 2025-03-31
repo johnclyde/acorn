@@ -1626,19 +1626,17 @@ impl BindingMap {
     // The class must be defined in this module.
     //
     // We use this when we haven't proven that a type is an instance of a typeclass yet.
-    // So for example instead of resolving:
-    //   Ring.add<T> -> Ring.add<Int>
-    // we resolve:
-    //   Ring.add<T> -> Int.Ring.add
+    // So for example we can resolve:
+    //   Ring.add<T: Ring> -> Ring.add<Int>
+    // even though Int has not been proven to be an instance of Ring.
     //
     // TODO: does this work right for typeclasses outside this module?
-    pub fn pseudo_instantiate_condition(
+    pub fn unsafe_instantiate_condition(
         &self,
         source: &dyn ErrorSource,
-        instance_name: &str,
-        instance_type: &AcornType,
         typeclass: &Typeclass,
         condition_name: &str,
+        instance_type: &AcornType,
     ) -> compilation::Result<AcornValue> {
         let tc_condition_name = LocalConstantName::attribute(&typeclass.name, condition_name);
         let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
@@ -1664,28 +1662,7 @@ impl BindingMap {
         let unsafe_param = (params[0].name.clone(), instance_type.clone());
         let unsafe_instance = universal.instantiate(&[unsafe_param]);
 
-        // Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
-        let prefix = format!("{}.", typeclass.name);
-        let safe_instance = unsafe_instance.replace_constants(0, &|c| {
-            if c.name.module_id == typeclass.module_id
-                && c.name.local_name.to_string().starts_with(&prefix)
-                && c.params.len() == 1
-                && &c.params[0] == instance_type
-            {
-                let local_name =
-                    LocalConstantName::instance(&typeclass, &condition_name, instance_name);
-                let global_name = GlobalConstantName::new(self.module, local_name);
-                Some(AcornValue::constant(
-                    global_name,
-                    vec![],
-                    c.instance_type.clone(),
-                ))
-            } else {
-                None
-            }
-        });
-
-        Ok(safe_instance)
+        Ok(unsafe_instance)
     }
 
     // Evaluates an expression that describes a value, with a stack given as context.
