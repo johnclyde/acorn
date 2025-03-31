@@ -408,6 +408,14 @@ impl Normalizer {
 
     // Converts a value to CNF.
     pub fn normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
+        if let Err(e) = value.validate() {
+            return Normalization::Error(format!(
+                "validation error: {} while normalizing: {}",
+                e, value
+            ));
+        }
+        assert_eq!(value.get_type(), AcornType::Bool);
+
         if let AcornValue::Binary(BinaryOp::Equals, left, right) = &value {
             // Check for the sort of functional equality that can be represented as a literal.
             if left.get_type().is_functional() && left.is_term() && right.is_term() {
