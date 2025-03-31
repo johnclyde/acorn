@@ -106,7 +106,7 @@ pub struct Normalizer {
     // Some of them are just constants, so we store an AcornType rather than a FunctionType
     skolem_types: Vec<AcornType>,
 
-    pub type_map: TypeMap,
+    type_map: TypeMap,
 
     constant_map: ConstantMap,
 }
