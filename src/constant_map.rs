@@ -20,7 +20,6 @@ pub struct ConstantMap {
 
     // Inverse map of constants.
     // The GlobalConstantName -> AtomId lookup direction.
-    // Multiple GlobalConstantName can map to the same AtomId, when two constants alias to the same thing.
     name_to_id: HashMap<GlobalConstantName, Atom>,
 }
 
@@ -53,25 +52,6 @@ impl ConstantMap {
         };
         self.name_to_id.insert(name, atom);
         atom
-    }
-
-    // This function is called when two constants are equal.
-    // We can add an alias if we have never seen one of them before.
-    // Returns true if we added an alias.
-    pub fn maybe_add_alias(
-        &mut self,
-        new_name: &GlobalConstantName,
-        old_name: &GlobalConstantName,
-    ) -> bool {
-        if self.name_to_id.contains_key(&new_name) {
-            return false;
-        }
-        if !self.name_to_id.contains_key(&old_name) {
-            return false;
-        }
-        let atom = self.name_to_id[&old_name];
-        self.name_to_id.insert(new_name.clone(), atom);
-        true
     }
 
     // Get information about a global constant.

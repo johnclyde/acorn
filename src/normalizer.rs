@@ -405,17 +405,6 @@ impl Normalizer {
     // Converts a value to CNF.
     pub fn normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
         if let AcornValue::Binary(BinaryOp::Equals, left, right) = &value {
-            // Check for defining one constant to equal another constant.
-            if let Some(left_name) = left.as_simple_constant() {
-                if let Some(right_name) = right.as_simple_constant() {
-                    // This is defining one constant to be another one.
-                    // Tell the constant map.
-                    if self.constant_map.maybe_add_alias(&left_name, &right_name) {
-                        return Normalization::Clauses(vec![]);
-                    }
-                }
-            }
-
             // Check for the sort of functional equality that can be represented as a literal.
             if left.get_type().is_functional() && left.is_term() && right.is_term() {
                 // We want to represent this two ways.
