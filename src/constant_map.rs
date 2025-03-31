@@ -94,14 +94,14 @@ impl ConstantMap {
     }
 
     // Get information about a global constant.
-    pub fn get_global_info(&self, atom_id: AtomId) -> (ModuleId, &str) {
+    pub fn get_global_info(&self, atom_id: AtomId) -> (ModuleId, String) {
         let key = &self.global_constants[atom_id as usize].as_ref().unwrap();
-        (key.module, &key.name)
+        (key.module, key.name.to_string())
     }
 
     // Get information about a local constant.
-    pub fn get_local_info(&self, atom_id: AtomId) -> (ModuleId, &str) {
+    pub fn get_local_info(&self, atom_id: AtomId) -> (ModuleId, String) {
         let key = &self.local_constants[atom_id as usize].as_ref().unwrap();
-        (key.module, &key.name)
+        (key.module, key.name.to_string())
     }
 }
