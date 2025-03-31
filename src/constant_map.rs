@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::atom::{Atom, AtomId};
+use crate::constant_name::GlobalConstantName;
 use crate::module::{ModuleId, SKOLEM};
 
 // The ConstantKey identifies a constant in the Acorn language.
@@ -8,6 +9,15 @@ use crate::module::{ModuleId, SKOLEM};
 pub struct ConstantKey {
     pub module: ModuleId,
     pub name: String,
+}
+
+impl ConstantKey {
+    pub fn from_name(name: GlobalConstantName) -> ConstantKey {
+        ConstantKey {
+            module: name.module_id,
+            name: name.local_name.to_string(),
+        }
+    }
 }
 
 // In the Acorn language a constant is uniquely identified by its module id and name.
@@ -41,14 +51,11 @@ impl ConstantMap {
 
     // Assigns an id to this (module, name) pair if it doesn't already have one.
     // local determines whether the constant will be represented as a local or global atom.
-    pub fn add_constant(&mut self, module: ModuleId, name: &str, local: bool) -> Atom {
-        if module == SKOLEM {
+    pub fn add_constant(&mut self, name: GlobalConstantName, local: bool) -> Atom {
+        if name.module_id == SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
         }
-        let key = ConstantKey {
-            module,
-            name: name.to_string(),
-        };
+        let key = ConstantKey::from_name(name);
         if let Some(&atom) = self.keymap.get(&key) {
             return atom;
         }

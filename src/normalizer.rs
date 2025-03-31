@@ -254,11 +254,7 @@ impl Normalizer {
                         // Hacky. Turn the s-name back to an int
                         Atom::Skolem(c.name.local_name.to_string()[1..].parse().unwrap())
                     } else {
-                        self.constant_map.add_constant(
-                            c.name.module_id,
-                            &c.name.local_name.to_string(),
-                            local,
-                        )
+                        self.constant_map.add_constant(c.name.clone(), local)
                     };
                     Ok(Term::new(type_id, type_id, constant_atom, vec![]))
                 } else {
