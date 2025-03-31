@@ -971,7 +971,7 @@ impl BindingMap {
                 } else {
                     project.get_bindings(module).unwrap()
                 };
-                bindings.constant_info.get(name).unwrap()
+                bindings.constant_info.get(&name).unwrap()
             }
             None => return Err(source.error("invalid pattern")),
         };
@@ -1470,7 +1470,7 @@ impl BindingMap {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some((ext_module, ext_name)) = value.as_simple_constant() {
                     let global_name =
-                        GlobalConstantName::new(ext_module, LocalConstantName::guess(ext_name));
+                        GlobalConstantName::new(ext_module, LocalConstantName::guess(&ext_name));
                     self.add_alias(local_name, global_name, PotentialValue::Resolved(value));
                     Ok(())
                 } else {
@@ -1664,8 +1664,8 @@ impl BindingMap {
         // Replace the bad Bar.baz<Foo> values with good Foo.Bar.baz values.
         let prefix = format!("{}.", typeclass.name);
         let safe_instance = unsafe_instance.replace_constants(0, &|c| {
-            if c.module_id == typeclass.module_id
-                && c.name.starts_with(&prefix)
+            if c.name.module_id == typeclass.module_id
+                && c.name.local_name.to_string().starts_with(&prefix)
                 && c.params.len() == 1
                 && &c.params[0] == instance_type
             {
@@ -2257,9 +2257,13 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.module_id == self.module && !self.constant_info.contains_key(&c.name) {
+                if c.name.module_id == self.module
+                    && !self
+                        .constant_info
+                        .contains_key(&c.name.local_name.to_string())
+                {
                     assert!(c.params.is_empty());
-                    answer.insert(c.name.to_string(), c.instance_type.clone());
+                    answer.insert(c.name.local_name.to_string(), c.instance_type.clone());
                 }
             }
 
@@ -2611,7 +2615,7 @@ impl BindingMap {
                 // Here we are assuming that the context will be enough to disambiguate
                 // the type of the templated name.
                 // I'm not sure if this is a good assumption.
-                self.name_to_expr(c.module_id, &c.name)
+                self.name_to_expr(c.name.module_id, &c.name.local_name.to_string())
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
                 let condition = self.value_to_expr(condition, var_names, next_x, next_k)?;

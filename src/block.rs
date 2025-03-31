@@ -287,8 +287,8 @@ impl Block {
         // Replace the internal constants with variables
         let replaced = inner_value.clone().insert_stack(0, shift_amount);
         let replaced = replaced.replace_constants(0, &|c| {
-            if c.module_id == outer_env.module_id {
-                if let Some(i) = map.get(&c.name) {
+            if c.name.module_id == outer_env.module_id {
+                if let Some(i) = map.get(&c.name.local_name.to_string()) {
                     assert!(c.params.is_empty());
                     Some(AcornValue::Variable(*i, c.instance_type.clone()))
                 } else {
@@ -390,16 +390,17 @@ impl Node {
 
         // Expand theorems in the proposition.
         let value = proposition.value.replace_constants(0, &|c| {
-            let bindings = if env.module_id == c.module_id {
+            let bindings = if env.module_id == c.name.module_id {
                 &env.bindings
             } else {
                 &project
-                    .get_env_by_id(c.module_id)
+                    .get_env_by_id(c.name.module_id)
                     .expect("missing module during add_proposition")
                     .bindings
             };
-            if bindings.is_theorem(&c.name) {
-                match bindings.get_definition_and_params(&c.name) {
+            let local_name = c.name.local_name.to_string();
+            if bindings.is_theorem(&local_name) {
+                match bindings.get_definition_and_params(&local_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {

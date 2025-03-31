@@ -4,7 +4,7 @@ use crate::acorn_type::Typeclass;
 use crate::module::ModuleId;
 
 // The LocalName describes how a constant is named in the module that defines it.
-#[derive(Hash, Debug, Eq, PartialEq, Clone)]
+#[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub enum LocalConstantName {
     // An unqualified name has no dots.
     Unqualified(String),
@@ -77,7 +77,7 @@ impl LocalConstantName {
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub struct GlobalConstantName {
     pub module_id: ModuleId,
     pub local_name: LocalConstantName,

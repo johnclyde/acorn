@@ -38,7 +38,9 @@ impl TerminationChecker {
                 // These values can't contain function calls within them, so they don't matter.
             }
             AcornValue::Constant(c) => {
-                if c.module_id == self.module && c.name == self.function_name {
+                if c.name.module_id == self.module
+                    && c.name.local_name.to_string() == self.function_name
+                {
                     // We are using the recursive function without calling it, so we can't
                     // really say that any of its arguments are always strict any more.
                     self.always_strict_sub = vec![false; self.always_strict_sub.len()];

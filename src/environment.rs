@@ -383,7 +383,7 @@ impl Environment {
             if let Some((canonical_module, canonical_name)) = value.as_simple_constant() {
                 let global_name = GlobalConstantName::new(
                     canonical_module,
-                    LocalConstantName::guess(canonical_name),
+                    LocalConstantName::guess(&canonical_name),
                 );
                 // 'let x = y' creates an alias for y, not a new constant.
                 self.bindings.add_alias(
