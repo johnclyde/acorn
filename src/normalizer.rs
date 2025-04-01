@@ -55,7 +55,7 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
 
 #[derive(Clone)]
 pub struct Normalizer {
-    pub monomorphizer: Monomorphizer,
+    monomorphizer: Monomorphizer,
 
     // Types of the skolem functions produced
     // Some of them are just constants, so we store an AcornType rather than a FunctionType
@@ -385,6 +385,16 @@ impl Normalizer {
     }
 
     // A single fact can turn into a bunch of proof steps.
+    // This monomorphizes, which can indirectly turn into what seems like a lot of unrelated steps.
+    pub fn normalize_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
+        self.monomorphizer.add_fact(fact);
+        for fact in self.monomorphizer.take_facts() {
+            self.normalize_monomorphic_fact(fact, steps)?;
+        }
+        Ok(())
+    }
+
+    // The steps of normalization that happen after monomorphization.
     pub fn normalize_monomorphic_fact(
         &mut self,
         fact: Fact,

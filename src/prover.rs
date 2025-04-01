@@ -23,8 +23,6 @@ use crate::proof_step::{ProofStep, ProofStepId, Rule, Truthiness};
 use crate::term::Term;
 use crate::term_graph::TermGraphContradiction;
 
-// type Result<T> = std::result::Result<T, String>;
-
 #[derive(Clone)]
 pub struct Prover {
     // The normalizer is used when we are turning the facts and goals from the environment into
@@ -51,9 +49,9 @@ pub struct Prover {
     // Setting any of these flags to true externally will stop the prover.
     pub stop_flags: Vec<Arc<AtomicBool>>,
 
-    // When this error message is set, it indicates a problem that needs to be reported upstream
-    // to the user.
-    // It's better to catch errors before proving, but sometimes we don't.
+    // This error gets set when there is a problem during the construction of the prover.
+    // It would be nicer to report the error immediately, but we wait so that we have
+    // a reasonable location to attach the error to, when running in the LSP.
     error: Option<String>,
 
     // Number of proof steps activated, not counting Factual ones.
@@ -128,16 +126,8 @@ impl Prover {
     // Add a fact to the prover.
     // The fact can be either polymorphic or monomorphic.
     pub fn add_fact(&mut self, fact: Fact) {
-        self.normalizer.monomorphizer.add_fact(fact);
-        for fact in self.normalizer.monomorphizer.take_facts() {
-            self.add_monomorphic_fact(fact);
-        }
-    }
-
-    // Used to add facts internally, after the fact has already been monomorphized.
-    fn add_monomorphic_fact(&mut self, fact: Fact) {
         let mut steps = vec![];
-        match self.normalizer.normalize_monomorphic_fact(fact, &mut steps) {
+        match self.normalizer.normalize_fact(fact, &mut steps) {
             Ok(()) => {}
             Err(s) => {
                 self.error = Some(s);
