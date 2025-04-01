@@ -76,7 +76,7 @@ pub struct BindingMap {
     numerals: Option<Class>,
 
     // Stores the instance-of relationships for classes that were defined in this module.
-    instance_of: HashMap<String, HashSet<Typeclass>>,
+    instance_of: HashMap<Class, HashSet<Typeclass>>,
 }
 
 // A representation of the variables on the stack.
@@ -399,17 +399,11 @@ impl BindingMap {
         Ok((resolved_attr, instance_attr))
     }
 
-    pub fn set_instance_of(&mut self, instance_name: &str, typeclass: Typeclass) {
-        if self.instance_of.contains_key(instance_name) {
-            self.instance_of
-                .get_mut(instance_name)
-                .unwrap()
-                .insert(typeclass);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(typeclass);
-            self.instance_of.insert(instance_name.to_string(), set);
-        }
+    pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+        self.instance_of
+            .entry(class)
+            .or_insert_with(HashSet::new)
+            .insert(typeclass);
     }
 
     // Returns a PotentialValue representing this name, if there is one.
@@ -1516,7 +1510,7 @@ impl BindingMap {
     fn is_instance_of(&self, project: &Project, class: &Class, typeclass: &Typeclass) -> bool {
         self.get_bindings(project, class.module_id)
             .instance_of
-            .get(&class.name)
+            .get(&class)
             .map_or(false, |set| set.contains(typeclass))
     }
 

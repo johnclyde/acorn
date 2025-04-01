@@ -1581,7 +1581,11 @@ impl Environment {
         self.add_node(project, true, equalities_prop, None);
 
         // TODO: make sure this instance relationship isn't used to prove earlier statements.
-        self.bindings.set_instance_of(instance_name, typeclass);
+        let class = Class {
+            module_id: self.module_id,
+            name: instance_name.to_string(),
+        };
+        self.bindings.add_instance_of(class, typeclass);
         Ok(())
     }
 

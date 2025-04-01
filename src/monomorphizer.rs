@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::constant_name::GlobalConstantName;
 use crate::fact::Fact;
@@ -121,6 +121,10 @@ pub struct Monomorphizer {
     // This is updated whenever we add a generic fact.
     // Lists (fact id, instantiation for the constant) for each occurrence.
     constant_info: HashMap<GlobalConstantName, GenericConstantInfo>,
+
+    // A set of all the instance relations we know about.
+    // Monomorphization is only allowed with valid instance relations.
+    instance_of: HashMap<Class, HashSet<Typeclass>>,
 }
 
 impl Monomorphizer {
@@ -129,6 +133,23 @@ impl Monomorphizer {
             fact_info: vec![],
             output_facts: vec![],
             constant_info: HashMap::new(),
+            instance_of: HashMap::new(),
+        }
+    }
+
+    pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+        self.instance_of
+            .entry(class)
+            .or_insert_with(HashSet::new)
+            .insert(typeclass);
+    }
+
+    // TODO: unpublicize
+    pub fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+        if let Some(set) = self.instance_of.get(class) {
+            set.contains(typeclass)
+        } else {
+            false
         }
     }
 
