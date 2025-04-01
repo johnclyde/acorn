@@ -3,13 +3,24 @@ use std::{collections::HashMap, fmt};
 use crate::compilation::{ErrorSource, Result};
 use crate::module::ModuleId;
 
+// Classes are represented by the module they were defined in, and their name.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct Class {
+    pub module_id: ModuleId,
+    pub name: String,
+}
+
+// Typeclasses are represented by the module they were defined in, and their name.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct Typeclass {
+    pub module_id: ModuleId,
+    pub name: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnresolvedType {
-    // The module where this type was defined in.
-    pub module_id: ModuleId,
-
-    // The name of this type.
-    pub name: String,
+    // The underlying generic type.
+    pub class: Class,
 
     // The parameters we need to instantiate this type, along with their typeclass if any..
     pub params: Vec<Option<Typeclass>>,
@@ -25,7 +36,7 @@ impl UnresolvedType {
                 typeclass: param.clone(),
             }));
         }
-        AcornType::Data(self.module_id, self.name.clone(), params)
+        AcornType::Data(self.class.module_id, self.class.name.clone(), params)
     }
 }
 
@@ -51,7 +62,7 @@ impl PotentialType {
             if ut.params.len() != params.len() {
                 return Err(source.error(&format!(
                     "type {} expects {} parameters, but got {}",
-                    ut.name,
+                    ut.class.name,
                     ut.params.len(),
                     params.len()
                 )));
@@ -91,13 +102,13 @@ impl PotentialType {
                 if params.len() != ut.params.len() {
                     Err(source.error(&format!(
                         "type {} expects {} parameters, but got {}",
-                        ut.name,
+                        ut.class.name,
                         ut.params.len(),
                         params.len()
                     )))
                 } else {
                     // TODO: check that params obeys ut's typeclasses
-                    Ok(AcornType::Data(ut.module_id, ut.name, params))
+                    Ok(AcornType::Data(ut.class.module_id, ut.class.name, params))
                 }
             }
         }
@@ -177,13 +188,6 @@ impl FunctionType {
     pub fn has_arbitrary(&self) -> bool {
         self.arg_types.iter().any(|t| t.has_arbitrary()) || self.return_type.has_arbitrary()
     }
-}
-
-// Typeclasses are represented by the module they were defined in, and their name.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct Typeclass {
-    pub module_id: ModuleId,
-    pub name: String,
 }
 
 // A type parameter is a way of naming a type by its properties.

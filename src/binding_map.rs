@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
-use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass, UnresolvedType};
+use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
@@ -265,11 +265,11 @@ impl BindingMap {
         if params.len() == 0 {
             return PotentialType::Resolved(self.add_data_type(name));
         }
-        let ut = UnresolvedType {
+        let class = Class {
             module_id: self.module,
             name: name.to_string(),
-            params,
         };
+        let ut = UnresolvedType { class, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
         potential
@@ -303,8 +303,10 @@ impl BindingMap {
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
-            let global_name =
-                GlobalConstantName::new(u.module_id, LocalConstantName::unqualified(&u.name));
+            let global_name = GlobalConstantName::new(
+                u.class.module_id,
+                LocalConstantName::unqualified(&u.class.name),
+            );
             self.canonical_to_alias
                 .entry(global_name)
                 .or_insert(alias.to_string());
@@ -580,7 +582,7 @@ impl BindingMap {
         match self.typename_to_type.remove(name) {
             Some(p) => match &p {
                 PotentialType::Unresolved(ut) => {
-                    panic!("removing type {} which is unresolved", ut.name);
+                    panic!("removing type {} which is unresolved", ut.class.name);
                 }
                 PotentialType::Resolved(t) => {
                     match &t {
@@ -783,7 +785,7 @@ impl BindingMap {
         match potential {
             PotentialType::Resolved(t) => Ok(t),
             PotentialType::Unresolved(ut) => {
-                Err(expression.error(&format!("type {} is unresolved", ut.name)))
+                Err(expression.error(&format!("type {} is unresolved", ut.class.name)))
             }
         }
     }
@@ -1249,8 +1251,8 @@ impl BindingMap {
                 match self.evaluate_type_attribute(
                     name_token,
                     project,
-                    ut.module_id,
-                    &ut.name,
+                    ut.class.module_id,
+                    &ut.class.name,
                     name,
                 )? {
                     PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
