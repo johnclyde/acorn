@@ -385,7 +385,11 @@ impl Normalizer {
     }
 
     // A single fact can turn into a bunch of proof steps.
-    pub fn normalize_monomorphic_fact(&mut self, fact: Fact) -> Result<Vec<ProofStep>> {
+    pub fn normalize_monomorphic_fact(
+        &mut self,
+        fact: Fact,
+        steps: &mut Vec<ProofStep>,
+    ) -> Result<()> {
         let local = fact.local();
         let defined = match &fact.source.source_type {
             SourceType::ConstantDefinition(value, _) => match self.term_from_value(&value, local) {
@@ -397,12 +401,11 @@ impl Normalizer {
             _ => None,
         };
         let clauses = self.normalize_value(&fact.value, local)?;
-        let mut steps = vec![];
         for clause in clauses {
             let step = ProofStep::assumption(clause, fact.truthiness, &fact.source, defined);
             steps.push(step);
         }
-        Ok(steps)
+        Ok(())
     }
 
     // Variables are left unbound. Their types are accumulated.

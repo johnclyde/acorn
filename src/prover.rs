@@ -134,8 +134,9 @@ impl Prover {
 
     // Used to add facts internally, after the fact has already been monomorphized.
     fn add_monomorphic_fact(&mut self, fact: Fact) {
-        let steps = match self.normalizer.normalize_monomorphic_fact(fact) {
-            Ok(steps) => steps,
+        let mut steps = vec![];
+        match self.normalizer.normalize_monomorphic_fact(fact, &mut steps) {
+            Ok(()) => {}
             Err(s) => {
                 self.error = Some(s);
                 return;
