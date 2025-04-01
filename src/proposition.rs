@@ -3,6 +3,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::AcornType;
 use crate::acorn_value::AcornValue;
 use crate::module::ModuleId;
+use crate::proof_step::Truthiness;
 
 // The different reasons that can lead us to create a proposition.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -322,5 +323,15 @@ impl Proposition {
             _ => self.source.clone(),
         };
         Proposition { value, source }
+    }
+
+    pub fn truthiness(&self) -> Truthiness {
+        if self.source.source_type == SourceType::NegatedGoal {
+            Truthiness::Counterfactual
+        } else if self.source.depth == 0 {
+            Truthiness::Factual
+        } else {
+            Truthiness::Hypothetical
+        }
     }
 }
