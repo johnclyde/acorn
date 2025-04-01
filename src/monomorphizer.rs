@@ -157,15 +157,16 @@ impl Monomorphizer {
     pub fn add_fact(&mut self, fact: Fact) {
         // We don't monomorphize to match constants in global facts, because it would blow up.
         if fact.truthiness != Truthiness::Factual {
-            self.add_monomorphs(&fact.value);
+            self.add_monomorphs(&fact.proposition.value);
         }
 
         let i = self.fact_info.len();
         let mut generic_constants = vec![];
-        fact.value
+        fact.proposition
+            .value
             .find_constants(&|c| c.has_generic(), &mut generic_constants);
         if generic_constants.is_empty() {
-            if let AcornValue::ForAll(args, _) = &fact.value {
+            if let AcornValue::ForAll(args, _) = &fact.proposition.value {
                 if args.iter().any(|arg| arg.has_generic()) {
                     // This is a generic fact with no generic constants in it.
                     // It could be something trivial and purely propositional, like
@@ -282,7 +283,7 @@ impl Monomorphizer {
         }
 
         let monomorphic_fact = info.fact.instantiate(&fact_params.params);
-        if monomorphic_fact.value.has_generic() {
+        if monomorphic_fact.proposition.value.has_generic() {
             // This is a little awkward. Completely monomorphizing this instance
             // still doesn't monomorphize the whole fact.
             // TODO: if we could handle partial monomorphizations, we would take some action here.

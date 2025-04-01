@@ -397,16 +397,17 @@ impl Normalizer {
     // The steps of normalization that happen after monomorphization.
     fn normalize_monomorphic_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
         let local = fact.truthiness != Truthiness::Factual;
-        let defined = match &fact.source.source_type {
+        let defined = match &fact.proposition.source.source_type {
             SourceType::ConstantDefinition(value, _) => {
                 let term = self.term_from_value(&value, local)?;
                 Some(term.get_head().clone())
             }
             _ => None,
         };
-        let clauses = self.normalize_value(&fact.value, local)?;
+        let clauses = self.normalize_value(&fact.proposition.value, local)?;
         for clause in clauses {
-            let step = ProofStep::assumption(clause, fact.truthiness, &fact.source, defined);
+            let step =
+                ProofStep::assumption(clause, fact.truthiness, &fact.proposition.source, defined);
             steps.push(step);
         }
         Ok(())

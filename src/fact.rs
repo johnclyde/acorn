@@ -1,46 +1,43 @@
 use crate::acorn_type::AcornType;
-use crate::acorn_value::AcornValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{Proposition, Source, SourceType};
 
 // A fact is a proposition that we already know to be true.
 #[derive(Clone, Debug)]
 pub struct Fact {
-    pub value: AcornValue,
-    pub source: Source,
+    pub proposition: Proposition,
     pub truthiness: Truthiness,
 }
 
 impl Fact {
     pub fn new(proposition: Proposition, truthiness: Truthiness) -> Fact {
         Fact {
-            value: proposition.value,
-            source: proposition.source,
+            proposition,
             truthiness,
         }
     }
 
     // Instantiates a generic fact.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> Fact {
-        let value = self.value.instantiate(params);
+        let value = self.proposition.value.instantiate(params);
         if value.has_generic() {
             panic!("tried to instantiate but {} is still generic", value);
         }
-        let source = match &self.source.source_type {
+        let source = match &self.proposition.source.source_type {
             SourceType::ConstantDefinition(v, name) => {
                 let new_type = SourceType::ConstantDefinition(v.instantiate(params), name.clone());
                 Source {
-                    module: self.source.module,
-                    range: self.source.range.clone(),
+                    module: self.proposition.source.module,
+                    range: self.proposition.source.range.clone(),
                     source_type: new_type,
-                    importable: self.source.importable,
+                    importable: self.proposition.source.importable,
                 }
             }
-            _ => self.source.clone(),
+            _ => self.proposition.source.clone(),
         };
+        let proposition = Proposition { value, source };
         Fact {
-            value,
-            source,
+            proposition,
             truthiness: self.truthiness,
         }
     }
