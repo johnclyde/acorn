@@ -148,7 +148,7 @@ impl Prover {
             }
             _ => None,
         };
-        let clauses = match self.normalizer.normalize(&fact.value, local) {
+        let clauses = match self.normalizer.normalize_value(&fact.value, local) {
             Normalization::Clauses(clauses) => clauses,
             Normalization::Impossible => {
                 // We have a false assumption, so we're done already.

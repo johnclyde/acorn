@@ -118,8 +118,8 @@ impl Monomorphizer {
 
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
+        // We don't monomorphize to match constants in global facts, because it would blow up.
         if fact.truthiness != Truthiness::Factual {
-            // We don't monomorphize to match constants that are only seen globally.
             self.add_monomorphs(&fact.value);
         }
 
@@ -130,7 +130,7 @@ impl Monomorphizer {
         if generic_constants.is_empty() {
             if let AcornValue::ForAll(args, _) = &fact.value {
                 if args.iter().any(|arg| arg.has_generic()) {
-                    // This is a generic fact with no generic functions.
+                    // This is a generic fact with no generic constants in it.
                     // It could be something trivial and purely propositional, like
                     // forall(x: T) { x = x }
                     // Just skip it.

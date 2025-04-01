@@ -6,9 +6,12 @@ use crate::constant_map::ConstantMap;
 use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::display::DisplayClause;
 use crate::environment::Environment;
+use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
+use crate::proof_step::ProofStep;
+use crate::proposition::SourceType;
 use crate::term::{Term, TypeId};
 use crate::type_map::TypeMap;
 
@@ -25,6 +28,7 @@ pub enum Normalization {
 
     // Sometimes as we normalize we discover a proposition that is impossible to satisfy.
     // This can't be trivially represented in CNF, so it gets its own variant.
+    // TODO: Well, it could be represented as a single impossible clause. Do I want to?
     Impossible,
 
     // A user-visible error.
@@ -407,7 +411,7 @@ impl Normalizer {
     }
 
     // Converts a value to CNF.
-    pub fn normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
+    pub fn normalize_value(&mut self, value: &AcornValue, local: bool) -> Normalization {
         if let Err(e) = value.validate() {
             return Normalization::Error(format!(
                 "validation error: {} while normalizing: {}",
@@ -430,6 +434,41 @@ impl Normalizer {
         }
 
         self.convert_then_normalize(value, local)
+    }
+
+    // A single fact can turn into a bunch of proof steps.
+    pub fn normalize_monomorphic_fact(&mut self, fact: Fact) -> Result<Vec<ProofStep>> {
+        let local = fact.local();
+        let defined = match &fact.source.source_type {
+            SourceType::ConstantDefinition(value, _) => match self.term_from_value(&value, local) {
+                Ok(term) => Some(term.get_head().clone()),
+                Err(e) => {
+                    return Err(e);
+                }
+            },
+            _ => None,
+        };
+        let clauses = match self.normalize_value(&fact.value, local) {
+            Normalization::Clauses(clauses) => clauses,
+            Normalization::Impossible => {
+                // We have a false assumption, so that's the only proof step we need.
+                return Ok(vec![ProofStep::assumption(
+                    Clause::impossible(),
+                    fact.truthiness,
+                    &fact.source,
+                    None,
+                )]);
+            }
+            Normalization::Error(s) => {
+                return Err(NormalizationError(s));
+            }
+        };
+        let mut steps = vec![];
+        for clause in clauses {
+            let step = ProofStep::assumption(clause, fact.truthiness, &fact.source, defined);
+            steps.push(step);
+        }
+        Ok(steps)
     }
 
     // Variables are left unbound. Their types are accumulated.
@@ -543,7 +582,7 @@ impl Normalizer {
         denormalized
             .validate()
             .expect("denormalized clause should validate");
-        let renormalized = self.normalize(&denormalized, true).expect_clauses();
+        let renormalized = self.normalize_value(&denormalized, true).expect_clauses();
         if renormalized.len() != 1 {
             println!("original clause: {}", clause);
             println!("denormalized: {}", denormalized);
@@ -556,7 +595,7 @@ impl Normalizer {
     }
 
     fn check_value(&mut self, value: &AcornValue, expected: &[&str]) {
-        let actual = self.normalize(value, true).expect_clauses();
+        let actual = self.normalize_value(value, true).expect_clauses();
         if actual.len() != expected.len() {
             panic!(
                 "expected {} clauses, got {}:\n{}",
