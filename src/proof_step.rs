@@ -4,7 +4,7 @@ use std::fmt;
 use crate::atom::Atom;
 use crate::clause::Clause;
 use crate::literal::Literal;
-use crate::proposition::{Source, SourceType};
+use crate::proposition::{Proposition, Source, SourceType};
 use crate::term::Term;
 
 // The different sorts of proof steps.
@@ -249,19 +249,18 @@ impl ProofStep {
     // Construct a new assumption ProofStep that is not dependent on any other steps.
     // Assumptions are always depth zero, but eventually we may have to revisit that.
     pub fn assumption(
+        proposition: &Proposition,
         clause: Clause,
-        truthiness: Truthiness,
-        source: &Source,
         defined_atom: Option<Atom>,
     ) -> ProofStep {
-        let source = source.clone();
+        let source = proposition.source.clone();
         let rule = Rule::Assumption(AssumptionInfo {
             source,
             defined_atom,
         });
         ProofStep {
             clause,
-            truthiness,
+            truthiness: proposition.truthiness(),
             rule,
             simplification_rules: vec![],
             proof_size: 0,

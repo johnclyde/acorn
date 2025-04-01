@@ -399,12 +399,7 @@ impl Normalizer {
             };
             let clauses = self.normalize_value(&proposition.value, local)?;
             for clause in clauses {
-                let step = ProofStep::assumption(
-                    clause,
-                    proposition.truthiness(),
-                    &proposition.source,
-                    defined,
-                );
+                let step = ProofStep::assumption(&proposition, clause, defined);
                 steps.push(step);
             }
         }
