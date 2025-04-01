@@ -23,6 +23,8 @@ use crate::proof_step::{ProofStep, ProofStepId, Rule, Truthiness};
 use crate::term::Term;
 use crate::term_graph::TermGraphContradiction;
 
+// type Result<T> = std::result::Result<T, String>;
+
 #[derive(Clone)]
 pub struct Prover {
     // The normalizer is used when we are turning the facts and goals from the environment into
@@ -82,7 +84,7 @@ enum NormalizedGoal {
 // "Timeout" means that we hit a nondeterministic timing limit.
 // "Constrained" means that we hit some deterministic limit.
 // "Error" means that we found a problem in the code that needs to be fixed by the user.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Outcome {
     Success,
     Exhausted,
@@ -90,7 +92,7 @@ pub enum Outcome {
     Interrupted,
     Timeout,
     Constrained,
-    Error,
+    Error(String),
 }
 
 impl fmt::Display for Outcome {
@@ -102,7 +104,7 @@ impl fmt::Display for Outcome {
             Outcome::Interrupted => write!(f, "Interrupted"),
             Outcome::Timeout => write!(f, "Timeout"),
             Outcome::Constrained => write!(f, "Constrained"),
-            Outcome::Error => write!(f, "Error"),
+            Outcome::Error(s) => write!(f, "Error: {}", s),
         }
     }
 }
@@ -644,8 +646,8 @@ impl Prover {
         seconds: f32,
         shallow_only: bool,
     ) -> Outcome {
-        if self.error.is_some() {
-            return Outcome::Error;
+        if let Some(s) = &self.error {
+            return Outcome::Error(s.clone());
         }
         let start_time = std::time::Instant::now();
         loop {

@@ -81,11 +81,8 @@ async fn main() {
             Outcome::Constrained => {
                 println!("Constrained.");
             }
-            Outcome::Error => {
-                println!(
-                    "Error: {}",
-                    prover.error.unwrap_or("unknown error".to_string())
-                );
+            Outcome::Error(s) => {
+                println!("Error: {}", s);
             }
         }
 

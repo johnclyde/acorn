@@ -34,8 +34,8 @@ mod prover_test {
         prover.set_goal(&goal_context);
         prover.verbose = true;
         let outcome = prover.quick_search();
-        if outcome == Outcome::Error {
-            panic!("prover error: {}", prover.error.unwrap());
+        if let Outcome::Error(s) = outcome {
+            panic!("prover error: {}", s);
         }
         let code = match prover.get_and_print_proof() {
             Some(proof) => proof.to_code(&env.bindings),
@@ -82,8 +82,8 @@ mod prover_test {
             // This helps us test that verification fails in cases where we do have an
             // infinite rabbit hole we could go down.
             let outcome = prover.quick_shallow_search();
-            if outcome == Outcome::Error {
-                println!("prover error: {}", prover.error.unwrap());
+            if let Outcome::Error(s) = &outcome {
+                println!("prover error: {}", s);
             }
             if outcome != Outcome::Success {
                 return outcome;

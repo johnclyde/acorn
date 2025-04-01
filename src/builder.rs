@@ -328,8 +328,8 @@ impl<'a> Builder<'a> {
             Outcome::Interrupted => {
                 self.log_proving_error(&prover, &goal_context, "was interrupted");
             }
-            Outcome::Error => {
-                self.log_proving_error(&prover, &goal_context, "had an error");
+            Outcome::Error(s) => {
+                self.log_proving_error(&prover, &goal_context, &s);
             }
             Outcome::Constrained => self.log_proving_warning(
                 &prover,

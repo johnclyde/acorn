@@ -194,7 +194,7 @@ impl SearchStatus {
     }
 
     // Indicate that the search failed to find a proof, and has stopped.
-    pub fn stopped(prover: &Prover, outcome: Outcome) -> SearchStatus {
+    pub fn stopped(prover: &Prover, outcome: &Outcome) -> SearchStatus {
         SearchStatus {
             code: None,
             code_error: None,

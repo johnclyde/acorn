@@ -151,7 +151,7 @@ impl SearchTask {
             // This lets other threads access the prover in between iterations.
             let mut prover = self.prover.write().await;
             let outcome = prover.partial_search();
-            let status = match outcome {
+            let status = match &outcome {
                 Outcome::Success => {
                     let proof = prover.get_condensed_proof().unwrap();
                     let steps = prover.to_proof_info(&project, &env.bindings, &proof);
@@ -167,7 +167,7 @@ impl SearchTask {
                 Outcome::Inconsistent
                 | Outcome::Exhausted
                 | Outcome::Constrained
-                | Outcome::Error => SearchStatus::stopped(&prover, outcome),
+                | Outcome::Error(_) => SearchStatus::stopped(&prover, &outcome),
 
                 Outcome::Timeout => SearchStatus::pending(&prover),
 
