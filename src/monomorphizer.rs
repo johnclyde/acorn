@@ -160,8 +160,17 @@ impl Monomorphizer {
 
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
-        let Fact::Proposition(proposition, truthiness) = fact;
+        match fact {
+            Fact::Proposition(proposition, truthiness) => {
+                self.add_proposition(proposition, truthiness);
+            }
+            Fact::InstanceOf(class, typeclass) => {
+                self.add_instance_of(class, typeclass);
+            }
+        }
+    }
 
+    fn add_proposition(&mut self, proposition: Proposition, truthiness: Truthiness) {
         // We don't monomorphize to match constants in global facts, because it would blow up.
         if truthiness != Truthiness::Factual {
             self.add_monomorphs(&proposition.value);

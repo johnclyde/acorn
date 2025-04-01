@@ -1,3 +1,4 @@
+use crate::acorn_type::{Class, Typeclass};
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 
@@ -6,4 +7,7 @@ use crate::proposition::Proposition;
 pub enum Fact {
     // A true statement, plus a tag for what sort of true it is.
     Proposition(Proposition, Truthiness),
+
+    // The fact that this class is an instance of this typeclass.
+    InstanceOf(Class, Typeclass),
 }

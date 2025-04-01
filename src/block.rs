@@ -563,13 +563,13 @@ impl<'a> NodeCursor<'a> {
     pub fn usable_facts(&self, project: &Project) -> Vec<Fact> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
-            for prop in &env.nodes[0..*i] {
+            for node in &env.nodes[0..*i] {
                 let truthiness = if env.depth == 0 {
                     Truthiness::Factual
                 } else {
                     Truthiness::Hypothetical
                 };
-                facts.push(Fact::Proposition(prop.claim.clone(), truthiness));
+                facts.push(Fact::Proposition(node.claim.clone(), truthiness));
             }
         }
 
