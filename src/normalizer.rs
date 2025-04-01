@@ -19,14 +19,19 @@ type Result<T> = std::result::Result<T, String>;
 
 #[derive(Debug)]
 enum Normalization {
-    // A successfully normalized value turns into a bunch of clauses.
-    // Logically, this is an "and of ors". Each Clause is an "or" of its literals.
-    // "true" is represented by an empty list, which is always satisfied.
-    // "false" is represented by a single impossible clause.
     Clauses(Vec<Clause>),
 
     // A user-visible error.
     Error(String),
+}
+
+impl Normalization {
+    fn to_result(self) -> Result<Vec<Clause>> {
+        match self {
+            Normalization::Clauses(clauses) => Ok(clauses),
+            Normalization::Error(s) => Err(s),
+        }
+    }
 }
 
 // Returns a normalization error if a type is not normalized.
@@ -66,13 +71,6 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
 }
 
 impl Normalization {
-    fn expect_clauses(self) -> Vec<Clause> {
-        match self {
-            Normalization::Clauses(clauses) => clauses,
-            _ => panic!("expected clauses but got: {:?}", self),
-        }
-    }
-
     fn and(self, other: Normalization) -> Normalization {
         match self {
             Normalization::Clauses(mut clauses) => match other {
@@ -386,10 +384,14 @@ impl Normalizer {
         self.normalize_cnf(value, local)
     }
 
-    // Converts a value to CNF.
-    fn normalize_value(&mut self, value: &AcornValue, local: bool) -> Normalization {
+    // Converts a value to CNF: Conjunctive Normal Form.
+    // In other words, a successfully normalized value turns into a bunch of clauses.
+    // Logically, this is an "and of ors". Each Clause is an "or" of its literals.
+    // "true" is represented by an empty list, which is always satisfied.
+    // "false" is represented by a single impossible clause.
+    fn normalize_value(&mut self, value: &AcornValue, local: bool) -> Result<Vec<Clause>> {
         if let Err(e) = value.validate() {
-            return Normalization::Error(format!(
+            return Err(format!(
                 "validation error: {} while normalizing: {}",
                 e, value
             ));
@@ -405,11 +407,11 @@ impl Normalizer {
                 // If we handled functional types better in unification we might not need this.
                 let functional = self.normalize_cnf(value.clone(), local);
                 let primitive = self.convert_then_normalize(value, local);
-                return functional.and(primitive);
+                return functional.and(primitive).to_result();
             }
         }
 
-        self.convert_then_normalize(value, local)
+        self.convert_then_normalize(value, local).to_result()
     }
 
     // A single fact can turn into a bunch of proof steps.
@@ -424,12 +426,7 @@ impl Normalizer {
             },
             _ => None,
         };
-        let clauses = match self.normalize_value(&fact.value, local) {
-            Normalization::Clauses(clauses) => clauses,
-            Normalization::Error(s) => {
-                return Err(s);
-            }
-        };
+        let clauses = self.normalize_value(&fact.value, local)?;
         let mut steps = vec![];
         for clause in clauses {
             let step = ProofStep::assumption(clause, fact.truthiness, &fact.source, defined);
@@ -549,7 +546,7 @@ impl Normalizer {
         denormalized
             .validate()
             .expect("denormalized clause should validate");
-        let renormalized = self.normalize_value(&denormalized, true).expect_clauses();
+        let renormalized = self.normalize_value(&denormalized, true).unwrap();
         if renormalized.len() != 1 {
             println!("original clause: {}", clause);
             println!("denormalized: {}", denormalized);
@@ -562,7 +559,7 @@ impl Normalizer {
     }
 
     fn check_value(&mut self, value: &AcornValue, expected: &[&str]) {
-        let actual = self.normalize_value(value, true).expect_clauses();
+        let actual = self.normalize_value(value, true).unwrap();
         if actual.len() != expected.len() {
             panic!(
                 "expected {} clauses, got {}:\n{}",
