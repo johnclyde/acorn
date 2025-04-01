@@ -1513,16 +1513,10 @@ impl BindingMap {
         Ok(value)
     }
 
-    fn is_instance_of(
-        &self,
-        project: &Project,
-        module_id: ModuleId,
-        type_name: &str,
-        typeclass: &Typeclass,
-    ) -> bool {
-        self.get_bindings(project, module_id)
+    fn is_instance_of(&self, project: &Project, class: &Class, typeclass: &Typeclass) -> bool {
+        self.get_bindings(project, class.module_id)
             .instance_of
-            .get(type_name)
+            .get(&class.name)
             .map_or(false, |set| set.contains(typeclass))
     }
 
@@ -1553,9 +1547,7 @@ impl BindingMap {
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
             if !arg_type.match_instance(
                 &arg.get_type(),
-                &|module_id, type_name, typeclass| {
-                    self.is_instance_of(&project, *module_id, type_name, typeclass)
-                },
+                &|class, typeclass| self.is_instance_of(&project, class, typeclass),
                 &mut mapping,
             ) {
                 return Err(source.error(&format!(

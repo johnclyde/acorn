@@ -353,7 +353,7 @@ impl AcornType {
     pub fn match_instance(
         &self,
         instance: &AcornType,
-        validator: &dyn Fn(&ModuleId, &str, &Typeclass) -> bool,
+        validator: &dyn Fn(&Class, &Typeclass) -> bool,
         mapping: &mut HashMap<String, AcornType>,
     ) -> bool {
         match (self, instance) {
@@ -365,7 +365,7 @@ impl AcornType {
                 if let Some(typeclass) = param.typeclass.as_ref() {
                     match instance {
                         AcornType::Data(class, _) => {
-                            if !validator(&class.module_id, &class.name, typeclass) {
+                            if !validator(&class, typeclass) {
                                 return false;
                             }
                         }

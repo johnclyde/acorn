@@ -232,7 +232,7 @@ impl Monomorphizer {
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            generic_type.match_instance(monomorph_type, &|_, _, _| true, &mut fact_params);
+            generic_type.match_instance(monomorph_type, &|_, _| true, &mut fact_params);
         }
         let fact_params = FactParams::new(fact_params);
 
