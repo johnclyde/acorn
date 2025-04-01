@@ -6,6 +6,7 @@ use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::constant_name::GlobalConstantName;
 use crate::fact::Fact;
 use crate::proof_step::Truthiness;
+use crate::proposition::Proposition;
 
 // The type variables used in a generic fact, along with the types they map to.
 // Can be a partial instantiation.
@@ -113,9 +114,9 @@ pub struct Monomorphizer {
     fact_info: Vec<GenericFactInfo>,
 
     // This works like an output buffer.
-    // Each output fact is fully monomorphized.
+    // Each output proposition is fully monomorphized.
     // The Monomorphizer only writes to this, never reads.
-    output_facts: Vec<Fact>,
+    output: Vec<(Proposition, Truthiness)>,
 
     // An index tracking wherever a generic constant is located in the generic facts.
     // This is updated whenever we add a generic fact.
@@ -131,7 +132,7 @@ impl Monomorphizer {
     pub fn new() -> Monomorphizer {
         Monomorphizer {
             fact_info: vec![],
-            output_facts: vec![],
+            output: vec![],
             constant_info: HashMap::new(),
             instance_of: HashMap::new(),
         }
@@ -177,7 +178,7 @@ impl Monomorphizer {
             }
 
             // The fact is already monomorphic. Just output it.
-            self.output_facts.push(fact);
+            self.output.push((fact.proposition, fact.truthiness));
             return;
         }
 
@@ -207,8 +208,8 @@ impl Monomorphizer {
     }
 
     // Extract monomorphic facts from the prover.
-    pub fn take_facts(&mut self) -> Vec<Fact> {
-        std::mem::take(&mut self.output_facts)
+    pub fn take_output(&mut self) -> Vec<(Proposition, Truthiness)> {
+        std::mem::take(&mut self.output)
     }
 
     // Call this on any value that we want to use in proofs.
@@ -291,6 +292,7 @@ impl Monomorphizer {
         }
         info.instantiations.push(fact_params);
 
-        self.output_facts.push(monomorphic_fact);
+        self.output
+            .push((monomorphic_fact.proposition, monomorphic_fact.truthiness));
     }
 }

@@ -388,27 +388,20 @@ impl Normalizer {
     // This monomorphizes, which can indirectly turn into what seems like a lot of unrelated steps.
     pub fn normalize_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
         self.monomorphizer.add_fact(fact);
-        for fact in self.monomorphizer.take_facts() {
-            self.normalize_monomorphic_fact(fact, steps)?;
-        }
-        Ok(())
-    }
-
-    // The steps of normalization that happen after monomorphization.
-    fn normalize_monomorphic_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
-        let local = fact.truthiness != Truthiness::Factual;
-        let defined = match &fact.proposition.source.source_type {
-            SourceType::ConstantDefinition(value, _) => {
-                let term = self.term_from_value(&value, local)?;
-                Some(term.get_head().clone())
+        for (proposition, truthiness) in self.monomorphizer.take_output() {
+            let local = truthiness != Truthiness::Factual;
+            let defined = match &proposition.source.source_type {
+                SourceType::ConstantDefinition(value, _) => {
+                    let term = self.term_from_value(&value, local)?;
+                    Some(term.get_head().clone())
+                }
+                _ => None,
+            };
+            let clauses = self.normalize_value(&proposition.value, local)?;
+            for clause in clauses {
+                let step = ProofStep::assumption(clause, truthiness, &proposition.source, defined);
+                steps.push(step);
             }
-            _ => None,
-        };
-        let clauses = self.normalize_value(&fact.proposition.value, local)?;
-        for clause in clauses {
-            let step =
-                ProofStep::assumption(clause, fact.truthiness, &fact.proposition.source, defined);
-            steps.push(step);
         }
         Ok(())
     }

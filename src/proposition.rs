@@ -1,5 +1,6 @@
 use tower_lsp::lsp_types::Range;
 
+use crate::acorn_type::AcornType;
 use crate::acorn_value::AcornValue;
 use crate::module::ModuleId;
 
@@ -284,5 +285,26 @@ impl Proposition {
             SourceType::Axiom(name) | SourceType::Theorem(name) => name.as_deref(),
             _ => None,
         }
+    }
+
+    // Instantiates a generic proposition to have a particular type.
+    pub fn instantiate(&self, params: &[(String, AcornType)]) -> Proposition {
+        let value = self.value.instantiate(params);
+        if value.has_generic() {
+            panic!("tried to instantiate but {} is still generic", value);
+        }
+        let source = match &self.source.source_type {
+            SourceType::ConstantDefinition(v, name) => {
+                let new_type = SourceType::ConstantDefinition(v.instantiate(params), name.clone());
+                Source {
+                    module: self.source.module,
+                    range: self.source.range.clone(),
+                    source_type: new_type,
+                    importable: self.source.importable,
+                }
+            }
+            _ => self.source.clone(),
+        };
+        Proposition { value, source }
     }
 }
