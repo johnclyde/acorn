@@ -20,7 +20,7 @@ pub struct NormalizationError(pub String);
 type Result<T> = std::result::Result<T, NormalizationError>;
 
 #[derive(Debug)]
-pub enum Normalization {
+enum Normalization {
     // A successfully normalized value turns into a bunch of clauses.
     // Logically, this is an "and of ors". Each Clause is an "or" of its literals.
     // An empty list indicates a proposition that is always trivially satisfied.
@@ -75,7 +75,7 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
 }
 
 impl Normalization {
-    pub fn expect_clauses(self) -> Vec<Clause> {
+    fn expect_clauses(self) -> Vec<Clause> {
         match self {
             Normalization::Clauses(clauses) => clauses,
             _ => panic!("expected clauses but got: {:?}", self),
@@ -94,13 +94,6 @@ impl Normalization {
             },
             Normalization::Impossible => Normalization::Impossible,
             Normalization::Error(s) => Normalization::Error(s),
-        }
-    }
-
-    pub fn clauses(&self) -> Vec<&Clause> {
-        match self {
-            Normalization::Clauses(clauses) => clauses.iter().collect(),
-            _ => vec![],
         }
     }
 }
@@ -411,7 +404,7 @@ impl Normalizer {
     }
 
     // Converts a value to CNF.
-    pub fn normalize_value(&mut self, value: &AcornValue, local: bool) -> Normalization {
+    fn normalize_value(&mut self, value: &AcornValue, local: bool) -> Normalization {
         if let Err(e) = value.validate() {
             return Normalization::Error(format!(
                 "validation error: {} while normalizing: {}",

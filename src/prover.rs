@@ -15,12 +15,11 @@ use crate::goal::{Goal, GoalContext};
 use crate::interfaces::{ClauseInfo, InfoResult, Location, ProofStepInfo};
 use crate::literal::Literal;
 use crate::module::ModuleId;
-use crate::normalizer::{Normalization, NormalizationError, Normalizer};
+use crate::normalizer::{NormalizationError, Normalizer};
 use crate::passive_set::PassiveSet;
 use crate::project::Project;
 use crate::proof::{Difficulty, Proof};
 use crate::proof_step::{ProofStep, ProofStepId, Rule, Truthiness};
-use crate::proposition::SourceType;
 use crate::term::Term;
 use crate::term_graph::TermGraphContradiction;
 
@@ -135,41 +134,13 @@ impl Prover {
 
     // Used to add facts internally, after the fact has already been monomorphized.
     fn add_monomorphic_fact(&mut self, fact: Fact) {
-        let local = fact.local();
-        let defined = match &fact.source.source_type {
-            SourceType::ConstantDefinition(value, _) => {
-                match self.normalizer.term_from_value(&value, local) {
-                    Ok(term) => Some(term.get_head().clone()),
-                    Err(NormalizationError(s)) => {
-                        self.error = Some(s);
-                        return;
-                    }
-                }
-            }
-            _ => None,
-        };
-        let clauses = match self.normalizer.normalize_value(&fact.value, local) {
-            Normalization::Clauses(clauses) => clauses,
-            Normalization::Impossible => {
-                // We have a false assumption, so we're done already.
-                self.final_step = Some(ProofStep::assumption(
-                    Clause::impossible(),
-                    fact.truthiness,
-                    &fact.source,
-                    None,
-                ));
-                return;
-            }
-            Normalization::Error(s) => {
+        let steps = match self.normalizer.normalize_monomorphic_fact(fact) {
+            Ok(steps) => steps,
+            Err(NormalizationError(s)) => {
                 self.error = Some(s);
                 return;
             }
         };
-        let mut steps = vec![];
-        for clause in clauses {
-            let step = ProofStep::assumption(clause, fact.truthiness, &fact.source, defined);
-            steps.push(step);
-        }
         self.passive_set.push_batch(steps);
     }
 
