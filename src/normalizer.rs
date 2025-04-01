@@ -17,24 +17,7 @@ use crate::type_map::TypeMap;
 
 type Result<T> = std::result::Result<T, String>;
 
-#[derive(Debug)]
-enum Normalization {
-    Clauses(Vec<Clause>),
-
-    // A user-visible error.
-    Error(String),
-}
-
-impl Normalization {
-    fn to_result(self) -> Result<Vec<Clause>> {
-        match self {
-            Normalization::Clauses(clauses) => Ok(clauses),
-            Normalization::Error(s) => Err(s),
-        }
-    }
-}
-
-// Returns a normalization error if a type is not normalized.
+// Returns an error if a type is not normalized.
 fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
     match acorn_type {
         AcornType::Function(function_type) => {
@@ -67,21 +50,6 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
         }
         AcornType::Empty => Ok(()),
         AcornType::Arbitrary(..) => Ok(()),
-    }
-}
-
-impl Normalization {
-    fn and(self, other: Normalization) -> Normalization {
-        match self {
-            Normalization::Clauses(mut clauses) => match other {
-                Normalization::Clauses(mut other_clauses) => {
-                    clauses.append(&mut other_clauses);
-                    Normalization::Clauses(clauses)
-                }
-                Normalization::Error(s) => Normalization::Error(s),
-            },
-            Normalization::Error(s) => Normalization::Error(s),
-        }
     }
 }
 
@@ -338,18 +306,19 @@ impl Normalizer {
         }
     }
 
-    // Turns a value that is already in CNF into a Normalization
-    fn normalize_cnf(&mut self, value: AcornValue, local: bool) -> Normalization {
+    // Converts AcornValue to Vec<Clause> without changing the tree structure.
+    // The tree structure should already be manipulated before calling this.
+    fn normalize_cnf(&mut self, value: AcornValue, local: bool) -> Result<Vec<Clause>> {
         let mut universal = vec![];
         let value = value.remove_forall(&mut universal);
         match self.into_literal_lists(&value, local) {
-            Ok(Some(lists)) => self.normalize_literal_lists(lists),
-            Ok(None) => Normalization::Clauses(vec![Clause::impossible()]),
+            Ok(Some(lists)) => Ok(self.normalize_literal_lists(lists)),
+            Ok(None) => Ok(vec![Clause::impossible()]),
             Err(s) => {
                 // value is essentially a subvalue with the universal quantifiers removed,
                 // so reconstruct it to display it nicely.
                 let reconstructed = AcornValue::forall(universal, value);
-                Normalization::Error(format!(
+                Err(format!(
                     "\nerror converting {} to CNF:\n{}",
                     reconstructed, s
                 ))
@@ -357,7 +326,7 @@ impl Normalizer {
         }
     }
 
-    fn normalize_literal_lists(&self, literal_lists: Vec<Vec<Literal>>) -> Normalization {
+    fn normalize_literal_lists(&self, literal_lists: Vec<Vec<Literal>>) -> Vec<Clause> {
         let mut clauses = vec![];
         for literals in literal_lists {
             assert!(literals.len() > 0);
@@ -365,12 +334,12 @@ impl Normalizer {
             // println!("clause: {}", clause);
             clauses.push(clause);
         }
-        Normalization::Clauses(clauses)
+        clauses
     }
 
-    // Converts a value to CNF, then to a Normalization.
+    // Converts a value to CNF, then to Vec<Clause>.
     // Does not handle the "definition" sorts of values.
-    fn convert_then_normalize(&mut self, value: &AcornValue, local: bool) -> Normalization {
+    fn convert_then_normalize(&mut self, value: &AcornValue, local: bool) -> Result<Vec<Clause>> {
         // println!("\nnormalizing: {}", value);
         let value = value.replace_function_equality(0);
         let value = value.expand_lambdas(0);
@@ -405,13 +374,14 @@ impl Normalizer {
                 // One as an equality between functions, another as an equality between
                 // primitive types, after applying the functions.
                 // If we handled functional types better in unification we might not need this.
-                let functional = self.normalize_cnf(value.clone(), local);
-                let primitive = self.convert_then_normalize(value, local);
-                return functional.and(primitive).to_result();
+                let mut functional = self.normalize_cnf(value.clone(), local)?;
+                let mut primitive = self.convert_then_normalize(value, local)?;
+                functional.append(&mut primitive);
+                return Ok(functional);
             }
         }
 
-        self.convert_then_normalize(value, local).to_result()
+        self.convert_then_normalize(value, local)
     }
 
     // A single fact can turn into a bunch of proof steps.
