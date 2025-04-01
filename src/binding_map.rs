@@ -73,7 +73,7 @@ pub struct BindingMap {
     module_to_name: HashMap<ModuleId, String>,
 
     // The default data type to use for numeric literals.
-    default: Option<(ModuleId, String)>,
+    numerals: Option<Class>,
 
     // Stores the instance-of relationships for classes that were defined in this module.
     instance_of: HashMap<String, HashSet<Typeclass>>,
@@ -171,7 +171,7 @@ impl BindingMap {
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
-            default: None,
+            numerals: None,
             instance_of: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
@@ -470,8 +470,8 @@ impl BindingMap {
         self.name_to_module.values().copied().collect()
     }
 
-    pub fn set_default(&mut self, module: ModuleId, type_name: String) {
-        self.default = Some((module, type_name));
+    pub fn set_numerals(&mut self, class: Class) {
+        self.numerals = Some(class);
     }
 
     // Adds a constant.
@@ -1038,40 +1038,42 @@ impl BindingMap {
     // This function evaluates numbers when we already know what type they are.
     // token is the token to report errors with.
     // s is the string to parse.
-    fn evaluate_number_with_type(
+    fn evaluate_number_with_class(
         &self,
         token: &Token,
         project: &Project,
-        module: ModuleId,
-        type_name: &str,
+        class: &Class,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if self.has_type_attribute(project, module, type_name, s) {
+        if self.has_type_attribute(project, class.module_id, &class.name, s) {
             return self
-                .evaluate_type_attribute(token, project, module, type_name, s)?
+                .evaluate_type_attribute(token, project, class.module_id, &class.name, s)?
                 .as_value(token);
         }
 
         if s.len() == 1 {
-            return Err(token.error(&format!("digit {}.{} is not defined", type_name, s)));
+            return Err(token.error(&format!("digit {}.{} is not defined", &class.name, s)));
         }
 
         let last_str = &s[s.len() - 1..];
-        let last_num =
-            self.evaluate_number_with_type(token, project, module, type_name, last_str)?;
+        let last_num = self.evaluate_number_with_class(token, project, class, last_str)?;
         let initial_str = &s[..s.len() - 1];
-        let initial_num =
-            self.evaluate_number_with_type(token, project, module, type_name, initial_str)?;
-        let read_fn =
-            match self.evaluate_type_attribute(token, project, module, type_name, "read")? {
-                PotentialValue::Resolved(f) => f,
-                PotentialValue::Unresolved(_) => {
-                    return Err(token.error(&format!(
-                        "read function {}.read has unresolved type",
-                        type_name
-                    )))
-                }
-            };
+        let initial_num = self.evaluate_number_with_class(token, project, class, initial_str)?;
+        let read_fn = match self.evaluate_type_attribute(
+            token,
+            project,
+            class.module_id,
+            &class.name,
+            "read",
+        )? {
+            PotentialValue::Resolved(f) => f,
+            PotentialValue::Unresolved(_) => {
+                return Err(token.error(&format!(
+                    "read function {}.read has unresolved type",
+                    &class.name
+                )))
+            }
+        };
         let value = AcornValue::apply(read_fn, vec![initial_num, last_num]);
         Ok(value)
     }
@@ -1180,11 +1182,10 @@ impl BindingMap {
                 match &t {
                     AcornType::Data(class, params) => {
                         if name_token.token_type == TokenType::Numeral {
-                            let value = self.evaluate_number_with_type(
+                            let value = self.evaluate_number_with_class(
                                 name_token,
                                 project,
-                                class.module_id,
-                                &class.name,
+                                &class,
                                 name_token.text(),
                             )?;
                             return Ok(NamedEntity::Value(value));
@@ -1302,18 +1303,17 @@ impl BindingMap {
                         }
                     }
                     TokenType::Numeral => {
-                        let (module, type_name) = match &self.default {
-                            Some((module, type_name)) => (module, type_name),
+                        let class = match &self.numerals {
+                            Some(c) => c,
                             None => {
                                 return Err(name_token
                                     .error("you must set a default type for numeric literals"));
                             }
                         };
-                        let value = self.evaluate_number_with_type(
+                        let value = self.evaluate_number_with_class(
                             name_token,
                             project,
-                            *module,
-                            type_name,
+                            class,
                             name_token.text(),
                         )?;
                         Ok(NamedEntity::Value(value))
@@ -2375,8 +2375,8 @@ impl BindingMap {
                 let numeral = TokenType::Numeral.new_token(attr);
 
                 // If it's the default type, we don't need to scope it
-                if let Some((default_module, default_type_name)) = &self.default {
-                    if *default_module == name.module_id && default_type_name == class {
+                if let Some(numerals) = &self.numerals {
+                    if numerals.module_id == name.module_id && &numerals.name == class {
                         return Ok(Expression::Singleton(numeral));
                     }
                 }

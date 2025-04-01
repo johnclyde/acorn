@@ -1786,7 +1786,7 @@ impl Environment {
                             .type_expr
                             .error("numerals type cannot have type parameters"));
                     }
-                    self.bindings.set_default(class.module_id, class.name);
+                    self.bindings.set_numerals(class);
                     Ok(())
                 } else {
                     Err(ds.type_expr.error("numerals type must be a data type"))
