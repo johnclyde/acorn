@@ -147,25 +147,14 @@ impl Prover {
     pub fn set_goal(&mut self, goal_context: &GoalContext) {
         assert!(self.goal.is_none());
 
-        // Add any monomorphic facts needed to match the goal.
-        self.normalizer
-            .monomorphizer
-            .add_monomorphs(&goal_context.goal.value());
-        for fact in self.normalizer.monomorphizer.take_facts() {
-            self.add_monomorphic_fact(fact);
-        }
-
         match &goal_context.goal {
             Goal::Prove(prop) => {
                 // Negate the goal and add it as a counterfactual assumption.
                 let (hypo, counter) = prop.value.clone().negate_goal();
                 if let Some(hypo) = hypo {
-                    self.add_monomorphic_fact(Fact::new(
-                        prop.with_value(hypo),
-                        Truthiness::Hypothetical,
-                    ));
+                    self.add_fact(Fact::new(prop.with_value(hypo), Truthiness::Hypothetical));
                 }
-                self.add_monomorphic_fact(Fact::new(
+                self.add_fact(Fact::new(
                     prop.with_negated_goal(counter.clone()),
                     Truthiness::Counterfactual,
                 ));
