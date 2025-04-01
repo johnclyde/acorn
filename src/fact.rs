@@ -1,4 +1,3 @@
-use crate::acorn_type::AcornType;
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 
@@ -14,14 +13,6 @@ impl Fact {
         Fact {
             proposition,
             truthiness,
-        }
-    }
-
-    // Instantiates a generic fact.
-    pub fn instantiate(&self, params: &[(String, AcornType)]) -> Fact {
-        Fact {
-            proposition: self.proposition.instantiate(params),
-            truthiness: self.truthiness,
         }
     }
 }
