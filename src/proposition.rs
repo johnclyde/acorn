@@ -51,6 +51,9 @@ pub struct Source {
 
     // Whether this source can be imported to other modules.
     pub importable: bool,
+
+    // The depth of this source in the module. Zero is top-level.
+    pub depth: u32,
 }
 
 impl Source {
@@ -60,6 +63,7 @@ impl Source {
             range: Range::default(),
             source_type: SourceType::Anonymous,
             importable: true,
+            depth: 0,
         }
     }
 
@@ -141,6 +145,7 @@ impl Proposition {
         value: AcornValue,
         module: ModuleId,
         range: Range,
+        depth: u32,
         name: Option<String>,
     ) -> Proposition {
         let source_type = if axiomatic {
@@ -155,11 +160,12 @@ impl Proposition {
                 range,
                 source_type,
                 importable: true,
+                depth,
             },
         }
     }
 
-    pub fn anonymous(value: AcornValue, module: ModuleId, range: Range) -> Proposition {
+    pub fn anonymous(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
         Proposition {
             value,
             source: Source {
@@ -167,12 +173,13 @@ impl Proposition {
                 range,
                 source_type: SourceType::Anonymous,
                 importable: false,
+                depth,
             },
         }
     }
 
     // When we have a constraint, we prove the type is inhabited, which exports as vacuous.
-    pub fn inhabited(module: ModuleId, type_name: &str, range: Range) -> Proposition {
+    pub fn inhabited(module: ModuleId, type_name: &str, range: Range, depth: u32) -> Proposition {
         let value = AcornValue::Bool(true);
         let source_type =
             SourceType::TypeDefinition(type_name.to_string(), "constraint".to_string());
@@ -183,6 +190,7 @@ impl Proposition {
                 range,
                 source_type,
                 importable: true,
+                depth,
             },
         }
     }
@@ -191,6 +199,7 @@ impl Proposition {
         value: AcornValue,
         module: ModuleId,
         range: Range,
+        depth: u32,
         type_name: String,
         member_name: String,
     ) -> Proposition {
@@ -201,6 +210,7 @@ impl Proposition {
                 range,
                 source_type: SourceType::TypeDefinition(type_name, member_name),
                 importable: true,
+                depth,
             },
         }
     }
@@ -209,9 +219,9 @@ impl Proposition {
         value: AcornValue,
         module: ModuleId,
         range: Range,
+        depth: u32,
         constant: AcornValue,
         name: &str,
-        importable: bool,
     ) -> Proposition {
         Proposition {
             value,
@@ -219,7 +229,8 @@ impl Proposition {
                 module,
                 range,
                 source_type: SourceType::ConstantDefinition(constant, name.to_string()),
-                importable,
+                importable: depth == 0,
+                depth,
             },
         }
     }
@@ -229,6 +240,7 @@ impl Proposition {
         value: Option<AcornValue>,
         module: ModuleId,
         range: Range,
+        depth: u32,
         instance_name: &str,
         typeclass_name: &str,
     ) -> Proposition {
@@ -243,11 +255,12 @@ impl Proposition {
                     typeclass_name.to_string(),
                 ),
                 importable: true,
+                depth,
             },
         }
     }
 
-    pub fn premise(value: AcornValue, module: ModuleId, range: Range) -> Proposition {
+    pub fn premise(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
         Proposition {
             value,
             source: Source {
@@ -255,6 +268,7 @@ impl Proposition {
                 range,
                 source_type: SourceType::Premise,
                 importable: false,
+                depth,
             },
         }
     }
@@ -267,6 +281,7 @@ impl Proposition {
                 range: self.source.range,
                 source_type: SourceType::NegatedGoal,
                 importable: false,
+                depth: self.source.depth,
             },
         }
     }
@@ -301,6 +316,7 @@ impl Proposition {
                     range: self.source.range.clone(),
                     source_type: new_type,
                     importable: self.source.importable,
+                    depth: self.source.depth,
                 }
             }
             _ => self.source.clone(),

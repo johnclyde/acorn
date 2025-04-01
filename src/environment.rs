@@ -221,9 +221,9 @@ impl Environment {
                 claim,
                 self.module_id,
                 range,
+                self.depth,
                 constant,
                 &name,
-                self.depth == 0,
             ),
             None,
         );
@@ -324,7 +324,7 @@ impl Environment {
         let index = self.add_node(
             project,
             false,
-            Proposition::anonymous(external_claim, self.module_id, claim_range),
+            Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth),
             Some(block),
         );
         self.add_line_types(
@@ -617,6 +617,7 @@ impl Environment {
                 external_claim,
                 self.module_id,
                 range,
+                self.depth,
                 ts.name.clone(),
             ),
             block,
@@ -651,7 +652,7 @@ impl Environment {
         let index = self.add_node(
             project,
             false,
-            Proposition::anonymous(general_claim, self.module_id, statement.range()),
+            Proposition::anonymous(general_claim, self.module_id, statement.range(), self.depth),
             None,
         );
         self.add_node_lines(index, &statement.range());
@@ -670,7 +671,12 @@ impl Environment {
         self.add_node(
             project,
             true,
-            Proposition::anonymous(specific_claim, self.module_id, statement.range()),
+            Proposition::anonymous(
+                specific_claim,
+                self.module_id,
+                statement.range(),
+                self.depth,
+            ),
             None,
         );
 
@@ -765,9 +771,9 @@ impl Environment {
             external_condition,
             self.module_id,
             definition_range,
+            self.depth,
             function_constant,
             &fss.name,
-            self.depth == 0,
         );
 
         let index = self.add_node(project, false, prop, Some(block));
@@ -842,7 +848,8 @@ impl Environment {
                 statement.last_line(),
                 ss.body.as_ref(),
             )?;
-            let prop = Proposition::inhabited(self.module_id, &ss.name, statement.range());
+            let prop =
+                Proposition::inhabited(self.module_id, &ss.name, statement.range(), self.depth);
             let index = self.add_node(project, false, prop, Some(block));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
@@ -913,6 +920,7 @@ impl Environment {
                     constraint_claim,
                     self.module_id,
                     range,
+                    self.depth,
                     ss.name.clone(),
                     "constraint".to_string(),
                 ),
@@ -940,6 +948,7 @@ impl Environment {
                 new_claim,
                 self.module_id,
                 range,
+                self.depth,
                 ss.name.clone(),
                 "new".to_string(),
             ),
@@ -992,6 +1001,7 @@ impl Environment {
                     member_claim,
                     self.module_id,
                     range,
+                    self.depth,
                     ss.name.clone(),
                     field_name_token.text().to_string(),
                 ),
@@ -1094,6 +1104,7 @@ impl Environment {
                         claim,
                         self.module_id,
                         range,
+                        self.depth,
                         is.name.clone(),
                         member_name.to_string(),
                     ),
@@ -1130,6 +1141,7 @@ impl Environment {
                 claim,
                 self.module_id,
                 range,
+                self.depth,
                 is.name.clone(),
                 "new".to_string(),
             ),
@@ -1180,6 +1192,7 @@ impl Environment {
                     claim,
                     self.module_id,
                     range,
+                    self.depth,
                     is.name.clone(),
                     member_name.to_string(),
                 ),
@@ -1267,6 +1280,7 @@ impl Environment {
                 forall_claim,
                 self.module_id,
                 range,
+                self.depth,
                 Some(name.to_string()),
             ),
             None,
@@ -1422,6 +1436,7 @@ impl Environment {
                 external_claim,
                 self.module_id,
                 range,
+                self.depth,
                 Some(condition_name.to_string()),
             );
             self.add_node(project, true, prop, None);
@@ -1557,6 +1572,7 @@ impl Environment {
                 None,
                 self.module_id,
                 statement.range(),
+                self.depth,
                 instance_name,
                 &typeclass.name,
             );
@@ -1575,6 +1591,7 @@ impl Environment {
             Some(equalities_claim),
             self.module_id,
             statement.range(),
+            self.depth,
             instance_name,
             &typeclass.name,
         );
@@ -1655,7 +1672,12 @@ impl Environment {
                     self.add_node(
                         project,
                         true,
-                        Proposition::anonymous(claim, self.module_id, statement.range()),
+                        Proposition::anonymous(
+                            claim,
+                            self.module_id,
+                            statement.range(),
+                            self.depth,
+                        ),
                         None,
                     );
                     self.add_other_lines(statement);
@@ -1663,7 +1685,12 @@ impl Environment {
                     let index = self.add_node(
                         project,
                         false,
-                        Proposition::anonymous(claim, self.module_id, statement.range()),
+                        Proposition::anonymous(
+                            claim,
+                            self.module_id,
+                            statement.range(),
+                            self.depth,
+                        ),
                         None,
                     );
                     self.add_node_lines(index, &statement.range());
@@ -1699,7 +1726,7 @@ impl Environment {
                 let index = self.add_node(
                     project,
                     false,
-                    Proposition::anonymous(outer_claim, self.module_id, range),
+                    Proposition::anonymous(outer_claim, self.module_id, range, self.depth),
                     Some(block),
                 );
                 self.add_node_lines(index, &statement.range());
@@ -1818,7 +1845,7 @@ impl Environment {
                 let prop = match block.solves(self, &target) {
                     Some((outer_claim, claim_range)) => {
                         block.goal = None;
-                        Proposition::anonymous(outer_claim, self.module_id, claim_range)
+                        Proposition::anonymous(outer_claim, self.module_id, claim_range, self.depth)
                     }
                     None => {
                         // The block doesn't contain a solution.
@@ -1829,6 +1856,7 @@ impl Environment {
                             AcornValue::Bool(true),
                             self.module_id,
                             statement.range(),
+                            self.depth,
                         )
                     }
                 };
@@ -1855,6 +1883,7 @@ impl Environment {
                     AcornValue::Bool(true),
                     self.module_id,
                     statement.range(),
+                    self.depth,
                 );
 
                 let index = self.add_node(project, false, vacuous_prop, Some(block));
@@ -1904,8 +1933,12 @@ impl Environment {
                         }
 
                         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                        let prop =
-                            Proposition::anonymous(disjunction, self.module_id, statement.range());
+                        let prop = Proposition::anonymous(
+                            disjunction,
+                            self.module_id,
+                            statement.range(),
+                            self.depth,
+                        );
                         let index = self.add_node(project, false, prop, Some(block));
                         self.add_node_lines(index, &body.range());
                         return Ok(());
@@ -1917,6 +1950,7 @@ impl Environment {
                         AcornValue::Bool(true),
                         self.module_id,
                         statement.range(),
+                        self.depth,
                     );
                     let index = self.add_node(project, false, vacuous_prop, Some(block));
                     self.add_node_lines(index, &body.range());

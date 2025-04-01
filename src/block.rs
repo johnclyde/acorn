@@ -135,7 +135,7 @@ impl Block {
                 subenv.add_node(
                     project,
                     true,
-                    Proposition::premise(condition.clone(), env.module_id, range),
+                    Proposition::premise(condition.clone(), env.module_id, range, subenv.depth),
                     None,
                 );
                 None
@@ -156,7 +156,7 @@ impl Block {
                     subenv.add_node(
                         project,
                         true,
-                        Proposition::premise(bound, env.module_id, premise_range),
+                        Proposition::premise(bound, env.module_id, premise_range, subenv.depth),
                         None,
                     );
                 }
@@ -169,6 +169,7 @@ impl Block {
                     bound_goal,
                     env.module_id,
                     theorem_range,
+                    subenv.depth,
                     theorem_name.map(|s| s.to_string()),
                 )))
             }
@@ -179,7 +180,7 @@ impl Block {
                 let partial_goal = unbound_goal.bind_values(0, 0, &internal_args);
                 let bound_goal = AcornValue::exists(vec![return_type], partial_goal);
                 assert!(!bound_goal.has_generic());
-                let prop = Proposition::anonymous(bound_goal, env.module_id, range);
+                let prop = Proposition::anonymous(bound_goal, env.module_id, range, env.depth);
                 Some(Goal::Prove(prop))
             }
             BlockParams::MatchCase(scrutinee, constructor, pattern_args, range) => {
@@ -199,7 +200,7 @@ impl Block {
                 subenv.add_node(
                     project,
                     true,
-                    Proposition::premise(equality, env.module_id, range),
+                    Proposition::premise(equality, env.module_id, range, subenv.depth),
                     None,
                 );
                 None
@@ -210,6 +211,7 @@ impl Block {
                     constraint,
                     env.module_id,
                     range,
+                    env.depth,
                 )))
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
