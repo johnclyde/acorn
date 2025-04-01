@@ -162,6 +162,12 @@ impl Monomorphizer {
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
             Fact::Proposition(proposition, truthiness) => {
+                if truthiness == Truthiness::Factual {
+                    assert_eq!(proposition.source.depth, 0);
+                }
+                if truthiness == Truthiness::Hypothetical {
+                    assert_ne!(proposition.source.depth, 0);
+                }
                 self.add_proposition(proposition, truthiness);
             }
             Fact::InstanceOf(class, typeclass) => {
