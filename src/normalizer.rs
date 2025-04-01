@@ -388,8 +388,8 @@ impl Normalizer {
     // This monomorphizes, which can indirectly turn into what seems like a lot of unrelated steps.
     pub fn normalize_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
         self.monomorphizer.add_fact(fact);
-        for (proposition, truthiness) in self.monomorphizer.take_output() {
-            let local = truthiness != Truthiness::Factual;
+        for proposition in self.monomorphizer.take_output() {
+            let local = proposition.truthiness() != Truthiness::Factual;
             let defined = match &proposition.source.source_type {
                 SourceType::ConstantDefinition(value, _) => {
                     let term = self.term_from_value(&value, local)?;
@@ -399,7 +399,12 @@ impl Normalizer {
             };
             let clauses = self.normalize_value(&proposition.value, local)?;
             for clause in clauses {
-                let step = ProofStep::assumption(clause, truthiness, &proposition.source, defined);
+                let step = ProofStep::assumption(
+                    clause,
+                    proposition.truthiness(),
+                    &proposition.source,
+                    defined,
+                );
                 steps.push(step);
             }
         }

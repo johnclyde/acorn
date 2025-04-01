@@ -12,7 +12,6 @@ use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::project::Project;
-use crate::proof_step::Truthiness;
 use crate::proposition::{Proposition, SourceType};
 use crate::statement::Body;
 use crate::token::Token;
@@ -552,12 +551,7 @@ impl<'a> NodeCursor<'a> {
 
     // The fact at the current node.
     pub fn get_fact(&self) -> Fact {
-        let truthiness = if self.env().depth == 0 {
-            Truthiness::Factual
-        } else {
-            Truthiness::Hypothetical
-        };
-        Fact::Proposition(self.current().claim.clone(), truthiness)
+        Fact::Proposition(self.current().claim.clone())
     }
 
     // All facts that can be used to prove the current node.
@@ -566,18 +560,13 @@ impl<'a> NodeCursor<'a> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
             for node in &env.nodes[0..*i] {
-                let truthiness = if env.depth == 0 {
-                    Truthiness::Factual
-                } else {
-                    Truthiness::Hypothetical
-                };
-                facts.push(Fact::Proposition(node.claim.clone(), truthiness));
+                facts.push(Fact::Proposition(node.claim.clone()));
             }
         }
 
         if let Some(block) = &self.current().block {
             for p in &block.env.nodes {
-                facts.push(Fact::Proposition(p.claim.clone(), Truthiness::Hypothetical));
+                facts.push(Fact::Proposition(p.claim.clone()));
             }
         }
 

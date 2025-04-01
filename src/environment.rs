@@ -14,7 +14,6 @@ use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
-use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 use crate::statement::{
     Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
@@ -2006,7 +2005,7 @@ impl Environment {
                     continue;
                 }
             }
-            facts.push(Fact::Proposition(node.claim.clone(), Truthiness::Factual));
+            facts.push(Fact::Proposition(node.claim.clone()));
         }
         facts
     }

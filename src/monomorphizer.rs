@@ -41,12 +41,8 @@ impl PropParams {
 // All the information that the monomorphizer tracks for a single generic proposition.
 #[derive(Clone)]
 struct GenericPropInfo {
-    // A generic value that is true.
+    // A generic value that is true, along with information about where it came from.
     proposition: Proposition,
-
-    // Whether it was assumed, proven, or deduced from the negated goal.
-    // Not really used for the monomorphizer, but we pass it on to the prover.
-    truthiness: Truthiness,
 
     // All of the instantiations that we have done for this proposition.
     // Currently, all of these instantiations are monomorphizations.
@@ -120,7 +116,7 @@ pub struct Monomorphizer {
     // This works like an output buffer.
     // Each output proposition is fully monomorphized.
     // The Monomorphizer only writes to this, never reads.
-    output: Vec<(Proposition, Truthiness)>,
+    output: Vec<Proposition>,
 
     // An index tracking wherever a generic constant is located in the generic props.
     // This is updated whenever we add a generic prop.
@@ -161,9 +157,8 @@ impl Monomorphizer {
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
-            Fact::Proposition(proposition, truthiness) => {
-                assert_eq!(proposition.truthiness(), truthiness);
-                self.add_proposition(proposition, truthiness);
+            Fact::Proposition(proposition) => {
+                self.add_proposition(proposition);
             }
             Fact::InstanceOf(class, typeclass) => {
                 self.add_instance_of(class, typeclass);
@@ -171,9 +166,9 @@ impl Monomorphizer {
         }
     }
 
-    fn add_proposition(&mut self, proposition: Proposition, truthiness: Truthiness) {
+    fn add_proposition(&mut self, proposition: Proposition) {
         // We don't monomorphize to match constants in global facts, because it would blow up.
-        if truthiness != Truthiness::Factual {
+        if proposition.truthiness() != Truthiness::Factual {
             self.add_monomorphs(&proposition.value);
         }
 
@@ -194,13 +189,12 @@ impl Monomorphizer {
             }
 
             // The proposition is already monomorphic. Just output it.
-            self.output.push((proposition, truthiness));
+            self.output.push(proposition);
             return;
         }
 
         self.prop_info.push(GenericPropInfo {
             proposition,
-            truthiness,
             instantiations: vec![],
         });
 
@@ -225,7 +219,7 @@ impl Monomorphizer {
     }
 
     // Extract monomorphic propositions from the prover.
-    pub fn take_output(&mut self) -> Vec<(Proposition, Truthiness)> {
+    pub fn take_output(&mut self) -> Vec<Proposition> {
         std::mem::take(&mut self.output)
     }
 
@@ -309,6 +303,6 @@ impl Monomorphizer {
         }
         info.instantiations.push(prop_params);
 
-        self.output.push((monomorphic_prop, info.truthiness));
+        self.output.push(monomorphic_prop);
     }
 }

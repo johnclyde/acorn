@@ -18,7 +18,6 @@ use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
-use crate::proof_step::Truthiness;
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
 
@@ -442,7 +441,7 @@ impl Project {
                     None => continue,
                 };
                 if local_premises.contains(&name) {
-                    let fact = Fact::Proposition(node.claim.clone(), Truthiness::Factual);
+                    let fact = Fact::Proposition(node.claim.clone());
                     prover.add_fact(fact);
                 }
             }
