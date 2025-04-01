@@ -54,7 +54,7 @@ pub struct Prover {
     // When this error message is set, it indicates a problem that needs to be reported upstream
     // to the user.
     // It's better to catch errors before proving, but sometimes we don't.
-    pub error: Option<String>,
+    error: Option<String>,
 
     // Number of proof steps activated, not counting Factual ones.
     nonfactual_activations: i32,
