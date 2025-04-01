@@ -3,7 +3,7 @@ use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::{AcornType, PotentialType, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
@@ -251,13 +251,13 @@ impl Environment {
         class_type: &AcornType,
     ) -> compilation::Result<()> {
         match &class_type {
-            AcornType::Data(module, name, _) => {
-                if module != &self.module_id {
+            AcornType::Data(class, _) => {
+                if class.module_id != self.module_id {
                     return Err(
                         name_token.error("we can only bind members to types in the current module")
                     );
                 }
-                if name != &name_token.text() {
+                if &class.name != &name_token.text() {
                     return Err(name_token.error("we cannot bind members to type aliases"));
                 }
             }
@@ -371,7 +371,11 @@ impl Environment {
                         .error("numeric literals must be class members"))
                 }
             };
-            if acorn_type != AcornType::Data(self.module_id, class_name, vec![]) {
+            let class = Class {
+                module_id: self.module_id,
+                name: class_name,
+            };
+            if acorn_type != AcornType::Data(class, vec![]) {
                 return Err(ls
                     .type_expr
                     .error("numeric class variables must be the class type"));
@@ -1776,13 +1780,13 @@ impl Environment {
             StatementInfo::Numerals(ds) => {
                 self.add_other_lines(statement);
                 let acorn_type = self.bindings.evaluate_type(project, &ds.type_expr)?;
-                if let AcornType::Data(module, typename, params) = acorn_type {
+                if let AcornType::Data(class, params) = acorn_type {
                     if !params.is_empty() {
                         return Err(ds
                             .type_expr
                             .error("numerals type cannot have type parameters"));
                     }
-                    self.bindings.set_default(module, typename);
+                    self.bindings.set_default(class.module_id, class.name);
                     Ok(())
                 } else {
                     Err(ds.type_expr.error("numerals type must be a data type"))

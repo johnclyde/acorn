@@ -251,7 +251,11 @@ impl BindingMap {
     // Adds a new data type to the binding map.
     // Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str) -> AcornType {
-        let t = AcornType::Data(self.module, name.to_string(), vec![]);
+        let class = Class {
+            module_id: self.module,
+            name: name.to_string(),
+        };
+        let t = AcornType::Data(class, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
     }
@@ -290,10 +294,13 @@ impl BindingMap {
     // Panics if the alias is already bound.
     pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
         // Local type aliases for concrete types should be preferred.
-        if let PotentialType::Resolved(AcornType::Data(module, type_name, params)) = &potential {
+        if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
-                let global_name =
-                    GlobalConstantName::new(*module, LocalConstantName::unqualified(type_name));
+                // TODO: this is really a class name, not a constant name.
+                let global_name = GlobalConstantName::new(
+                    class.module_id,
+                    LocalConstantName::unqualified(&class.name),
+                );
                 self.canonical_to_alias
                     .entry(global_name)
                     .or_insert(alias.to_string());
@@ -649,8 +656,8 @@ impl BindingMap {
         t: &AcornType,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
-        if let AcornType::Data(module, type_name, _) = t {
-            self.get_attribute_completions(project, *module, type_name, prefix)
+        if let AcornType::Data(class, _) = t {
+            self.get_attribute_completions(project, class.module_id, &class.name, prefix)
         } else {
             None
         }
@@ -751,8 +758,8 @@ impl BindingMap {
                 if importing {
                     let data_type = self.typename_to_type.get(key)?;
                     match data_type {
-                        PotentialType::Resolved(AcornType::Data(module, name, _)) => {
-                            if module != &self.module || name != key {
+                        PotentialType::Resolved(AcornType::Data(class, _)) => {
+                            if class.module_id != self.module || &class.name != key {
                                 continue;
                             }
                         }
@@ -1125,7 +1132,7 @@ impl BindingMap {
         let base_type = instance.get_type();
 
         let (module, type_name) = match &base_type {
-            AcornType::Data(module, type_name, _) => (*module, type_name),
+            AcornType::Data(class, _) => (class.module_id, &class.name),
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {
                     Some(t) => t,
@@ -1171,19 +1178,23 @@ impl BindingMap {
             }
             Some(NamedEntity::Type(t)) => {
                 match &t {
-                    AcornType::Data(module, type_name, params) => {
+                    AcornType::Data(class, params) => {
                         if name_token.token_type == TokenType::Numeral {
                             let value = self.evaluate_number_with_type(
                                 name_token,
                                 project,
-                                *module,
-                                &type_name,
+                                class.module_id,
+                                &class.name,
                                 name_token.text(),
                             )?;
                             return Ok(NamedEntity::Value(value));
                         }
                         match self.evaluate_type_attribute(
-                            name_token, project, *module, &type_name, name,
+                            name_token,
+                            project,
+                            class.module_id,
+                            &class.name,
+                            name,
                         )? {
                             PotentialValue::Resolved(value) => {
                                 if !params.is_empty() {
@@ -2290,18 +2301,20 @@ impl BindingMap {
         }
 
         // Check if it's a type from a module that we have imported
-        if let AcornType::Data(module, type_name, params) = acorn_type {
+        if let AcornType::Data(class, params) = acorn_type {
             // See if we have an alias
-            let global_name =
-                GlobalConstantName::new(*module, LocalConstantName::unqualified(type_name));
+            let global_name = GlobalConstantName::new(
+                class.module_id,
+                LocalConstantName::unqualified(&class.name),
+            );
             if let Some(name) = self.canonical_to_alias.get(&global_name) {
                 let base_expr = Expression::generate_identifier(name);
                 return self.parametrize_expr(base_expr, params);
             }
 
             // Reference this type via referencing the imported module
-            if let Some(module_name) = self.module_to_name.get(module) {
-                let base_expr = Expression::generate_identifier_chain(&[module_name, type_name]);
+            if let Some(module_name) = self.module_to_name.get(&class.module_id) {
+                let base_expr = Expression::generate_identifier_chain(&[module_name, &class.name]);
                 return self.parametrize_expr(base_expr, params);
             }
         }

@@ -36,7 +36,7 @@ impl UnresolvedType {
                 typeclass: param.clone(),
             }));
         }
-        AcornType::Data(self.class.module_id, self.class.name.clone(), params)
+        AcornType::Data(self.class.clone(), params)
     }
 }
 
@@ -108,7 +108,7 @@ impl PotentialType {
                     )))
                 } else {
                     // TODO: check that params obeys ut's typeclasses
-                    Ok(AcornType::Data(ut.class.module_id, ut.class.name, params))
+                    Ok(AcornType::Data(ut.class, params))
                 }
             }
         }
@@ -208,11 +208,8 @@ pub enum AcornType {
     Bool,
 
     // Data types are structures, inductive types, or axiomatic types.
-    // There are three parts:
-    // 1. The module they were defined in.
-    // 2. The name of the type.
-    // 3. The type parameters, if any.
-    Data(ModuleId, String, Vec<AcornType>),
+    // They have a class, and may have type parameters.
+    Data(Class, Vec<AcornType>),
 
     // Function types are defined by their inputs and output.
     Function(FunctionType),
@@ -335,9 +332,8 @@ impl AcornType {
                     .collect(),
                 function_type.return_type.instantiate(params),
             ),
-            AcornType::Data(module, name, types) => AcornType::Data(
-                *module,
-                name.clone(),
+            AcornType::Data(class, types) => AcornType::Data(
+                class.clone(),
                 types.iter().map(|t| t.instantiate(params)).collect(),
             ),
             _ => self.clone(),
@@ -368,8 +364,8 @@ impl AcornType {
                 }
                 if let Some(typeclass) = param.typeclass.as_ref() {
                     match instance {
-                        AcornType::Data(module_id, name, _) => {
-                            if !validator(module_id, name, typeclass) {
+                        AcornType::Data(class, _) => {
+                            if !validator(&class.module_id, &class.name, typeclass) {
                                 return false;
                             }
                         }
@@ -406,11 +402,8 @@ impl AcornType {
                 }
                 true
             }
-            (
-                AcornType::Data(g_module, g_name, g_params),
-                AcornType::Data(i_module, i_name, i_params),
-            ) => {
-                if g_module != i_module || g_name != i_name || g_params.len() != i_params.len() {
+            (AcornType::Data(g_class, g_params), AcornType::Data(i_class, i_params)) => {
+                if g_class != i_class || g_params.len() != i_params.len() {
                     return false;
                 }
                 for (g_param, i_param) in g_params.iter().zip(i_params) {
@@ -432,9 +425,8 @@ impl AcornType {
                 ftype.arg_types.iter().map(|t| t.to_generic()).collect(),
                 ftype.return_type.to_generic(),
             ),
-            AcornType::Data(module, name, params) => AcornType::Data(
-                *module,
-                name.to_string(),
+            AcornType::Data(class, params) => AcornType::Data(
+                class.clone(),
                 params.iter().map(|t| t.to_generic()).collect(),
             ),
             _ => self.clone(),
@@ -446,7 +438,7 @@ impl AcornType {
         match self {
             AcornType::Bool | AcornType::Empty | AcornType::Arbitrary(..) => false,
             AcornType::Variable(..) => true,
-            AcornType::Data(_, _, types) => types.iter().any(|t| t.has_generic()),
+            AcornType::Data(_, types) => types.iter().any(|t| t.has_generic()),
             AcornType::Function(ftype) => {
                 for arg_type in &ftype.arg_types {
                     if arg_type.has_generic() {
@@ -466,9 +458,8 @@ impl AcornType {
                 ftype.arg_types.iter().map(|t| t.to_arbitrary()).collect(),
                 ftype.return_type.to_arbitrary(),
             ),
-            AcornType::Data(module, name, params) => AcornType::Data(
-                *module,
-                name.to_string(),
+            AcornType::Data(class, params) => AcornType::Data(
+                class.clone(),
                 params.iter().map(|t| t.to_arbitrary()).collect(),
             ),
             _ => self.clone(),
@@ -479,7 +470,7 @@ impl AcornType {
         match self {
             AcornType::Arbitrary(..) => true,
             AcornType::Function(ftype) => ftype.has_arbitrary(),
-            AcornType::Data(_, _, params) => params.iter().any(|t| t.has_arbitrary()),
+            AcornType::Data(_, params) => params.iter().any(|t| t.has_arbitrary()),
             _ => false,
         }
     }
@@ -496,8 +487,8 @@ impl fmt::Display for AcornType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AcornType::Bool => write!(f, "Bool"),
-            AcornType::Data(_, name, params) => {
-                write!(f, "{}", name)?;
+            AcornType::Data(class, params) => {
+                write!(f, "{}", class.name)?;
                 if !params.is_empty() {
                     write!(f, "<{}>", AcornType::types_to_str(params))?;
                 }

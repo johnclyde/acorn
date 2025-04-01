@@ -1682,15 +1682,15 @@ impl AcornValue {
     }
 
     // If this value is a member function or member variable of the given type, return its name.
-    pub fn is_member(&self, class: &AcornType) -> Option<String> {
+    pub fn is_member(&self, t: &AcornType) -> Option<String> {
         match &self {
             AcornValue::Constant(c) => {
-                if let AcornType::Data(class_module_id, class_type_name, _) = class {
-                    if c.name.module_id != *class_module_id {
+                if let AcornType::Data(class, _) = t {
+                    if c.name.module_id != class.module_id {
                         return None;
                     }
                     if let LocalConstantName::Attribute(base, member) = &c.name.local_name {
-                        if base == class_type_name {
+                        if base == &class.name {
                             return Some(member.to_string());
                         }
                     }

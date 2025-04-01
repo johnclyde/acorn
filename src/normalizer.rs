@@ -36,7 +36,7 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
             check_normalized_type(&function_type.return_type)
         }
         AcornType::Bool => Ok(()),
-        AcornType::Data(_, _, params) => {
+        AcornType::Data(_, params) => {
             for param in params {
                 check_normalized_type(&param)?;
             }
