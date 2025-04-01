@@ -621,10 +621,6 @@ impl Project {
                 return filtered_prover;
             }
             builder.searches_fallback += 1;
-            // println!(
-            //     "filtered fail. falling back. line {}: {}",
-            //     goal_context.first_line, goal_context.description
-            // );
         }
 
         // Try the full prover
