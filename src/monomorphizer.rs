@@ -160,18 +160,20 @@ impl Monomorphizer {
 
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
+        let Fact::Proposition(proposition, truthiness) = fact;
+
         // We don't monomorphize to match constants in global facts, because it would blow up.
-        if fact.truthiness != Truthiness::Factual {
-            self.add_monomorphs(&fact.proposition.value);
+        if truthiness != Truthiness::Factual {
+            self.add_monomorphs(&proposition.value);
         }
 
         let i = self.prop_info.len();
         let mut generic_constants = vec![];
-        fact.proposition
+        proposition
             .value
             .find_constants(&|c| c.has_generic(), &mut generic_constants);
         if generic_constants.is_empty() {
-            if let AcornValue::ForAll(args, _) = &fact.proposition.value {
+            if let AcornValue::ForAll(args, _) = &proposition.value {
                 if args.iter().any(|arg| arg.has_generic()) {
                     // This is a generic fact with no generic constants in it.
                     // It could be something trivial and purely propositional, like
@@ -181,14 +183,14 @@ impl Monomorphizer {
                 }
             }
 
-            // The fact is already monomorphic. Just output it.
-            self.output.push((fact.proposition, fact.truthiness));
+            // The proposition is already monomorphic. Just output it.
+            self.output.push((proposition, truthiness));
             return;
         }
 
         self.prop_info.push(GenericPropInfo {
-            proposition: fact.proposition,
-            truthiness: fact.truthiness,
+            proposition,
+            truthiness,
             instantiations: vec![],
         });
 

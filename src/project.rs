@@ -442,7 +442,7 @@ impl Project {
                     None => continue,
                 };
                 if local_premises.contains(&name) {
-                    let fact = Fact::new(node.claim.clone(), Truthiness::Factual);
+                    let fact = Fact::Proposition(node.claim.clone(), Truthiness::Factual);
                     prover.add_fact(fact);
                 }
             }

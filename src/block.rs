@@ -555,7 +555,7 @@ impl<'a> NodeCursor<'a> {
         } else {
             Truthiness::Hypothetical
         };
-        Fact::new(self.current().claim.clone(), truthiness)
+        Fact::Proposition(self.current().claim.clone(), truthiness)
     }
 
     // All facts that can be used to prove the current node.
@@ -569,13 +569,13 @@ impl<'a> NodeCursor<'a> {
                 } else {
                     Truthiness::Hypothetical
                 };
-                facts.push(Fact::new(prop.claim.clone(), truthiness));
+                facts.push(Fact::Proposition(prop.claim.clone(), truthiness));
             }
         }
 
         if let Some(block) = &self.current().block {
             for p in &block.env.nodes {
-                facts.push(Fact::new(p.claim.clone(), Truthiness::Hypothetical));
+                facts.push(Fact::Proposition(p.claim.clone(), Truthiness::Hypothetical));
             }
         }
 
