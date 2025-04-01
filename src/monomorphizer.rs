@@ -28,6 +28,17 @@ impl fmt::Display for FactParams {
     }
 }
 
+// All the information that the monomorphizer tracks for a single generic fact.
+#[derive(Clone)]
+struct GenericFactInfo {
+    // The fact itself.
+    fact: Fact,
+
+    // All of the instantiations that we have done for this fact.
+    // Currently, all of these instantiations are monomorphizations.
+    instantiations: Vec<FactParams>,
+}
+
 impl FactParams {
     fn new(params: impl IntoIterator<Item = (String, AcornType)>) -> FactParams {
         let mut params: Vec<_> = params.into_iter().collect();
@@ -75,23 +86,14 @@ impl ConstantParams {
 // A helper structure to determine which monomorphs are necessary.
 #[derive(Clone)]
 pub struct Monomorphizer {
-    // Facts that have some type variable in them.
-    // The type variables aren't consistent between different facts.
-    generic_facts: Vec<Fact>,
+    // The generic facts we have seen so far.
+    // Generic facts implicitly get a "fact id" which is their index in this vector.
+    fact_info: Vec<GenericFactInfo>,
 
     // This works like an output buffer.
     // Each output fact is fully monomorphized.
     // The Monomorphizer only writes to this, never reads.
     output_facts: Vec<Fact>,
-
-    // The parameters we have already used to monomorphize each fact.
-    // Parallel to generic_facts.
-    // So fact_params[i][j] has been used to monomorphize generic_facts[i].
-    // Currently, all of these instantiations are monomorphizations, because
-    // we don't handle the case where it requires matching multiple constants
-    // to determine a useful monomorphization for a fact.
-    // But we might do more than these "single-shot" monomorphizations in the future.
-    instantiations_for_fact: Vec<Vec<FactParams>>,
 
     // The instantiations we have done for each constant.
     // Indexed by constant id.
@@ -100,7 +102,7 @@ pub struct Monomorphizer {
 
     // An index tracking wherever a generic constant is instantiated in the generic facts.
     // This is updated whenever we add a generic fact.
-    // Lists (index in generic_facts, instantiation for the constant) for each occurrence.
+    // Lists (fact id, instantiation for the constant) for each occurrence.
     // The types could have all sorts of generic variables; it's whatever was in the fact.
     generic_constants: HashMap<GlobalConstantName, Vec<(usize, ConstantParams)>>,
 }
@@ -108,9 +110,8 @@ pub struct Monomorphizer {
 impl Monomorphizer {
     pub fn new() -> Monomorphizer {
         Monomorphizer {
-            generic_facts: vec![],
+            fact_info: vec![],
             output_facts: vec![],
-            instantiations_for_fact: vec![],
             instantiations_for_constant: HashMap::new(),
             generic_constants: HashMap::new(),
         }
@@ -123,7 +124,7 @@ impl Monomorphizer {
             self.add_monomorphs(&fact.value);
         }
 
-        let i = self.generic_facts.len();
+        let i = self.fact_info.len();
         let mut generic_constants = vec![];
         fact.value
             .find_constants(&|c| c.has_generic(), &mut generic_constants);
@@ -143,8 +144,10 @@ impl Monomorphizer {
             return;
         }
 
-        self.generic_facts.push(fact);
-        self.instantiations_for_fact.push(vec![]);
+        self.fact_info.push(GenericFactInfo {
+            fact,
+            instantiations: vec![],
+        });
 
         // Store a reference to our generic constants in the index
         for c in generic_constants.clone() {
@@ -235,20 +238,20 @@ impl Monomorphizer {
             generic_type.match_instance(monomorph_type, &|_, _| true, &mut fact_params);
         }
         let fact_params = FactParams::new(fact_params);
-
-        if self.instantiations_for_fact[fact_id].contains(&fact_params) {
+        let info = &mut self.fact_info[fact_id];
+        if info.instantiations.contains(&fact_params) {
             // We already have this monomorph
             return;
         }
 
-        let monomorphic_fact = self.generic_facts[fact_id].instantiate(&fact_params.params);
+        let monomorphic_fact = info.fact.instantiate(&fact_params.params);
         if monomorphic_fact.value.has_generic() {
             // This is a little awkward. Completely monomorphizing this instance
             // still doesn't monomorphize the whole fact.
             // TODO: if we could handle partial monomorphizations, we would take some action here.
             return;
         }
-        self.instantiations_for_fact[fact_id].push(fact_params);
+        info.instantiations.push(fact_params);
 
         self.output_facts.push(monomorphic_fact);
     }
