@@ -23,13 +23,9 @@ type Result<T> = std::result::Result<T, NormalizationError>;
 enum Normalization {
     // A successfully normalized value turns into a bunch of clauses.
     // Logically, this is an "and of ors". Each Clause is an "or" of its literals.
-    // An empty list indicates a proposition that is always trivially satisfied.
+    // "true" is represented by an empty list, which is always satisfied.
+    // "false" is represented by a single impossible clause.
     Clauses(Vec<Clause>),
-
-    // Sometimes as we normalize we discover a proposition that is impossible to satisfy.
-    // This can't be trivially represented in CNF, so it gets its own variant.
-    // TODO: Well, it could be represented as a single impossible clause. Do I want to?
-    Impossible,
 
     // A user-visible error.
     Error(String),
@@ -89,10 +85,8 @@ impl Normalization {
                     clauses.append(&mut other_clauses);
                     Normalization::Clauses(clauses)
                 }
-                Normalization::Impossible => Normalization::Impossible,
                 Normalization::Error(s) => Normalization::Error(s),
             },
-            Normalization::Impossible => Normalization::Impossible,
             Normalization::Error(s) => Normalization::Error(s),
         }
     }
@@ -363,7 +357,7 @@ impl Normalizer {
         let value = value.remove_forall(&mut universal);
         match self.into_literal_lists(&value, local) {
             Ok(Some(lists)) => self.normalize_literal_lists(lists),
-            Ok(None) => Normalization::Impossible,
+            Ok(None) => Normalization::Clauses(vec![Clause::impossible()]),
             Err(NormalizationError(s)) => {
                 // value is essentially a subvalue with the universal quantifiers removed,
                 // so reconstruct it to display it nicely.
@@ -443,15 +437,6 @@ impl Normalizer {
         };
         let clauses = match self.normalize_value(&fact.value, local) {
             Normalization::Clauses(clauses) => clauses,
-            Normalization::Impossible => {
-                // We have a false assumption, so that's the only proof step we need.
-                return Ok(vec![ProofStep::assumption(
-                    Clause::impossible(),
-                    fact.truthiness,
-                    &fact.source,
-                    None,
-                )]);
-            }
             Normalization::Error(s) => {
                 return Err(NormalizationError(s));
             }
