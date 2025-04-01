@@ -15,9 +15,7 @@ use crate::proposition::SourceType;
 use crate::term::{Term, TypeId};
 use crate::type_map::TypeMap;
 
-#[derive(Debug)]
-pub struct NormalizationError(pub String);
-type Result<T> = std::result::Result<T, NormalizationError>;
+type Result<T> = std::result::Result<T, String>;
 
 #[derive(Debug)]
 enum Normalization {
@@ -36,19 +34,16 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
     match acorn_type {
         AcornType::Function(function_type) => {
             if function_type.arg_types.len() == 0 {
-                return Err(NormalizationError(format!(
-                    "Function type {} has no arguments",
-                    function_type
-                )));
+                return Err(format!("Function type {} has no arguments", function_type));
             }
             for arg_type in &function_type.arg_types {
                 check_normalized_type(&arg_type)?;
             }
             if function_type.return_type.is_functional() {
-                return Err(NormalizationError(format!(
+                return Err(format!(
                     "Function type has a functional return type: {}",
                     function_type
-                )));
+                ));
             }
             check_normalized_type(&function_type.return_type)
         }
@@ -60,10 +55,10 @@ fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
             Ok(())
         }
         AcornType::Variable(..) => {
-            return Err(NormalizationError(format!(
+            return Err(format!(
                 "Type variables should be monomorphized before normalization: {}",
                 acorn_type
-            )));
+            ));
         }
         AcornType::Empty => Ok(()),
         AcornType::Arbitrary(..) => Ok(()),
@@ -257,10 +252,7 @@ impl Normalizer {
                 }
             }
             AcornValue::Bool(true) => Ok(Term::new_true()),
-            _ => Err(NormalizationError(format!(
-                "Cannot convert {} to term",
-                value
-            ))),
+            _ => Err(format!("Cannot convert {} to term", value)),
         }
     }
     // Panics if this value cannot be converted to a literal.
@@ -288,10 +280,7 @@ impl Normalizer {
             AcornValue::Not(subvalue) => {
                 Ok(Literal::negative(self.term_from_value(subvalue, local)?))
             }
-            _ => Err(NormalizationError(format!(
-                "Cannot convert {} to literal",
-                value
-            ))),
+            _ => Err(format!("Cannot convert {} to literal", value)),
         }
     }
 
@@ -358,7 +347,7 @@ impl Normalizer {
         match self.into_literal_lists(&value, local) {
             Ok(Some(lists)) => self.normalize_literal_lists(lists),
             Ok(None) => Normalization::Clauses(vec![Clause::impossible()]),
-            Err(NormalizationError(s)) => {
+            Err(s) => {
                 // value is essentially a subvalue with the universal quantifiers removed,
                 // so reconstruct it to display it nicely.
                 let reconstructed = AcornValue::forall(universal, value);
@@ -438,7 +427,7 @@ impl Normalizer {
         let clauses = match self.normalize_value(&fact.value, local) {
             Normalization::Clauses(clauses) => clauses,
             Normalization::Error(s) => {
-                return Err(NormalizationError(s));
+                return Err(s);
             }
         };
         let mut steps = vec![];
