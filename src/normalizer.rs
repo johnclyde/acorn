@@ -10,7 +10,7 @@ use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
-use crate::proof_step::ProofStep;
+use crate::proof_step::{ProofStep, Truthiness};
 use crate::proposition::SourceType;
 use crate::term::{Term, TypeId};
 use crate::type_map::TypeMap;
@@ -395,19 +395,13 @@ impl Normalizer {
     }
 
     // The steps of normalization that happen after monomorphization.
-    pub fn normalize_monomorphic_fact(
-        &mut self,
-        fact: Fact,
-        steps: &mut Vec<ProofStep>,
-    ) -> Result<()> {
-        let local = fact.local();
+    fn normalize_monomorphic_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
+        let local = fact.truthiness != Truthiness::Factual;
         let defined = match &fact.source.source_type {
-            SourceType::ConstantDefinition(value, _) => match self.term_from_value(&value, local) {
-                Ok(term) => Some(term.get_head().clone()),
-                Err(e) => {
-                    return Err(e);
-                }
-            },
+            SourceType::ConstantDefinition(value, _) => {
+                let term = self.term_from_value(&value, local)?;
+                Some(term.get_head().clone())
+            }
             _ => None,
         };
         let clauses = self.normalize_value(&fact.value, local)?;

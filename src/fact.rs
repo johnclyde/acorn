@@ -20,10 +20,6 @@ impl Fact {
         }
     }
 
-    pub fn local(&self) -> bool {
-        self.truthiness != Truthiness::Factual
-    }
-
     // Instantiates a generic fact.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> Fact {
         let value = self.value.instantiate(params);
