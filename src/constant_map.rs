@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::atom::{Atom, AtomId};
-use crate::constant_name::GlobalConstantName;
 use crate::module::SKOLEM;
+use crate::names::GlobalName;
 
 // In the Acorn language a constant is uniquely identified by the GlobalConstantName.
 // The low-level prover, on the other hand, just wants each constant to have a
@@ -12,15 +12,15 @@ use crate::module::SKOLEM;
 pub struct ConstantMap {
     // For global constant i in the prover, global_constants[i] is the corresponding GlobalConstantName.
     // Part of the Atom -> GlobalConstantName lookup direction.
-    global_constants: Vec<Option<GlobalConstantName>>,
+    global_constants: Vec<Option<GlobalName>>,
 
     // For local constant i in the prover, local_constants[i] is the corresponding GlobalConstantName.
     // Part of the Atom -> GlobalConstantName lookup direction.
-    local_constants: Vec<Option<GlobalConstantName>>,
+    local_constants: Vec<Option<GlobalName>>,
 
     // Inverse map of constants.
     // The GlobalConstantName -> Atom lookup direction.
-    name_to_atom: HashMap<GlobalConstantName, Atom>,
+    name_to_atom: HashMap<GlobalName, Atom>,
 }
 
 impl ConstantMap {
@@ -34,7 +34,7 @@ impl ConstantMap {
 
     // Assigns an id to this (module, name) pair if it doesn't already have one.
     // local determines whether the constant will be represented as a local or global atom.
-    pub fn add_constant(&mut self, name: GlobalConstantName, local: bool) -> Atom {
+    pub fn add_constant(&mut self, name: GlobalName, local: bool) -> Atom {
         if name.module_id == SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
         }
@@ -55,12 +55,12 @@ impl ConstantMap {
     }
 
     // Get the name corresponding to a particular global AtomId.
-    pub fn name_for_global_id(&self, atom_id: AtomId) -> &GlobalConstantName {
+    pub fn name_for_global_id(&self, atom_id: AtomId) -> &GlobalName {
         &self.global_constants[atom_id as usize].as_ref().unwrap()
     }
 
     // Get the name corresponding to a particular local AtomId.
-    pub fn name_for_local_id(&self, atom_id: AtomId) -> &GlobalConstantName {
+    pub fn name_for_local_id(&self, atom_id: AtomId) -> &GlobalName {
         &self.local_constants[atom_id as usize].as_ref().unwrap()
     }
 }

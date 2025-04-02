@@ -3,8 +3,8 @@ use std::fmt;
 
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
-use crate::constant_name::GlobalConstantName;
 use crate::fact::Fact;
+use crate::names::GlobalName;
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 
@@ -121,7 +121,7 @@ pub struct Monomorphizer {
     // An index tracking wherever a generic constant is located in the generic props.
     // This is updated whenever we add a generic prop.
     // Lists (prop id, instantiation for the constant) for each occurrence.
-    constant_info: HashMap<GlobalConstantName, GenericConstantInfo>,
+    constant_info: HashMap<GlobalName, GenericConstantInfo>,
 
     // A set of all the instance relations we know about.
     // Monomorphization is only allowed with valid instance relations.

@@ -3,9 +3,9 @@ use std::{fmt, vec};
 use crate::acorn_type::Typeclass;
 use crate::module::ModuleId;
 
-// The LocalName describes how a constant is named in the module that defines it.
+// The LocalName describes how a constant, type, or typeclass is named in the module that defines it.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
-pub enum LocalConstantName {
+pub enum LocalName {
     // An unqualified name has no dots.
     Unqualified(String),
 
@@ -21,41 +21,41 @@ pub enum LocalConstantName {
     Instance(Typeclass, String, String),
 }
 
-impl fmt::Display for LocalConstantName {
+impl fmt::Display for LocalName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LocalConstantName::Unqualified(name) => write!(f, "{}", name),
-            LocalConstantName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
-            LocalConstantName::Instance(tc, attr, class) => {
+            LocalName::Unqualified(name) => write!(f, "{}", name),
+            LocalName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
+            LocalName::Instance(tc, attr, class) => {
                 write!(f, "{}.{}<{}>", tc.name, attr, class)
             }
         }
     }
 }
 
-impl LocalConstantName {
-    pub fn unqualified(name: &str) -> LocalConstantName {
-        LocalConstantName::Unqualified(name.to_string())
+impl LocalName {
+    pub fn unqualified(name: &str) -> LocalName {
+        LocalName::Unqualified(name.to_string())
     }
 
-    pub fn attribute(class: &str, attr: &str) -> LocalConstantName {
-        LocalConstantName::Attribute(class.to_string(), attr.to_string())
+    pub fn attribute(class: &str, attr: &str) -> LocalName {
+        LocalName::Attribute(class.to_string(), attr.to_string())
     }
 
-    pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> LocalConstantName {
-        LocalConstantName::Instance(tc.clone(), attr.to_string(), class.to_string())
+    pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> LocalName {
+        LocalName::Instance(tc.clone(), attr.to_string(), class.to_string())
     }
 
     pub fn is_qualified(&self) -> bool {
         match self {
-            LocalConstantName::Unqualified(_) => false,
+            LocalName::Unqualified(_) => false,
             _ => true,
         }
     }
 
     pub fn as_attribute(&self) -> Option<(&str, &str)> {
         match self {
-            LocalConstantName::Attribute(class, attr) => Some((class, attr)),
+            LocalName::Attribute(class, attr) => Some((class, attr)),
             _ => None,
         }
     }
@@ -63,47 +63,47 @@ impl LocalConstantName {
     // Return this constant's name as a chain of strings, if that's possible.
     pub fn name_chain(&self) -> Option<Vec<&str>> {
         match self {
-            LocalConstantName::Unqualified(name) => Some(vec![name]),
-            LocalConstantName::Attribute(class, attr) => Some(vec![class, attr]),
-            LocalConstantName::Instance(..) => None,
+            LocalName::Unqualified(name) => Some(vec![name]),
+            LocalName::Attribute(class, attr) => Some(vec![class, attr]),
+            LocalName::Instance(..) => None,
         }
     }
 
     // Just use this for testing.
-    pub fn guess(s: &str) -> LocalConstantName {
+    pub fn guess(s: &str) -> LocalName {
         if s.contains('.') {
             let parts: Vec<&str> = s.split('.').collect();
             if parts.len() == 2 {
-                LocalConstantName::Attribute(parts[0].to_string(), parts[1].to_string())
+                LocalName::Attribute(parts[0].to_string(), parts[1].to_string())
             } else {
                 panic!("Unguessable name format: {}", s);
             }
         } else {
-            LocalConstantName::Unqualified(s.to_string())
+            LocalName::Unqualified(s.to_string())
         }
     }
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
-pub struct GlobalConstantName {
+pub struct GlobalName {
     pub module_id: ModuleId,
-    pub local_name: LocalConstantName,
+    pub local_name: LocalName,
 }
 
-impl GlobalConstantName {
-    pub fn new(module_id: ModuleId, local_name: LocalConstantName) -> GlobalConstantName {
-        GlobalConstantName {
+impl GlobalName {
+    pub fn new(module_id: ModuleId, local_name: LocalName) -> GlobalName {
+        GlobalName {
             module_id,
             local_name,
         }
     }
 
     // Only use this for testing.
-    pub fn guess(module_id: ModuleId, s: &str) -> GlobalConstantName {
-        GlobalConstantName {
+    pub fn guess(module_id: ModuleId, s: &str) -> GlobalName {
+        GlobalName {
             module_id,
-            local_name: LocalConstantName::guess(s),
+            local_name: LocalName::guess(s),
         }
     }
 }

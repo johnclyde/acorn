@@ -1,7 +1,7 @@
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
-use crate::constant_name::GlobalConstantName;
+use crate::names::GlobalName;
 use crate::unresolved_constant::UnresolvedConstant;
 
 pub static EMPTY_TYPE_PARAMS: [TypeParam; 0] = [];
@@ -75,7 +75,7 @@ impl PotentialValue {
 
     // Create a potential value for a constant. Can be unresolved, in which case we need params.
     pub fn constant(
-        name: GlobalConstantName,
+        name: GlobalName,
         constant_type: AcornType,
         params: Vec<TypeParam>,
     ) -> PotentialValue {

@@ -3,11 +3,11 @@ use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::constant_map::ConstantMap;
-use crate::constant_name::{GlobalConstantName, LocalConstantName};
 use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
+use crate::names::{GlobalName, LocalName};
 use crate::proof_step::{ProofStep, Truthiness};
 use crate::proposition::SourceType;
 use crate::term::{Term, TypeId};
@@ -79,7 +79,7 @@ impl Normalizer {
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
         let name = format!("s{}", skolem_index);
-        let global_name = GlobalConstantName::new(SKOLEM, LocalConstantName::Unqualified(name));
+        let global_name = GlobalName::new(SKOLEM, LocalName::Unqualified(name));
         AcornValue::constant(global_name, vec![], acorn_type)
     }
 
@@ -436,9 +436,9 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let local_name = LocalConstantName::Unqualified(format!("s{}", i));
+                let local_name = LocalName::Unqualified(format!("s{}", i));
                 AcornValue::constant(
-                    GlobalConstantName::new(SKOLEM, local_name),
+                    GlobalName::new(SKOLEM, local_name),
                     vec![],
                     acorn_type,
                 )

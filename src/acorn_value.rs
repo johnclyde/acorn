@@ -3,7 +3,7 @@ use std::fmt;
 use crate::acorn_type::AcornType;
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::constant_name::{GlobalConstantName, LocalConstantName};
+use crate::names::{GlobalName, LocalName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -86,7 +86,7 @@ impl fmt::Display for BinaryOp {
 // An instance of a constant. Could be generic or not.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
-    pub name: GlobalConstantName,
+    pub name: GlobalName,
 
     // The type parameters that this constant was instantiated with, if any.
     // Ordered the same way as in the definition.
@@ -373,7 +373,7 @@ impl AcornValue {
     }
 
     pub fn constant(
-        name: GlobalConstantName,
+        name: GlobalName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
@@ -1595,7 +1595,7 @@ impl AcornValue {
     }
 
     // Set parameters to the given constant wherever it occurs in this value.
-    pub fn set_params(self, name: &GlobalConstantName, params: &Vec<AcornType>) -> AcornValue {
+    pub fn set_params(self, name: &GlobalName, params: &Vec<AcornType>) -> AcornValue {
         match self {
             // The only interesting case.
             AcornValue::Constant(c) if &c.name == name => AcornValue::Constant(ConstantInstance {
@@ -1689,7 +1689,7 @@ impl AcornValue {
                     if c.name.module_id != class.module_id {
                         return None;
                     }
-                    if let LocalConstantName::Attribute(base, member) = &c.name.local_name {
+                    if let LocalName::Attribute(base, member) = &c.name.local_name {
                         if base == &class.name {
                             return Some(member.to_string());
                         }
@@ -1703,7 +1703,7 @@ impl AcornValue {
 
     // If this is a plain constant, give access to its name.
     // Otherwise, return None.
-    pub fn as_name(&self) -> Option<&GlobalConstantName> {
+    pub fn as_name(&self) -> Option<&GlobalName> {
         match &self {
             AcornValue::Constant(c) => Some(&c.name),
             _ => None,
@@ -1711,7 +1711,7 @@ impl AcornValue {
     }
 
     // If this is a function call of a constant function, give access to its name.
-    pub fn is_named_function_call(&self) -> Option<&GlobalConstantName> {
+    pub fn is_named_function_call(&self) -> Option<&GlobalName> {
         match self {
             AcornValue::Application(fa) => fa.function.as_name(),
             _ => None,
@@ -1720,7 +1720,7 @@ impl AcornValue {
 
     // If this is a constant with no parameters, give access to its name.
     // Otherwise, return None.
-    pub fn as_simple_constant(&self) -> Option<&GlobalConstantName> {
+    pub fn as_simple_constant(&self) -> Option<&GlobalName> {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
