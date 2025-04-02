@@ -458,6 +458,11 @@ impl Node {
         }
     }
 
+    // Whether the fact at this node is importable.
+    pub fn importable(&self) -> bool {
+        self.claim.source.importable
+    }
+
     pub fn get_fact(&self) -> Fact {
         Fact::Proposition(self.claim.clone())
     }

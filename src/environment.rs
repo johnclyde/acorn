@@ -1981,7 +1981,7 @@ impl Environment {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];
         for node in &self.nodes {
-            if !node.claim.source.importable {
+            if !node.importable() {
                 continue;
             }
             if let Some(filter) = filter {
