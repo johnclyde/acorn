@@ -310,14 +310,14 @@ impl Block {
         outer_env: &Environment,
         token: &Token,
     ) -> compilation::Result<(AcornValue, Range)> {
-        let (inner_claim, range) = match self.env.nodes.last() {
-            Some(node) => (&node.proposition().value, node.proposition().source.range),
+        let prop = match self.env.nodes.last() {
+            Some(node) => node.proposition(),
             None => {
                 return Err(token.error("expected a proposition in this block"));
             }
         };
-        let outer_claim = self.externalize_bool(outer_env, inner_claim);
-        Ok((outer_claim, range))
+        let outer_claim = self.externalize_bool(outer_env, &prop.value);
+        Ok((outer_claim, prop.source.range))
     }
 
     // Checks if this block solves for the given target.
@@ -376,43 +376,11 @@ impl Node {
         proposition: Proposition,
         block: Option<Block>,
     ) -> Self {
-        // Make sure we aren't adding an invalid claim.
-        proposition
-            .value
-            .validate()
-            .unwrap_or_else(|e| panic!("invalid claim: {:#?} ({})", proposition.value, e));
-
         if structural {
             assert!(block.is_none());
         }
 
-        // Expand theorems in the proposition.
-        let value = proposition.value.replace_constants(0, &|c| {
-            let bindings = if env.module_id == c.name.module_id {
-                &env.bindings
-            } else {
-                &project
-                    .get_env_by_id(c.name.module_id)
-                    .expect("missing module during add_proposition")
-                    .bindings
-            };
-            if bindings.is_theorem(&c.name.local_name) {
-                match bindings.get_definition_and_params(&c.name.local_name) {
-                    Some((def, params)) => {
-                        let mut pairs = vec![];
-                        for (param, t) in params.iter().zip(c.params.iter()) {
-                            pairs.push((param.name.clone(), t.clone()));
-                        }
-                        Some(def.instantiate(&pairs))
-                    }
-                    None => None,
-                }
-            } else {
-                None
-            }
-        });
-
-        let prop = proposition.with_value(value);
+        let prop = env.bindings.expand_theorems(project, proposition);
 
         if let Some(block) = block {
             Node::Block(block, prop)

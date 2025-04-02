@@ -13,6 +13,7 @@ use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::named_entity::NamedEntity;
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
+use crate::proposition::Proposition;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
 use crate::unresolved_constant::UnresolvedConstant;
@@ -2250,6 +2251,33 @@ impl BindingMap {
                 self.find_unknown_local_constants(value, answer);
             }
         }
+    }
+
+    // Replaces all theorems in the proposition with their definitions.
+    pub fn expand_theorems(&self, project: &Project, proposition: Proposition) -> Proposition {
+        proposition
+            .value
+            .validate()
+            .unwrap_or_else(|e| panic!("invalid claim: {:#?} ({})", proposition.value, e));
+
+        let value = proposition.value.replace_constants(0, &|c| {
+            let bindings = self.get_bindings(project, c.name.module_id);
+            if bindings.is_theorem(&c.name.local_name) {
+                match bindings.get_definition_and_params(&c.name.local_name) {
+                    Some((def, params)) => {
+                        let mut pairs = vec![];
+                        for (param, t) in params.iter().zip(c.params.iter()) {
+                            pairs.push((param.name.clone(), t.clone()));
+                        }
+                        Some(def.instantiate(&pairs))
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            }
+        });
+        proposition.with_value(value)
     }
 
     ////////////////////////////////////////////////////////////////////////////////
