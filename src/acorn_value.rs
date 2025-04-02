@@ -3,8 +3,7 @@ use std::fmt;
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName, LocalName};
+use crate::names::{GlobalName, LocalName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
