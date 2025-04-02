@@ -189,38 +189,31 @@ impl BindingMap {
     // Simple helper functions.
     ////////////////////////////////////////////////////////////////////////////////
 
-    pub fn check_constant_name_available(
+    pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
+        if self.constant_info.contains_key(local_name) {
+            return true;
+        }
+        if let LocalName::Unqualified(word) = local_name {
+            self.unqualified.contains_key(word)
+        } else {
+            false
+        }
+    }
+
+    pub fn check_local_name_available(
         &self,
         source: &dyn ErrorSource,
-        name: &DefinedName,
+        local_name: &LocalName,
     ) -> compilation::Result<()> {
-        if self.constant_name_in_use(&name) {
-            return Err(source.error(&format!("constant name {} is already in use", name)));
+        if self.local_name_in_use(local_name) {
+            return Err(source.error(&format!("local name {} is already in use", local_name)));
         }
         Ok(())
     }
 
-    // Returns an error if this name is already in use.
-    pub fn check_unqualified_name_available(
-        &self,
-        source: &dyn ErrorSource,
-        name: &str,
-    ) -> compilation::Result<()> {
-        self.check_constant_name_available(source, &DefinedName::unqualified(name))
-    }
-
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
-            DefinedName::Local(local_name) => {
-                if self.constant_info.contains_key(local_name) {
-                    return true;
-                }
-                if let LocalName::Unqualified(word) = local_name {
-                    self.unqualified.contains_key(word)
-                } else {
-                    false
-                }
-            }
+            DefinedName::Local(local_name) => self.local_name_in_use(local_name),
             DefinedName::Instance(instance_name) => {
                 self.instance_definitions.contains_key(instance_name)
             }
@@ -237,6 +230,15 @@ impl BindingMap {
             return Err(source.error(&format!("typename {} is already in use", name)));
         }
         Ok(())
+    }
+
+    // Returns an error if this name is already in use.
+    pub fn check_unqualified_name_available(
+        &self,
+        source: &dyn ErrorSource,
+        name: &str,
+    ) -> compilation::Result<()> {
+        self.check_local_name_available(source, &LocalName::unqualified(name))
     }
 
     // Adds both directions for a name <-> type correspondence.

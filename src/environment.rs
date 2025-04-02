@@ -1316,11 +1316,11 @@ impl Environment {
         for (attr_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.to_generic();
-            let constant_name = DefinedName::attribute(typeclass_name, attr_name.text());
+            let local_name = LocalName::attribute(typeclass_name, attr_name.text());
             self.bindings
-                .check_constant_name_available(attr_name, &constant_name)?;
-            self.bindings.add_constant(
-                constant_name,
+                .check_local_name_available(attr_name, &local_name)?;
+            self.bindings.add_local_constant(
+                local_name,
                 vec![type_param.clone()],
                 var_type,
                 None,
@@ -1337,9 +1337,9 @@ impl Environment {
                 end: condition.claim.last_token().end_pos(),
             };
             let local_name = LocalName::attribute(&typeclass_name, &condition.name.text());
-            let condition_name = local_name.clone().to_defined();
             self.bindings
-                .check_constant_name_available(&condition.name, &condition_name)?;
+                .check_local_name_available(&condition.name, &local_name)?;
+            let condition_name = local_name.clone().to_defined();
             self.definition_ranges.insert(condition_name.clone(), range);
 
             let (bad_params, _, arg_types, unbound_claim, _) =
