@@ -415,11 +415,11 @@ impl Normalizer {
             Atom::True => AcornValue::Bool(true),
             Atom::GlobalConstant(i) => {
                 let name = self.constant_map.name_for_global_id(*i).clone();
-                AcornValue::old_constant(name.module_id, name.local_name, vec![], acorn_type)
+                AcornValue::constant(name, vec![], acorn_type)
             }
             Atom::LocalConstant(i) => {
                 let name = self.constant_map.name_for_local_id(*i).clone();
-                AcornValue::old_constant(name.module_id, name.local_name, vec![], acorn_type)
+                AcornValue::constant(name, vec![], acorn_type)
             }
             Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {

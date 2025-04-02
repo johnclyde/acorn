@@ -10,7 +10,7 @@ use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, GlobalName};
+use crate::names::{DefinedName, GlobalName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -294,9 +294,8 @@ impl BindingMap {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
-                // TODO: this is really a class name, not a constant name.
                 let global_name =
-                    GlobalName::new(class.module_id, DefinedName::unqualified(&class.name));
+                    GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
                 self.canonical_to_alias
                     .entry(global_name)
                     .or_insert(alias.to_string());
@@ -307,7 +306,7 @@ impl BindingMap {
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
             let global_name =
-                GlobalName::new(u.class.module_id, DefinedName::unqualified(&u.class.name));
+                GlobalName::new(u.class.module_id, LocalName::unqualified(&u.class.name));
             self.canonical_to_alias
                 .entry(global_name)
                 .or_insert(alias.to_string());
@@ -513,7 +512,8 @@ impl BindingMap {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
             }
-            let global_name = GlobalName::new(self.module, defined_name.clone());
+            let global_name =
+                GlobalName::new(self.module, defined_name.clone().as_local().unwrap());
             PotentialValue::Unresolved(UnresolvedConstant {
                 name: global_name,
                 params,
@@ -636,7 +636,7 @@ impl BindingMap {
         match claim.is_named_function_call() {
             Some(global_name) => {
                 let bindings = self.get_bindings(project, global_name.module_id);
-                bindings.is_theorem(&global_name.local_name)
+                bindings.is_theorem(&global_name.local_name.clone().to_defined())
             }
             None => false,
         }
@@ -972,7 +972,10 @@ impl BindingMap {
         let info = match value.as_simple_constant() {
             Some(name) => {
                 let bindings = self.get_bindings(project, name.module_id);
-                bindings.constant_info.get(&name.local_name).unwrap()
+                bindings
+                    .constant_info
+                    .get(&name.local_name.clone().to_defined())
+                    .unwrap()
             }
             None => return Err(source.error("invalid pattern")),
         };
@@ -2134,7 +2137,8 @@ impl BindingMap {
             )?;
 
             if let Some(function_name) = function_name {
-                let global_name = GlobalName::new(self.module, function_name.clone());
+                let global_name =
+                    GlobalName::new(self.module, function_name.clone().as_local().unwrap());
                 let mut checker = TerminationChecker::new(global_name, internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
@@ -2176,7 +2180,8 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
-                    let global_name = GlobalName::new(self.module, function_name.clone());
+                    let global_name =
+                        GlobalName::new(self.module, function_name.clone().as_local().unwrap());
                     let generic_params = type_params
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
@@ -2216,7 +2221,9 @@ impl BindingMap {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
                 if c.name.module_id == self.module
-                    && !self.constant_info.contains_key(&c.name.local_name)
+                    && !self
+                        .constant_info
+                        .contains_key(&c.name.local_name.clone().to_defined())
                 {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.local_name.to_string(), c.instance_type.clone());
@@ -2268,8 +2275,9 @@ impl BindingMap {
 
         let value = proposition.value.replace_constants(0, &|c| {
             let bindings = self.get_bindings(project, c.name.module_id);
-            if bindings.is_theorem(&c.name.local_name) {
-                match bindings.get_definition_and_params(&c.name.local_name) {
+            let defined_name = c.name.local_name.clone().to_defined();
+            if bindings.is_theorem(&defined_name) {
+                match bindings.get_definition_and_params(&defined_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {
@@ -2323,8 +2331,7 @@ impl BindingMap {
         // Check if it's a type from a module that we have imported
         if let AcornType::Data(class, params) = acorn_type {
             // See if we have an alias
-            let global_name =
-                GlobalName::new(class.module_id, DefinedName::unqualified(&class.name));
+            let global_name = GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
             if let Some(name) = self.canonical_to_alias.get(&global_name) {
                 let base_expr = Expression::generate_identifier(name);
                 return self.parametrize_expr(base_expr, params);
@@ -2388,7 +2395,7 @@ impl BindingMap {
     //   self.module, the module we are trying to express the name in
     fn name_to_expr(&self, name: &GlobalName) -> Result<Expression, CodeGenError> {
         // Handle numeric literals
-        if let DefinedName::Attribute(class, attr) = &name.local_name {
+        if let LocalName::Attribute(class, attr) = &name.local_name {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
                 let numeral = TokenType::Numeral.new_token(attr);
 
@@ -2400,7 +2407,7 @@ impl BindingMap {
                 }
 
                 // Otherwise, we need to scope it by the type
-                let type_name = GlobalName::new(name.module_id, DefinedName::unqualified(class));
+                let type_name = GlobalName::new(name.module_id, LocalName::unqualified(class));
                 let numeric_type = self.name_to_expr(&type_name)?;
                 return Ok(Expression::generate_dot(
                     numeric_type,
@@ -2409,30 +2416,14 @@ impl BindingMap {
             }
         }
 
-        // Instance names
-        if let DefinedName::Instance(typeclass, attr, instance) = &name.local_name {
-            let type_name =
-                GlobalName::new(name.module_id, DefinedName::unqualified(&typeclass.name));
-            let type_expr = self.name_to_expr(&type_name)?;
-            let dotted_expr =
-                Expression::generate_dot(type_expr, Expression::generate_identifier(attr));
-            let instance_expr = Expression::generate_identifier(instance);
-            let param_expr = Expression::generate_params(vec![instance_expr]);
-            return Ok(Expression::Apply(
-                Box::new(dotted_expr),
-                Box::new(param_expr),
-            ));
-        }
-
         // Handle local constants
         if name.module_id == self.module {
             return Ok(match &name.local_name {
-                DefinedName::Unqualified(word) => Expression::generate_identifier(word),
-                DefinedName::Attribute(left, right) => Expression::generate_dot(
+                LocalName::Unqualified(word) => Expression::generate_identifier(word),
+                LocalName::Attribute(left, right) => Expression::generate_dot(
                     Expression::generate_identifier(left),
                     Expression::generate_identifier(right),
                 ),
-                _ => panic!("control flow error"),
             });
         }
 
@@ -2442,8 +2433,8 @@ impl BindingMap {
         }
 
         // If it's a member function, check if there's a local alias for its class.
-        if let DefinedName::Attribute(class, attr) = &name.local_name {
-            let type_name = GlobalName::new(name.module_id, DefinedName::unqualified(class));
+        if let LocalName::Attribute(class, attr) = &name.local_name {
+            let type_name = GlobalName::new(name.module_id, LocalName::unqualified(class));
             if let Some(type_alias) = self.canonical_to_alias.get(&type_name) {
                 let lhs = Expression::generate_identifier(type_alias);
                 let rhs = Expression::generate_identifier(attr);

@@ -4,7 +4,7 @@ use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName};
+use crate::names::{DefinedName, GlobalName, LocalName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -380,7 +380,7 @@ impl AcornValue {
         instance_type: AcornType,
     ) -> AcornValue {
         assert!(!defined_name.is_instance());
-        let name = GlobalName::new(module_id, defined_name);
+        let name = GlobalName::new(module_id, defined_name.as_local().unwrap());
         let ci = ConstantInstance {
             name,
             params,
@@ -399,7 +399,7 @@ impl AcornValue {
     ) -> AcornValue {
         let attr_name = GlobalName::new(
             typeclass.module_id,
-            DefinedName::Attribute(typeclass.name, attr),
+            LocalName::Attribute(typeclass.name, attr),
         );
         let param = AcornType::Data(class, vec![]);
         let ci = ConstantInstance {
@@ -1727,7 +1727,7 @@ impl AcornValue {
                     if c.name.module_id != class.module_id {
                         return None;
                     }
-                    if let DefinedName::Attribute(base, member) = &c.name.local_name {
+                    if let LocalName::Attribute(base, member) = &c.name.local_name {
                         if base == &class.name {
                             return Some(member.to_string());
                         }
