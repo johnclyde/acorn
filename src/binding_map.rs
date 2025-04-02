@@ -379,7 +379,12 @@ impl BindingMap {
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
-        let instance_attr_name = DefinedName::instance(&typeclass, attr_name, instance_name);
+        let instance_class = Class {
+            module_id: self.module,
+            name: instance_name.to_string(),
+        };
+        let instance_attr_name =
+            DefinedName::instance(typeclass.clone(), attr_name, instance_class);
         let instance_attr = self.get_constant_value(source, &instance_attr_name)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
@@ -490,15 +495,11 @@ impl BindingMap {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
             match &defined_name {
-                DefinedName::Instance(typeclass, attr, class_name) => {
-                    let class = Class {
-                        module_id: self.module,
-                        name: class_name.to_string(),
-                    };
+                DefinedName::Instance(typeclass, attr, class) => {
                     PotentialValue::Resolved(AcornValue::instance_constant(
                         typeclass.clone(),
                         attr.to_string(),
-                        class,
+                        class.clone(),
                         constant_type.clone(),
                     ))
                 }

@@ -1,6 +1,6 @@
-use std::{fmt, vec};
+use std::fmt;
 
-use crate::acorn_type::Typeclass;
+use crate::acorn_type::{Class, Typeclass};
 use crate::module::ModuleId;
 
 // The LocalName provides an identifier for a constant that is unique within its module.
@@ -67,10 +67,8 @@ pub enum DefinedName {
     Local(LocalName),
 
     // An instance name is like Ring.add<Int>.
-    // The typeclass doesn't have to be defined here.
-    // The first string is the attribute name.
-    // The second string is the name of the instance class, which has to be defined in this module.
-    Instance(Typeclass, String, String),
+    // The string is the attribute name.
+    Instance(Typeclass, String, Class),
 }
 
 impl fmt::Display for DefinedName {
@@ -78,7 +76,7 @@ impl fmt::Display for DefinedName {
         match self {
             DefinedName::Local(name) => write!(f, "{}", name),
             DefinedName::Instance(tc, attr, class) => {
-                write!(f, "{}.{}<{}>", tc.name, attr, class)
+                write!(f, "{}.{}<{}>", tc.name, attr, class.name)
             }
         }
     }
@@ -93,8 +91,8 @@ impl DefinedName {
         DefinedName::Local(LocalName::Attribute(class.to_string(), attr.to_string()))
     }
 
-    pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> DefinedName {
-        DefinedName::Instance(tc.clone(), attr.to_string(), class.to_string())
+    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {
+        DefinedName::Instance(tc, attr.to_string(), class)
     }
 
     pub fn is_qualified(&self) -> bool {

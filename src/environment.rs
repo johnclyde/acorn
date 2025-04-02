@@ -1395,6 +1395,10 @@ impl Environment {
             is.definitions.right_brace.line_number,
         );
         let instance_name = is.type_name.text();
+        let instance_class = Class {
+            module_id: self.module_id,
+            name: instance_name.to_string(),
+        };
         let instance_type = match self.bindings.get_type_for_typename(&instance_name) {
             Some(PotentialType::Resolved(t)) => t.clone(),
             Some(_) => {
@@ -1415,7 +1419,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::instance(&typeclass, &ls.name, instance_name),
+                        DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
                         ls,
                         substatement.range(),
                     )?;
@@ -1435,7 +1439,7 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        DefinedName::instance(&typeclass, &ds.name, instance_name),
+                        DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1478,7 +1482,7 @@ impl Environment {
                 continue;
             }
 
-            let name = DefinedName::instance(&typeclass, attr_name, instance_name);
+            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
