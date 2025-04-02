@@ -166,9 +166,9 @@ impl Environment {
         self.nodes.len() - 1
     }
 
-    // Adds a proposition, or multiple propositions, to represent the definition of the provided
+    // Adds a node to represent the definition of the provided
     // constant.
-    pub fn add_identity_props(&mut self, project: &Project, constant_name: &DefinedName) {
+    pub fn add_identity(&mut self, project: &Project, constant_name: &DefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -182,6 +182,7 @@ impl Environment {
             .expect("bad add_identity_props call")
             .to_generic_value();
 
+        // Inflate functional identities. (Do we really need this?)
         let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
             let args: Vec<_> = acorn_types
                 .iter()
@@ -378,7 +379,7 @@ impl Environment {
         self.bindings
             .add_constant(constant_name.clone(), vec![], acorn_type, value, None);
         self.definition_ranges.insert(constant_name.clone(), range);
-        self.add_identity_props(project, &constant_name);
+        self.add_identity(project, &constant_name);
         Ok(())
     }
 
@@ -480,7 +481,7 @@ impl Environment {
         };
 
         self.definition_ranges.insert(constant_name.clone(), range);
-        self.add_identity_props(project, &constant_name);
+        self.add_identity(project, &constant_name);
         Ok(())
     }
 

@@ -76,8 +76,8 @@ pub struct BindingMap {
     // The default data type to use for numeric literals.
     numerals: Option<Class>,
 
-    // The values of the instance attributes defined in this module.
-    instance_values: HashMap<InstanceName, AcornValue>,
+    // The definitions of the instance attributes defined in this module.
+    instance_definitions: HashMap<InstanceName, AcornValue>,
 
     // Stores the instance-of relationships for classes that were defined in this module.
     instance_of: HashMap<Class, HashSet<Typeclass>>,
@@ -176,7 +176,7 @@ impl BindingMap {
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
             numerals: None,
-            instance_values: HashMap::new(),
+            instance_definitions: HashMap::new(),
             instance_of: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
@@ -415,9 +415,23 @@ impl BindingMap {
         source: &dyn ErrorSource,
         name: &DefinedName,
     ) -> compilation::Result<PotentialValue> {
-        match self.constant_info.get(name) {
-            Some(info) => Ok(info.value.clone()),
-            None => Err(source.error(&format!("constant {} not found", name))),
+        match name {
+            DefinedName::Local(local_name) => {
+                let defined_name = DefinedName::Local(local_name.clone());
+                match self.constant_info.get(&defined_name) {
+                    Some(info) => Ok(info.value.clone()),
+                    None => Err(source.error(&format!("constant {} not found", name))),
+                }
+            }
+            DefinedName::Instance(instance_name) => {
+                let definition = self
+                    .instance_definitions
+                    .get(instance_name)
+                    .ok_or_else(|| source.error(&format!("constant {} not found", name)))?;
+                let value =
+                    AcornValue::instance_constant(instance_name.clone(), definition.get_type());
+                Ok(PotentialValue::Resolved(value))
+            }
         }
     }
 
@@ -554,15 +568,15 @@ impl BindingMap {
                 let info = ConstantInfo {
                     value: value.clone(),
                     canonical: true,
-                    definition,
+                    definition: definition.clone(),
                     theorem: false,
                     constructor,
                 };
                 let defined_name = DefinedName::Instance(instance_name.clone());
                 self.constant_info.insert(defined_name, info);
 
-                self.instance_values
-                    .insert(instance_name.clone(), value.clone().force_value());
+                self.instance_definitions
+                    .insert(instance_name.clone(), definition.unwrap());
             }
         }
 
