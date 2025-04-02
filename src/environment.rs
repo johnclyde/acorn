@@ -233,10 +233,10 @@ impl Environment {
     }
 
     pub fn get_theorem_claim(&self, name: &str) -> Option<AcornValue> {
-        for prop in &self.nodes {
-            if let Some(claim_name) = prop.claim.theorem_name() {
+        for node in &self.nodes {
+            if let Some(claim_name) = node.claim.theorem_name() {
                 if claim_name == name {
-                    return Some(prop.claim.value.clone());
+                    return Some(node.claim.value.clone());
                 }
             }
         }
@@ -2055,11 +2055,11 @@ impl Environment {
             match env.get_line_type(line) {
                 Some(LineType::Node(i)) => {
                     path.push(i);
-                    let prop = &env.nodes[i];
-                    if prop.claim.source.is_axiom() {
+                    let node = &env.nodes[i];
+                    if node.claim.source.is_axiom() {
                         return Err(format!("line {} is an axiom", line + 1));
                     }
-                    match &prop.block {
+                    match &node.block {
                         Some(b) => {
                             block = Some(b);
                             env = &b.env;
@@ -2090,11 +2090,11 @@ impl Environment {
                         slide += 1;
                         match env.get_line_type(slide) {
                             Some(LineType::Node(i)) => {
-                                let prop = &env.nodes[i];
-                                if prop.claim.source.is_axiom() {
+                                let node = &env.nodes[i];
+                                if node.claim.source.is_axiom() {
                                     return Err(format!("slide to axiom, line {}", slide + 1));
                                 }
-                                if prop.block.is_none() {
+                                if node.block.is_none() {
                                     path.push(i);
                                     return Ok(path);
                                 }
