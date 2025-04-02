@@ -441,7 +441,9 @@ impl Project {
                     None => continue,
                 };
                 if local_premises.contains(&name) {
-                    prover.add_fact(node.get_fact());
+                    if let Some(fact) = node.get_fact() {
+                        prover.add_fact(fact);
+                    }
                 }
             }
         }
@@ -523,7 +525,9 @@ impl Project {
             if !cursor.has_next() {
                 break;
             }
-            full_prover.add_fact(cursor.node().get_fact());
+            if let Some(fact) = cursor.node().get_fact() {
+                full_prover.add_fact(fact);
+            }
             cursor.next();
         }
 
@@ -577,9 +581,11 @@ impl Project {
                     return;
                 }
 
-                full_prover.add_fact(cursor.node().get_fact());
-                if let Some(ref mut filtered_prover) = filtered_prover {
-                    filtered_prover.add_fact(cursor.node().get_fact());
+                if let Some(fact) = cursor.node().get_fact() {
+                    if let Some(ref mut filtered_prover) = filtered_prover {
+                        filtered_prover.add_fact(fact.clone());
+                    }
+                    full_prover.add_fact(fact);
                 }
 
                 if cursor.has_next() {

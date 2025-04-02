@@ -1922,7 +1922,9 @@ impl Environment {
                     continue;
                 }
             }
-            facts.push(node.get_fact());
+            if let Some(fact) = node.get_fact() {
+                facts.push(fact);
+            }
         }
         facts
     }

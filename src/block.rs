@@ -423,8 +423,9 @@ impl Node {
         self.proposition().source.importable
     }
 
-    pub fn get_fact(&self) -> Fact {
-        Fact::Proposition(self.proposition().clone())
+    // Returns the fact at this node, if there is one.
+    pub fn get_fact(&self) -> Option<Fact> {
+        Some(Fact::Proposition(self.proposition().clone()))
     }
 
     // The fact name is used to describe the premise when caching block -> premise dependencies.
@@ -547,13 +548,17 @@ impl<'a> NodeCursor<'a> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
             for node in &env.nodes[0..*i] {
-                facts.push(node.get_fact());
+                if let Some(fact) = node.get_fact() {
+                    facts.push(fact);
+                }
             }
         }
 
         if let Some(block) = &self.node().get_block() {
             for node in &block.env.nodes {
-                facts.push(node.get_fact());
+                if let Some(fact) = node.get_fact() {
+                    facts.push(fact);
+                }
             }
         }
 
