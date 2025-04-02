@@ -441,8 +441,7 @@ impl Project {
                     None => continue,
                 };
                 if local_premises.contains(&name) {
-                    let fact = Fact::Proposition(node.claim.clone());
-                    prover.add_fact(fact);
+                    prover.add_fact(node.get_fact());
                 }
             }
         }
@@ -469,18 +468,18 @@ impl Project {
         for fact in self.imported_facts(env.module_id, None) {
             full_prover.add_fact(fact);
         }
-        let mut node = NodeCursor::new(&env, 0);
+        let mut cursor = NodeCursor::new(&env, 0);
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            if node.num_children() != 0 || node.current().has_goal() {
-                let block_name = node.current().block_name();
+            if cursor.num_children() != 0 || cursor.node().has_goal() {
+                let block_name = cursor.node().block_name();
                 if self.check_hashes
                     && module_hash
-                        .matches_through_line(&old_module_cache, node.current().last_line())
+                        .matches_through_line(&old_module_cache, cursor.node().last_line())
                 {
                     // We don't need to verify this, we can just treat it as verified due to the hash.
-                    builder.log_proving_cache_hit(&mut node);
+                    builder.log_proving_cache_hit(&mut cursor);
                     if let (Some(bn), Some(old_mc)) = (block_name, &old_module_cache) {
                         // We skipped the proof of this theorem.
                         // But we still might want its premises cached.
@@ -495,8 +494,8 @@ impl Project {
                     // If we have a cached set of premises, we use it to create a filtered prover.
                     // The filtered prover only contains the premises that we think it needs.
                     let old_premises = self.load_premises(&old_module_cache, &block_name);
-                    let filtered_prover =
-                        old_premises.map(|ps| self.make_filtered_prover(env, node.top_index(), ps));
+                    let filtered_prover = old_premises
+                        .map(|ps| self.make_filtered_prover(env, cursor.top_index(), ps));
 
                     // The premises we use while verifying this block.
                     let mut new_premises = HashSet::new();
@@ -505,7 +504,7 @@ impl Project {
                     self.verify_node(
                         &full_prover,
                         &filtered_prover,
-                        &mut node,
+                        &mut cursor,
                         &mut new_premises,
                         builder,
                     );
@@ -521,11 +520,11 @@ impl Project {
                     }
                 }
             }
-            if !node.has_next() {
+            if !cursor.has_next() {
                 break;
             }
-            full_prover.add_fact(node.get_fact());
-            node.next();
+            full_prover.add_fact(cursor.node().get_fact());
+            cursor.next();
         }
 
         if builder.module_proving_complete(target) {
@@ -552,42 +551,48 @@ impl Project {
         &self,
         full_prover: &Prover,
         filtered_prover: &Option<Prover>,
-        node: &mut NodeCursor,
+        cursor: &mut NodeCursor,
         new_premises: &mut HashSet<(ModuleId, String)>,
         builder: &mut Builder,
     ) {
-        if node.num_children() == 0 && !node.current().has_goal() {
+        if cursor.num_children() == 0 && !cursor.node().has_goal() {
             // There's nothing to do here
             return;
         }
 
         let mut full_prover = full_prover.clone();
         let mut filtered_prover = filtered_prover.clone();
-        if node.num_children() > 0 {
+        if cursor.num_children() > 0 {
             // We need to recurse into children
-            node.descend(0);
+            cursor.descend(0);
             loop {
-                self.verify_node(&full_prover, &filtered_prover, node, new_premises, builder);
+                self.verify_node(
+                    &full_prover,
+                    &filtered_prover,
+                    cursor,
+                    new_premises,
+                    builder,
+                );
                 if builder.status.is_error() {
                     return;
                 }
 
-                full_prover.add_fact(node.get_fact());
+                full_prover.add_fact(cursor.node().get_fact());
                 if let Some(ref mut filtered_prover) = filtered_prover {
-                    filtered_prover.add_fact(node.get_fact());
+                    filtered_prover.add_fact(cursor.node().get_fact());
                 }
 
-                if node.has_next() {
-                    node.next();
+                if cursor.has_next() {
+                    cursor.next();
                 } else {
                     break;
                 }
             }
-            node.ascend();
+            cursor.ascend();
         }
 
-        if node.current().has_goal() {
-            let goal_context = node.goal_context().unwrap();
+        if cursor.node().has_goal() {
+            let goal_context = cursor.goal_context().unwrap();
             let prover =
                 self.verify_with_fallback(full_prover, filtered_prover, &goal_context, builder);
             if builder.status.is_error() {

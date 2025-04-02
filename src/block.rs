@@ -453,6 +453,10 @@ impl Node {
             _ => None,
         }
     }
+
+    pub fn get_fact(&self) -> Fact {
+        Fact::Proposition(self.claim.clone())
+    }
 }
 
 // A NodeCursor points at a node. It is used to traverse the nodes in an environment.
@@ -495,7 +499,7 @@ impl<'a> NodeCursor<'a> {
         self.annotated_path.last().unwrap().0
     }
 
-    pub fn current(&self) -> &'a Node {
+    pub fn node(&self) -> &'a Node {
         let (env, index) = self.annotated_path.last().unwrap();
         &env.nodes[*index]
     }
@@ -511,7 +515,7 @@ impl<'a> NodeCursor<'a> {
     }
 
     pub fn num_children(&self) -> usize {
-        match self.current().block {
+        match self.node().block {
             Some(ref b) => b.env.nodes.len(),
             None => 0,
         }
@@ -519,7 +523,7 @@ impl<'a> NodeCursor<'a> {
 
     // child_index must be less than num_children
     pub fn descend(&mut self, child_index: usize) {
-        let new_env = match &self.current().block {
+        let new_env = match &self.node().block {
             Some(b) => &b.env,
             None => panic!("descend called on a node without a block"),
         };
@@ -549,24 +553,19 @@ impl<'a> NodeCursor<'a> {
         self.annotated_path.pop();
     }
 
-    // The fact at the current node.
-    pub fn get_fact(&self) -> Fact {
-        Fact::Proposition(self.current().claim.clone())
-    }
-
     // All facts that can be used to prove the current node.
     // This includes imported facts.
     pub fn usable_facts(&self, project: &Project) -> Vec<Fact> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         for (env, i) in &self.annotated_path {
             for node in &env.nodes[0..*i] {
-                facts.push(Fact::Proposition(node.claim.clone()));
+                facts.push(node.get_fact());
             }
         }
 
-        if let Some(block) = &self.current().block {
-            for p in &block.env.nodes {
-                facts.push(Fact::Proposition(p.claim.clone()));
+        if let Some(block) = &self.node().block {
+            for node in &block.env.nodes {
+                facts.push(node.get_fact());
             }
         }
 
@@ -575,7 +574,7 @@ impl<'a> NodeCursor<'a> {
 
     // Get a goal context for the current node.
     pub fn goal_context(&self) -> Result<GoalContext, String> {
-        let node = self.current();
+        let node = self.node();
         if node.structural {
             return Err(format!(
                 "node {} does not need a proof, so it has no goal context",
@@ -617,7 +616,7 @@ impl<'a> NodeCursor<'a> {
             self.find_goals(output);
             self.ascend();
         }
-        if self.current().has_goal() {
+        if self.node().has_goal() {
             output.push(self.clone());
         }
     }

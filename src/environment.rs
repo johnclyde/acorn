@@ -2005,7 +2005,7 @@ impl Environment {
                     continue;
                 }
             }
-            facts.push(Fact::Proposition(node.claim.clone()));
+            facts.push(node.get_fact());
         }
         facts
     }

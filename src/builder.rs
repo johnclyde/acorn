@@ -355,7 +355,7 @@ impl<'a> Builder<'a> {
             }
             node.ascend();
         }
-        if node.current().has_goal() {
+        if node.node().has_goal() {
             let goal_context = node.goal_context().unwrap();
             self.goals_done += 1;
             self.goals_success += 1;
