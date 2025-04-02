@@ -461,7 +461,10 @@ impl BindingMap {
     // Returns the defined value, if there is a defined value.
     // If there isn't, returns None.
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
-        self.constant_info.get(name)?.definition.as_ref()
+        match name {
+            DefinedName::Local(_local_name) => self.constant_info.get(name)?.definition.as_ref(),
+            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
+        }
     }
 
     // Returns the defined value and its parameters in their canonical order.
