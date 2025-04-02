@@ -428,7 +428,7 @@ impl Project {
                 None => continue,
             };
             let module_env = self.get_env_by_id(module_id).unwrap();
-            for fact in module_env.exported_facts(Some(module_premises)) {
+            for fact in module_env.importable_facts(Some(module_premises)) {
                 prover.add_fact(fact);
             }
         }
@@ -910,7 +910,7 @@ impl Project {
         let mut facts = vec![];
         for dependency in self.all_dependencies(module_id) {
             let env = self.get_env_by_id(dependency).unwrap();
-            facts.extend(env.exported_facts(filter));
+            facts.extend(env.importable_facts(filter));
         }
         facts
     }

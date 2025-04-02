@@ -260,7 +260,7 @@ impl Environment {
     // Takes the condition, the range to associate with the condition, the first line of
     // the conditional block, and finally the body itself.
     // If this is an "else" block, we pass in the claim from the "if" part of the block.
-    // This way, if the claim is the same, we can simplify by combining them when exported.
+    // This way, if the claim is the same, we can simplify by combining them when externalized.
     // Returns the last claim in the block, if we didn't have an if-claim to match against.
     fn add_conditional(
         &mut self,
@@ -286,7 +286,7 @@ impl Environment {
             last_line,
             Some(body),
         )?;
-        let (outer_claim, claim_range) = block.export_last_claim(self, &body.right_brace)?;
+        let (outer_claim, claim_range) = block.externalize_last_claim(self, &body.right_brace)?;
 
         let matching_branches = if let Some(if_claim) = if_claim {
             if outer_claim == if_claim {
@@ -1709,7 +1709,8 @@ impl Environment {
                     Some(&fas.body),
                 )?;
 
-                let (outer_claim, range) = block.export_last_claim(self, &fas.body.right_brace)?;
+                let (outer_claim, range) =
+                    block.externalize_last_claim(self, &fas.body.right_brace)?;
 
                 let index = self.add_node(
                     project,
@@ -1837,8 +1838,8 @@ impl Environment {
                     }
                     None => {
                         // The block doesn't contain a solution.
-                        // So, it has no claim that can be exported. It doesn't really make sense
-                        // to export whatever the last proposition is.
+                        // So, it has no claim that can be externalized. It doesn't really make sense
+                        // to externalize whatever the last proposition is.
                         // A lot of code expects something, though, so put a vacuous "true" in here.
                         Proposition::anonymous(
                             AcornValue::Bool(true),
@@ -1911,7 +1912,7 @@ impl Environment {
                         Some(body),
                     )?;
 
-                    let (disjunct, _) = block.export_last_claim(self, &body.right_brace)?;
+                    let (disjunct, _) = block.externalize_last_claim(self, &body.right_brace)?;
                     disjuncts.push(disjunct);
 
                     if total == indices.len() {
@@ -1932,7 +1933,7 @@ impl Environment {
                         return Ok(());
                     }
 
-                    // This is a vacuous proposition because we only put an exported
+                    // This is a vacuous proposition because we only put an externalized
                     // proposition on the last block.
                     let vacuous_prop = Proposition::anonymous(
                         AcornValue::Bool(true),
@@ -1975,9 +1976,9 @@ impl Environment {
         }
     }
 
-    // Get all facts that this environment exports.
+    // Get all facts that can be imported into other modules from this one.
     // If the filter is provided, we only return facts whose qualified name is in the filter.
-    pub fn exported_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
+    pub fn importable_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];
         for node in &self.nodes {

@@ -246,7 +246,7 @@ impl Block {
     }
 
     // Convert a boolean value from the block's environment to a value in the outer environment.
-    fn export_bool(&self, outer_env: &Environment, inner_value: &AcornValue) -> AcornValue {
+    fn externalize_bool(&self, outer_env: &Environment, inner_value: &AcornValue) -> AcornValue {
         // The constants that were block arguments will export as "forall" variables.
         let mut forall_names: Vec<String> = vec![];
         let mut forall_types: Vec<AcornType> = vec![];
@@ -305,7 +305,7 @@ impl Block {
 
     // Returns a claim usable in the outer environment, and a range where it comes from.
     // Note that this will not generalize arbitrary types.
-    pub fn export_last_claim(
+    pub fn externalize_last_claim(
         &self,
         outer_env: &Environment,
         token: &Token,
@@ -316,19 +316,20 @@ impl Block {
                 return Err(token.error("expected a claim in this block"));
             }
         };
-        let outer_claim = self.export_bool(outer_env, inner_claim);
+        let outer_claim = self.externalize_bool(outer_env, inner_claim);
         Ok((outer_claim, range))
     }
 
     // Checks if this block solves for the given target.
-    // If it does, returns an exported proposition with the solution, and the range where it
+    // If it does, returns an externalized proposition with the solution, and the range where it
     // occurs.
+    // "Externalized" means that it is valid in the environment outside the block.
     pub fn solves(
         &self,
         outer_env: &Environment,
         target: &AcornValue,
     ) -> Option<(AcornValue, Range)> {
-        let (outer_claim, range) = match self.export_last_claim(outer_env, &Token::empty()) {
+        let (outer_claim, range) = match self.externalize_last_claim(outer_env, &Token::empty()) {
             Ok((c, r)) => (c, r),
             Err(_) => return None,
         };
