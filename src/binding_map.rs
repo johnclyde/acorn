@@ -2094,7 +2094,7 @@ impl BindingMap {
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_type: Option<&AcornType>,
-        function_name: Option<&DefinedName>,
+        function_name: Option<&LocalName>,
     ) -> compilation::Result<(
         Vec<TypeParam>,
         Vec<String>,
@@ -2122,7 +2122,13 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant(function_name.clone(), vec![], fn_type, None, None);
+            self.add_constant(
+                function_name.clone().to_defined(),
+                vec![],
+                fn_type,
+                None,
+                None,
+            );
         }
 
         // Evaluate the internal value using our modified bindings
@@ -2137,8 +2143,7 @@ impl BindingMap {
             )?;
 
             if let Some(function_name) = function_name {
-                let global_name =
-                    GlobalName::new(self.module, function_name.clone().as_local().unwrap());
+                let global_name = GlobalName::new(self.module, function_name.clone());
                 let mut checker = TerminationChecker::new(global_name, internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
@@ -2155,7 +2160,7 @@ impl BindingMap {
             self.remove_type(&param.name);
         }
         if let Some(function_name) = function_name {
-            self.remove_constant(&function_name);
+            self.remove_constant(&function_name.clone().to_defined());
         }
 
         // This part is awkward. We might have types parametrized on this function, or they
@@ -2180,8 +2185,7 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
-                    let global_name =
-                        GlobalName::new(self.module, function_name.clone().as_local().unwrap());
+                    let global_name = GlobalName::new(self.module, function_name.clone());
                     let generic_params = type_params
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))

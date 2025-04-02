@@ -417,12 +417,6 @@ impl Environment {
         }
 
         // Calculate the function value
-        let recursive_binding = if constant_name.is_instance() {
-            // This confuses me. Just don't allow defining instance stuff recursively for now
-            None
-        } else {
-            Some(&constant_name)
-        };
         let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
                 project,
@@ -431,7 +425,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                recursive_binding,
+                constant_name.clone().as_local().as_ref(),
             )?;
 
         if let Some(class_type) = self_type {
