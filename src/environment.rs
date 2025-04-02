@@ -308,12 +308,8 @@ impl Environment {
                 Some(outer_claim),
             )
         };
-        let index = self.add_node_old(
-            project,
-            false,
-            Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth),
-            Some(block),
-        );
+        let prop = Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth);
+        let index = self.add_node(Node::block(project, self, block, prop));
         self.add_line_types(
             LineType::Node(index),
             first_line,
@@ -580,11 +576,19 @@ impl Environment {
         }
 
         let already_proven = ts.axiomatic || is_citation;
+        let prop = Proposition::theorem(
+            already_proven,
+            external_claim,
+            self.module_id,
+            range,
+            self.depth,
+            ts.name.clone(),
+        );
 
-        let block = if already_proven {
-            None
+        let node = if already_proven {
+            Node::structural(project, self, prop)
         } else {
-            Some(Block::new(
+            let block = Block::new(
                 project,
                 &self,
                 type_params,
@@ -593,22 +597,11 @@ impl Environment {
                 statement.first_line(),
                 statement.last_line(),
                 ts.body.as_ref(),
-            )?)
+            )?;
+            Node::block(project, self, block, prop)
         };
 
-        let index = self.add_node_old(
-            project,
-            already_proven,
-            Proposition::theorem(
-                already_proven,
-                external_claim,
-                self.module_id,
-                range,
-                self.depth,
-                ts.name.clone(),
-            ),
-            block,
-        );
+        let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
         if let Some(name) = &ts.name {
             let name = LocalConstantName::unqualified(name);
@@ -636,12 +629,9 @@ impl Environment {
             Some(&AcornType::Bool),
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
-        let index = self.add_node_old(
-            project,
-            false,
-            Proposition::anonymous(general_claim, self.module_id, statement.range(), self.depth),
-            None,
-        );
+        let general_prop =
+            Proposition::anonymous(general_claim, self.module_id, statement.range(), self.depth);
+        let index = self.add_node(Node::claim(project, self, general_prop));
         self.add_node_lines(index, &statement.range());
 
         // Define the quantifiers as constants
@@ -655,17 +645,13 @@ impl Environment {
         let specific_claim =
             self.bindings
                 .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
-        self.add_node_old(
-            project,
-            true,
-            Proposition::anonymous(
-                specific_claim,
-                self.module_id,
-                statement.range(),
-                self.depth,
-            ),
-            None,
+        let specific_prop = Proposition::anonymous(
+            specific_claim,
+            self.module_id,
+            statement.range(),
+            self.depth,
         );
+        self.add_node(Node::structural(project, self, specific_prop));
 
         Ok(())
     }

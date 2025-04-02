@@ -354,8 +354,10 @@ impl Block {
 // 2. Plain claims, that we need to prove
 // 3. Nodes with blocks, where we need to recurse into the block and prove those nodes.
 pub enum Node {
-    // Some nodes contain propositions that are structurally true. There's no need to prove them.
+    // Some nodes contain propositions that are structurally true.
+    // The prover doesn't need to prove these.
     // For example, this could be an axiom, or a definition.
+    // It could also be a form like a citation that has already been proven by the compiler.
     Structural(Proposition),
 
     // A claim is something that we need to prove, and then we can subsequently use it.
