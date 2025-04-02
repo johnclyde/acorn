@@ -481,17 +481,10 @@ impl BindingMap {
     // Returns None if there is no definition.
     pub fn get_definition_and_params(
         &self,
-        name: &DefinedName,
+        local_name: &LocalName,
     ) -> Option<(&AcornValue, &[TypeParam])> {
-        match name {
-            DefinedName::Local(local_name) => {
-                let info = self.constant_info.get(local_name)?;
-                Some((info.definition.as_ref()?, info.value.unresolved_params()))
-            }
-            DefinedName::Instance(instance_name) => {
-                Some((self.instance_definitions.get(instance_name)?, &[]))
-            }
-        }
+        let info = self.constant_info.get(local_name)?;
+        Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
     // All other modules that we directly depend on, besides this one.
@@ -650,14 +643,10 @@ impl BindingMap {
             .theorem = true;
     }
 
-    pub fn is_theorem(&self, name: &DefinedName) -> bool {
-        match name {
-            DefinedName::Local(local_name) => self
-                .constant_info
-                .get(&local_name)
-                .map_or(false, |info| info.theorem),
-            DefinedName::Instance(_) => false,
-        }
+    pub fn is_theorem(&self, name: &LocalName) -> bool {
+        self.constant_info
+            .get(&name)
+            .map_or(false, |info| info.theorem)
     }
 
     // Type variables and arbitrary variables should get removed when they go out of scope.
@@ -699,7 +688,7 @@ impl BindingMap {
         match claim.is_named_function_call() {
             Some(global_name) => {
                 let bindings = self.get_bindings(project, global_name.module_id);
-                bindings.is_theorem(&global_name.local_name.clone().to_defined())
+                bindings.is_theorem(&global_name.local_name)
             }
             None => false,
         }
@@ -1697,7 +1686,7 @@ impl BindingMap {
         condition_name: &str,
         instance_type: &AcornType,
     ) -> compilation::Result<AcornValue> {
-        let tc_condition_name = DefinedName::attribute(&typeclass.name, condition_name);
+        let tc_condition_name = LocalName::attribute(&typeclass.name, condition_name);
         let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
             Some((def, params)) => (def, params),
             None => {
@@ -2331,9 +2320,8 @@ impl BindingMap {
 
         let value = proposition.value.replace_constants(0, &|c| {
             let bindings = self.get_bindings(project, c.name.module_id);
-            let defined_name = c.name.local_name.clone().to_defined();
-            if bindings.is_theorem(&defined_name) {
-                match bindings.get_definition_and_params(&defined_name) {
+            if bindings.is_theorem(&c.name.local_name) {
+                match bindings.get_definition_and_params(&c.name.local_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {
