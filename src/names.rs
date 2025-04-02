@@ -53,6 +53,13 @@ impl DefinedName {
         }
     }
 
+    pub fn is_instance(&self) -> bool {
+        match self {
+            DefinedName::Instance(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn as_attribute(&self) -> Option<(&str, &str)> {
         match self {
             DefinedName::Attribute(class, attr) => Some((class, attr)),
