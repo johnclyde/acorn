@@ -368,7 +368,7 @@ pub struct Node {
     // The body of the proposition, when it has an associated block.
     // When there is a block, proving every proposition in the block implies that the
     // claim is proven as well.
-    pub block: Option<Block>,
+    block: Option<Block>,
 }
 
 impl Node {
@@ -440,6 +440,10 @@ impl Node {
         } else {
             self.claim.source.range.end.line
         }
+    }
+
+    pub fn block(&self) -> Option<&Block> {
+        self.block.as_ref()
     }
 
     // The block name is used to cache the premises used for the entire block.

@@ -2059,7 +2059,7 @@ impl Environment {
                     if node.claim.source.is_axiom() {
                         return Err(format!("line {} is an axiom", line + 1));
                     }
-                    match &node.block {
+                    match node.block() {
                         Some(b) => {
                             block = Some(b);
                             env = &b.env;
@@ -2094,7 +2094,7 @@ impl Environment {
                                 if node.claim.source.is_axiom() {
                                     return Err(format!("slide to axiom, line {}", slide + 1));
                                 }
-                                if node.block.is_none() {
+                                if node.block().is_none() {
                                     path.push(i);
                                     return Ok(path);
                                 }
@@ -2152,7 +2152,7 @@ impl Environment {
         loop {
             match self.get_line_type(line) {
                 Some(LineType::Node(i)) => {
-                    if let Some(block) = &self.nodes[i].block {
+                    if let Some(block) = self.nodes[i].block() {
                         return block.env.env_for_line(line);
                     }
                     return self;
@@ -2189,16 +2189,16 @@ impl Environment {
         // Check that each proposition's block covers the lines it claims to cover
         for (line, line_type) in self.line_types.iter().enumerate() {
             if let LineType::Node(prop_index) = line_type {
-                let prop = &self.nodes[*prop_index];
-                if let Some(block) = &prop.block {
+                let node = &self.nodes[*prop_index];
+                if let Some(block) = node.block() {
                     assert!(block.env.covers_line(line as u32));
                 }
             }
         }
 
         // Recurse
-        for prop in &self.nodes {
-            if let Some(block) = &prop.block {
+        for node in &self.nodes {
+            if let Some(block) = node.block() {
                 block.env.check_lines();
             }
         }
