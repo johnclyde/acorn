@@ -473,8 +473,15 @@ impl BindingMap {
         &self,
         name: &DefinedName,
     ) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(name)?;
-        Some((info.definition.as_ref()?, info.value.unresolved_params()))
+        match name {
+            DefinedName::Local(_local_name) => {
+                let info = self.constant_info.get(name)?;
+                Some((info.definition.as_ref()?, info.value.unresolved_params()))
+            }
+            DefinedName::Instance(instance_name) => {
+                Some((self.instance_definitions.get(instance_name)?, &[]))
+            }
+        }
     }
 
     // All other modules that we directly depend on, besides this one.
