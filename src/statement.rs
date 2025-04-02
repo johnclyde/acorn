@@ -66,10 +66,10 @@ pub struct TheoremStatement {
     pub body: Option<Body>,
 }
 
-// Prop statements are a boolean expression.
+// Claim statements are a boolean expression.
 // We're implicitly asserting that it is true and provable.
 // It's like an anonymous theorem.
-pub struct PropStatement {
+pub struct ClaimStatement {
     pub claim: Expression,
 }
 
@@ -266,7 +266,7 @@ pub enum StatementInfo {
     Let(LetStatement),
     Define(DefineStatement),
     Theorem(TheoremStatement),
-    Prop(PropStatement),
+    Claim(ClaimStatement),
     Type(TypeStatement),
     ForAll(ForAllStatement),
     If(IfStatement),
@@ -1083,7 +1083,7 @@ impl Statement {
                 Ok(())
             }
 
-            StatementInfo::Prop(ps) => {
+            StatementInfo::Claim(ps) => {
                 write!(f, "{}", ps.claim)?;
                 Ok(())
             }
@@ -1388,7 +1388,7 @@ impl Statement {
                         let block_ended = token.token_type == TokenType::RightBrace;
                         let brace = if block_ended { Some(token) } else { None };
                         let last_token = claim.last_token().clone();
-                        let se = StatementInfo::Prop(PropStatement { claim });
+                        let se = StatementInfo::Claim(ClaimStatement { claim });
                         let s = Statement {
                             first_token,
                             last_token,

@@ -1591,10 +1591,10 @@ impl Environment {
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
 
-            StatementInfo::Prop(ps) => {
+            StatementInfo::Claim(cs) => {
                 let claim =
                     self.bindings
-                        .evaluate_value(project, &ps.claim, Some(&AcornType::Bool))?;
+                        .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
                 if claim == AcornValue::Bool(false) {
                     self.includes_explicit_false = true;
                 }
