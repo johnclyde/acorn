@@ -495,14 +495,9 @@ impl BindingMap {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
             match &defined_name {
-                DefinedName::Instance(typeclass, attr, class) => {
-                    PotentialValue::Resolved(AcornValue::instance_constant(
-                        typeclass.clone(),
-                        attr.to_string(),
-                        class.clone(),
-                        constant_type.clone(),
-                    ))
-                }
+                DefinedName::Instance(inst) => PotentialValue::Resolved(
+                    AcornValue::instance_constant(inst.clone(), constant_type.clone()),
+                ),
                 DefinedName::Local(local_name) => {
                     let global_name = GlobalName::new(self.module, local_name.clone());
                     PotentialValue::Resolved(AcornValue::constant(

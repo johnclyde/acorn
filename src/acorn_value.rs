@@ -1,9 +1,9 @@
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class, Typeclass};
+use crate::acorn_type::AcornType;
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::names::{GlobalName, LocalName};
+use crate::names::{GlobalName, InstanceName, LocalName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -373,17 +373,12 @@ impl AcornValue {
     }
 
     // Make a constant for an instance attribute.
-    pub fn instance_constant(
-        typeclass: Typeclass,
-        attr: String,
-        class: Class,
-        instance_type: AcornType,
-    ) -> AcornValue {
+    pub fn instance_constant(instance_name: InstanceName, instance_type: AcornType) -> AcornValue {
         let attr_name = GlobalName::new(
-            typeclass.module_id,
-            LocalName::Attribute(typeclass.name, attr),
+            instance_name.typeclass.module_id,
+            LocalName::Attribute(instance_name.typeclass.name, instance_name.attribute),
         );
-        let param = AcornType::Data(class, vec![]);
+        let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
             name: attr_name,
             params: vec![param],

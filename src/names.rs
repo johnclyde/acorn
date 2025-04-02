@@ -60,24 +60,42 @@ impl LocalName {
     }
 }
 
+// An instance name is like Ring.add<Int>.
+// Ring = typeclass
+// add = attribute
+// Int = class
+#[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
+pub struct InstanceName {
+    pub typeclass: Typeclass,
+    pub attribute: String,
+    pub class: Class,
+}
+
+impl fmt::Display for InstanceName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}.{}<{}>",
+            self.typeclass.name, self.attribute, self.class.name
+        )
+    }
+}
+
 // The DefinedName describes how a constant, type, or typeclass was defined.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub enum DefinedName {
     // A regular local name.
     Local(LocalName),
 
-    // An instance name is like Ring.add<Int>.
-    // The string is the attribute name.
-    Instance(Typeclass, String, Class),
+    // An attribute defined via an instance statement.
+    Instance(InstanceName),
 }
 
 impl fmt::Display for DefinedName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             DefinedName::Local(name) => write!(f, "{}", name),
-            DefinedName::Instance(tc, attr, class) => {
-                write!(f, "{}.{}<{}>", tc.name, attr, class.name)
-            }
+            DefinedName::Instance(name) => write!(f, "{}", name),
         }
     }
 }
@@ -92,7 +110,12 @@ impl DefinedName {
     }
 
     pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {
-        DefinedName::Instance(tc, attr.to_string(), class)
+        let inst = InstanceName {
+            typeclass: tc,
+            attribute: attr.to_string(),
+            class,
+        };
+        DefinedName::Instance(inst)
     }
 
     pub fn is_qualified(&self) -> bool {
