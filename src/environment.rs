@@ -558,8 +558,8 @@ impl Environment {
         let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
-            self.bindings.add_constant(
-                DefinedName::unqualified(name),
+            self.bindings.add_local_constant(
+                LocalName::unqualified(name),
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
@@ -596,7 +596,7 @@ impl Environment {
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
         if let Some(name) = &ts.name {
-            let name = DefinedName::unqualified(name);
+            let name = LocalName::unqualified(name);
             self.bindings.mark_as_theorem(&name);
         }
 
@@ -628,9 +628,9 @@ impl Environment {
 
         // Define the quantifiers as constants
         for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
-            let name = DefinedName::unqualified(quant_name);
+            let name = LocalName::unqualified(quant_name);
             self.bindings
-                .add_constant(name, vec![], quant_type.clone(), None, None);
+                .add_local_constant(name, vec![], quant_type.clone(), None, None);
         }
 
         // We can then assume the specific existence claim with the named constants
@@ -717,8 +717,8 @@ impl Environment {
         // We define this function not with an equality, but via the condition.
         let local_name = LocalName::unqualified(&fss.name);
         let function_type = AcornType::functional(arg_types.clone(), return_type);
-        self.bindings.add_constant(
-            local_name.clone().to_defined(),
+        self.bindings.add_local_constant(
+            local_name.clone(),
             vec![],
             function_type.clone(),
             None,
@@ -788,7 +788,7 @@ impl Environment {
                     field_name_token.text()
                 )));
             }
-            let member_fn_name = DefinedName::attribute(&ss.name, field_name_token.text());
+            let member_fn_name = LocalName::attribute(&ss.name, field_name_token.text());
             member_fn_names.push(member_fn_name);
         }
 
@@ -836,7 +836,7 @@ impl Environment {
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
-            let potential = self.bindings.add_constant(
+            let potential = self.bindings.add_local_constant(
                 member_fn_name,
                 type_params.clone(),
                 member_fn_type.to_generic(),
@@ -847,9 +847,9 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
-        let new_fn_name = DefinedName::attribute(&ss.name, "new");
+        let new_fn_name = LocalName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
-        let new_fn = self.bindings.add_constant(
+        let new_fn = self.bindings.add_local_constant(
             new_fn_name,
             type_params.clone(),
             new_fn_type.to_generic(),
@@ -1008,7 +1008,7 @@ impl Environment {
                 // This provides a base case
                 has_base = true;
             }
-            let member_name = DefinedName::attribute(&is.name, name_token.text());
+            let member_name = LocalName::attribute(&is.name, name_token.text());
             constructors.push((member_name, type_list));
         }
         if !has_base {
@@ -1020,7 +1020,7 @@ impl Environment {
         let total = constructors.len();
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
             let constructor_type = AcornType::functional(type_list.clone(), inductive_type.clone());
-            let potential = self.bindings.add_constant(
+            let potential = self.bindings.add_local_constant(
                 constructor_name.clone(),
                 vec![],
                 constructor_type,
@@ -1204,9 +1204,9 @@ impl Environment {
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
-        let name = DefinedName::attribute(&is.name, "induction");
+        let name = LocalName::attribute(&is.name, "induction");
         let lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
-        self.bindings.add_constant(
+        self.bindings.add_local_constant(
             name.clone(),
             vec![],
             lambda_claim.get_type(),
@@ -1336,7 +1336,8 @@ impl Environment {
                 start: condition.name.start_pos(),
                 end: condition.claim.last_token().end_pos(),
             };
-            let condition_name = DefinedName::attribute(&typeclass_name, &condition.name.text());
+            let local_name = LocalName::attribute(&typeclass_name, &condition.name.text());
+            let condition_name = local_name.clone().to_defined();
             self.bindings
                 .check_constant_name_available(&condition.name, &condition_name)?;
             self.definition_ranges.insert(condition_name.clone(), range);
@@ -1364,8 +1365,8 @@ impl Environment {
             let lambda_claim =
                 AcornValue::lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
             let theorem_type = lambda_claim.get_type();
-            self.bindings.add_constant(
-                condition_name.clone(),
+            self.bindings.add_local_constant(
+                local_name.clone(),
                 vec![type_param.clone()],
                 theorem_type.clone(),
                 Some(lambda_claim),
@@ -1381,7 +1382,7 @@ impl Environment {
                 Some(condition_name.to_string()),
             );
             self.add_node(Node::structural(project, self, prop));
-            self.bindings.mark_as_theorem(&condition_name);
+            self.bindings.mark_as_theorem(&local_name);
         }
 
         self.bindings.remove_type(ts.instance_name.text());

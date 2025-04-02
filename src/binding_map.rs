@@ -515,9 +515,38 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<(AcornType, usize, usize)>,
     ) -> PotentialValue {
+        match defined_name {
+            DefinedName::Local(local_name) => {
+                self.add_local_constant(local_name, params, constant_type, definition, constructor)
+            }
+            DefinedName::Instance(instance_name) => {
+                let definition = definition.expect("instance must have a definition");
+                if !params.is_empty() {
+                    panic!("instance may not have parameters");
+                }
+                if constructor.is_some() {
+                    panic!("instance may not be a constructor");
+                }
+                self.instance_definitions
+                    .insert(instance_name.clone(), definition);
+                let value = AcornValue::instance_constant(instance_name, constant_type);
+                PotentialValue::Resolved(value)
+            }
+        }
+    }
+
+    // Adds a constant where we already know it has a local name.
+    pub fn add_local_constant(
+        &mut self,
+        local_name: LocalName,
+        params: Vec<TypeParam>,
+        constant_type: AcornType,
+        definition: Option<AcornValue>,
+        constructor: Option<(AcornType, usize, usize)>,
+    ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
-                panic!("invalid definition for constant {}: {}", defined_name, e);
+                panic!("invalid definition for constant {}: {}", local_name, e);
             }
             if params.is_empty() && definition.has_generic() {
                 panic!("there should not be generic types in non-parametrized definitions");
@@ -526,29 +555,18 @@ impl BindingMap {
                 panic!("there should not be arbitrary types in parametrized definitions");
             }
         }
+        let global_name = GlobalName::new(self.module, local_name.clone());
+
         let value = if params.is_empty() {
             if constant_type.has_generic() {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
-            match &defined_name {
-                DefinedName::Instance(inst) => PotentialValue::Resolved(
-                    AcornValue::instance_constant(inst.clone(), constant_type.clone()),
-                ),
-                DefinedName::Local(local_name) => {
-                    let global_name = GlobalName::new(self.module, local_name.clone());
-                    PotentialValue::Resolved(AcornValue::constant(
-                        global_name,
-                        vec![],
-                        constant_type,
-                    ))
-                }
-            }
+            PotentialValue::Resolved(AcornValue::constant(global_name, vec![], constant_type))
         } else {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
             }
-            let global_name =
-                GlobalName::new(self.module, defined_name.clone().as_local().unwrap());
+            let global_name = GlobalName::new(self.module, local_name.clone());
             PotentialValue::Unresolved(UnresolvedConstant {
                 name: global_name,
                 params,
@@ -557,33 +575,24 @@ impl BindingMap {
         };
 
         // New constants start out not being theorems and are marked as a theorem later.
-        match defined_name {
-            DefinedName::Local(local_name) => {
-                let info = ConstantInfo {
-                    value: value.clone(),
-                    canonical: true,
-                    definition,
-                    theorem: false,
-                    constructor,
-                };
-                self.constant_info.insert(local_name.clone(), info);
+        let info = ConstantInfo {
+            value: value.clone(),
+            canonical: true,
+            definition,
+            theorem: false,
+            constructor,
+        };
+        self.constant_info.insert(local_name.clone(), info);
 
-                match local_name {
-                    LocalName::Attribute(entity_name, attribute) => {
-                        self.attributes
-                            .entry(entity_name)
-                            .or_insert_with(BTreeMap::new)
-                            .insert(attribute, ());
-                    }
-                    LocalName::Unqualified(name) => {
-                        self.unqualified.insert(name, ());
-                    }
-                }
+        match local_name {
+            LocalName::Attribute(entity_name, attribute) => {
+                self.attributes
+                    .entry(entity_name)
+                    .or_insert_with(BTreeMap::new)
+                    .insert(attribute, ());
             }
-            DefinedName::Instance(instance_name) => {
-                // TODO: don't insert into constant_info any more
-                self.instance_definitions
-                    .insert(instance_name.clone(), definition.unwrap());
+            LocalName::Unqualified(name) => {
+                self.unqualified.insert(name, ());
             }
         }
 
@@ -632,10 +641,9 @@ impl BindingMap {
         );
     }
 
-    pub fn mark_as_theorem(&mut self, name: &DefinedName) {
-        let local_name = name.clone().as_local().unwrap();
+    pub fn mark_as_theorem(&mut self, name: &LocalName) {
         self.constant_info
-            .get_mut(&local_name)
+            .get_mut(&name)
             .expect("marking theorem that doesn't exist")
             .theorem = true;
     }
@@ -2172,13 +2180,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant(
-                function_name.clone().to_defined(),
-                vec![],
-                fn_type,
-                None,
-                None,
-            );
+            self.add_local_constant(function_name.clone(), vec![], fn_type, None, None);
         }
 
         // Evaluate the internal value using our modified bindings
