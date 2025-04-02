@@ -373,23 +373,6 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
-    pub fn old_constant(
-        module_id: ModuleId,
-        defined_name: DefinedName,
-        params: Vec<AcornType>,
-        instance_type: AcornType,
-    ) -> AcornValue {
-        assert!(!defined_name.is_instance());
-        let name = GlobalName::new(module_id, defined_name.as_local().unwrap());
-        let ci = ConstantInstance {
-            name,
-            params,
-            instance_type,
-        };
-
-        AcornValue::Constant(ci)
-    }
-
     // Make a constant for an instance attribute.
     pub fn instance_constant(
         typeclass: Typeclass,
