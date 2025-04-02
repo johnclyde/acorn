@@ -1521,7 +1521,7 @@ impl Environment {
                 instance_name,
                 &typeclass.name,
             );
-            let index = self.add_node_old(project, false, conditions_prop, Some(block));
+            let index = self.add_node(Node::block(project, self, block, conditions_prop));
             self.add_node_lines(index, &statement.range());
         }
 
@@ -1540,7 +1540,7 @@ impl Environment {
             instance_name,
             &typeclass.name,
         );
-        self.add_node_old(project, true, equalities_prop, None);
+        self.add_node(Node::structural(project, self, equalities_prop));
 
         // TODO: make sure this instance relationship isn't used to prove earlier statements.
         let class = Class {
@@ -1614,30 +1614,22 @@ impl Environment {
 
                 if self.bindings.is_citation(project, &claim) {
                     // We already know this is true, so we don't need to prove it
-                    self.add_node_old(
-                        project,
-                        true,
-                        Proposition::anonymous(
-                            claim,
-                            self.module_id,
-                            statement.range(),
-                            self.depth,
-                        ),
-                        None,
+                    let prop = Proposition::anonymous(
+                        claim,
+                        self.module_id,
+                        statement.range(),
+                        self.depth,
                     );
+                    self.add_node(Node::structural(project, self, prop));
                     self.add_other_lines(statement);
                 } else {
-                    let index = self.add_node_old(
-                        project,
-                        false,
-                        Proposition::anonymous(
-                            claim,
-                            self.module_id,
-                            statement.range(),
-                            self.depth,
-                        ),
-                        None,
+                    let prop = Proposition::anonymous(
+                        claim,
+                        self.module_id,
+                        statement.range(),
+                        self.depth,
                     );
+                    let index = self.add_node(Node::claim(project, self, prop));
                     self.add_node_lines(index, &statement.range());
                 }
                 Ok(())
@@ -1668,13 +1660,8 @@ impl Environment {
 
                 let (outer_claim, range) =
                     block.externalize_last_claim(self, &fas.body.right_brace)?;
-
-                let index = self.add_node_old(
-                    project,
-                    false,
-                    Proposition::anonymous(outer_claim, self.module_id, range, self.depth),
-                    Some(block),
-                );
+                let prop = Proposition::anonymous(outer_claim, self.module_id, range, self.depth);
+                let index = self.add_node(Node::block(project, self, block, prop));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1807,7 +1794,7 @@ impl Environment {
                     }
                 };
 
-                let index = self.add_node_old(project, false, prop, Some(block));
+                let index = self.add_node(Node::block(project, self, block, prop));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1832,7 +1819,7 @@ impl Environment {
                     self.depth,
                 );
 
-                let index = self.add_node_old(project, false, vacuous_prop, Some(block));
+                let index = self.add_node(Node::block(project, self, block, vacuous_prop));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1885,7 +1872,7 @@ impl Environment {
                             statement.range(),
                             self.depth,
                         );
-                        let index = self.add_node_old(project, false, prop, Some(block));
+                        let index = self.add_node(Node::block(project, self, block, prop));
                         self.add_node_lines(index, &body.range());
                         return Ok(());
                     }
@@ -1898,7 +1885,7 @@ impl Environment {
                         statement.range(),
                         self.depth,
                     );
-                    let index = self.add_node_old(project, false, vacuous_prop, Some(block));
+                    let index = self.add_node(Node::block(project, self, block, vacuous_prop));
                     self.add_node_lines(index, &body.range());
                 }
                 Err(ms
