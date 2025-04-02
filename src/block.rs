@@ -354,7 +354,7 @@ impl Block {
 pub struct Node {
     // Whether this proposition has already been proved structurally.
     // For example, this could be an axiom, or a definition.
-    pub structural: bool,
+    structural: bool,
 
     // The proposition represented by this tree.
     // If this proposition has a block, this represents the "external claim".
