@@ -486,14 +486,23 @@ impl BindingMap {
                 panic!("there should not be arbitrary types in parametrized definitions");
             }
         }
-        if params.is_empty() && constant_type.has_generic() {
-            panic!("there should not be generic types in non-parametrized constant types");
-        }
-        if !params.is_empty() && constant_type.has_arbitrary() {
-            panic!("there should not be arbitrary types in parametrized constant types");
-        }
-        let global_name = GlobalName::new(self.module, defined_name.clone());
-        let value = PotentialValue::constant(global_name, constant_type.clone(), params.clone());
+        let value = if params.is_empty() {
+            if constant_type.has_generic() {
+                panic!("there should not be generic types in non-parametrized constant types");
+            }
+            let global_name = GlobalName::new(self.module, defined_name.clone());
+            PotentialValue::Resolved(AcornValue::constant(global_name, vec![], constant_type))
+        } else {
+            if constant_type.has_arbitrary() {
+                panic!("there should not be arbitrary types in parametrized constant types");
+            }
+            let global_name = GlobalName::new(self.module, defined_name.clone());
+            PotentialValue::Unresolved(UnresolvedConstant {
+                name: global_name,
+                params,
+                generic_type: constant_type,
+            })
+        };
 
         // New constants start out not being theorems and are marked as a theorem later.
         let info = ConstantInfo {

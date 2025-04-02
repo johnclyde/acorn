@@ -69,6 +69,14 @@ impl DefinedName {
         }
     }
 
+    pub fn to_local(self) -> Option<LocalName> {
+        match self {
+            DefinedName::Unqualified(name) => Some(LocalName::Unqualified(name)),
+            DefinedName::Attribute(class, attr) => Some(LocalName::Attribute(class, attr)),
+            DefinedName::Instance(..) => None,
+        }
+    }
+
     // Just use this for testing.
     pub fn guess(s: &str) -> DefinedName {
         if s.contains('.') {
