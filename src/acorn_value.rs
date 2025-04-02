@@ -3,7 +3,7 @@ use std::fmt;
 use crate::acorn_type::{AcornType, Class};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::names::{GlobalName, LocalName};
+use crate::names::{GlobalName, DefinedName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -377,12 +377,12 @@ impl AcornValue {
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
-        let ci = if let LocalName::Instance(typeclass, attr, class_name) = name.local_name {
+        let ci = if let DefinedName::Instance(typeclass, attr, class_name) = name.local_name {
             // Prevent us from creating a bad-format constant.
             assert!(params.is_empty());
             let attr_name = GlobalName::new(
                 typeclass.module_id,
-                LocalName::Attribute(typeclass.name, attr),
+                DefinedName::Attribute(typeclass.name, attr),
             );
             let class = Class {
                 module_id: name.module_id,
@@ -1708,7 +1708,7 @@ impl AcornValue {
                     if c.name.module_id != class.module_id {
                         return None;
                     }
-                    if let LocalName::Attribute(base, member) = &c.name.local_name {
+                    if let DefinedName::Attribute(base, member) = &c.name.local_name {
                         if base == &class.name {
                             return Some(member.to_string());
                         }

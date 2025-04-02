@@ -10,7 +10,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
-use crate::names::LocalName;
+use crate::names::DefinedName;
 use crate::project::Project;
 use crate::proposition::{Proposition, SourceType};
 use crate::statement::Body;
@@ -121,7 +121,7 @@ impl Block {
         let mut internal_args = vec![];
         for (arg_name, generic_arg_type) in &args {
             let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
-            let arg_name = LocalName::unqualified(arg_name);
+            let arg_name = DefinedName::unqualified(arg_name);
             let potential =
                 subenv
                     .bindings
@@ -141,7 +141,7 @@ impl Block {
                     // Within the theorem block, the theorem is treated like a function,
                     // with propositions to define its identity.
                     // This makes it less annoying to define inductive hypotheses.
-                    subenv.add_identity_props(project, &LocalName::unqualified(name));
+                    subenv.add_identity_props(project, &DefinedName::unqualified(name));
                 }
 
                 if let Some((unbound_premise, premise_range)) = premise {
@@ -179,7 +179,7 @@ impl Block {
                 // Inside the block, the pattern arguments are constants.
                 let mut arg_values = vec![];
                 for (arg_name, arg_type) in pattern_args {
-                    let arg_name = LocalName::unqualified(&arg_name);
+                    let arg_name = DefinedName::unqualified(&arg_name);
                     let potential =
                         subenv
                             .bindings

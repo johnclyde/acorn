@@ -11,7 +11,7 @@ use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::{GlobalName, LocalName};
+use crate::names::{DefinedName, GlobalName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -62,7 +62,7 @@ pub struct Environment {
     pub nodes: Vec<Node>,
 
     // The region in the source document where a name was defined
-    definition_ranges: HashMap<LocalName, Range>,
+    definition_ranges: HashMap<DefinedName, Range>,
 
     // Whether a plain "false" is anywhere in this environment.
     // This indicates that the environment is supposed to have contradictory facts.
@@ -168,7 +168,7 @@ impl Environment {
 
     // Adds a proposition, or multiple propositions, to represent the definition of the provided
     // constant.
-    pub fn add_identity_props(&mut self, project: &Project, constant_name: &LocalName) {
+    pub fn add_identity_props(&mut self, project: &Project, constant_name: &DefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -214,7 +214,7 @@ impl Environment {
         self.add_node(Node::structural(project, self, prop));
     }
 
-    pub fn get_definition(&self, name: &LocalName) -> Option<&AcornValue> {
+    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         self.bindings.get_definition(name)
     }
 
@@ -310,7 +310,7 @@ impl Environment {
     fn add_let_statement(
         &mut self,
         project: &Project,
-        constant_name: LocalName,
+        constant_name: DefinedName,
         ls: &LetStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -387,7 +387,7 @@ impl Environment {
     fn add_define_statement(
         &mut self,
         project: &Project,
-        constant_name: LocalName,
+        constant_name: DefinedName,
         self_type: Option<&AcornType>,
         class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
@@ -497,7 +497,7 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings
                 .check_unqualified_name_available(&statement.first_token, &name)?;
-            let name = LocalName::unqualified(name);
+            let name = DefinedName::unqualified(name);
             self.definition_ranges.insert(name, range.clone());
         }
 
@@ -554,7 +554,7 @@ impl Environment {
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
             self.bindings.add_constant(
-                LocalName::unqualified(name),
+                DefinedName::unqualified(name),
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
@@ -591,7 +591,7 @@ impl Environment {
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
         if let Some(name) = &ts.name {
-            let name = LocalName::unqualified(name);
+            let name = DefinedName::unqualified(name);
             self.bindings.mark_as_theorem(&name);
         }
 
@@ -623,7 +623,7 @@ impl Environment {
 
         // Define the quantifiers as constants
         for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
-            let name = LocalName::unqualified(quant_name);
+            let name = DefinedName::unqualified(quant_name);
             self.bindings
                 .add_constant(name, vec![], quant_type.clone(), None, None);
         }
@@ -665,7 +665,7 @@ impl Environment {
             start: statement.first_token.start_pos(),
             end: fss.satisfy_token.end_pos(),
         };
-        let name = LocalName::unqualified(&fss.name);
+        let name = DefinedName::unqualified(&fss.name);
         self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
@@ -710,7 +710,7 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
-        let local_name = LocalName::unqualified(&fss.name);
+        let local_name = DefinedName::unqualified(&fss.name);
         let global_name = GlobalName::new(self.module_id, local_name.clone());
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         self.bindings
@@ -778,7 +778,7 @@ impl Environment {
                     field_name_token.text()
                 )));
             }
-            let member_fn_name = LocalName::attribute(&ss.name, field_name_token.text());
+            let member_fn_name = DefinedName::attribute(&ss.name, field_name_token.text());
             member_fn_names.push(member_fn_name);
         }
 
@@ -837,7 +837,7 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
-        let new_fn_name = LocalName::attribute(&ss.name, "new");
+        let new_fn_name = DefinedName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let new_fn = self.bindings.add_constant(
             new_fn_name,
@@ -998,7 +998,7 @@ impl Environment {
                 // This provides a base case
                 has_base = true;
             }
-            let member_name = LocalName::attribute(&is.name, name_token.text());
+            let member_name = DefinedName::attribute(&is.name, name_token.text());
             constructors.push((member_name, type_list));
         }
         if !has_base {
@@ -1194,7 +1194,7 @@ impl Environment {
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
-        let name = LocalName::attribute(&is.name, "induction");
+        let name = DefinedName::attribute(&is.name, "induction");
         let lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         self.bindings.add_constant(
             name.clone(),
@@ -1251,7 +1251,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        LocalName::attribute(&cs.name, &ls.name),
+                        DefinedName::attribute(&cs.name, &ls.name),
                         ls,
                         substatement.range(),
                     )?;
@@ -1259,7 +1259,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        LocalName::attribute(&cs.name, &ds.name),
+                        DefinedName::attribute(&cs.name, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1306,7 +1306,7 @@ impl Environment {
         for (attr_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.to_generic();
-            let constant_name = LocalName::attribute(typeclass_name, attr_name.text());
+            let constant_name = DefinedName::attribute(typeclass_name, attr_name.text());
             self.bindings
                 .check_constant_name_available(attr_name, &constant_name)?;
             self.bindings.add_constant(
@@ -1326,7 +1326,7 @@ impl Environment {
                 start: condition.name.start_pos(),
                 end: condition.claim.last_token().end_pos(),
             };
-            let condition_name = LocalName::attribute(&typeclass_name, &condition.name.text());
+            let condition_name = DefinedName::attribute(&typeclass_name, &condition.name.text());
             self.bindings
                 .check_constant_name_available(&condition.name, &condition_name)?;
             self.definition_ranges.insert(condition_name.clone(), range);
@@ -1410,7 +1410,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        LocalName::instance(&typeclass, &ls.name, instance_name),
+                        DefinedName::instance(&typeclass, &ls.name, instance_name),
                         ls,
                         substatement.range(),
                     )?;
@@ -1430,7 +1430,7 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        LocalName::instance(&typeclass, &ds.name, instance_name),
+                        DefinedName::instance(&typeclass, &ds.name, instance_name),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1459,7 +1459,7 @@ impl Environment {
                 .get_attributes(&project, typeclass.module_id, &typeclass.name);
         let mut conditions = vec![];
         for attr_name in attributes.keys() {
-            let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);
+            let tc_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
             if self.bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.
@@ -1473,7 +1473,7 @@ impl Environment {
                 continue;
             }
 
-            let name = LocalName::instance(&typeclass, attr_name, instance_name);
+            let name = DefinedName::instance(&typeclass, attr_name, instance_name);
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
@@ -1552,7 +1552,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
-                    LocalName::unqualified(&ls.name),
+                    DefinedName::unqualified(&ls.name),
                     ls,
                     statement.range(),
                 )
@@ -1562,7 +1562,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
-                    LocalName::unqualified(&ds.name),
+                    DefinedName::unqualified(&ds.name),
                     None,
                     None,
                     ds,
@@ -2102,7 +2102,7 @@ impl Environment {
 
     // Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
-        let name = LocalName::guess(name);
+        let name = DefinedName::guess(name);
         let env_value = match self.bindings.get_definition(&name) {
             Some(t) => t,
             None => panic!("{} not found in environment", name),
@@ -2112,18 +2112,18 @@ impl Environment {
 
     // Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
-        let name1 = LocalName::guess(name1);
+        let name1 = DefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = LocalName::guess(name2);
+        let name2 = DefinedName::guess(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_eq!(def1, def2);
     }
 
     // Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
-        let name1 = LocalName::guess(name1);
+        let name1 = DefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = LocalName::guess(name2);
+        let name2 = DefinedName::guess(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_ne!(def1, def2);
     }
