@@ -1511,24 +1511,6 @@ impl Environment {
             self.add_node_lines(index, &statement.range());
         }
 
-        // After the instance statement, we know that the defined constants are equal to
-        // their parametrized versions. We gather those into a single proposition.
-        let equalities = pairs
-            .into_iter()
-            .map(|(left, right)| AcornValue::equals(left, right))
-            .collect();
-        let equalities_claim = AcornValue::reduce(BinaryOp::And, equalities);
-        let equalities_prop = Proposition::instance(
-            Some(equalities_claim),
-            self.module_id,
-            statement.range(),
-            self.depth,
-            instance_name,
-            &typeclass.name,
-        );
-        self.add_node(Node::structural(project, self, equalities_prop));
-
-        // TODO: make sure this instance relationship isn't used to prove earlier statements.
         let class = Class {
             module_id: self.module_id,
             name: instance_name.to_string(),

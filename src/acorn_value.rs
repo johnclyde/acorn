@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, Class};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::names::{GlobalName, LocalName};
@@ -377,10 +377,29 @@ impl AcornValue {
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
-        let ci = ConstantInstance {
-            name,
-            params,
-            instance_type,
+        let ci = if let LocalName::Instance(typeclass, attr, class_name) = name.local_name {
+            // Prevent us from creating a bad-format constant.
+            assert!(params.is_empty());
+            let attr_name = GlobalName::new(
+                typeclass.module_id,
+                LocalName::Attribute(typeclass.name, attr),
+            );
+            let class = Class {
+                module_id: name.module_id,
+                name: class_name,
+            };
+            let param = AcornType::Data(class, vec![]);
+            ConstantInstance {
+                name: attr_name,
+                params: vec![param],
+                instance_type,
+            }
+        } else {
+            ConstantInstance {
+                name,
+                params,
+                instance_type,
+            }
         };
         AcornValue::Constant(ci)
     }
