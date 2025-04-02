@@ -361,7 +361,7 @@ pub enum Node {
     // The optional proposition is what we can use externally once the block is proven.
     // It is relative to the outside environment.
     // Other than the external claim, nothing else in the block is visible outside the block.
-    Block(Block, Proposition),
+    Block(Block, Option<Proposition>),
 }
 
 impl Node {
@@ -375,8 +375,16 @@ impl Node {
         Node::Claim(prop)
     }
 
-    pub fn block(project: &Project, env: &Environment, block: Block, prop: Proposition) -> Node {
-        let prop = env.bindings.expand_theorems(project, prop);
+    pub fn block(
+        project: &Project,
+        env: &Environment,
+        block: Block,
+        prop: Option<Proposition>,
+    ) -> Node {
+        let prop = match prop {
+            Some(prop) => Some(env.bindings.expand_theorems(project, prop)),
+            None => None,
+        };
         Node::Block(block, prop)
     }
 
@@ -408,7 +416,7 @@ impl Node {
         match self {
             Node::Structural(p) => Some(p),
             Node::Claim(p) => Some(p),
-            Node::Block(_, p) => Some(p),
+            Node::Block(_, p) => p.as_ref(),
         }
     }
 

@@ -296,7 +296,7 @@ impl Environment {
             )
         };
         let prop = Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth);
-        let index = self.add_node(Node::block(project, self, block, prop));
+        let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_line_types(
             LineType::Node(index),
             first_line,
@@ -585,7 +585,7 @@ impl Environment {
                 statement.last_line(),
                 ts.body.as_ref(),
             )?;
-            Node::block(project, self, block, prop)
+            Node::block(project, self, block, Some(prop))
         };
 
         let index = self.add_node(node);
@@ -736,7 +736,7 @@ impl Environment {
             &fss.name,
         );
 
-        let index = self.add_node(Node::block(project, self, block, prop));
+        let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_node_lines(index, &statement.range());
         Ok(())
     }
@@ -810,7 +810,7 @@ impl Environment {
             )?;
             let prop =
                 Proposition::inhabited(self.module_id, &ss.name, statement.range(), self.depth);
-            let index = self.add_node(Node::block(project, self, block, prop));
+            let index = self.add_node(Node::block(project, self, block, Some(prop)));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
         } else {
@@ -1508,7 +1508,7 @@ impl Environment {
                 instance_name,
                 &typeclass.name,
             );
-            let index = self.add_node(Node::block(project, self, block, conditions_prop));
+            let index = self.add_node(Node::block(project, self, block, Some(conditions_prop)));
             self.add_node_lines(index, &statement.range());
         }
 
@@ -1648,7 +1648,7 @@ impl Environment {
                 let (outer_claim, range) =
                     block.externalize_last_claim(self, &fas.body.right_brace)?;
                 let prop = Proposition::anonymous(outer_claim, self.module_id, range, self.depth);
-                let index = self.add_node(Node::block(project, self, block, prop));
+                let index = self.add_node(Node::block(project, self, block, Some(prop)));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1781,7 +1781,7 @@ impl Environment {
                     }
                 };
 
-                let index = self.add_node(Node::block(project, self, block, prop));
+                let index = self.add_node(Node::block(project, self, block, Some(prop)));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1806,7 +1806,7 @@ impl Environment {
                     self.depth,
                 );
 
-                let index = self.add_node(Node::block(project, self, block, vacuous_prop));
+                let index = self.add_node(Node::block(project, self, block, Some(vacuous_prop)));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1859,7 +1859,7 @@ impl Environment {
                             statement.range(),
                             self.depth,
                         );
-                        let index = self.add_node(Node::block(project, self, block, prop));
+                        let index = self.add_node(Node::block(project, self, block, Some(prop)));
                         self.add_node_lines(index, &body.range());
                         return Ok(());
                     }
@@ -1872,7 +1872,8 @@ impl Environment {
                         statement.range(),
                         self.depth,
                     );
-                    let index = self.add_node(Node::block(project, self, block, vacuous_prop));
+                    let index =
+                        self.add_node(Node::block(project, self, block, Some(vacuous_prop)));
                     self.add_node_lines(index, &body.range());
                 }
                 Err(ms
