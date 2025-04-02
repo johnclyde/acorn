@@ -447,7 +447,7 @@ impl Node {
         self.block.as_ref()
     }
 
-    // The block name is used to cache the premises used for the entire block.
+    // The block name is used to describe the block when caching block -> premise dependencies.
     pub fn block_name(&self) -> Option<String> {
         match &self.claim.source.source_type {
             SourceType::Theorem(name) => name.clone(),
@@ -466,6 +466,12 @@ impl Node {
 
     pub fn get_fact(&self) -> Fact {
         Fact::Proposition(self.claim.clone())
+    }
+
+    // The fact name is used to describe the premise when caching block -> premise dependencies.
+    // All importable facts should have a fact name.
+    pub fn fact_name(&self) -> Option<String> {
+        self.claim.source.fact_name()
     }
 
     // Returns the name and value, if this node is a theorem.
