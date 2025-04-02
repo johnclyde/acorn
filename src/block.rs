@@ -300,7 +300,12 @@ impl Block {
         token: &Token,
     ) -> compilation::Result<(AcornValue, Range)> {
         let prop = match self.env.nodes.last() {
-            Some(node) => node.proposition(),
+            Some(node) => match node.proposition() {
+                Some(p) => p,
+                None => {
+                    return Err(token.error("expected a proposition in this block"));
+                }
+            },
             None => {
                 return Err(token.error("expected a proposition in this block"));
             }
@@ -353,7 +358,7 @@ pub enum Node {
     Claim(Proposition),
 
     // A block has its own environment inside. We need to validate everything in the block.
-    // The proposition is the external claim that we can use once the block is proven.
+    // The optional proposition is what we can use externally once the block is proven.
     // It is relative to the outside environment.
     // Other than the external claim, nothing else in the block is visible outside the block.
     Block(Block, Proposition),
@@ -398,17 +403,18 @@ impl Node {
         }
     }
 
-    fn proposition(&self) -> &Proposition {
+    // The proposition at this node, if there is one.
+    fn proposition(&self) -> Option<&Proposition> {
         match self {
-            Node::Structural(p) => p,
-            Node::Claim(p) => p,
-            Node::Block(_, p) => p,
+            Node::Structural(p) => Some(p),
+            Node::Claim(p) => Some(p),
+            Node::Block(_, p) => Some(p),
         }
     }
 
     // The block name is used to describe the block when caching block -> premise dependencies.
     pub fn block_name(&self) -> Option<String> {
-        match &self.proposition().source.source_type {
+        match &self.proposition()?.source.source_type {
             SourceType::Theorem(name) => name.clone(),
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::TypeDefinition(type_name, suffix) => {
@@ -420,31 +426,38 @@ impl Node {
 
     // Whether the fact at this node is importable.
     pub fn importable(&self) -> bool {
-        self.proposition().source.importable
+        match self.proposition() {
+            None => false,
+            Some(p) => p.source.importable,
+        }
     }
 
     // Returns the fact at this node, if there is one.
     pub fn get_fact(&self) -> Option<Fact> {
-        Some(Fact::Proposition(self.proposition().clone()))
+        Some(Fact::Proposition(self.proposition()?.clone()))
     }
 
     // The fact name is used to describe the premise when caching block -> premise dependencies.
     // All importable facts should have a fact name.
     pub fn fact_name(&self) -> Option<String> {
-        self.proposition().source.fact_name()
+        self.proposition()?.source.fact_name()
     }
 
     // Returns the name and value, if this node is a theorem.
     pub fn as_theorem(&self) -> Option<(&str, &AcornValue)> {
-        if let Some(theorem_name) = self.proposition().theorem_name() {
-            Some((theorem_name, &self.proposition().value))
+        let prop = self.proposition()?;
+        if let Some(theorem_name) = prop.theorem_name() {
+            Some((theorem_name, &prop.value))
         } else {
             None
         }
     }
 
     pub fn is_axiom(&self) -> bool {
-        self.proposition().source.is_axiom()
+        match self.proposition() {
+            Some(p) => p.source.is_axiom(),
+            None => false,
+        }
     }
 }
 
@@ -590,11 +603,12 @@ impl<'a> NodeCursor<'a> {
                 last_line,
             ))
         } else {
-            let first_line = node.proposition().source.range.start.line;
-            let last_line = node.proposition().source.range.end.line;
+            let prop = node.proposition().unwrap();
+            let first_line = prop.source.range.start.line;
+            let last_line = prop.source.range.end.line;
             return Ok(GoalContext::new(
                 self.env(),
-                Goal::Prove(node.proposition().clone()),
+                Goal::Prove(prop.clone()),
                 first_line,
                 first_line,
                 last_line,
