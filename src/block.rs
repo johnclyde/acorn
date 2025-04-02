@@ -364,7 +364,7 @@ pub struct Node {
     // Besides the claim, nothing else from the block is visible externally.
     //
     // This claim needs to be proved for nonstructural propositions, when there is no block.
-    pub claim: Proposition,
+    claim: Proposition,
 
     // The body of the proposition, when it has an associated block.
     // When there is a block, proving every proposition in the block implies that the
@@ -481,6 +481,10 @@ impl Node {
         } else {
             None
         }
+    }
+
+    pub fn is_axiom(&self) -> bool {
+        self.claim.source.is_axiom()
     }
 }
 

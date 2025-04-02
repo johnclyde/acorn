@@ -2042,7 +2042,7 @@ impl Environment {
                 Some(LineType::Node(i)) => {
                     path.push(i);
                     let node = &env.nodes[i];
-                    if node.claim.source.is_axiom() {
+                    if node.is_axiom() {
                         return Err(format!("line {} is an axiom", line + 1));
                     }
                     match node.block() {
@@ -2077,7 +2077,7 @@ impl Environment {
                         match env.get_line_type(slide) {
                             Some(LineType::Node(i)) => {
                                 let node = &env.nodes[i];
-                                if node.claim.source.is_axiom() {
+                                if node.is_axiom() {
                                     return Err(format!("slide to axiom, line {}", slide + 1));
                                 }
                                 if node.block().is_none() {

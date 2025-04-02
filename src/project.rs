@@ -436,7 +436,7 @@ impl Project {
         // Add facts from this file itself
         if let Some(local_premises) = premises.get(&env.module_id) {
             for node in env.nodes.iter().take(node_index) {
-                let name = match node.claim.source.fact_name() {
+                let name = match node.fact_name() {
                     Some(name) => name,
                     None => continue,
                 };
