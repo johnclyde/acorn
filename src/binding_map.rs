@@ -200,14 +200,14 @@ impl BindingMap {
         source: &dyn ErrorSource,
         name: &str,
     ) -> compilation::Result<()> {
-        self.check_constant_name_available(source, &DefinedName::Unqualified(name.to_string()))
+        self.check_constant_name_available(source, &DefinedName::unqualified(name))
     }
 
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         if self.constant_info.contains_key(name) {
             return true;
         }
-        if let DefinedName::Unqualified(word) = name {
+        if let DefinedName::Local(LocalName::Unqualified(word)) = name {
             self.name_to_module.contains_key(word)
         } else {
             false
@@ -532,13 +532,13 @@ impl BindingMap {
         self.constant_info.insert(defined_name.clone(), info);
 
         match defined_name {
-            DefinedName::Attribute(entity_name, attribute) => {
+            DefinedName::Local(LocalName::Attribute(entity_name, attribute)) => {
                 self.attributes
                     .entry(entity_name)
                     .or_insert_with(BTreeMap::new)
                     .insert(attribute, ());
             }
-            DefinedName::Unqualified(name) => {
+            DefinedName::Local(LocalName::Unqualified(name)) => {
                 self.unqualified.insert(name, ());
             }
             _ => {}
@@ -549,7 +549,7 @@ impl BindingMap {
 
     // Be really careful about this, it seems likely to break things.
     fn remove_constant(&mut self, name: &DefinedName) {
-        if let DefinedName::Unqualified(word) = name {
+        if let DefinedName::Local(LocalName::Unqualified(word)) = name {
             // Remove the unqualified name from the list of unqualified names.
             self.unqualified.remove(word);
         }
@@ -2373,7 +2373,7 @@ impl BindingMap {
     // Find the next one that's available.
     fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
-            let name = DefinedName::Unqualified(format!("{}{}", prefix, next_index));
+            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
             *next_index += 1;
             if !self.constant_name_in_use(&name) {
                 return name.to_string();

@@ -48,10 +48,7 @@ impl LocalName {
     }
 
     pub fn to_defined(self) -> DefinedName {
-        match self {
-            LocalName::Unqualified(name) => DefinedName::Unqualified(name),
-            LocalName::Attribute(class, attr) => DefinedName::Attribute(class, attr),
-        }
+        DefinedName::Local(self)
     }
 
     // Return this constant's name as a chain of strings, if that's possible.
@@ -66,13 +63,8 @@ impl LocalName {
 // The DefinedName describes how a constant, type, or typeclass was defined.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub enum DefinedName {
-    // An unqualified name has no dots.
-    Unqualified(String),
-
-    // An attribute can either be of a class or a typeclass.
-    // The first string is the class or typeclass name, defined in this module.
-    // The second string is the attribute name.
-    Attribute(String, String),
+    // A regular local name.
+    Local(LocalName),
 
     // An instance name is like Ring.add<Int>.
     // The typeclass doesn't have to be defined here.
@@ -84,8 +76,7 @@ pub enum DefinedName {
 impl fmt::Display for DefinedName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DefinedName::Unqualified(name) => write!(f, "{}", name),
-            DefinedName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
+            DefinedName::Local(name) => write!(f, "{}", name),
             DefinedName::Instance(tc, attr, class) => {
                 write!(f, "{}.{}<{}>", tc.name, attr, class)
             }
@@ -95,11 +86,11 @@ impl fmt::Display for DefinedName {
 
 impl DefinedName {
     pub fn unqualified(name: &str) -> DefinedName {
-        DefinedName::Unqualified(name.to_string())
+        DefinedName::Local(LocalName::Unqualified(name.to_string()))
     }
 
     pub fn attribute(class: &str, attr: &str) -> DefinedName {
-        DefinedName::Attribute(class.to_string(), attr.to_string())
+        DefinedName::Local(LocalName::Attribute(class.to_string(), attr.to_string()))
     }
 
     pub fn instance(tc: &Typeclass, attr: &str, class: &str) -> DefinedName {
@@ -108,7 +99,7 @@ impl DefinedName {
 
     pub fn is_qualified(&self) -> bool {
         match self {
-            DefinedName::Unqualified(_) => false,
+            DefinedName::Local(LocalName::Unqualified(_)) => false,
             _ => true,
         }
     }
@@ -122,31 +113,21 @@ impl DefinedName {
 
     pub fn as_attribute(&self) -> Option<(&str, &str)> {
         match self {
-            DefinedName::Attribute(class, attr) => Some((class, attr)),
+            DefinedName::Local(LocalName::Attribute(class, attr)) => Some((class, attr)),
             _ => None,
         }
     }
 
     pub fn as_local(self) -> Option<LocalName> {
         match self {
-            DefinedName::Unqualified(name) => Some(LocalName::Unqualified(name)),
-            DefinedName::Attribute(class, attr) => Some(LocalName::Attribute(class, attr)),
+            DefinedName::Local(name) => Some(name),
             DefinedName::Instance(..) => None,
         }
     }
 
     // Just use this for testing.
     pub fn guess(s: &str) -> DefinedName {
-        if s.contains('.') {
-            let parts: Vec<&str> = s.split('.').collect();
-            if parts.len() == 2 {
-                DefinedName::Attribute(parts[0].to_string(), parts[1].to_string())
-            } else {
-                panic!("Unguessable name format: {}", s);
-            }
-        } else {
-            DefinedName::Unqualified(s.to_string())
-        }
+        DefinedName::Local(LocalName::guess(s))
     }
 }
 
