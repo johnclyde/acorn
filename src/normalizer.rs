@@ -79,7 +79,7 @@ impl Normalizer {
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
         let name = format!("s{}", skolem_index);
-        AcornValue::constant(SKOLEM, DefinedName::Unqualified(name), vec![], acorn_type)
+        AcornValue::old_constant(SKOLEM, DefinedName::Unqualified(name), vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -415,11 +415,11 @@ impl Normalizer {
             Atom::True => AcornValue::Bool(true),
             Atom::GlobalConstant(i) => {
                 let name = self.constant_map.name_for_global_id(*i).clone();
-                AcornValue::constant(name.module_id, name.local_name, vec![], acorn_type)
+                AcornValue::old_constant(name.module_id, name.local_name, vec![], acorn_type)
             }
             Atom::LocalConstant(i) => {
                 let name = self.constant_map.name_for_local_id(*i).clone();
-                AcornValue::constant(name.module_id, name.local_name, vec![], acorn_type)
+                AcornValue::old_constant(name.module_id, name.local_name, vec![], acorn_type)
             }
             Atom::Monomorph(i) => AcornValue::Constant(self.type_map.get_monomorph(*i).clone()),
             Atom::Variable(i) => {
@@ -436,7 +436,7 @@ impl Normalizer {
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
                 let local_name = DefinedName::Unqualified(format!("s{}", i));
-                AcornValue::constant(SKOLEM, local_name, vec![], acorn_type)
+                AcornValue::old_constant(SKOLEM, local_name, vec![], acorn_type)
             }
         }
     }

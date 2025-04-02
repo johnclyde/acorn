@@ -490,7 +490,7 @@ impl BindingMap {
             if constant_type.has_generic() {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
-            PotentialValue::Resolved(AcornValue::constant(
+            PotentialValue::Resolved(AcornValue::old_constant(
                 self.module,
                 defined_name.clone(),
                 vec![],

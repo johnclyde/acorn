@@ -726,7 +726,7 @@ impl Environment {
             None,
         );
         let function_constant =
-            AcornValue::constant(self.module_id, local_name, vec![], function_type);
+            AcornValue::old_constant(self.module_id, local_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types

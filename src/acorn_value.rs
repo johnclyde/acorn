@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class};
+use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
@@ -373,7 +373,7 @@ impl AcornValue {
         AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
     }
 
-    pub fn constant(
+    pub fn old_constant(
         module_id: ModuleId,
         defined_name: DefinedName,
         params: Vec<AcornType>,
@@ -403,6 +403,39 @@ impl AcornValue {
                 params,
                 instance_type,
             }
+        };
+        AcornValue::Constant(ci)
+    }
+
+    // Make a constant for an instance attribute.
+    pub fn instance_constant(
+        typeclass: Typeclass,
+        attr: String,
+        class: Class,
+        instance_type: AcornType,
+    ) -> AcornValue {
+        let attr_name = GlobalName::new(
+            typeclass.module_id,
+            DefinedName::Attribute(typeclass.name, attr),
+        );
+        let param = AcornType::Data(class, vec![]);
+        let ci = ConstantInstance {
+            name: attr_name,
+            params: vec![param],
+            instance_type,
+        };
+        AcornValue::Constant(ci)
+    }
+
+    pub fn constant(
+        name: GlobalName,
+        params: Vec<AcornType>,
+        instance_type: AcornType,
+    ) -> AcornValue {
+        let ci = ConstantInstance {
+            name,
+            params,
+            instance_type,
         };
         AcornValue::Constant(ci)
     }
