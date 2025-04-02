@@ -749,7 +749,7 @@ impl Environment {
             &fss.name,
         );
 
-        let index = self.add_node_old(project, false, prop, Some(block));
+        let index = self.add_node(Node::block(project, self, block, prop));
         self.add_node_lines(index, &statement.range());
         Ok(())
     }
@@ -823,7 +823,7 @@ impl Environment {
             )?;
             let prop =
                 Proposition::inhabited(self.module_id, &ss.name, statement.range(), self.depth);
-            let index = self.add_node_old(project, false, prop, Some(block));
+            let index = self.add_node(Node::block(project, self, block, prop));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
         } else {
@@ -886,19 +886,15 @@ impl Environment {
             let constraint_claim =
                 AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
                     .to_generic();
-            self.add_node_old(
-                project,
-                true,
-                Proposition::type_definition(
-                    constraint_claim,
-                    self.module_id,
-                    range,
-                    self.depth,
-                    ss.name.clone(),
-                    "constraint".to_string(),
-                ),
-                None,
+            let prop = Proposition::type_definition(
+                constraint_claim,
+                self.module_id,
+                range,
+                self.depth,
+                ss.name.clone(),
+                "constraint".to_string(),
             );
+            self.add_node(Node::structural(project, self, prop));
         }
 
         // An object can be recreated by new'ing from its members. Ie:
@@ -914,19 +910,15 @@ impl Environment {
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
         let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
-        self.add_node_old(
-            project,
-            true,
-            Proposition::type_definition(
-                new_claim,
-                self.module_id,
-                range,
-                self.depth,
-                ss.name.clone(),
-                "new".to_string(),
-            ),
-            None,
+        let prop = Proposition::type_definition(
+            new_claim,
+            self.module_id,
+            range,
+            self.depth,
+            ss.name.clone(),
+            "new".to_string(),
         );
+        self.add_node(Node::structural(project, self, prop));
 
         // There are also formulas for new followed by member functions. Ie:
         //   Pair.first(Pair.new(a, b)) = a.
@@ -967,19 +959,15 @@ impl Environment {
                 start: field_name_token.start_pos(),
                 end: field_type_expr.last_token().end_pos(),
             };
-            self.add_node_old(
-                project,
-                true,
-                Proposition::type_definition(
-                    member_claim,
-                    self.module_id,
-                    range,
-                    self.depth,
-                    ss.name.clone(),
-                    field_name_token.text().to_string(),
-                ),
-                None,
+            let prop = Proposition::type_definition(
+                member_claim,
+                self.module_id,
+                range,
+                self.depth,
+                ss.name.clone(),
+                field_name_token.text().to_string(),
             );
+            self.add_node(Node::structural(project, self, prop));
         }
 
         // Clean up the type parameters
@@ -1070,19 +1058,15 @@ impl Environment {
                 let mut quantifiers = i_arg_types.clone();
                 quantifiers.extend(j_arg_types.clone());
                 let claim = AcornValue::forall(quantifiers, inequality);
-                self.add_node_old(
-                    project,
-                    true,
-                    Proposition::type_definition(
-                        claim,
-                        self.module_id,
-                        range,
-                        self.depth,
-                        is.name.clone(),
-                        member_name.to_string(),
-                    ),
-                    None,
+                let prop = Proposition::type_definition(
+                    claim,
+                    self.module_id,
+                    range,
+                    self.depth,
+                    is.name.clone(),
+                    member_name.to_string(),
                 );
+                self.add_node(Node::structural(project, self, prop));
             }
         }
 
@@ -1107,19 +1091,15 @@ impl Environment {
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
         let claim = AcornValue::forall(vec![inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
-        self.add_node_old(
-            project,
-            true,
-            Proposition::type_definition(
-                claim,
-                self.module_id,
-                range,
-                self.depth,
-                is.name.clone(),
-                "new".to_string(),
-            ),
-            None,
+        let prop = Proposition::type_definition(
+            claim,
+            self.module_id,
+            range,
+            self.depth,
+            is.name.clone(),
+            "new".to_string(),
         );
+        self.add_node(Node::structural(project, self, prop));
 
         // The next principle is that each constructor is injective.
         // Ie if Type.construct(x0, x1) = Type.construct(x2, x3) then x0 = x2 and x1 = x3.
@@ -1158,19 +1138,15 @@ impl Environment {
             forall_types.extend_from_slice(&arg_types);
             let claim =
                 AcornValue::forall(forall_types, AcornValue::implies(equality, conjunction));
-            self.add_node_old(
-                project,
-                true,
-                Proposition::type_definition(
-                    claim,
-                    self.module_id,
-                    range,
-                    self.depth,
-                    is.name.clone(),
-                    member_name.to_string(),
-                ),
-                None,
+            let prop = Proposition::type_definition(
+                claim,
+                self.module_id,
+                range,
+                self.depth,
+                is.name.clone(),
+                member_name.to_string(),
             );
+            self.add_node(Node::structural(project, self, prop));
         }
 
         // Structural induction.
@@ -1245,19 +1221,15 @@ impl Environment {
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
         let forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
-        self.add_node_old(
-            project,
+        let prop = Proposition::theorem(
             true,
-            Proposition::theorem(
-                true,
-                forall_claim,
-                self.module_id,
-                range,
-                self.depth,
-                Some(name.to_string()),
-            ),
-            None,
+            forall_claim,
+            self.module_id,
+            range,
+            self.depth,
+            Some(name.to_string()),
         );
+        self.add_node(Node::structural(project, self, prop));
 
         Ok(())
     }
@@ -1412,7 +1384,7 @@ impl Environment {
                 self.depth,
                 Some(condition_name.to_string()),
             );
-            self.add_node_old(project, true, prop, None);
+            self.add_node(Node::structural(project, self, prop));
             self.bindings.mark_as_theorem(&condition_name);
         }
 
