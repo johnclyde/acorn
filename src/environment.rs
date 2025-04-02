@@ -1765,23 +1765,17 @@ impl Environment {
                 let prop = match block.solves(self, &target) {
                     Some((outer_claim, claim_range)) => {
                         block.goal = None;
-                        Proposition::anonymous(outer_claim, self.module_id, claim_range, self.depth)
-                    }
-                    None => {
-                        // The block doesn't contain a solution.
-                        // So, it has no claim that can be externalized. It doesn't really make sense
-                        // to externalize whatever the last proposition is.
-                        // A lot of code expects something, though, so put a vacuous "true" in here.
-                        Proposition::anonymous(
-                            AcornValue::Bool(true),
+                        Some(Proposition::anonymous(
+                            outer_claim,
                             self.module_id,
-                            statement.range(),
+                            claim_range,
                             self.depth,
-                        )
+                        ))
                     }
+                    None => None,
                 };
 
-                let index = self.add_node(Node::block(project, self, block, Some(prop)));
+                let index = self.add_node(Node::block(project, self, block, prop));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1798,15 +1792,7 @@ impl Environment {
                     Some(body),
                 )?;
 
-                // It would be nice to not have to make a vacuous "true" proposition here.
-                let vacuous_prop = Proposition::anonymous(
-                    AcornValue::Bool(true),
-                    self.module_id,
-                    statement.range(),
-                    self.depth,
-                );
-
-                let index = self.add_node(Node::block(project, self, block, Some(vacuous_prop)));
+                let index = self.add_node(Node::block(project, self, block, None));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1864,16 +1850,8 @@ impl Environment {
                         return Ok(());
                     }
 
-                    // This is a vacuous proposition because we only put an externalized
-                    // proposition on the last block.
-                    let vacuous_prop = Proposition::anonymous(
-                        AcornValue::Bool(true),
-                        self.module_id,
-                        statement.range(),
-                        self.depth,
-                    );
-                    let index =
-                        self.add_node(Node::block(project, self, block, Some(vacuous_prop)));
+                    // No proposition here. We only put an externalized proposition on the last block.
+                    let index = self.add_node(Node::block(project, self, block, None));
                     self.add_node_lines(index, &body.range());
                 }
                 Err(ms
