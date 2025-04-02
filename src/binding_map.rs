@@ -10,7 +10,7 @@ use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{ModuleId, FIRST_NORMAL};
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, GlobalName, LocalName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -75,6 +75,9 @@ pub struct BindingMap {
 
     // The default data type to use for numeric literals.
     numerals: Option<Class>,
+
+    // The values of the instance attributes defined in this module.
+    instance_values: HashMap<InstanceName, AcornValue>,
 
     // Stores the instance-of relationships for classes that were defined in this module.
     instance_of: HashMap<Class, HashSet<Typeclass>>,
@@ -173,6 +176,7 @@ impl BindingMap {
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
             numerals: None,
+            instance_values: HashMap::new(),
             instance_of: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
@@ -521,26 +525,45 @@ impl BindingMap {
         };
 
         // New constants start out not being theorems and are marked as a theorem later.
-        let info = ConstantInfo {
-            value: value.clone(),
-            canonical: true,
-            definition,
-            theorem: false,
-            constructor,
-        };
-        self.constant_info.insert(defined_name.clone(), info);
-
         match defined_name {
-            DefinedName::Local(LocalName::Attribute(entity_name, attribute)) => {
-                self.attributes
-                    .entry(entity_name)
-                    .or_insert_with(BTreeMap::new)
-                    .insert(attribute, ());
+            DefinedName::Local(local_name) => {
+                let info = ConstantInfo {
+                    value: value.clone(),
+                    canonical: true,
+                    definition,
+                    theorem: false,
+                    constructor,
+                };
+                let defined_name = DefinedName::Local(local_name.clone());
+                self.constant_info.insert(defined_name, info);
+
+                match local_name {
+                    LocalName::Attribute(entity_name, attribute) => {
+                        self.attributes
+                            .entry(entity_name)
+                            .or_insert_with(BTreeMap::new)
+                            .insert(attribute, ());
+                    }
+                    LocalName::Unqualified(name) => {
+                        self.unqualified.insert(name, ());
+                    }
+                }
             }
-            DefinedName::Local(LocalName::Unqualified(name)) => {
-                self.unqualified.insert(name, ());
+            DefinedName::Instance(instance_name) => {
+                // TODO: don't insert into constant_info any more
+                let info = ConstantInfo {
+                    value: value.clone(),
+                    canonical: true,
+                    definition,
+                    theorem: false,
+                    constructor,
+                };
+                let defined_name = DefinedName::Instance(instance_name.clone());
+                self.constant_info.insert(defined_name, info);
+
+                self.instance_values
+                    .insert(instance_name.clone(), value.clone().force_value());
             }
-            _ => {}
         }
 
         value
