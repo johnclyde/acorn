@@ -139,7 +139,7 @@ impl DefinedName {
         }
     }
 
-    pub fn as_local(self) -> Option<LocalName> {
+    pub fn as_local(&self) -> Option<&LocalName> {
         match self {
             DefinedName::Local(name) => Some(name),
             DefinedName::Instance(..) => None,

@@ -595,18 +595,14 @@ impl BindingMap {
     }
 
     // Be really careful about this, it seems likely to break things.
-    fn remove_constant(&mut self, name: &DefinedName) {
-        if let DefinedName::Local(local_name) = name {
-            if let LocalName::Unqualified(word) = local_name {
-                // Remove the unqualified name from the list of unqualified names.
-                self.unqualified.remove(word);
-            }
-            self.constant_info
-                .remove(&local_name)
-                .expect("constant name not in use");
-        } else {
-            panic!("removing instance name from binding map");
+    fn remove_constant(&mut self, local_name: &LocalName) {
+        if let LocalName::Unqualified(word) = local_name {
+            // Remove the unqualified name from the list of unqualified names.
+            self.unqualified.remove(word);
         }
+        self.constant_info
+            .remove(&local_name)
+            .expect("constant name not in use");
     }
 
     // Adds a local alias for an already-existing constant value.
@@ -2202,7 +2198,7 @@ impl BindingMap {
             self.remove_type(&param.name);
         }
         if let Some(function_name) = function_name {
-            self.remove_constant(&function_name.clone().to_defined());
+            self.remove_constant(&function_name);
         }
 
         // This part is awkward. We might have types parametrized on this function, or they

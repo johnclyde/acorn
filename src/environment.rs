@@ -430,7 +430,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                constant_name.clone().as_local().as_ref(),
+                constant_name.as_local(),
             )?;
 
         if let Some(class_type) = self_type {
