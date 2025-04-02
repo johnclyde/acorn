@@ -2045,7 +2045,7 @@ impl Environment {
                     if node.is_axiom() {
                         return Err(format!("line {} is an axiom", line + 1));
                     }
-                    match node.block() {
+                    match node.get_block() {
                         Some(b) => {
                             block = Some(b);
                             env = &b.env;
@@ -2080,7 +2080,7 @@ impl Environment {
                                 if node.is_axiom() {
                                     return Err(format!("slide to axiom, line {}", slide + 1));
                                 }
-                                if node.block().is_none() {
+                                if node.get_block().is_none() {
                                     path.push(i);
                                     return Ok(path);
                                 }
@@ -2138,7 +2138,7 @@ impl Environment {
         loop {
             match self.get_line_type(line) {
                 Some(LineType::Node(i)) => {
-                    if let Some(block) = self.nodes[i].block() {
+                    if let Some(block) = self.nodes[i].get_block() {
                         return block.env.env_for_line(line);
                     }
                     return self;
@@ -2176,7 +2176,7 @@ impl Environment {
         for (line, line_type) in self.line_types.iter().enumerate() {
             if let LineType::Node(prop_index) = line_type {
                 let node = &self.nodes[*prop_index];
-                if let Some(block) = node.block() {
+                if let Some(block) = node.get_block() {
                     assert!(block.env.covers_line(line as u32));
                 }
             }
@@ -2184,7 +2184,7 @@ impl Environment {
 
         // Recurse
         for node in &self.nodes {
-            if let Some(block) = node.block() {
+            if let Some(block) = node.get_block() {
                 block.env.check_lines();
             }
         }

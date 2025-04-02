@@ -391,6 +391,21 @@ impl Node {
         }
     }
 
+    pub fn structural(project: &Project, env: &Environment, prop: Proposition) -> Node {
+        let prop = env.bindings.expand_theorems(project, prop);
+        Node::Structural(prop)
+    }
+
+    pub fn claim(project: &Project, env: &Environment, prop: Proposition) -> Node {
+        let prop = env.bindings.expand_theorems(project, prop);
+        Node::Claim(prop)
+    }
+
+    pub fn block(project: &Project, env: &Environment, block: Block, prop: Proposition) -> Node {
+        let prop = env.bindings.expand_theorems(project, prop);
+        Node::Block(block, prop)
+    }
+
     // Whether this node corresponds to a goal that needs to be proved.
     pub fn has_goal(&self) -> bool {
         match self {
@@ -407,7 +422,7 @@ impl Node {
         }
     }
 
-    pub fn block(&self) -> Option<&Block> {
+    pub fn get_block(&self) -> Option<&Block> {
         match self {
             Node::Block(block, _) => Some(block),
             _ => None,
@@ -519,7 +534,7 @@ impl<'a> NodeCursor<'a> {
     }
 
     pub fn num_children(&self) -> usize {
-        match self.node().block() {
+        match self.node().get_block() {
             Some(ref b) => b.env.nodes.len(),
             None => 0,
         }
@@ -527,7 +542,7 @@ impl<'a> NodeCursor<'a> {
 
     // child_index must be less than num_children
     pub fn descend(&mut self, child_index: usize) {
-        let new_env = match &self.node().block() {
+        let new_env = match &self.node().get_block() {
             Some(b) => &b.env,
             None => panic!("descend called on a node without a block"),
         };
@@ -567,7 +582,7 @@ impl<'a> NodeCursor<'a> {
             }
         }
 
-        if let Some(block) = &self.node().block() {
+        if let Some(block) = &self.node().get_block() {
             for node in &block.env.nodes {
                 facts.push(node.get_fact());
             }
@@ -586,7 +601,7 @@ impl<'a> NodeCursor<'a> {
             ));
         }
 
-        if let Some(block) = &node.block() {
+        if let Some(block) = &node.get_block() {
             let first_line = block.env.first_line;
             let last_line = block.env.last_line();
             let goal = match &block.goal {
