@@ -159,12 +159,8 @@ impl Environment {
         }
     }
 
-    // Adds a node to the environment tree.
-    // This also macro-expands theorem names into their definitions.
-    // Ideally, that would happen during expression parsing. (Maybe?)
-    // However, it needs to work with templated theorems, which makes it tricky/hacky to do the
-    // type inference.
-    pub fn add_node(
+    // TODO: remove
+    pub fn add_node_old(
         &mut self,
         project: &Project,
         structural: bool,
@@ -172,6 +168,13 @@ impl Environment {
         block: Option<Block>,
     ) -> usize {
         let node = Node::new(project, self, structural, proposition, block);
+        self.nodes.push(node);
+        self.nodes.len() - 1
+    }
+
+    // Adds a node to the environment tree.
+    // Returns the index of the newly added node.
+    pub fn add_node(&mut self, node: Node) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
@@ -213,19 +216,15 @@ impl Environment {
         let range = self.definition_ranges.get(&constant_name).unwrap().clone();
 
         let name = constant_name.to_string();
-        self.add_node(
-            project,
-            true,
-            Proposition::constant_definition(
-                claim,
-                self.module_id,
-                range,
-                self.depth,
-                constant,
-                &name,
-            ),
-            None,
+        let prop = Proposition::constant_definition(
+            claim,
+            self.module_id,
+            range,
+            self.depth,
+            constant,
+            &name,
         );
+        self.add_node(Node::structural(project, self, prop));
     }
 
     pub fn get_definition(&self, name: &LocalConstantName) -> Option<&AcornValue> {
@@ -309,7 +308,7 @@ impl Environment {
                 Some(outer_claim),
             )
         };
-        let index = self.add_node(
+        let index = self.add_node_old(
             project,
             false,
             Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth),
@@ -597,7 +596,7 @@ impl Environment {
             )?)
         };
 
-        let index = self.add_node(
+        let index = self.add_node_old(
             project,
             already_proven,
             Proposition::theorem(
@@ -637,7 +636,7 @@ impl Environment {
             Some(&AcornType::Bool),
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
-        let index = self.add_node(
+        let index = self.add_node_old(
             project,
             false,
             Proposition::anonymous(general_claim, self.module_id, statement.range(), self.depth),
@@ -656,7 +655,7 @@ impl Environment {
         let specific_claim =
             self.bindings
                 .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
-        self.add_node(
+        self.add_node_old(
             project,
             true,
             Proposition::anonymous(
@@ -764,7 +763,7 @@ impl Environment {
             &fss.name,
         );
 
-        let index = self.add_node(project, false, prop, Some(block));
+        let index = self.add_node_old(project, false, prop, Some(block));
         self.add_node_lines(index, &statement.range());
         Ok(())
     }
@@ -838,7 +837,7 @@ impl Environment {
             )?;
             let prop =
                 Proposition::inhabited(self.module_id, &ss.name, statement.range(), self.depth);
-            let index = self.add_node(project, false, prop, Some(block));
+            let index = self.add_node_old(project, false, prop, Some(block));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
         } else {
@@ -901,7 +900,7 @@ impl Environment {
             let constraint_claim =
                 AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
                     .to_generic();
-            self.add_node(
+            self.add_node_old(
                 project,
                 true,
                 Proposition::type_definition(
@@ -929,7 +928,7 @@ impl Environment {
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
         let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
-        self.add_node(
+        self.add_node_old(
             project,
             true,
             Proposition::type_definition(
@@ -982,7 +981,7 @@ impl Environment {
                 start: field_name_token.start_pos(),
                 end: field_type_expr.last_token().end_pos(),
             };
-            self.add_node(
+            self.add_node_old(
                 project,
                 true,
                 Proposition::type_definition(
@@ -1085,7 +1084,7 @@ impl Environment {
                 let mut quantifiers = i_arg_types.clone();
                 quantifiers.extend(j_arg_types.clone());
                 let claim = AcornValue::forall(quantifiers, inequality);
-                self.add_node(
+                self.add_node_old(
                     project,
                     true,
                     Proposition::type_definition(
@@ -1122,7 +1121,7 @@ impl Environment {
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
         let claim = AcornValue::forall(vec![inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
-        self.add_node(
+        self.add_node_old(
             project,
             true,
             Proposition::type_definition(
@@ -1173,7 +1172,7 @@ impl Environment {
             forall_types.extend_from_slice(&arg_types);
             let claim =
                 AcornValue::forall(forall_types, AcornValue::implies(equality, conjunction));
-            self.add_node(
+            self.add_node_old(
                 project,
                 true,
                 Proposition::type_definition(
@@ -1260,7 +1259,7 @@ impl Environment {
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
         let forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
-        self.add_node(
+        self.add_node_old(
             project,
             true,
             Proposition::theorem(
@@ -1427,7 +1426,7 @@ impl Environment {
                 self.depth,
                 Some(condition_name.to_string()),
             );
-            self.add_node(project, true, prop, None);
+            self.add_node_old(project, true, prop, None);
             self.bindings.mark_as_theorem(&condition_name);
         }
 
@@ -1564,7 +1563,7 @@ impl Environment {
                 instance_name,
                 &typeclass.name,
             );
-            let index = self.add_node(project, false, conditions_prop, Some(block));
+            let index = self.add_node_old(project, false, conditions_prop, Some(block));
             self.add_node_lines(index, &statement.range());
         }
 
@@ -1583,7 +1582,7 @@ impl Environment {
             instance_name,
             &typeclass.name,
         );
-        self.add_node(project, true, equalities_prop, None);
+        self.add_node_old(project, true, equalities_prop, None);
 
         // TODO: make sure this instance relationship isn't used to prove earlier statements.
         let class = Class {
@@ -1657,7 +1656,7 @@ impl Environment {
 
                 if self.bindings.is_citation(project, &claim) {
                     // We already know this is true, so we don't need to prove it
-                    self.add_node(
+                    self.add_node_old(
                         project,
                         true,
                         Proposition::anonymous(
@@ -1670,7 +1669,7 @@ impl Environment {
                     );
                     self.add_other_lines(statement);
                 } else {
-                    let index = self.add_node(
+                    let index = self.add_node_old(
                         project,
                         false,
                         Proposition::anonymous(
@@ -1712,7 +1711,7 @@ impl Environment {
                 let (outer_claim, range) =
                     block.externalize_last_claim(self, &fas.body.right_brace)?;
 
-                let index = self.add_node(
+                let index = self.add_node_old(
                     project,
                     false,
                     Proposition::anonymous(outer_claim, self.module_id, range, self.depth),
@@ -1850,7 +1849,7 @@ impl Environment {
                     }
                 };
 
-                let index = self.add_node(project, false, prop, Some(block));
+                let index = self.add_node_old(project, false, prop, Some(block));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1875,7 +1874,7 @@ impl Environment {
                     self.depth,
                 );
 
-                let index = self.add_node(project, false, vacuous_prop, Some(block));
+                let index = self.add_node_old(project, false, vacuous_prop, Some(block));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
             }
@@ -1928,7 +1927,7 @@ impl Environment {
                             statement.range(),
                             self.depth,
                         );
-                        let index = self.add_node(project, false, prop, Some(block));
+                        let index = self.add_node_old(project, false, prop, Some(block));
                         self.add_node_lines(index, &body.range());
                         return Ok(());
                     }
@@ -1941,7 +1940,7 @@ impl Environment {
                         statement.range(),
                         self.depth,
                     );
-                    let index = self.add_node(project, false, vacuous_prop, Some(block));
+                    let index = self.add_node_old(project, false, vacuous_prop, Some(block));
                     self.add_node_lines(index, &body.range());
                 }
                 Err(ms

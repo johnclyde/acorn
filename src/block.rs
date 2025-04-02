@@ -131,7 +131,7 @@ impl Block {
 
         let goal = match params {
             BlockParams::Conditional(condition, range) => {
-                subenv.add_node(
+                subenv.add_node_old(
                     project,
                     true,
                     Proposition::premise(condition.clone(), env.module_id, range, subenv.depth),
@@ -152,7 +152,7 @@ impl Block {
                     // The premise is unbound, so we need to bind the block's arg values.
                     let bound = unbound_premise.bind_values(0, 0, &internal_args);
 
-                    subenv.add_node(
+                    subenv.add_node_old(
                         project,
                         true,
                         Proposition::premise(bound, env.module_id, premise_range, subenv.depth),
@@ -196,7 +196,7 @@ impl Block {
                 // Inside the block, we can assume the pattern matches.
                 let applied = AcornValue::apply(constructor, arg_values);
                 let equality = AcornValue::equals(scrutinee, applied);
-                subenv.add_node(
+                subenv.add_node_old(
                     project,
                     true,
                     Proposition::premise(equality, env.module_id, range, subenv.depth),

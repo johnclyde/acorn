@@ -2254,6 +2254,9 @@ impl BindingMap {
     }
 
     // Replaces all theorems in the proposition with their definitions.
+    // This is admittedly weird.
+    // Note that it needs to work with templated theorems, which makes it tricky to do the
+    // type inference.
     pub fn expand_theorems(&self, project: &Project, proposition: Proposition) -> Proposition {
         proposition
             .value
