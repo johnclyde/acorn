@@ -1,6 +1,6 @@
 use std::{fmt, vec};
 
-use crate::acorn_type::{Class, Typeclass};
+use crate::acorn_type::Typeclass;
 use crate::module::ModuleId;
 
 // The LocalName describes how a constant, type, or typeclass is named in the module that defines it.
@@ -82,16 +82,6 @@ impl LocalName {
             LocalName::Unqualified(s.to_string())
         }
     }
-}
-
-// The DefinedName corresponds to the different ways a new constant can be defined.
-#[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
-pub enum DefinedName {
-    // A regular local name.
-    Local(LocalName),
-
-    // A constant that is being defined as an instance of a typeclass attribute.
-    Instance(Typeclass, String, Class),
 }
 
 // The GlobalName provides a globally unique identifier for a constant.
