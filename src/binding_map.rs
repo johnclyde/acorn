@@ -588,6 +588,7 @@ impl BindingMap {
         global_name: GlobalName,
         value: PotentialValue,
     ) {
+        assert!(!local_name.is_instance());
         if global_name.module_id != self.module {
             // Prefer this alias locally to using the qualified, canonical name
             self.canonical_to_alias

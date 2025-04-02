@@ -359,15 +359,19 @@ impl Environment {
                     .evaluate_value(project, &ls.value, Some(&acorn_type))?,
             )
         };
-        if let Some(value) = &value {
-            if let Some(global_name) = value.as_simple_constant() {
-                // 'let x = y' creates an alias for y, not a new constant.
-                self.bindings.add_alias(
-                    constant_name,
-                    global_name.clone(),
-                    PotentialValue::Resolved(value.clone()),
-                );
-                return Ok(());
+
+        // Check for aliasing
+        if !constant_name.is_instance() {
+            if let Some(value) = &value {
+                if let Some(global_name) = value.as_simple_constant() {
+                    // 'let x = y' creates an alias for y, not a new constant.
+                    self.bindings.add_alias(
+                        constant_name,
+                        global_name.clone(),
+                        PotentialValue::Resolved(value.clone()),
+                    );
+                    return Ok(());
+                }
             }
         }
 
