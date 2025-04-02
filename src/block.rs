@@ -461,6 +461,15 @@ impl Node {
     pub fn get_fact(&self) -> Fact {
         Fact::Proposition(self.claim.clone())
     }
+
+    // Returns the name and value, if this node is a theorem.
+    pub fn as_theorem(&self) -> Option<(&str, &AcornValue)> {
+        if let Some(theorem_name) = self.claim.theorem_name() {
+            Some((theorem_name, &self.claim.value))
+        } else {
+            None
+        }
+    }
 }
 
 // A NodeCursor points at a node. It is used to traverse the nodes in an environment.

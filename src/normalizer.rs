@@ -561,11 +561,15 @@ impl Normalizer {
     // Checks a theorem. Just for testing purposes.
     #[cfg(test)]
     pub fn check(&mut self, env: &crate::environment::Environment, name: &str, expected: &[&str]) {
-        let val = match env.get_theorem_claim(name) {
-            Some(val) => val,
-            None => panic!("no value named {}", name),
-        };
-        self.check_value(&val, expected);
+        for node in &env.nodes {
+            if let Some((theorem_name, value)) = node.as_theorem() {
+                if theorem_name == name {
+                    self.check_value(&value, expected);
+                    return;
+                }
+            }
+        }
+        panic!("no theorem named {}", name);
     }
 }
 

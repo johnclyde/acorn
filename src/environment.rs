@@ -232,19 +232,6 @@ impl Environment {
         self.bindings.get_definition(name)
     }
 
-    // Used for testing.
-    #[cfg(test)]
-    pub fn get_theorem_claim(&self, name: &str) -> Option<AcornValue> {
-        for node in &self.nodes {
-            if let Some(claim_name) = node.claim.theorem_name() {
-                if claim_name == name {
-                    return Some(node.claim.value.clone());
-                }
-            }
-        }
-        None
-    }
-
     // Returns an error if this isn't the canonical name (and module) for the class.
     fn check_canonical_classname(
         &self,
