@@ -311,9 +311,9 @@ impl Block {
         token: &Token,
     ) -> compilation::Result<(AcornValue, Range)> {
         let (inner_claim, range) = match self.env.nodes.last() {
-            Some(p) => (&p.claim.value, p.claim.source.range),
+            Some(node) => (&node.proposition().value, node.proposition().source.range),
             None => {
-                return Err(token.error("expected a claim in this block"));
+                return Err(token.error("expected a proposition in this block"));
             }
         };
         let outer_claim = self.externalize_bool(outer_env, inner_claim);
@@ -347,29 +347,25 @@ impl Block {
     }
 }
 
-// Logically, the Environment is arranged like a tree structure.
+// The Environment is arranged like a tree structure. It contains many nodes. Some nodes
+// have blocks, with their own environments.
 // There are three types of nodes.
 // 1. Structural nodes, that we can assume without proof
 // 2. Plain claims, that we need to prove
 // 3. Nodes with blocks, where we need to recurse into the block and prove those nodes.
-pub struct Node {
-    // Whether this proposition has already been proved structurally.
+pub enum Node {
+    // Some nodes contain propositions that are structurally true. There's no need to prove them.
     // For example, this could be an axiom, or a definition.
-    structural: bool,
+    Structural(Proposition),
 
-    // The proposition represented by this tree.
-    // If this proposition has a block, this represents the "external claim".
-    // It is the value we can assume is true, in the outer environment, when everything
-    // in the inner environment has been proven.
-    // Besides the claim, nothing else from the block is visible externally.
-    //
-    // This claim needs to be proved for nonstructural propositions, when there is no block.
-    claim: Proposition,
+    // A claim is something that we need to prove, and then we can subsequently use it.
+    Claim(Proposition),
 
-    // The body of the proposition, when it has an associated block.
-    // When there is a block, proving every proposition in the block implies that the
-    // claim is proven as well.
-    block: Option<Block>,
+    // A block has its own environment inside. We need to validate everything in the block.
+    // The proposition is the external claim that we can use once the block is proven.
+    // It is relative to the outside environment.
+    // Other than the external claim, nothing else in the block is visible outside the block.
+    Block(Block, Proposition),
 }
 
 impl Node {
@@ -416,40 +412,51 @@ impl Node {
             }
         });
 
-        let claim = proposition.with_value(value);
-        Node {
-            structural,
-            claim,
-            block,
+        let prop = proposition.with_value(value);
+
+        if let Some(block) = block {
+            Node::Block(block, prop)
+        } else if structural {
+            Node::Structural(prop)
+        } else {
+            Node::Claim(prop)
         }
     }
 
     // Whether this node corresponds to a goal that needs to be proved.
     pub fn has_goal(&self) -> bool {
-        if self.structural {
-            return false;
-        }
-        match &self.block {
-            Some(b) => b.goal.is_some(),
-            None => true,
+        match self {
+            Node::Structural(_) => false,
+            Node::Claim(_) => true,
+            Node::Block(block, _) => block.goal.is_some(),
         }
     }
 
     pub fn last_line(&self) -> u32 {
-        if let Some(block) = &self.block {
-            block.env.last_line()
-        } else {
-            self.claim.source.range.end.line
+        match self {
+            Node::Structural(p) | Node::Claim(p) => p.source.range.end.line,
+            Node::Block(block, _) => block.env.last_line(),
         }
     }
 
     pub fn block(&self) -> Option<&Block> {
-        self.block.as_ref()
+        match self {
+            Node::Block(block, _) => Some(block),
+            _ => None,
+        }
+    }
+
+    fn proposition(&self) -> &Proposition {
+        match self {
+            Node::Structural(p) => p,
+            Node::Claim(p) => p,
+            Node::Block(_, p) => p,
+        }
     }
 
     // The block name is used to describe the block when caching block -> premise dependencies.
     pub fn block_name(&self) -> Option<String> {
-        match &self.claim.source.source_type {
+        match &self.proposition().source.source_type {
             SourceType::Theorem(name) => name.clone(),
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::TypeDefinition(type_name, suffix) => {
@@ -461,30 +468,30 @@ impl Node {
 
     // Whether the fact at this node is importable.
     pub fn importable(&self) -> bool {
-        self.claim.source.importable
+        self.proposition().source.importable
     }
 
     pub fn get_fact(&self) -> Fact {
-        Fact::Proposition(self.claim.clone())
+        Fact::Proposition(self.proposition().clone())
     }
 
     // The fact name is used to describe the premise when caching block -> premise dependencies.
     // All importable facts should have a fact name.
     pub fn fact_name(&self) -> Option<String> {
-        self.claim.source.fact_name()
+        self.proposition().source.fact_name()
     }
 
     // Returns the name and value, if this node is a theorem.
     pub fn as_theorem(&self) -> Option<(&str, &AcornValue)> {
-        if let Some(theorem_name) = self.claim.theorem_name() {
-            Some((theorem_name, &self.claim.value))
+        if let Some(theorem_name) = self.proposition().theorem_name() {
+            Some((theorem_name, &self.proposition().value))
         } else {
             None
         }
     }
 
     pub fn is_axiom(&self) -> bool {
-        self.claim.source.is_axiom()
+        self.proposition().source.is_axiom()
     }
 }
 
@@ -544,7 +551,7 @@ impl<'a> NodeCursor<'a> {
     }
 
     pub fn num_children(&self) -> usize {
-        match self.node().block {
+        match self.node().block() {
             Some(ref b) => b.env.nodes.len(),
             None => 0,
         }
@@ -552,7 +559,7 @@ impl<'a> NodeCursor<'a> {
 
     // child_index must be less than num_children
     pub fn descend(&mut self, child_index: usize) {
-        let new_env = match &self.node().block {
+        let new_env = match &self.node().block() {
             Some(b) => &b.env,
             None => panic!("descend called on a node without a block"),
         };
@@ -592,7 +599,7 @@ impl<'a> NodeCursor<'a> {
             }
         }
 
-        if let Some(block) = &self.node().block {
+        if let Some(block) = &self.node().block() {
             for node in &block.env.nodes {
                 facts.push(node.get_fact());
             }
@@ -604,14 +611,14 @@ impl<'a> NodeCursor<'a> {
     // Get a goal context for the current node.
     pub fn goal_context(&self) -> Result<GoalContext, String> {
         let node = self.node();
-        if node.structural {
+        if let Node::Structural(_) = node {
             return Err(format!(
                 "node {} does not need a proof, so it has no goal context",
                 self
             ));
         }
 
-        if let Some(block) = &node.block {
+        if let Some(block) = &node.block() {
             let first_line = block.env.first_line;
             let last_line = block.env.last_line();
             let goal = match &block.goal {
@@ -626,11 +633,11 @@ impl<'a> NodeCursor<'a> {
                 last_line,
             ))
         } else {
-            let first_line = node.claim.source.range.start.line;
-            let last_line = node.claim.source.range.end.line;
+            let first_line = node.proposition().source.range.start.line;
+            let last_line = node.proposition().source.range.end.line;
             return Ok(GoalContext::new(
                 self.env(),
-                Goal::Prove(node.claim.clone()),
+                Goal::Prove(node.proposition().clone()),
                 first_line,
                 first_line,
                 last_line,
