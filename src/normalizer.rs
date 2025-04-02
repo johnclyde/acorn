@@ -4,8 +4,6 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::constant_map::ConstantMap;
 use crate::constant_name::{GlobalConstantName, LocalConstantName};
-use crate::display::DisplayClause;
-use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
@@ -512,6 +510,7 @@ impl Normalizer {
     }
 
     // When you denormalize and renormalize a clause, you should get the same thing.
+    #[cfg(test)]
     fn check_denormalize_renormalize(&mut self, clause: &Clause) {
         let denormalized = self.denormalize(clause);
         denormalized
@@ -529,7 +528,10 @@ impl Normalizer {
         assert_eq!(clause, &renormalized[0]);
     }
 
+    #[cfg(test)]
     fn check_value(&mut self, value: &AcornValue, expected: &[&str]) {
+        use crate::display::DisplayClause;
+
         let actual = self.normalize_value(value, true).unwrap();
         if actual.len() != expected.len() {
             panic!(
@@ -557,7 +559,8 @@ impl Normalizer {
     }
 
     // Checks a theorem. Just for testing purposes.
-    pub fn check(&mut self, env: &Environment, name: &str, expected: &[&str]) {
+    #[cfg(test)]
+    pub fn check(&mut self, env: &crate::environment::Environment, name: &str, expected: &[&str]) {
         let val = match env.get_theorem_claim(name) {
             Some(val) => val,
             None => panic!("no value named {}", name),
@@ -568,6 +571,8 @@ impl Normalizer {
 
 #[cfg(test)]
 mod tests {
+    use crate::environment::Environment;
+
     use super::*;
 
     #[test]

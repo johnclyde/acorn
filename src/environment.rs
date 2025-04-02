@@ -232,6 +232,8 @@ impl Environment {
         self.bindings.get_definition(name)
     }
 
+    // Used for testing.
+    #[cfg(test)]
     pub fn get_theorem_claim(&self, name: &str) -> Option<AcornValue> {
         for node in &self.nodes {
             if let Some(claim_name) = node.claim.theorem_name() {
