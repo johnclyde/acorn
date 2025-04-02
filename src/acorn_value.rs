@@ -379,31 +379,14 @@ impl AcornValue {
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
-        let ci = if let DefinedName::Instance(typeclass, attr, class_name) = defined_name {
-            // Prevent us from creating a bad-format constant.
-            assert!(params.is_empty());
-            let attr_name = GlobalName::new(
-                typeclass.module_id,
-                DefinedName::Attribute(typeclass.name, attr),
-            );
-            let class = Class {
-                module_id,
-                name: class_name,
-            };
-            let param = AcornType::Data(class, vec![]);
-            ConstantInstance {
-                name: attr_name,
-                params: vec![param],
-                instance_type,
-            }
-        } else {
-            let name = GlobalName::new(module_id, defined_name);
-            ConstantInstance {
-                name,
-                params,
-                instance_type,
-            }
+        assert!(!defined_name.is_instance());
+        let name = GlobalName::new(module_id, defined_name);
+        let ci = ConstantInstance {
+            name,
+            params,
+            instance_type,
         };
+
         AcornValue::Constant(ci)
     }
 

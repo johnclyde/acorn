@@ -76,7 +76,7 @@ impl DefinedName {
         }
     }
 
-    pub fn to_local(self) -> Option<LocalName> {
+    pub fn as_local(self) -> Option<LocalName> {
         match self {
             DefinedName::Unqualified(name) => Some(LocalName::Unqualified(name)),
             DefinedName::Attribute(class, attr) => Some(LocalName::Attribute(class, attr)),

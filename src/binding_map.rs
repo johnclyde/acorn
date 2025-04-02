@@ -490,12 +490,25 @@ impl BindingMap {
             if constant_type.has_generic() {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
-            PotentialValue::Resolved(AcornValue::old_constant(
-                self.module,
-                defined_name.clone(),
-                vec![],
-                constant_type,
-            ))
+            if let DefinedName::Instance(typeclass, attr, class_name) = &defined_name {
+                let class = Class {
+                    module_id: self.module,
+                    name: class_name.to_string(),
+                };
+                PotentialValue::Resolved(AcornValue::instance_constant(
+                    typeclass.clone(),
+                    attr.to_string(),
+                    class,
+                    constant_type.clone(),
+                ))
+            } else {
+                PotentialValue::Resolved(AcornValue::old_constant(
+                    self.module,
+                    defined_name.clone(),
+                    vec![],
+                    constant_type,
+                ))
+            }
         } else {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
