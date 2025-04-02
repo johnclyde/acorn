@@ -1847,28 +1847,11 @@ impl BindingMap {
                         if left_delimiter.token_type == TokenType::LessThan {
                             // This is a type parameter list
                             if let PotentialValue::Unresolved(unresolved) = function {
-                                if exprs.len() != unresolved.params.len() {
-                                    return Err(left_delimiter.error(&format!(
-                                        "expected {} type parameters, but got {}",
-                                        unresolved.params.len(),
-                                        exprs.len()
-                                    )));
+                                let mut type_params = vec![];
+                                for expr in exprs {
+                                    type_params.push(self.evaluate_type(project, expr)?);
                                 }
-                                let mut named_params = vec![];
-                                let mut instance_params = vec![];
-                                for (param, expr) in unresolved.params.iter().zip(exprs.iter()) {
-                                    let type_param = self.evaluate_type(project, expr)?;
-                                    instance_params.push(type_param.clone());
-                                    named_params.push((param.name.clone(), type_param));
-                                }
-                                let resolved_type =
-                                    unresolved.generic_type.instantiate(&named_params);
-                                let resolved = AcornValue::constant(
-                                    unresolved.name.module_id,
-                                    unresolved.name.local_name,
-                                    instance_params,
-                                    resolved_type,
-                                );
+                                let resolved = unresolved.resolve(left_delimiter, type_params)?;
                                 return Ok(PotentialValue::Resolved(resolved));
                             }
                             return Err(left_delimiter.error("unexpected type parameter list"));
