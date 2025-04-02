@@ -362,12 +362,12 @@ impl Environment {
         };
 
         // Check for aliasing
-        if !constant_name.is_instance() {
+        if let DefinedName::Local(local_name) = &constant_name {
             if let Some(value) = &value {
                 if let Some(global_name) = value.as_simple_constant() {
                     // 'let x = y' creates an alias for y, not a new constant.
                     self.bindings.add_alias(
-                        constant_name,
+                        local_name.clone(),
                         global_name.clone(),
                         PotentialValue::Resolved(value.clone()),
                     );

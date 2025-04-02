@@ -613,11 +613,10 @@ impl BindingMap {
     // TODO: is aliasing theorems supposed to work?
     pub fn add_alias(
         &mut self,
-        local_name: DefinedName,
+        local_name: LocalName,
         global_name: GlobalName,
         value: PotentialValue,
     ) {
-        let local_name = local_name.as_local().unwrap();
         if global_name.module_id != self.module {
             // Prefer this alias locally to using the qualified, canonical name
             self.canonical_to_alias
@@ -1511,8 +1510,8 @@ impl BindingMap {
         module: ModuleId,
         name_token: &Token,
     ) -> compilation::Result<()> {
-        self.check_unqualified_name_available(name_token, &name_token.text())?;
-        let local_name = DefinedName::unqualified(name_token.text());
+        let local_name = LocalName::unqualified(name_token.text());
+        self.check_local_name_available(name_token, &local_name)?;
         let bindings = match project.get_bindings(module) {
             Some(b) => b,
             None => {
