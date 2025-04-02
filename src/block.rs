@@ -131,12 +131,9 @@ impl Block {
 
         let goal = match params {
             BlockParams::Conditional(condition, range) => {
-                subenv.add_node_old(
-                    project,
-                    true,
-                    Proposition::premise(condition.clone(), env.module_id, range, subenv.depth),
-                    None,
-                );
+                let prop =
+                    Proposition::premise(condition.clone(), env.module_id, range, subenv.depth);
+                subenv.add_node(Node::structural(project, &subenv, prop));
                 None
             }
             BlockParams::Theorem(theorem_name, theorem_range, premise, unbound_goal) => {
@@ -151,13 +148,9 @@ impl Block {
                     // Add the premise to the environment, when proving the theorem.
                     // The premise is unbound, so we need to bind the block's arg values.
                     let bound = unbound_premise.bind_values(0, 0, &internal_args);
-
-                    subenv.add_node_old(
-                        project,
-                        true,
-                        Proposition::premise(bound, env.module_id, premise_range, subenv.depth),
-                        None,
-                    );
+                    let prop =
+                        Proposition::premise(bound, env.module_id, premise_range, subenv.depth);
+                    subenv.add_node(Node::structural(project, &subenv, prop));
                 }
 
                 let bound_goal = unbound_goal
@@ -196,12 +189,8 @@ impl Block {
                 // Inside the block, we can assume the pattern matches.
                 let applied = AcornValue::apply(constructor, arg_values);
                 let equality = AcornValue::equals(scrutinee, applied);
-                subenv.add_node_old(
-                    project,
-                    true,
-                    Proposition::premise(equality, env.module_id, range, subenv.depth),
-                    None,
-                );
+                let prop = Proposition::premise(equality, env.module_id, range, subenv.depth);
+                subenv.add_node(Node::structural(project, &subenv, prop));
                 None
             }
             BlockParams::TypeRequirement(constraint, range) => {
@@ -371,28 +360,6 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn new(
-        project: &Project,
-        env: &Environment,
-        structural: bool,
-        proposition: Proposition,
-        block: Option<Block>,
-    ) -> Self {
-        if structural {
-            assert!(block.is_none());
-        }
-
-        let prop = env.bindings.expand_theorems(project, proposition);
-
-        if let Some(block) = block {
-            Node::Block(block, prop)
-        } else if structural {
-            Node::Structural(prop)
-        } else {
-            Node::Claim(prop)
-        }
-    }
-
     pub fn structural(project: &Project, env: &Environment, prop: Proposition) -> Node {
         let prop = env.bindings.expand_theorems(project, prop);
         Node::Structural(prop)

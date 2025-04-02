@@ -159,19 +159,6 @@ impl Environment {
         }
     }
 
-    // TODO: remove
-    pub fn add_node_old(
-        &mut self,
-        project: &Project,
-        structural: bool,
-        proposition: Proposition,
-        block: Option<Block>,
-    ) -> usize {
-        let node = Node::new(project, self, structural, proposition, block);
-        self.nodes.push(node);
-        self.nodes.len() - 1
-    }
-
     // Adds a node to the environment tree.
     // Returns the index of the newly added node.
     pub fn add_node(&mut self, node: Node) -> usize {
