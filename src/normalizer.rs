@@ -7,7 +7,7 @@ use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
-use crate::names::DefinedName;
+use crate::names::{GlobalName, LocalName};
 use crate::proof_step::{ProofStep, Truthiness};
 use crate::proposition::SourceType;
 use crate::term::{Term, TypeId};
@@ -78,8 +78,9 @@ impl Normalizer {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
-        let name = format!("s{}", skolem_index);
-        AcornValue::old_constant(SKOLEM, DefinedName::Unqualified(name), vec![], acorn_type)
+        let local_name = LocalName::Unqualified(format!("s{}", skolem_index));
+        let global_name = GlobalName::new(SKOLEM, local_name);
+        AcornValue::constant(global_name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -435,8 +436,9 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let local_name = DefinedName::Unqualified(format!("s{}", i));
-                AcornValue::old_constant(SKOLEM, local_name, vec![], acorn_type)
+                let local_name = LocalName::Unqualified(format!("s{}", i));
+                let global_name = GlobalName::new(SKOLEM, local_name);
+                AcornValue::constant(global_name, vec![], acorn_type)
             }
         }
     }

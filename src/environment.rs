@@ -11,7 +11,7 @@ use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::DefinedName;
+use crate::names::{DefinedName, GlobalName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -710,17 +710,17 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
-        let local_name = DefinedName::unqualified(&fss.name);
+        let local_name = LocalName::unqualified(&fss.name);
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         self.bindings.add_constant(
-            local_name.clone(),
+            local_name.clone().to_defined(),
             vec![],
             function_type.clone(),
             None,
             None,
         );
-        let function_constant =
-            AcornValue::old_constant(self.module_id, local_name, vec![], function_type);
+        let global_name = GlobalName::new(self.module_id, local_name);
+        let function_constant = AcornValue::constant(global_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types
