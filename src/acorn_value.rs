@@ -3,7 +3,8 @@ use std::fmt;
 use crate::acorn_type::{AcornType, Class};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::names::{GlobalName, DefinedName};
+use crate::module::ModuleId;
+use crate::names::{DefinedName, GlobalName};
 use crate::token::TokenType;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -373,11 +374,12 @@ impl AcornValue {
     }
 
     pub fn constant(
-        name: GlobalName,
+        module_id: ModuleId,
+        defined_name: DefinedName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
-        let ci = if let DefinedName::Instance(typeclass, attr, class_name) = name.local_name {
+        let ci = if let DefinedName::Instance(typeclass, attr, class_name) = defined_name {
             // Prevent us from creating a bad-format constant.
             assert!(params.is_empty());
             let attr_name = GlobalName::new(
@@ -385,7 +387,7 @@ impl AcornValue {
                 DefinedName::Attribute(typeclass.name, attr),
             );
             let class = Class {
-                module_id: name.module_id,
+                module_id,
                 name: class_name,
             };
             let param = AcornType::Data(class, vec![]);
@@ -395,6 +397,7 @@ impl AcornValue {
                 instance_type,
             }
         } else {
+            let name = GlobalName::new(module_id, defined_name);
             ConstantInstance {
                 name,
                 params,

@@ -490,8 +490,12 @@ impl BindingMap {
             if constant_type.has_generic() {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
-            let global_name = GlobalName::new(self.module, defined_name.clone());
-            PotentialValue::Resolved(AcornValue::constant(global_name, vec![], constant_type))
+            PotentialValue::Resolved(AcornValue::constant(
+                self.module,
+                defined_name.clone(),
+                vec![],
+                constant_type,
+            ))
         } else {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
@@ -1860,7 +1864,8 @@ impl BindingMap {
                                 let resolved_type =
                                     unresolved.generic_type.instantiate(&named_params);
                                 let resolved = AcornValue::constant(
-                                    unresolved.name,
+                                    unresolved.name.module_id,
+                                    unresolved.name.local_name,
                                     instance_params,
                                     resolved_type,
                                 );

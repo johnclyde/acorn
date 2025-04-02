@@ -40,7 +40,8 @@ impl UnresolvedConstant {
             .collect();
         let resolved_type = self.generic_type.instantiate(&named_params);
         Ok(AcornValue::constant(
-            self.name.clone(),
+            self.name.module_id,
+            self.name.local_name.clone(),
             params,
             resolved_type,
         ))
@@ -53,6 +54,11 @@ impl UnresolvedConstant {
             .into_iter()
             .map(|p| AcornType::Variable(p))
             .collect();
-        AcornValue::constant(self.name, params, self.generic_type)
+        AcornValue::constant(
+            self.name.module_id,
+            self.name.local_name.clone(),
+            params,
+            self.generic_type,
+        )
     }
 }
