@@ -1496,7 +1496,19 @@ impl Environment {
             }
         }
 
-        if !conditions.is_empty() {
+        // TODO: this is vacuous. We should have a fact instead of a prop here.
+        let instance_prop = Proposition::instance(
+            None,
+            self.module_id,
+            statement.range(),
+            self.depth,
+            instance_name,
+            &typeclass.name,
+        );
+
+        let node = if conditions.is_empty() {
+            Node::structural(project, self, instance_prop)
+        } else {
             // We must prove in a block that all the conditions hold for this instance.
             let conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
             let range = Range {
@@ -1514,17 +1526,11 @@ impl Environment {
                 statement.last_line(),
                 is.body.as_ref(),
             )?;
-            let conditions_prop = Proposition::instance(
-                None,
-                self.module_id,
-                statement.range(),
-                self.depth,
-                instance_name,
-                &typeclass.name,
-            );
-            let index = self.add_node(Node::block(project, self, block, Some(conditions_prop)));
-            self.add_node_lines(index, &statement.range());
-        }
+            Node::block(project, self, block, Some(instance_prop))
+        };
+
+        let index = self.add_node(node);
+        self.add_node_lines(index, &statement.range());
 
         let class = Class {
             module_id: self.module_id,
