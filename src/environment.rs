@@ -14,7 +14,7 @@ use crate::module::ModuleId;
 use crate::names::{DefinedName, GlobalName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
-use crate::proposition::Proposition;
+use crate::proposition::{Proposition, Source, SourceType};
 use crate::statement::{
     Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
     InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,
@@ -1496,18 +1496,21 @@ impl Environment {
             }
         }
 
-        // TODO: this is vacuous. We should have a fact instead of a prop here.
-        let instance_prop = Proposition::instance(
-            None,
-            self.module_id,
-            statement.range(),
-            self.depth,
-            instance_name,
-            &typeclass.name,
-        );
+        // Create a node for the instance relationship.
+        let source = Source {
+            module: self.module_id,
+            range: statement.range(),
+            source_type: SourceType::Instance(
+                instance_name.to_string(),
+                typeclass.name.to_string(),
+            ),
+            importable: true,
+            depth: self.depth,
+        };
+        let instance_fact = Fact::Instance(instance_class.clone(), typeclass.clone(), source);
 
         let node = if conditions.is_empty() {
-            Node::structural(project, self, instance_prop)
+            Node::Structural(instance_fact)
         } else {
             // We must prove in a block that all the conditions hold for this instance.
             let conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
@@ -1526,17 +1529,12 @@ impl Environment {
                 statement.last_line(),
                 is.body.as_ref(),
             )?;
-            Node::block(project, self, block, Some(instance_prop))
+            Node::Block(block, Some(instance_fact))
         };
 
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
-
-        let class = Class {
-            module_id: self.module_id,
-            name: instance_name.to_string(),
-        };
-        self.bindings.add_instance_of(class, typeclass);
+        self.bindings.add_instance_of(instance_class, typeclass);
         Ok(())
     }
 

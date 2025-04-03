@@ -12,7 +12,7 @@ use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::names::{DefinedName, LocalName};
 use crate::project::Project;
-use crate::proposition::{Proposition, SourceType};
+use crate::proposition::{Proposition, Source, SourceType};
 use crate::statement::Body;
 use crate::token::Token;
 
@@ -352,22 +352,23 @@ pub enum Node {
     // The prover doesn't need to prove these.
     // For example, this could be an axiom, or a definition.
     // It could also be a form like a citation that has already been proven by the compiler.
-    Structural(Proposition),
+    Structural(Fact),
 
     // A claim is something that we need to prove, and then we can subsequently use it.
     Claim(Proposition),
 
     // A block has its own environment inside. We need to validate everything in the block.
-    // The optional proposition is what we can use externally once the block is proven.
+    // The block might not exist in the code, but it at least needs to exist for the prover.
+    // The optional fact is what we can use externally once the block is proven.
     // It is relative to the outside environment.
     // Other than the external claim, nothing else in the block is visible outside the block.
-    Block(Block, Option<Proposition>),
+    Block(Block, Option<Fact>),
 }
 
 impl Node {
     pub fn structural(project: &Project, env: &Environment, prop: Proposition) -> Node {
         let prop = env.bindings.expand_theorems(project, prop);
-        Node::Structural(prop)
+        Node::Structural(Fact::Proposition(prop))
     }
 
     pub fn claim(project: &Project, env: &Environment, prop: Proposition) -> Node {
@@ -381,11 +382,20 @@ impl Node {
         block: Block,
         prop: Option<Proposition>,
     ) -> Node {
-        let prop = match prop {
-            Some(prop) => Some(env.bindings.expand_theorems(project, prop)),
+        let fact = match prop {
+            Some(prop) => Some(Fact::Proposition(
+                env.bindings.expand_theorems(project, prop),
+            )),
             None => None,
         };
-        Node::Block(block, prop)
+        Node::Block(block, fact)
+    }
+
+    pub fn instance(block: Option<Block>, fact: Fact) -> Node {
+        match block {
+            Some(b) => Node::Block(b, Some(fact)),
+            None => Node::Structural(fact),
+        }
     }
 
     // Whether this node corresponds to a goal that needs to be proved.
@@ -399,7 +409,8 @@ impl Node {
 
     pub fn last_line(&self) -> u32 {
         match self {
-            Node::Structural(p) | Node::Claim(p) => p.source.range.end.line,
+            Node::Structural(f) => f.source().range.end.line,
+            Node::Claim(p) => p.source.range.end.line,
             Node::Block(block, _) => block.env.last_line(),
         }
     }
@@ -411,12 +422,23 @@ impl Node {
         }
     }
 
+    // The source of this node, if there is one.
+    fn source(&self) -> Option<&Source> {
+        match self {
+            Node::Structural(f) => Some(f.source()),
+            Node::Claim(p) => Some(&p.source),
+            Node::Block(_, Some(f)) => Some(f.source()),
+            Node::Block(_, None) => None,
+        }
+    }
+
     // The proposition at this node, if there is one.
     fn proposition(&self) -> Option<&Proposition> {
         match self {
-            Node::Structural(p) => Some(p),
+            Node::Structural(Fact::Proposition(p)) => Some(p),
             Node::Claim(p) => Some(p),
-            Node::Block(_, p) => p.as_ref(),
+            Node::Block(_, Some(Fact::Proposition(p))) => Some(p),
+            _ => None,
         }
     }
 
@@ -434,10 +456,7 @@ impl Node {
 
     // Whether the fact at this node is importable.
     pub fn importable(&self) -> bool {
-        match self.proposition() {
-            None => false,
-            Some(p) => p.source.importable,
-        }
+        self.source().map_or(false, |s| s.importable)
     }
 
     // Returns the fact at this node, if there is one.
@@ -448,7 +467,7 @@ impl Node {
     // The fact name is used to describe the premise when caching block -> premise dependencies.
     // All importable facts should have a fact name.
     pub fn fact_name(&self) -> Option<String> {
-        self.proposition()?.source.fact_name()
+        self.source()?.fact_name()
     }
 
     // Returns the name and value, if this node is a theorem.
@@ -462,10 +481,7 @@ impl Node {
     }
 
     pub fn is_axiom(&self) -> bool {
-        match self.proposition() {
-            Some(p) => p.source.is_axiom(),
-            None => false,
-        }
+        self.source().map_or(false, |s| s.is_axiom())
     }
 }
 

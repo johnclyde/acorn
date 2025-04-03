@@ -145,22 +145,13 @@ impl Monomorphizer {
             .insert(typeclass);
     }
 
-    // TODO: unpublicize
-    pub fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
-        if let Some(set) = self.instance_of.get(class) {
-            set.contains(typeclass)
-        } else {
-            false
-        }
-    }
-
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
             Fact::Proposition(proposition) => {
                 self.add_proposition(proposition);
             }
-            Fact::InstanceOf(class, typeclass) => {
+            Fact::Instance(class, typeclass, _) => {
                 self.add_instance_of(class, typeclass);
             }
         }
