@@ -14,7 +14,8 @@ use crate::module::ModuleId;
 use crate::names::{DefinedName, GlobalName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
-use crate::proposition::{Proposition, Source, SourceType};
+use crate::proposition::Proposition;
+use crate::source::{Source, SourceType};
 use crate::statement::{
     Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
     InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,

@@ -9,7 +9,7 @@ use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
 use crate::names::{GlobalName, LocalName};
 use crate::proof_step::{ProofStep, Truthiness};
-use crate::proposition::SourceType;
+use crate::source::SourceType;
 use crate::term::{Term, TypeId};
 use crate::type_map::TypeMap;
 

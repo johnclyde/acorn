@@ -4,7 +4,8 @@ use std::fmt;
 use crate::atom::Atom;
 use crate::clause::Clause;
 use crate::literal::Literal;
-use crate::proposition::{Proposition, Source, SourceType};
+use crate::proposition::Proposition;
+use crate::source::{Source, SourceType};
 use crate::term::Term;
 
 // The different sorts of proof steps.

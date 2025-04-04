@@ -40,6 +40,7 @@ pub mod prover;
 pub mod rewrite_tree;
 pub mod score;
 pub mod scorer;
+pub mod source;
 pub mod specializer;
 pub mod statement;
 pub mod term;

@@ -1,5 +1,6 @@
 use crate::acorn_type::{Class, Typeclass};
-use crate::proposition::{Proposition, Source};
+use crate::proposition::Proposition;
+use crate::source::Source;
 
 // A fact is a statement that we are assuming to be true in a particular context.
 #[derive(Clone, Debug)]

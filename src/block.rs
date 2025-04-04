@@ -12,7 +12,8 @@ use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::names::{DefinedName, LocalName};
 use crate::project::Project;
-use crate::proposition::{Proposition, Source, SourceType};
+use crate::proposition::Proposition;
+use crate::source::{Source, SourceType};
 use crate::statement::Body;
 use crate::token::Token;
 

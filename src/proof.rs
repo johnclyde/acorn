@@ -8,7 +8,7 @@ use crate::code_gen_error::CodeGenError;
 use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
-use crate::proposition::{Source, SourceType};
+use crate::source::{Source, SourceType};
 
 // Ranking for how difficult the proof was to find.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
