@@ -190,59 +190,61 @@ impl FunctionType {
     }
 }
 
-// A type parameter is a way of naming a type by its properties.
+/// A type parameter is a way of naming a type by its properties.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct TypeParam {
     pub name: String,
     pub typeclass: Option<Typeclass>,
 }
 
-// Every AcornValue has an AcornType.
-// This is the "richer" form of a type. The environment uses these types; the prover uses ids.
+/// Every AcornValue has an AcornType.
+/// This is the "richer" form of a type. The environment uses these types; the prover uses ids.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum AcornType {
-    // Nothing can ever be the empty type.
+    /// Nothing can ever be the empty type.
     Empty,
 
-    // Booleans are special
+    /// Booleans are special
     Bool,
 
-    // Data types are structures, inductive types, or axiomatic types.
-    // They have a class, and may have type parameters.
+    /// Data types are structures, inductive types, or axiomatic types.
+    /// They have a class, and may have type parameters.
     Data(Class, Vec<AcornType>),
 
-    // Function types are defined by their inputs and output.
+    /// Function types are defined by their inputs and output.
     Function(FunctionType),
 
-    // Type variables and arbitrary types are similar, but different.
-    // Type variables are not monomorphic. Arbitrary types are monomorphic.
-    // They do share the same namespace; you shouldn't have type variables and arbitrary types
-    // inside the same type that have the same name.
-    //
-    // For example, in:
-    //
-    // theorem reverse_twice<T>(list: List<T>) {
-    //     // Imagine some proof here.
-    //     list.reverse.reverse = list
-    // }
-    //
-    // To an external user of this theorem, T is a type variable. You can apply it to any type.
-    // To use this theorem, we need to instantiate T to a concrete type, like Nat or Int.
-    //
-    // To the internal proof, T is an arbitrary type. It's fixed for the duration of the proof.
-    // To prove this theorem, we *don't* need to instantiate T to a monomorphic type.
-
-    // A type variable represents an unknown type, possibly belonging to a particular typeclass.
-    // Expressions with type variables can be instantiated to particular types.
+    /// Type variables and arbitrary types are similar, but different.
+    /// Type variables are not monomorphic. Arbitrary types are monomorphic.
+    /// They do share the same namespace; you shouldn't have type variables and arbitrary types
+    /// inside the same type that have the same name.
+    ///
+    /// For example, in:
+    ///
+    /// ```acorn
+    /// theorem reverse_twice<T>(list: List<T>) {
+    ///     // Imagine some proof here.
+    ///     list.reverse.reverse = list
+    /// }
+    /// ```
+    ///
+    /// To an external user of this theorem, T is a type variable. You can apply it to any type.
+    /// To use this theorem, we need to instantiate T to a concrete type, like Nat or Int.
+    ///
+    /// To the internal proof, T is an arbitrary type. It's fixed for the duration of the proof.
+    /// To prove this theorem, we *don't* need to instantiate T to a monomorphic type.
+    ///
+    /// A type variable represents an unknown type, possibly belonging to a particular typeclass.
+    /// Expressions with type variables can be instantiated to particular types.
     Variable(TypeParam),
 
-    // An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
-    // but we don't know anything else about it.
+    /// An arbitrary type represents a type that is (optionally) a fixed instance of a typeclass,
+    /// but we don't know anything else about it.
     Arbitrary(TypeParam),
 }
 
 impl AcornType {
-    // This just checks exact equality, without any generic stuff.
+    /// This just checks exact equality, without any generic stuff.
     pub fn check_eq(&self, source: &dyn ErrorSource, expected: Option<&AcornType>) -> Result<()> {
         if let Some(e) = expected {
             if e != self {
@@ -252,8 +254,8 @@ impl AcornType {
         Ok(())
     }
 
-    // Create the type, in non-curried form, for a function with the given arguments and return type.
-    // arg_types can be empty.
+    /// Create the type, in non-curried form, for a function with the given arguments and return type.
+    /// arg_types can be empty.
     pub fn functional(arg_types: Vec<AcornType>, return_type: AcornType) -> AcornType {
         if arg_types.is_empty() {
             return_type
@@ -262,7 +264,7 @@ impl AcornType {
         }
     }
 
-    // Whether this type contains the given type variable within it somewhere.
+    /// Whether this type contains the given type variable within it somewhere.
     pub fn has_type_variable(&self, name: &str) -> bool {
         match self {
             AcornType::Variable(param) => param.name == name,
@@ -278,9 +280,9 @@ impl AcornType {
         }
     }
 
-    // Create the type you get when you apply this type to the given type.
-    // Panics if the application is invalid.
-    // Does partial application.
+    /// Create the type you get when you apply this type to the given type.
+    /// Panics if the application is invalid.
+    /// Does partial application.
     pub fn apply(&self, arg_type: &AcornType) -> AcornType {
         if let AcornType::Function(function_type) = self {
             assert_eq!(function_type.arg_types[0], *arg_type);

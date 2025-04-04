@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::proof_step::Truthiness;
 use crate::source::{Source, SourceType};
@@ -10,6 +10,9 @@ use crate::source::{Source, SourceType};
 pub struct Proposition {
     // A boolean value. The essence of the proposition is "value is true".
     pub value: AcornValue,
+
+    // The type parameters that this proposition can be instantiated with.
+    pub params: Vec<TypeParam>,
 
     // Where this proposition came from.
     pub source: Source,
@@ -22,20 +25,34 @@ impl fmt::Display for Proposition {
 }
 
 impl Proposition {
-    pub fn new(value: AcornValue, source: Source) -> Proposition {
-        Proposition { value, source }
-    }
-
-
-    // Just changes the value while keeping the other stuff intact
-    pub fn with_value(&self, value: AcornValue) -> Proposition {
+    /// Creates a new generic proposition.
+    pub fn generic(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
         Proposition {
             value,
-            source: self.source.clone(),
+            params,
+            source,
         }
     }
 
-    // Theorems have theorem names, and so do axioms because those work like theorems.
+    /// Creates a non-generic proposition.
+    pub fn new(value: AcornValue, source: Source) -> Proposition {
+        Proposition {
+            value,
+            params: vec![],
+            source,
+        }
+    }
+
+    /// Just changes the value while keeping the other stuff intact
+    pub fn with_value(self, value: AcornValue) -> Proposition {
+        Proposition {
+            value,
+            params: self.params,
+            source: self.source,
+        }
+    }
+
+    /// Theorems have theorem names, and so do axioms because those work like theorems.
     pub fn theorem_name(&self) -> Option<&str> {
         match &self.source.source_type {
             SourceType::Axiom(name) | SourceType::Theorem(name) => name.as_deref(),
@@ -43,7 +60,7 @@ impl Proposition {
         }
     }
 
-    // Instantiates a generic proposition to have a particular type.
+    /// Instantiates a generic proposition to have a particular type.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> Proposition {
         let value = self.value.instantiate(params);
         if value.has_generic() {
@@ -62,7 +79,11 @@ impl Proposition {
             }
             _ => self.source.clone(),
         };
-        Proposition { value, source }
+        Proposition {
+            value,
+            params: vec![],
+            source,
+        }
     }
 
     pub fn truthiness(&self) -> Truthiness {
