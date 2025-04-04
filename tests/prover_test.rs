@@ -1959,31 +1959,31 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    // #[test]
-    // fn test_prover_respects_typeclasses() {
-    //     // Singleton.unique should not be misapplied to Z2.
-    //     let text = r#"
-    //         inductive Z2 {
-    //             zero
-    //             one
-    //         }
+    #[test]
+    fn test_prover_respects_typeclasses() {
+        // Singleton.unique should not be misapplied to Z2.
+        let text = r#"
+            inductive Z2 {
+                zero
+                one
+            }
 
-    //         define is_equal<T>(x: T, y: T) -> Bool {
-    //             x = y
-    //         }
+            define is_equal<T>(x: T, y: T) -> Bool {
+                x = y
+            }
 
-    //         typeclass S: Singleton {
-    //             element: S
+            typeclass S: Singleton {
+                element: S
 
-    //             unique(x: S, y: S) {
-    //                 is_equal(x, y)
-    //             }
-    //         }
+                unique(x: S, y: S) {
+                    is_equal(x, y)
+                }
+            }
 
-    //         theorem goal {
-    //             is_equal(Z2.zero, Z2.one)
-    //         }
-    //     "#;
-    //     verify_fails(text);
-    // }
+            theorem goal {
+                is_equal(Z2.zero, Z2.one)
+            }
+        "#;
+        verify_fails(text);
+    }
 }
