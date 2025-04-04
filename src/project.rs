@@ -436,7 +436,7 @@ impl Project {
         // Add facts from this file itself
         if let Some(local_premises) = premises.get(&env.module_id) {
             for node in env.nodes.iter().take(node_index) {
-                let name = match node.fact_name() {
+                let name = match node.source_name() {
                     Some(name) => name,
                     None => continue,
                 };
@@ -606,7 +606,7 @@ impl Project {
             }
 
             // Gather the premises used by this proof
-            prover.get_useful_fact_names(new_premises);
+            prover.get_useful_source_names(new_premises);
         }
     }
 

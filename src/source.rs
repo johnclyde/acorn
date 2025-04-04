@@ -107,7 +107,7 @@ impl Source {
     // This is specific to the file it's in; to make it global it needs the fully qualified module name
     // as a prefix.
     // Premises and negated goals do not get names.
-    pub fn fact_name(&self) -> Option<String> {
+    pub fn name(&self) -> Option<String> {
         match &self.source_type {
             SourceType::Axiom(name) | SourceType::Theorem(name) => match name {
                 None => Some(self.user_visible_line().to_string()),
@@ -123,8 +123,8 @@ impl Source {
         }
     }
 
-    // The fact name with a module id to make it unique.
-    pub fn qualified_fact_name(&self) -> Option<(ModuleId, String)> {
-        self.fact_name().map(|name| (self.module, name))
+    // The source name with a module id to make it unique.
+    pub fn qualified_name(&self) -> Option<(ModuleId, String)> {
+        self.name().map(|name| (self.module, name))
     }
 }

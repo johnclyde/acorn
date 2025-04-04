@@ -1831,7 +1831,7 @@ mod prover_test {
         let (prover, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
         let mut name_set = HashSet::new();
-        prover.get_useful_fact_names(&mut name_set);
+        prover.get_useful_source_names(&mut name_set);
         let mut names = name_set
             .into_iter()
             .map(|(_, name)| name)

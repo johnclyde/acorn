@@ -1897,7 +1897,7 @@ impl Environment {
                 continue;
             }
             if let Some(filter) = filter {
-                let name = node.fact_name().expect("importable fact has no name");
+                let name = node.source_name().expect("importable fact has no name");
                 if !filter.contains(&name) {
                     continue;
                 }

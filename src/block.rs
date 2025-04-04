@@ -470,11 +470,10 @@ impl Node {
         }
     }
 
-    // The fact name is used to describe the premise when caching block -> premise dependencies.
-    // All importable facts should have a fact name.
-    // It's a little weird that the fact name and the fact are separate.
-    pub fn fact_name(&self) -> Option<String> {
-        self.source()?.fact_name()
+    // The source name is used to describe the premise when caching block -> premise dependencies.
+    // All importable facts should have a source name.
+    pub fn source_name(&self) -> Option<String> {
+        self.source()?.name()
     }
 
     // Returns the name and value, if this node is a theorem.

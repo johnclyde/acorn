@@ -828,7 +828,7 @@ impl Prover {
     // Gets the qualified name of every fact that was used in the proof.
     // This includes the "inspiration" facts that were used to find the proof but are
     // not mathematically necessary for the proof to be valid.
-    pub fn get_useful_fact_names(&self, names: &mut HashSet<(ModuleId, String)>) {
+    pub fn get_useful_source_names(&self, names: &mut HashSet<(ModuleId, String)>) {
         let proof = match self.get_uncondensed_proof(true) {
             Some(proof) => proof,
             None => return,
@@ -839,7 +839,7 @@ impl Prover {
                     // Non-importable facts are local ones that don't count.
                     continue;
                 }
-                if let Some(qn) = ai.source.qualified_fact_name() {
+                if let Some(qn) = ai.source.qualified_name() {
                     names.insert(qn);
                 }
             }
