@@ -8,10 +8,10 @@ use crate::names::GlobalName;
 use crate::proof_step::Truthiness;
 use crate::proposition::Proposition;
 
-// The type variables used in a generic proposition, along with the types they map to.
-// Can be a partial instantiation.
-// If it isn't fully instantiated, the strings map to generic types.
-// Should always be sorted by string, so that we have some canonical order.
+/// The type variables used in a generic proposition, along with the types they map to.
+/// Can be a partial instantiation.
+/// If it isn't fully instantiated, the strings map to generic types.
+/// Should always be sorted by string, so that we have some canonical order.
 #[derive(PartialEq, Eq, Clone)]
 struct PropParams {
     params: Vec<(String, AcornType)>,
@@ -38,14 +38,14 @@ impl PropParams {
     }
 }
 
-// All the information that the monomorphizer tracks for a single generic proposition.
+/// All the information that the monomorphizer tracks for a single generic proposition.
 #[derive(Clone)]
 struct GenericPropInfo {
-    // A generic value that is true, along with information about where it came from.
+    /// A generic value that is true, along with information about where it came from.
     proposition: Proposition,
 
-    // All of the instantiations that we have done for this proposition.
-    // Currently, all of these instantiations are monomorphizations.
+    /// All of the instantiations that we have done for this proposition.
+    /// Currently, all of these instantiations are monomorphizations.
     instantiations: Vec<PropParams>,
 }
 
@@ -74,7 +74,7 @@ impl ConstantParams {
         ConstantParams { params }
     }
 
-    // Checks that this is a full instantiation, replacing all type variables.
+    /// Checks that this is a full instantiation, replacing all type variables.
     fn assert_full(&self) {
         for t in &self.params {
             if t.has_generic() {
@@ -84,16 +84,16 @@ impl ConstantParams {
     }
 }
 
-// All the information that the monomorphizer tracks for a single generic constant.
+/// All the information that the monomorphizer tracks for a single generic constant.
 #[derive(Clone)]
 struct GenericConstantInfo {
-    // All of the instantiations that we have done for this constant.
-    // Currently, all of these instantiations are monomorphizations.
+    /// All of the instantiations that we have done for this constant.
+    /// Currently, all of these instantiations are monomorphizations.
     instantiations: Vec<ConstantParams>,
 
-    // There is one occurrence for every time a generic constant is used in a proposition.
-    // This is a list of (prop id, instantiation parameters for this constant).
-    // The types could have all sorts of generic variables; it's whatever was in the proposition.
+    /// There is one occurrence for every time a generic constant is used in a proposition.
+    /// This is a list of (prop id, instantiation parameters for this constant).
+    /// The types could have all sorts of generic variables; it's whatever was in the proposition.
     occurrences: Vec<(usize, ConstantParams)>,
 }
 
@@ -106,25 +106,25 @@ impl GenericConstantInfo {
     }
 }
 
-// A helper structure to determine which monomorphs are necessary.
+/// A helper structure to determine which monomorphs are necessary.
 #[derive(Clone)]
 pub struct Monomorphizer {
-    // The generic propositions we have seen so far.
-    // Generic props implicitly get a "prop id" which is their index in this vector.
+    /// The generic propositions we have seen so far.
+    /// Generic props implicitly get a "prop id" which is their index in this vector.
     prop_info: Vec<GenericPropInfo>,
 
-    // This works like an output buffer.
-    // Each output proposition is fully monomorphized.
-    // The Monomorphizer only writes to this, never reads.
+    /// This works like an output buffer.
+    /// Each output proposition is fully monomorphized.
+    /// The Monomorphizer only writes to this, never reads.
     output: Vec<Proposition>,
 
-    // An index tracking wherever a generic constant is located in the generic props.
-    // This is updated whenever we add a generic prop.
-    // Lists (prop id, instantiation for the constant) for each occurrence.
+    /// An index tracking wherever a generic constant is located in the generic props.
+    /// This is updated whenever we add a generic prop.
+    /// Lists (prop id, instantiation for the constant) for each occurrence.
     constant_info: HashMap<GlobalName, GenericConstantInfo>,
 
-    // A set of all the instance relations we know about.
-    // Monomorphization is only allowed with valid instance relations.
+    /// A set of all the instance relations we know about.
+    /// Monomorphization is only allowed with valid instance relations.
     instances: HashMap<Typeclass, HashSet<Class>>,
 }
 
@@ -217,13 +217,13 @@ impl Monomorphizer {
         }
     }
 
-    // Extract monomorphic propositions from the prover.
+    /// Extract monomorphic propositions from the prover.
     pub fn take_output(&mut self) -> Vec<Proposition> {
         std::mem::take(&mut self.output)
     }
 
-    // Call this on any value that we want to use in proofs.
-    // Makes sure that we are generating any monomorphizations that are used in this value.
+    /// Call this on any value that we want to use in proofs.
+    /// Makes sure that we are generating any monomorphizations that are used in this value.
     pub fn add_monomorphs(&mut self, value: &AcornValue) {
         let mut monomorphs = vec![];
         value.find_constants(
@@ -235,8 +235,8 @@ impl Monomorphizer {
         }
     }
 
-    // Monomorphizes our props to create this particular monomorphic constant wherever possible.
-    // This is idempotent, because we only need to do each particular monomorphization once.
+    /// Monomorphizes our props to create this particular monomorphic constant wherever possible.
+    /// This is idempotent, because we only need to do each particular monomorphization once.
     fn monomorphize_matching_props(&mut self, constant: &ConstantInstance) {
         let params = ConstantParams::new(constant.params.clone());
         params.assert_full();
@@ -260,15 +260,15 @@ impl Monomorphizer {
         }
     }
 
-    // Try to monomorphize the given prop to turn the generic params into the monomorph params.
-    // The generic params are the way this constant is instantiated in the given prop.
-    // The generic params do have to be generic.
-    //
-    // The monomorph params are how we would like to instantiate the constant.
-    // It may or may not be possible to match them up.
-    // For example, this may be a proposition about foo<Bool, T>, and our goal
-    // is saying something about foo<Nat, Nat>.
-    // Then we can't match them up.
+    /// Try to monomorphize the given prop to turn the generic params into the monomorph params.
+    /// The generic params are the way this constant is instantiated in the given prop.
+    /// The generic params do have to be generic.
+    ///
+    /// The monomorph params are how we would like to instantiate the constant.
+    /// It may or may not be possible to match them up.
+    /// For example, this may be a proposition about foo<Bool, T>, and our goal
+    /// is saying something about foo<Nat, Nat>.
+    /// Then we can't match them up.
     fn try_to_monomorphize_prop(
         &mut self,
         prop_id: usize,
