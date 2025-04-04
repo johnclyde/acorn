@@ -37,50 +37,25 @@ impl Proposition {
         depth: u32,
         name: Option<String>,
     ) -> Proposition {
-        let source_type = if axiomatic {
-            SourceType::Axiom(name)
-        } else {
-            SourceType::Theorem(name)
-        };
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type,
-                importable: true,
-                depth,
-            },
+            source: Source::theorem(axiomatic, module, range, depth, name),
         }
     }
 
     pub fn anonymous(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::Anonymous,
-                importable: false,
-                depth,
-            },
+            source: Source::anonymous(module, range, depth),
         }
     }
 
     // When we have a constraint, we prove the type is inhabited, which exports as vacuous.
     pub fn inhabited(module: ModuleId, type_name: &str, range: Range, depth: u32) -> Proposition {
         let value = AcornValue::Bool(true);
-        let source_type =
-            SourceType::TypeDefinition(type_name.to_string(), "constraint".to_string());
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type,
-                importable: true,
-                depth,
-            },
+            source: Source::inhabited(module, type_name, range, depth),
         }
     }
 
@@ -94,13 +69,7 @@ impl Proposition {
     ) -> Proposition {
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::TypeDefinition(type_name, member_name),
-                importable: true,
-                depth,
-            },
+            source: Source::type_definition(module, range, depth, type_name, member_name),
         }
     }
 
@@ -114,13 +83,7 @@ impl Proposition {
     ) -> Proposition {
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::ConstantDefinition(constant, name.to_string()),
-                importable: depth == 0,
-                depth,
-            },
+            source: Source::constant_definition(module, range, depth, constant, name),
         }
     }
 
@@ -136,42 +99,21 @@ impl Proposition {
         let value = value.unwrap_or(AcornValue::Bool(true));
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::Instance(
-                    instance_name.to_string(),
-                    typeclass_name.to_string(),
-                ),
-                importable: true,
-                depth,
-            },
+            source: Source::instance(module, range, depth, instance_name, typeclass_name),
         }
     }
 
     pub fn premise(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
         Proposition {
             value,
-            source: Source {
-                module,
-                range,
-                source_type: SourceType::Premise,
-                importable: false,
-                depth,
-            },
+            source: Source::premise(module, range, depth),
         }
     }
 
     pub fn with_negated_goal(&self, value: AcornValue) -> Proposition {
         Proposition {
             value,
-            source: Source {
-                module: self.source.module,
-                range: self.source.range,
-                source_type: SourceType::NegatedGoal,
-                importable: false,
-                depth: self.source.depth,
-            },
+            source: Source::negated_goal(self.source.module, self.source.range.clone(), self.source.depth),
         }
     }
 

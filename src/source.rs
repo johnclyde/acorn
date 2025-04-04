@@ -57,6 +57,137 @@ pub struct Source {
 }
 
 impl Source {
+    pub fn new(
+        module: ModuleId,
+        range: Range,
+        source_type: SourceType,
+        importable: bool,
+        depth: u32,
+    ) -> Source {
+        Source {
+            module,
+            range,
+            source_type,
+            importable,
+            depth,
+        }
+    }
+
+    pub fn theorem(
+        axiomatic: bool,
+        module: ModuleId,
+        range: Range,
+        depth: u32,
+        name: Option<String>,
+    ) -> Source {
+        let source_type = if axiomatic {
+            SourceType::Axiom(name)
+        } else {
+            SourceType::Theorem(name)
+        };
+        Source {
+            module,
+            range,
+            source_type,
+            importable: true,
+            depth,
+        }
+    }
+
+    pub fn anonymous(module: ModuleId, range: Range, depth: u32) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::Anonymous,
+            importable: false,
+            depth,
+        }
+    }
+
+    pub fn inhabited(module: ModuleId, type_name: &str, range: Range, depth: u32) -> Source {
+        let source_type =
+            SourceType::TypeDefinition(type_name.to_string(), "constraint".to_string());
+        Source {
+            module,
+            range,
+            source_type,
+            importable: true,
+            depth,
+        }
+    }
+
+    pub fn type_definition(
+        module: ModuleId,
+        range: Range,
+        depth: u32,
+        type_name: String,
+        member_name: String,
+    ) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::TypeDefinition(type_name, member_name),
+            importable: true,
+            depth,
+        }
+    }
+
+    pub fn constant_definition(
+        module: ModuleId,
+        range: Range,
+        depth: u32,
+        constant: AcornValue,
+        name: &str,
+    ) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::ConstantDefinition(constant, name.to_string()),
+            importable: depth == 0,
+            depth,
+        }
+    }
+
+    // A source for instance statements, where an instance relationship is declared.
+    pub fn instance(
+        module: ModuleId,
+        range: Range,
+        depth: u32,
+        instance_name: &str,
+        typeclass_name: &str,
+    ) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::Instance(
+                instance_name.to_string(),
+                typeclass_name.to_string(),
+            ),
+            importable: true,
+            depth,
+        }
+    }
+
+    pub fn premise(module: ModuleId, range: Range, depth: u32) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::Premise,
+            importable: false,
+            depth,
+        }
+    }
+
+    pub fn negated_goal(module: ModuleId, range: Range, depth: u32) -> Source {
+        Source {
+            module,
+            range,
+            source_type: SourceType::NegatedGoal,
+            importable: false,
+            depth,
+        }
+    }
+
     pub fn mock() -> Source {
         Source {
             module: 0,

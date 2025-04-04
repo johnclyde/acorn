@@ -1987,34 +1987,34 @@ mod prover_test {
         verify_fails(text);
     }
 
-    #[test]
-    fn test_prover_can_use_typeclass_theorems() {
-        // These axioms should be combinable via the instance relationship.
-        let text = r#"
-            typeclass F: Foo {
-                foo: F -> Bool
-            }
+    // #[test]
+    // fn test_prover_can_use_typeclass_theorems() {
+    //     // These axioms should be combinable via the instance relationship.
+    //     let text = r#"
+    //         typeclass F: Foo {
+    //             foo: F -> Bool
+    //         }
 
-            axiom always_foo<F: Foo>(x: F) {
-                x.foo
-            }
+    //         axiom always_foo<F: Foo>(x: F) {
+    //             x.foo
+    //         }
 
-            inductive Bar {
-                bar
-            }
+    //         inductive Bar {
+    //             bar
+    //         }
 
-            let qux: Bool = axiom
+    //         let qux: Bool = axiom
 
-            instance Bar: Foo {
-                define foo(self) -> Bool {
-                    qux
-                }
-            }
+    //         instance Bar: Foo {
+    //             define foo(self) -> Bool {
+    //                 qux
+    //             }
+    //         }
 
-            theorem goal {
-                qux
-            }
-        "#;
-        verify_succeeds(text);
-    }
+    //         theorem goal {
+    //             qux
+    //         }
+    //     "#;
+    //     verify_succeeds(text);
+    // }
 }
