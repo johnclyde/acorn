@@ -104,18 +104,6 @@ impl Source {
         }
     }
 
-    pub fn inhabited(module: ModuleId, type_name: &str, range: Range, depth: u32) -> Source {
-        let source_type =
-            SourceType::TypeDefinition(type_name.to_string(), "constraint".to_string());
-        Source {
-            module,
-            range,
-            source_type,
-            importable: true,
-            depth,
-        }
-    }
-
     pub fn type_definition(
         module: ModuleId,
         range: Range,

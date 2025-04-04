@@ -50,15 +50,6 @@ impl Proposition {
         }
     }
 
-    // When we have a constraint, we prove the type is inhabited, which exports as vacuous.
-    pub fn inhabited(module: ModuleId, type_name: &str, range: Range, depth: u32) -> Proposition {
-        let value = AcornValue::Bool(true);
-        Proposition {
-            value,
-            source: Source::inhabited(module, type_name, range, depth),
-        }
-    }
-
     pub fn type_definition(
         value: AcornValue,
         module: ModuleId,
@@ -113,7 +104,11 @@ impl Proposition {
     pub fn with_negated_goal(&self, value: AcornValue) -> Proposition {
         Proposition {
             value,
-            source: Source::negated_goal(self.source.module, self.source.range.clone(), self.source.depth),
+            source: Source::negated_goal(
+                self.source.module,
+                self.source.range.clone(),
+                self.source.depth,
+            ),
         }
     }
 

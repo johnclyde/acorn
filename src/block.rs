@@ -342,27 +342,27 @@ impl Block {
     }
 }
 
-// The Environment is arranged like a tree structure. It contains many nodes. Some nodes
-// have blocks, with their own environments.
-// There are three types of nodes.
-// 1. Structural nodes, that we can assume without proof
-// 2. Plain claims, that we need to prove
-// 3. Nodes with blocks, where we need to recurse into the block and prove those nodes.
+/// The Environment is arranged like a tree structure. It contains many nodes. Some nodes
+/// have blocks, with their own environments.
+/// There are three types of nodes.
+/// 1. Structural nodes, that we can assume without proof
+/// 2. Plain claims, that we need to prove
+/// 3. Nodes with blocks, where we need to recurse into the block and prove those nodes.
 pub enum Node {
-    // Some nodes contain propositions that are structurally true.
-    // The prover doesn't need to prove these.
-    // For example, this could be an axiom, or a definition.
-    // It could also be a form like a citation that has already been proven by the compiler.
+    /// Some nodes contain propositions that are structurally true.
+    /// The prover doesn't need to prove these.
+    /// For example, this could be an axiom, or a definition.
+    /// It could also be a form like a citation that has already been proven by the compiler.
     Structural(Fact),
 
-    // A claim is something that we need to prove, and then we can subsequently use it.
+    /// A claim is something that we need to prove, and then we can subsequently use it.
     Claim(Proposition),
 
-    // A block has its own environment inside. We need to validate everything in the block.
-    // The block might not exist in the code, but it at least needs to exist for the prover.
-    // The optional fact is what we can use externally once the block is proven.
-    // It is relative to the outside environment.
-    // Other than the external claim, nothing else in the block is visible outside the block.
+    /// A block has its own environment inside. We need to validate everything in the block.
+    /// The block might not exist in the code, but it at least needs to exist for the prover.
+    /// The optional fact is what we can use externally once the block is proven.
+    /// It is relative to the outside environment.
+    /// Other than the external claim, nothing else in the block is visible outside the block.
     Block(Block, Option<Fact>),
 }
 
@@ -377,6 +377,8 @@ impl Node {
         Node::Claim(prop)
     }
 
+    /// The optional proposition is the claim that we can use externally once the block is proven.
+    /// It is relative to the outside environment.
     pub fn block(
         project: &Project,
         env: &Environment,

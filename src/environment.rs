@@ -819,9 +819,7 @@ impl Environment {
                 statement.last_line(),
                 ss.body.as_ref(),
             )?;
-            let prop =
-                Proposition::inhabited(self.module_id, &ss.name, statement.range(), self.depth);
-            let index = self.add_node(Node::block(project, self, block, Some(prop)));
+            let index = self.add_node(Node::block(project, self, block, None));
             self.add_node_lines(index, &statement.range());
             Some(unbound)
         } else {
