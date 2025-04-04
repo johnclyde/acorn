@@ -36,6 +36,9 @@ impl Proposition {
 
     /// Creates a non-generic proposition.
     pub fn new(value: AcornValue, source: Source) -> Proposition {
+        // TODO: make any of the callers that would fail this assert use generic instead.
+        // assert!(!value.has_generic());
+
         Proposition {
             value,
             params: vec![],

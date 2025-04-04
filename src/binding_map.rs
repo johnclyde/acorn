@@ -2100,36 +2100,36 @@ impl BindingMap {
         Ok(answer)
     }
 
-    // Evaluate an expression that creates a new scope for a single value inside it.
-    // This could be the statement of a theorem, the definition of a function, or other similar things.
-    //
-    // It has declarations, introducing new variables and types that exist just for this value,
-    // and it has the value itself, which can use those declarations.
-    //
-    // type_params is a list of tokens for the generic types introduced for this scope.
-    // args is a list of the new variables declared for this scope.
-    // value_type_expr is an optional expression for the type of the value.
-    //   (None means expect a boolean value.)
-    // value_expr is the expression for the value itself.
-    // function_name, when it is provided, can be used recursively.
-    //
-    // This function mutates the binding map but sets it back to its original state when finished.
-    //
-    // Returns a tuple with:
-    //   a list of type parameters
-    //   a list of argument names
-    //   a list of argument types
-    //   an optional unbound value. (None means axiom.)
-    //   the value type
-    //
-    // The type parameters are treated as arbitrary types internally to the new scope, but externally
-    // they are replaced with type variables.
-    //
-    // class_type should be provided, fully instantiated, if this is the definition of a member function.
-    //
-    // The return value is "unbound" in the sense that it has variable atoms that are not
-    // bound within any lambda, exists, or forall value. It also may have references to a
-    // recursive function that is not yet defined.
+    /// Evaluate an expression that creates a new scope for a single value inside it.
+    /// This could be the statement of a theorem, the definition of a function, or other similar things.
+    ///
+    /// It has declarations, introducing new variables and types that exist just for this value,
+    /// and it has the value itself, which can use those declarations.
+    ///
+    /// type_params is a list of tokens for the generic types introduced for this scope.
+    /// args is a list of the new variables declared for this scope.
+    /// value_type_expr is an optional expression for the type of the value.
+    ///   (None means expect a boolean value.)
+    /// value_expr is the expression for the value itself.
+    /// function_name, when it is provided, can be used recursively.
+    ///
+    /// This function mutates the binding map but sets it back to its original state when finished.
+    ///
+    /// Returns a tuple with:
+    ///   a list of type parameters
+    ///   a list of argument names
+    ///   a list of argument types
+    ///   an optional unbound value. (None means axiom.)
+    ///   the value type
+    ///
+    /// The type parameters are treated as arbitrary types internally to the new scope, but externally
+    /// they are replaced with type variables.
+    ///
+    /// class_type should be provided, fully instantiated, if this is the definition of a member function.
+    ///
+    /// The return value is "unbound" in the sense that it has variable atoms that are not
+    /// bound within any lambda, exists, or forall value. It also may have references to a
+    /// recursive function that is not yet defined.
     pub fn evaluate_scoped_value(
         &mut self,
         project: &Project,

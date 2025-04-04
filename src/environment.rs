@@ -205,13 +205,8 @@ impl Environment {
         let range = self.definition_ranges.get(&constant_name).unwrap().clone();
 
         let name = constant_name.to_string();
-        let source = Source::constant_definition(
-            self.module_id,
-            range,
-            self.depth,
-            constant,
-            &name,
-        );
+        let source =
+            Source::constant_definition(self.module_id, range, self.depth, constant, &name);
         let prop = Proposition::new(claim, source);
         self.add_node(Node::structural(project, self, prop));
     }
@@ -768,7 +763,7 @@ impl Environment {
             .bindings
             .evaluate_type_params(project, &ss.type_params)?;
         for type_param in &type_params {
-            // For the duration of the structure definition, the type parameters are
+            // Internally to the structure definition, the type parameters are
             // treated as arbitrary types.
             arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.clone()));
         }
@@ -910,7 +905,7 @@ impl Environment {
             ss.name.clone(),
             "new".to_string(),
         );
-        let prop = Proposition::new(new_claim, source);
+        let prop = Proposition::generic(new_claim, type_params.clone(), source);
         self.add_node(Node::structural(project, self, prop));
 
         // There are also formulas for new followed by member functions. Ie:
@@ -959,7 +954,7 @@ impl Environment {
                 ss.name.clone(),
                 field_name_token.text().to_string(),
             );
-            let prop = Proposition::new(member_claim, source);
+            let prop = Proposition::generic(member_claim, type_params.clone(), source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1824,7 +1819,8 @@ impl Environment {
                         }
 
                         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                        let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+                        let source =
+                            Source::anonymous(self.module_id, statement.range(), self.depth);
                         let prop = Proposition::new(disjunction, source);
                         let index = self.add_node(Node::block(project, self, block, Some(prop)));
                         self.add_node_lines(index, &body.range());
