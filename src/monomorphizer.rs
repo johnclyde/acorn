@@ -125,7 +125,7 @@ pub struct Monomorphizer {
 
     // A set of all the instance relations we know about.
     // Monomorphization is only allowed with valid instance relations.
-    instance_of: HashMap<Class, HashSet<Typeclass>>,
+    instances: HashMap<Typeclass, HashSet<Class>>,
 }
 
 impl Monomorphizer {
@@ -134,15 +134,23 @@ impl Monomorphizer {
             prop_info: vec![],
             output: vec![],
             constant_info: HashMap::new(),
-            instance_of: HashMap::new(),
+            instances: HashMap::new(),
         }
     }
 
     pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
-        self.instance_of
-            .entry(class)
+        self.instances
+            .entry(typeclass)
             .or_insert_with(HashSet::new)
-            .insert(typeclass);
+            .insert(class);
+    }
+
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+        if let Some(set) = self.instances.get(typeclass) {
+            set.contains(class)
+        } else {
+            false
+        }
     }
 
     // Adds a fact. It might or might not be generic.
@@ -276,7 +284,14 @@ impl Monomorphizer {
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            generic_type.match_instance(monomorph_type, &|_, _| true, &mut prop_params);
+            if !generic_type.match_instance(
+                monomorph_type,
+                &|class, typeclass| self.is_instance_of(class, typeclass),
+                &mut prop_params,
+            ) {
+                // We can't match up the types.
+                return;
+            }
         }
         let prop_params = PropParams::new(prop_params);
         let info = &mut self.prop_info[prop_id];
