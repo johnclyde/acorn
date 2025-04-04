@@ -1914,28 +1914,28 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    // #[test]
-    // fn test_prover_fails_on_bad_instance() {
-    //     let text = r#"
-    //         inductive Z2 {
-    //             zero
-    //             one
-    //         }
+    #[test]
+    fn test_prover_fails_on_bad_instance() {
+        let text = r#"
+            inductive Z2 {
+                zero
+                one
+            }
 
-    //         typeclass S: Singleton {
-    //             value: S
+            typeclass S: Singleton {
+                value: S
 
-    //             unique(x: S) {
-    //                 x = S.value
-    //             }
-    //         }
+                unique(x: S) {
+                    x = S.value
+                }
+            }
 
-    //         instance Z2: Singleton {
-    //             let value: Z2 = Z2.zero
-    //         }
-    //     "#;
-    //     verify_fails(text);
-    // }
+            instance Z2: Singleton {
+                let value: Z2 = Z2.zero
+            }
+        "#;
+        verify_fails(text);
+    }
 
     #[test]
     fn test_prover_succeeds_on_good_instance() {
