@@ -1,4 +1,5 @@
 use crate::acorn_type::{Class, Typeclass};
+use crate::acorn_value::AcornValue;
 use crate::proposition::Proposition;
 use crate::source::Source;
 
@@ -13,6 +14,10 @@ pub enum Fact {
 }
 
 impl Fact {
+    pub fn proposition(value: AcornValue, source: Source) -> Fact {
+        Fact::Proposition(Proposition::new(value, source))
+    }
+
     pub fn source(&self) -> &Source {
         match self {
             Fact::Proposition(p) => &p.source,

@@ -166,16 +166,16 @@ impl Source {
         }
     }
 
-    pub fn negated_goal(module: ModuleId, range: Range, depth: u32) -> Source {
+    /// The source at this location, but inverting the proposition to serve as a negated goal.
+    pub fn as_negated_goal(&self) -> Source {
         Source {
-            module,
-            range,
             source_type: SourceType::NegatedGoal,
             importable: false,
-            depth,
+            ..self.clone()
         }
     }
 
+    /// Just for testing.
     pub fn mock() -> Source {
         Source {
             module: 0,
