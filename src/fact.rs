@@ -18,4 +18,11 @@ impl Fact {
             Fact::Instance(_, _, source) => source,
         }
     }
+
+    pub fn is_instance(&self) -> bool {
+        match self {
+            Fact::Proposition(_) => false,
+            Fact::Instance(..) => true,
+        }
+    }
 }

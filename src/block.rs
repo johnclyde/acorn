@@ -461,11 +461,17 @@ impl Node {
 
     // Returns the fact at this node, if there is one.
     pub fn get_fact(&self) -> Option<Fact> {
-        Some(Fact::Proposition(self.proposition()?.clone()))
+        match self {
+            Node::Structural(f) => Some(f.clone()),
+            Node::Claim(p) => Some(Fact::Proposition(p.clone())),
+            Node::Block(_, Some(f)) => Some(f.clone()),
+            _ => None,
+        }
     }
 
     // The fact name is used to describe the premise when caching block -> premise dependencies.
     // All importable facts should have a fact name.
+    // It's a little weird that the fact name and the fact are separate.
     pub fn fact_name(&self) -> Option<String> {
         self.source()?.fact_name()
     }
