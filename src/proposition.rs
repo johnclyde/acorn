@@ -29,75 +29,10 @@ impl Proposition {
         Proposition { value, source }
     }
 
-    pub fn theorem(
-        axiomatic: bool,
-        value: AcornValue,
-        module: ModuleId,
-        range: Range,
-        depth: u32,
-        name: Option<String>,
-    ) -> Proposition {
-        Proposition {
-            value,
-            source: Source::theorem(axiomatic, module, range, depth, name),
-        }
-    }
-
     pub fn anonymous(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
         Proposition {
             value,
             source: Source::anonymous(module, range, depth),
-        }
-    }
-
-    pub fn type_definition(
-        value: AcornValue,
-        module: ModuleId,
-        range: Range,
-        depth: u32,
-        type_name: String,
-        member_name: String,
-    ) -> Proposition {
-        Proposition {
-            value,
-            source: Source::type_definition(module, range, depth, type_name, member_name),
-        }
-    }
-
-    pub fn constant_definition(
-        value: AcornValue,
-        module: ModuleId,
-        range: Range,
-        depth: u32,
-        constant: AcornValue,
-        name: &str,
-    ) -> Proposition {
-        Proposition {
-            value,
-            source: Source::constant_definition(module, range, depth, constant, name),
-        }
-    }
-
-    // A proposition that represents the instance relationship.
-    pub fn instance(
-        value: Option<AcornValue>,
-        module: ModuleId,
-        range: Range,
-        depth: u32,
-        instance_name: &str,
-        typeclass_name: &str,
-    ) -> Proposition {
-        let value = value.unwrap_or(AcornValue::Bool(true));
-        Proposition {
-            value,
-            source: Source::instance(module, range, depth, instance_name, typeclass_name),
-        }
-    }
-
-    pub fn premise(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
-        Proposition {
-            value,
-            source: Source::premise(module, range, depth),
         }
     }
 

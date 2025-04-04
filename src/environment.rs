@@ -205,14 +205,14 @@ impl Environment {
         let range = self.definition_ranges.get(&constant_name).unwrap().clone();
 
         let name = constant_name.to_string();
-        let prop = Proposition::constant_definition(
-            claim,
+        let source = Source::constant_definition(
             self.module_id,
             range,
             self.depth,
             constant,
             &name,
         );
+        let prop = Proposition::new(claim, source);
         self.add_node(Node::structural(project, self, prop));
     }
 
@@ -569,14 +569,14 @@ impl Environment {
         }
 
         let already_proven = ts.axiomatic || is_citation;
-        let prop = Proposition::theorem(
+        let source = Source::theorem(
             already_proven,
-            external_claim,
             self.module_id,
             range,
             self.depth,
             ts.name.clone(),
         );
+        let prop = Proposition::new(external_claim, source);
 
         let node = if already_proven {
             Node::structural(project, self, prop)
@@ -738,14 +738,14 @@ impl Environment {
         let return_bound = unbound_condition.bind_values(num_args, num_args, &[function_term]);
         let external_condition = AcornValue::ForAll(arg_types, Box::new(return_bound));
 
-        let prop = Proposition::constant_definition(
-            external_condition,
+        let source = Source::constant_definition(
             self.module_id,
             definition_range,
             self.depth,
             function_constant,
             &fss.name,
         );
+        let prop = Proposition::new(external_condition, source);
 
         let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_node_lines(index, &statement.range());
@@ -882,14 +882,14 @@ impl Environment {
             let constraint_claim =
                 AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
                     .to_generic();
-            let prop = Proposition::type_definition(
-                constraint_claim,
+            let source = Source::type_definition(
                 self.module_id,
                 range,
                 self.depth,
                 ss.name.clone(),
                 "constraint".to_string(),
             );
+            let prop = Proposition::new(constraint_claim, source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -906,14 +906,14 @@ impl Environment {
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
         let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
-        let prop = Proposition::type_definition(
-            new_claim,
+        let source = Source::type_definition(
             self.module_id,
             range,
             self.depth,
             ss.name.clone(),
             "new".to_string(),
         );
+        let prop = Proposition::new(new_claim, source);
         self.add_node(Node::structural(project, self, prop));
 
         // There are also formulas for new followed by member functions. Ie:
@@ -955,14 +955,14 @@ impl Environment {
                 start: field_name_token.start_pos(),
                 end: field_type_expr.last_token().end_pos(),
             };
-            let prop = Proposition::type_definition(
-                member_claim,
+            let source = Source::type_definition(
                 self.module_id,
                 range,
                 self.depth,
                 ss.name.clone(),
                 field_name_token.text().to_string(),
             );
+            let prop = Proposition::new(member_claim, source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1054,14 +1054,14 @@ impl Environment {
                 let mut quantifiers = i_arg_types.clone();
                 quantifiers.extend(j_arg_types.clone());
                 let claim = AcornValue::forall(quantifiers, inequality);
-                let prop = Proposition::type_definition(
-                    claim,
+                let source = Source::type_definition(
                     self.module_id,
                     range,
                     self.depth,
                     is.name.clone(),
                     member_name.to_string(),
                 );
+                let prop = Proposition::new(claim, source);
                 self.add_node(Node::structural(project, self, prop));
             }
         }
@@ -1087,14 +1087,14 @@ impl Environment {
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
         let claim = AcornValue::forall(vec![inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
-        let prop = Proposition::type_definition(
-            claim,
+        let source = Source::type_definition(
             self.module_id,
             range,
             self.depth,
             is.name.clone(),
             "new".to_string(),
         );
+        let prop = Proposition::new(claim, source);
         self.add_node(Node::structural(project, self, prop));
 
         // The next principle is that each constructor is injective.
@@ -1134,14 +1134,14 @@ impl Environment {
             forall_types.extend_from_slice(&arg_types);
             let claim =
                 AcornValue::forall(forall_types, AcornValue::implies(equality, conjunction));
-            let prop = Proposition::type_definition(
-                claim,
+            let source = Source::type_definition(
                 self.module_id,
                 range,
                 self.depth,
                 is.name.clone(),
                 member_name.to_string(),
             );
+            let prop = Proposition::new(claim, source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1217,14 +1217,14 @@ impl Environment {
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
         let forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
-        let prop = Proposition::theorem(
+        let source = Source::theorem(
             true,
-            forall_claim,
             self.module_id,
             range,
             self.depth,
             Some(name.to_string()),
         );
+        let prop = Proposition::new(forall_claim, source);
         self.add_node(Node::structural(project, self, prop));
 
         Ok(())
@@ -1372,14 +1372,14 @@ impl Environment {
                 None,
             );
 
-            let prop = Proposition::theorem(
+            let source = Source::theorem(
                 true,
-                external_claim,
                 self.module_id,
                 range,
                 self.depth,
                 Some(condition_name.to_string()),
             );
+            let prop = Proposition::new(external_claim, source);
             self.add_node(Node::structural(project, self, prop));
             self.bindings.mark_as_theorem(&local_name);
         }

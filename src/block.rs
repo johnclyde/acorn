@@ -132,8 +132,8 @@ impl Block {
 
         let goal = match params {
             BlockParams::Conditional(condition, range) => {
-                let prop =
-                    Proposition::premise(condition.clone(), env.module_id, range, subenv.depth);
+                let source = Source::premise(env.module_id, range, subenv.depth);
+                let prop = Proposition::new(condition.clone(), source);
                 subenv.add_node(Node::structural(project, &subenv, prop));
                 None
             }
@@ -149,22 +149,22 @@ impl Block {
                     // Add the premise to the environment, when proving the theorem.
                     // The premise is unbound, so we need to bind the block's arg values.
                     let bound = unbound_premise.bind_values(0, 0, &internal_args);
-                    let prop =
-                        Proposition::premise(bound, env.module_id, premise_range, subenv.depth);
+                    let source = Source::premise(env.module_id, premise_range, subenv.depth);
+                    let prop = Proposition::new(bound, source);
                     subenv.add_node(Node::structural(project, &subenv, prop));
                 }
 
                 let bound_goal = unbound_goal
                     .bind_values(0, 0, &internal_args)
                     .to_arbitrary();
-                Some(Goal::Prove(Proposition::theorem(
+                let source = Source::theorem(
                     false,
-                    bound_goal,
                     env.module_id,
                     theorem_range,
                     subenv.depth,
                     theorem_name.map(|s| s.to_string()),
-                )))
+                );
+                Some(Goal::Prove(Proposition::new(bound_goal, source)))
             }
             BlockParams::FunctionSatisfy(unbound_goal, return_type, range) => {
                 // In the block, we need to prove this goal in bound form, so bind args to it.
@@ -190,7 +190,8 @@ impl Block {
                 // Inside the block, we can assume the pattern matches.
                 let applied = AcornValue::apply(constructor, arg_values);
                 let equality = AcornValue::equals(scrutinee, applied);
-                let prop = Proposition::premise(equality, env.module_id, range, subenv.depth);
+                let source = Source::premise(env.module_id, range, subenv.depth);
+                let prop = Proposition::new(equality, source);
                 subenv.add_node(Node::structural(project, &subenv, prop));
                 None
             }
