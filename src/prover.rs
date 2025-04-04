@@ -20,6 +20,8 @@ use crate::passive_set::PassiveSet;
 use crate::project::Project;
 use crate::proof::{Difficulty, Proof};
 use crate::proof_step::{ProofStep, ProofStepId, Rule, Truthiness};
+use crate::proposition::Proposition;
+use crate::source::Source;
 use crate::term::Term;
 use crate::term_graph::TermGraphContradiction;
 
@@ -145,9 +147,15 @@ impl Prover {
                 // Negate the goal and add it as a counterfactual assumption.
                 let (hypo, counter) = prop.value.clone().negate_goal();
                 if let Some(hypo) = hypo {
-                    self.add_fact(Fact::Proposition(prop.with_value(hypo)));
+                    let source = prop.source.clone();
+                    self.add_fact(Fact::Proposition(Proposition::new(hypo, source)));
                 }
-                self.add_fact(Fact::Proposition(prop.with_negated_goal(counter.clone())));
+                let source = Source::negated_goal(
+                    prop.source.module, 
+                    prop.source.range.clone(), 
+                    prop.source.depth
+                );
+                self.add_fact(Fact::Proposition(Proposition::new(counter.clone(), source)));
                 self.goal = Some(NormalizedGoal::ProveNegated(
                     counter,
                     goal_context.inconsistency_okay,

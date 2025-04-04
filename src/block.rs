@@ -173,7 +173,8 @@ impl Block {
                 let partial_goal = unbound_goal.bind_values(0, 0, &internal_args);
                 let bound_goal = AcornValue::exists(vec![return_type], partial_goal);
                 assert!(!bound_goal.has_generic());
-                let prop = Proposition::anonymous(bound_goal, env.module_id, range, env.depth);
+                let source = Source::anonymous(env.module_id, range, env.depth);
+                let prop = Proposition::new(bound_goal, source);
                 Some(Goal::Prove(prop))
             }
             BlockParams::MatchCase(scrutinee, constructor, pattern_args, range) => {
@@ -197,12 +198,8 @@ impl Block {
             }
             BlockParams::TypeRequirement(constraint, range) => {
                 // We don't add any other given theorems.
-                Some(Goal::Prove(Proposition::anonymous(
-                    constraint,
-                    env.module_id,
-                    range,
-                    env.depth,
-                )))
+                let source = Source::anonymous(env.module_id, range, env.depth);
+                Some(Goal::Prove(Proposition::new(constraint, source)))
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
             BlockParams::ForAll | BlockParams::Problem => None,

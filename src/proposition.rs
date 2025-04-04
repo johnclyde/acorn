@@ -1,10 +1,7 @@
 use std::fmt;
 
-use tower_lsp::lsp_types::Range;
-
 use crate::acorn_type::AcornType;
 use crate::acorn_value::AcornValue;
-use crate::module::ModuleId;
 use crate::proof_step::Truthiness;
 use crate::source::{Source, SourceType};
 
@@ -29,23 +26,6 @@ impl Proposition {
         Proposition { value, source }
     }
 
-    pub fn anonymous(value: AcornValue, module: ModuleId, range: Range, depth: u32) -> Proposition {
-        Proposition {
-            value,
-            source: Source::anonymous(module, range, depth),
-        }
-    }
-
-    pub fn with_negated_goal(&self, value: AcornValue) -> Proposition {
-        Proposition {
-            value,
-            source: Source::negated_goal(
-                self.source.module,
-                self.source.range.clone(),
-                self.source.depth,
-            ),
-        }
-    }
 
     // Just changes the value while keeping the other stuff intact
     pub fn with_value(&self, value: AcornValue) -> Proposition {

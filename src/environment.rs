@@ -297,7 +297,8 @@ impl Environment {
                 Some(outer_claim),
             )
         };
-        let prop = Proposition::anonymous(external_claim, self.module_id, claim_range, self.depth);
+        let source = Source::anonymous(self.module_id, claim_range, self.depth);
+        let prop = Proposition::new(external_claim, source);
         let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_line_types(
             LineType::Node(index),
@@ -622,8 +623,8 @@ impl Environment {
             Some(&AcornType::Bool),
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
-        let general_prop =
-            Proposition::anonymous(general_claim, self.module_id, statement.range(), self.depth);
+        let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+        let general_prop = Proposition::new(general_claim, source);
         let index = self.add_node(Node::claim(project, self, general_prop));
         self.add_node_lines(index, &statement.range());
 
@@ -638,12 +639,8 @@ impl Environment {
         let specific_claim =
             self.bindings
                 .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
-        let specific_prop = Proposition::anonymous(
-            specific_claim,
-            self.module_id,
-            statement.range(),
-            self.depth,
-        );
+        let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+        let specific_prop = Proposition::new(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
 
         Ok(())
@@ -1600,21 +1597,13 @@ impl Environment {
 
                 if self.bindings.is_citation(project, &claim) {
                     // We already know this is true, so we don't need to prove it
-                    let prop = Proposition::anonymous(
-                        claim,
-                        self.module_id,
-                        statement.range(),
-                        self.depth,
-                    );
+                    let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+                    let prop = Proposition::new(claim, source);
                     self.add_node(Node::structural(project, self, prop));
                     self.add_other_lines(statement);
                 } else {
-                    let prop = Proposition::anonymous(
-                        claim,
-                        self.module_id,
-                        statement.range(),
-                        self.depth,
-                    );
+                    let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+                    let prop = Proposition::new(claim, source);
                     let index = self.add_node(Node::claim(project, self, prop));
                     self.add_node_lines(index, &statement.range());
                 }
@@ -1646,7 +1635,8 @@ impl Environment {
 
                 let (outer_claim, range) =
                     block.externalize_last_claim(self, &fas.body.right_brace)?;
-                let prop = Proposition::anonymous(outer_claim, self.module_id, range, self.depth);
+                let source = Source::anonymous(self.module_id, range, self.depth);
+                let prop = Proposition::new(outer_claim, source);
                 let index = self.add_node(Node::block(project, self, block, Some(prop)));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
@@ -1764,12 +1754,8 @@ impl Environment {
                 let prop = match block.solves(self, &target) {
                     Some((outer_claim, claim_range)) => {
                         block.goal = None;
-                        Some(Proposition::anonymous(
-                            outer_claim,
-                            self.module_id,
-                            claim_range,
-                            self.depth,
-                        ))
+                        let source = Source::anonymous(self.module_id, claim_range, self.depth);
+                        Some(Proposition::new(outer_claim, source))
                     }
                     None => None,
                 };
@@ -1838,12 +1824,8 @@ impl Environment {
                         }
 
                         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                        let prop = Proposition::anonymous(
-                            disjunction,
-                            self.module_id,
-                            statement.range(),
-                            self.depth,
-                        );
+                        let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+                        let prop = Proposition::new(disjunction, source);
                         let index = self.add_node(Node::block(project, self, block, Some(prop)));
                         self.add_node_lines(index, &body.range());
                         return Ok(());
