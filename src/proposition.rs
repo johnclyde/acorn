@@ -25,6 +25,10 @@ impl fmt::Display for Proposition {
 }
 
 impl Proposition {
+    pub fn new(value: AcornValue, source: Source) -> Proposition {
+        Proposition { value, source }
+    }
+
     pub fn theorem(
         axiomatic: bool,
         value: AcornValue,
