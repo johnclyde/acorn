@@ -5,16 +5,16 @@ use crate::acorn_value::AcornValue;
 use crate::proof_step::Truthiness;
 use crate::source::{Source, SourceType};
 
-// A value along with information on where to find it in the source.
+/// A value along with information on where to find it in the source.
 #[derive(Debug, Clone)]
 pub struct Proposition {
-    // A boolean value. The essence of the proposition is "value is true".
+    /// A boolean value. The essence of the proposition is "value is true".
     pub value: AcornValue,
 
-    // The type parameters that this proposition can be instantiated with.
+    /// The type parameters that this proposition can be instantiated with.
     pub params: Vec<TypeParam>,
 
-    // Where this proposition came from.
+    /// Where this proposition came from.
     pub source: Source,
 }
 

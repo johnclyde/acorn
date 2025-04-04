@@ -18,76 +18,76 @@ use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
 use crate::unresolved_constant::UnresolvedConstant;
 
-// In order to convert an Expression to an AcornValue, we need to convert the string representation
-// of types, variable names, and constant names into numeric identifiers, detect name collisions,
-// and typecheck everything.
-// The BindingMap handles this. It does not handle Statements, just Expressions.
-// It does not have to be efficient enough to run in the inner loop of the prover.
+/// In order to convert an Expression to an AcornValue, we need to convert the string representation
+/// of types, variable names, and constant names into numeric identifiers, detect name collisions,
+/// and typecheck everything.
+/// The BindingMap handles this. It does not handle Statements, just Expressions.
+/// It does not have to be efficient enough to run in the inner loop of the prover.
 #[derive(Clone)]
 pub struct BindingMap {
-    // The module all these names are in.
+    /// The module all these names are in.
     module: ModuleId,
 
-    // Maps the name of a constant defined in this scope to information about it.
-    // Doesn't handle variables defined on the stack, only ones that will be in scope for the
-    // entirety of this environment.
-    // This also includes aliases.
+    /// Maps the name of a constant defined in this scope to information about it.
+    /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
+    /// entirety of this environment.
+    /// This also includes aliases.
     constant_info: HashMap<LocalName, ConstantInfo>,
 
-    // Maps the name of a type to the type object.
-    // Includes unresolved names like List that don't have enough information
-    // to get a specific type.
+    /// Maps the name of a type to the type object.
+    /// Includes unresolved names like List that don't have enough information
+    /// to get a specific type.
     typename_to_type: BTreeMap<String, PotentialType>,
 
-    // Maps the type object to its name in this environment.
+    /// Maps the type object to its name in this environment.
     type_to_typename: HashMap<PotentialType, String>,
 
-    // Maps the name of a typeclass to the typeclass.
-    // Includes typeclasses that were imported from other modules.
+    /// Maps the name of a typeclass to the typeclass.
+    /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
-    // Maps the typeclass to its name in this environment.
-    // Includes every typeclass that has a top-level name in this environment.
+    /// Maps the typeclass to its name in this environment.
+    /// Includes every typeclass that has a top-level name in this environment.
     typeclass_to_name: HashMap<Typeclass, String>,
 
-    // Attribute names of both classes and typeclasses defined in this module.
-    // We use a map-to-nothing so that we can share autocomplete code.
+    /// Attribute names of both classes and typeclasses defined in this module.
+    /// We use a map-to-nothing so that we can share autocomplete code.
     attributes: HashMap<String, BTreeMap<String, ()>>,
 
-    // A map whose keys are the unqualified constants in this module.
-    // Used for completion.
+    /// A map whose keys are the unqualified constants in this module.
+    /// Used for completion.
     unqualified: BTreeMap<String, ()>,
 
-    // Whenever a name from some other scope has a local alias in this one,
-    // if we're generating code, we prefer to use the local name.
-    // This is not just constants, but also types and typeclasses.
-    // So, the GlobalConstantName is slightly misused.
-    // For this reason, canonical_to_alias maps the global name to the preferred local alias.
+    /// Whenever a name from some other scope has a local alias in this one,
+    /// if we're generating code, we prefer to use the local name.
+    /// This is not just constants, but also types and typeclasses.
+    /// So, the GlobalConstantName is slightly misused.
+    /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
     canonical_to_alias: HashMap<GlobalName, String>,
 
-    // Names that refer to other modules.
-    // After "import foo", "foo" refers to a module.
-    // It's important that these are in alphabetical order, so that dependency hashes are consistent.
+    /// Names that refer to other modules.
+    /// After "import foo", "foo" refers to a module.
+    /// It's important that these are in alphabetical order, so that dependency hashes are consistent.
     name_to_module: BTreeMap<String, ModuleId>,
 
-    // The local name for imported modules.
+    /// The local name for imported modules.
     module_to_name: HashMap<ModuleId, String>,
 
-    // The default data type to use for numeric literals.
+    /// The default data type to use for numeric literals.
     numerals: Option<Class>,
 
-    // The definitions of the instance attributes defined in this module.
-    // Alias-type definitions are stored here just like anything else, because the monomorphizer
-    // is going to need to see them in their parametrized form.
+    /// The definitions of the instance attributes defined in this module.
+    /// Alias-type definitions are stored here just like anything else, because the monomorphizer
+    /// is going to need to see them in their parametrized form.
     instance_definitions: HashMap<InstanceName, AcornValue>,
 
-    // Stores the instance-of relationships for classes that were defined in this module.
+    /// Stores the instance-of relationships for classes that were defined in this module.
     instance_of: HashMap<Class, HashSet<Typeclass>>,
 }
 
-// A representation of the variables on the stack.
+/// A representation of the variables on the stack.
 pub struct Stack {
-    // Maps the name of the variable to their depth and their type.
+    /// Maps the name of the variable to their depth and their type.
     vars: HashMap<String, (AtomId, AcornType)>,
 }
 
@@ -122,34 +122,34 @@ impl Stack {
         }
     }
 
-    // Returns the depth and type of the variable with this name.
+    /// Returns the depth and type of the variable with this name.
     fn get(&self, name: &str) -> Option<&(AtomId, AcornType)> {
         self.vars.get(name)
     }
 }
 
-// Information that the BindingMap stores about a constant.
+/// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
 struct ConstantInfo {
-    // The value for this constant. Not the definition, but the constant itself.
-    // If this is a generic constant, this value is unresolved.
+    /// The value for this constant. Not the definition, but the constant itself.
+    /// If this is a generic constant, this value is unresolved.
     value: PotentialValue,
 
-    // The definition of this constant, if it has one.
-    // Not included for aliases.
+    /// The definition of this constant, if it has one.
+    /// Not included for aliases.
     definition: Option<AcornValue>,
 
-    // Whether this is the canonical name for a constant, as opposed to an alias or an import.
+    /// Whether this is the canonical name for a constant, as opposed to an alias or an import.
     canonical: bool,
 
-    // Whether this is a theorem.
+    /// Whether this is a theorem.
     theorem: bool,
 
-    // If this constant is a constructor and this is its canonical name, store:
-    //   the type it constructs
-    //   an index of which constructor it is
-    //   how many total constructors there are
-    // Not included for aliases.
+    /// If this constant is a constructor and this is its canonical name, store:
+    ///   the type it constructs
+    ///   an index of which constructor it is
+    ///   how many total constructors there are
+    /// Not included for aliases.
     constructor: Option<(AcornType, usize, usize)>,
 }
 
@@ -241,8 +241,8 @@ impl BindingMap {
         self.check_local_name_available(source, &LocalName::unqualified(name))
     }
 
-    // Adds both directions for a name <-> type correspondence.
-    // Panics if the name is already bound.
+    /// Adds both directions for a name <-> type correspondence.
+    /// Panics if the name is already bound.
     fn insert_type_name(&mut self, name: String, potential_type: PotentialType) {
         // There can be multiple names for a type.
         // If we already have a name for the reverse lookup, we don't overwrite it.
@@ -261,8 +261,8 @@ impl BindingMap {
         }
     }
 
-    // Adds a new data type to the binding map.
-    // Panics if the name is already bound.
+    /// Adds a new data type to the binding map.
+    /// Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str) -> AcornType {
         let class = Class {
             module_id: self.module,
@@ -273,7 +273,7 @@ impl BindingMap {
         t
     }
 
-    // Panics if the name is already bound.
+    /// Panics if the name is already bound.
     pub fn add_potential_type(
         &mut self,
         name: &str,
@@ -292,9 +292,9 @@ impl BindingMap {
         potential
     }
 
-    // Adds an arbitrary type to the binding map.
-    // This indicates a type parameter that is coming into scope.
-    // Panics if the param name is already bound.
+    /// Adds an arbitrary type to the binding map.
+    /// This indicates a type parameter that is coming into scope.
+    /// Panics if the param name is already bound.
     pub fn add_arbitrary_type(&mut self, param: TypeParam) -> AcornType {
         let name = param.name.to_string();
         let arbitrary_type = AcornType::Arbitrary(param);
@@ -303,8 +303,8 @@ impl BindingMap {
         arbitrary_type
     }
 
-    // Adds a new type name that's an alias for an existing type.
-    // Panics if the alias is already bound.
+    /// Adds a new type name that's an alias for an existing type.
+    /// Panics if the alias is already bound.
     pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
@@ -330,8 +330,8 @@ impl BindingMap {
         self.insert_type_name(alias.to_string(), potential);
     }
 
-    // Adds a name for this typeclass.
-    // Panics if the name is already bound.
+    /// Adds a name for this typeclass.
+    /// Panics if the name is already bound.
     pub fn add_typeclass(&mut self, name: &str, typeclass: Typeclass) {
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
@@ -351,7 +351,7 @@ impl BindingMap {
         }
     }
 
-    // A helper to get the bindings from the project if needed bindings.
+    /// A helper to get the bindings from the project if needed bindings.
     fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
         if module_id == self.module {
             self
@@ -487,8 +487,8 @@ impl BindingMap {
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
-    // All other modules that we directly depend on, besides this one.
-    // Sorted by the name of the import, so that the order will be consistent.
+    /// All other modules that we directly depend on, besides this one.
+    /// Sorted by the name of the import, so that the order will be consistent.
     pub fn direct_dependencies(&self) -> Vec<ModuleId> {
         self.name_to_module.values().copied().collect()
     }
@@ -497,11 +497,11 @@ impl BindingMap {
         self.numerals = Some(class);
     }
 
-    // Adds a constant.
-    // Panics if the name is already bound.
-    // The type and definition can be generic. If so, the parameters must be listed in params.
-    // Don't call this for aliases, this doesn't handle aliases intelligently.
-    // Returns the value for the newly created constant.
+    /// Adds a constant.
+    /// Panics if the name is already bound.
+    /// The type and definition can be generic. If so, the parameters must be listed in params.
+    /// Don't call this for aliases, this doesn't handle aliases intelligently.
+    /// Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
         defined_name: DefinedName,
@@ -530,7 +530,7 @@ impl BindingMap {
         }
     }
 
-    // Adds a constant where we already know it has a local name.
+    /// Adds a constant where we already know it has a local name.
     pub fn add_local_constant(
         &mut self,
         local_name: LocalName,
@@ -594,7 +594,7 @@ impl BindingMap {
         value
     }
 
-    // Be really careful about this, it seems likely to break things.
+    /// Be really careful about this, it seems likely to break things.
     fn remove_constant(&mut self, local_name: &LocalName) {
         if let LocalName::Unqualified(word) = local_name {
             // Remove the unqualified name from the list of unqualified names.
@@ -605,8 +605,8 @@ impl BindingMap {
             .expect("constant name not in use");
     }
 
-    // Adds a local alias for an already-existing constant value.
-    // TODO: is aliasing theorems supposed to work?
+    /// Adds a local alias for an already-existing constant value.
+    /// TODO: is aliasing theorems supposed to work?
     pub fn add_alias(
         &mut self,
         local_name: LocalName,
@@ -644,8 +644,8 @@ impl BindingMap {
             .map_or(false, |info| info.theorem)
     }
 
-    // Type variables and arbitrary variables should get removed when they go out of scope.
-    // Other sorts of types shouldn't be getting removed.
+    /// Type variables and arbitrary variables should get removed when they go out of scope.
+    /// Other sorts of types shouldn't be getting removed.
     pub fn remove_type(&mut self, name: &str) {
         match self.typename_to_type.remove(name) {
             Some(p) => match &p {
@@ -664,7 +664,7 @@ impl BindingMap {
         }
     }
 
-    // Adds this name to the environment as a module.
+    /// Adds this name to the environment as a module.
     pub fn import_module(&mut self, name: &str, module: ModuleId) {
         self.name_to_module
             .insert(name.to_string(), module)
@@ -678,7 +678,7 @@ impl BindingMap {
         self.name_to_module.contains_key(name)
     }
 
-    // Whether this value is calling a theorem on some arguments.
+    /// Whether this value is calling a theorem on some arguments.
     pub fn is_citation(&self, project: &Project, claim: &AcornValue) -> bool {
         match claim.is_named_function_call() {
             Some(global_name) => {
@@ -710,7 +710,7 @@ impl BindingMap {
         Some(answer)
     }
 
-    // Gets completions when we are typing a member name.
+    /// Gets completions when we are typing a member name.
     fn get_type_attribute_completions(
         &self,
         project: &Project,
@@ -724,10 +724,10 @@ impl BindingMap {
         }
     }
 
-    // The prefix is just of a single identifier.
-    // If importing is true, we are looking for names to import. This means that we don't
-    // want to suggest names unless this is the canonical location for them, and we don't
-    // want to suggest theorems.
+    /// The prefix is just of a single identifier.
+    /// If importing is true, we are looking for names to import. This means that we don't
+    /// want to suggest names unless this is the canonical location for them, and we don't
+    /// want to suggest theorems.
     pub fn get_completions(
         &self,
         project: &Project,
@@ -843,7 +843,7 @@ impl BindingMap {
     // Tools for parsing Expressions and similar structures
     ////////////////////////////////////////////////////////////////////////////////
 
-    // Evaluates an expression that represents a type.
+    /// Evaluates an expression that represents a type.
     pub fn evaluate_type(
         &self,
         project: &Project,
@@ -858,7 +858,7 @@ impl BindingMap {
         }
     }
 
-    // Evaluates an expression that either represents a type, or represents a type that still needs params.
+    /// Evaluates an expression that either represents a type, or represents a type that still needs params.
     pub fn evaluate_potential_type(
         &self,
         project: &Project,
@@ -924,7 +924,7 @@ impl BindingMap {
         }
     }
 
-    // Evaluates a list of types.
+    /// Evaluates a list of types.
     pub fn evaluate_type_list(
         &self,
         project: &Project,
@@ -944,8 +944,8 @@ impl BindingMap {
         }
     }
 
-    // Evaluates a variable declaration in this context.
-    // "self" declarations should be handled externally.
+    /// Evaluates a variable declaration in this context.
+    /// "self" declarations should be handled externally.
     pub fn evaluate_declaration(
         &self,
         project: &Project,
@@ -962,8 +962,8 @@ impl BindingMap {
         };
     }
 
-    // Parses a list of named argument declarations and adds them to the stack.
-    // class_type should be provided if these are the arguments of a new member function.
+    /// Parses a list of named argument declarations and adds them to the stack.
+    /// class_type should be provided if these are the arguments of a new member function.
     pub fn bind_args<'a, I>(
         &self,
         stack: &mut Stack,
@@ -1007,8 +1007,8 @@ impl BindingMap {
         Ok((names, types))
     }
 
-    // Errors if the value is not a constructor of the expected type.
-    // Returns the index of which constructor this is, and the total number of constructors.
+    /// Errors if the value is not a constructor of the expected type.
+    /// Returns the index of which constructor this is, and the total number of constructors.
     fn expect_constructor(
         &self,
         project: &Project,
@@ -1032,13 +1032,13 @@ impl BindingMap {
         }
     }
 
-    // Evalutes a pattern match. Infers their types from the pattern.
-    // Returns an error if the pattern is not a constructor of the expected type.
-    // Returns:
-    //   a value for the constructor function
-    //   a list of (name, type) pairs
-    //   the index of which constructor this is
-    //   the total number of constructors
+    /// Evalutes a pattern match. Infers their types from the pattern.
+    /// Returns an error if the pattern is not a constructor of the expected type.
+    /// Returns:
+    ///   a value for the constructor function
+    ///   a list of (name, type) pairs
+    ///   the index of which constructor this is
+    ///   the total number of constructors
     pub fn evaluate_pattern(
         &self,
         project: &Project,
@@ -1096,9 +1096,9 @@ impl BindingMap {
         Ok((constructor, args, i, total))
     }
 
-    // This function evaluates numbers when we already know what type they are.
-    // token is the token to report errors with.
-    // s is the string to parse.
+    /// This function evaluates numbers when we already know what type they are.
+    /// token is the token to report errors with.
+    /// s is the string to parse.
     fn evaluate_number_with_class(
         &self,
         token: &Token,
@@ -1173,7 +1173,7 @@ impl BindingMap {
         bindings.get_constant_value(source, &constant_name)
     }
 
-    // Evaluates an expression that is supposed to describe a value, with an empty stack.
+    /// Evaluates an expression that is supposed to describe a value, with an empty stack.
     pub fn evaluate_value(
         &self,
         project: &Project,
@@ -1183,8 +1183,8 @@ impl BindingMap {
         self.evaluate_value_with_stack(&mut Stack::new(), project, expression, expected_type)
     }
 
-    // Evaluates an attribute of an instance, like foo.bar.
-    // token is used for reporting errors but may not correspond to anything in particular.
+    /// Evaluates an attribute of an instance, like foo.bar.
+    /// token is used for reporting errors but may not correspond to anything in particular.
     fn evaluate_instance_attribute(
         &self,
         source: &dyn ErrorSource,
@@ -1222,9 +1222,9 @@ impl BindingMap {
         self.apply_potential(source, project, function, vec![instance], None)
     }
 
-    // Evaluates a single name, which may be namespaced to another named entity.
-    // In this situation, we don't know what sort of thing we expect the name to represent.
-    // We have the entity described by a chain of names, and we're adding one more name to the chain.
+    /// Evaluates a single name, which may be namespaced to another named entity.
+    /// In this situation, we don't know what sort of thing we expect the name to represent.
+    /// We have the entity described by a chain of names, and we're adding one more name to the chain.
     fn evaluate_name(
         &self,
         name_token: &Token,
@@ -1393,7 +1393,7 @@ impl BindingMap {
         }
     }
 
-    // Evaluates a single dot operator.
+    /// Evaluates a single dot operator.
     fn evaluate_dot_expression(
         &self,
         stack: &mut Stack,
@@ -1409,9 +1409,9 @@ impl BindingMap {
         self.evaluate_name(right_token, project, stack, Some(left_entity))
     }
 
-    // Evaluate a string of names separated by dots.
-    // Creates fake tokens to be used for error reporting.
-    // Chain must not be empty.
+    /// Evaluate a string of names separated by dots.
+    /// Creates fake tokens to be used for error reporting.
+    /// Chain must not be empty.
     fn evaluate_name_chain(&self, project: &Project, chain: &[&str]) -> Option<NamedEntity> {
         let mut answer: Option<NamedEntity> = None;
         for name in chain {
@@ -1424,8 +1424,8 @@ impl BindingMap {
         answer
     }
 
-    // Evaluates an expression that could represent any sort of named entity.
-    // It could be a type, a value, or a module.
+    /// Evaluates an expression that could represent any sort of named entity.
+    /// It could be a type, a value, or a module.
     fn evaluate_entity(
         &self,
         stack: &mut Stack,
@@ -1454,8 +1454,8 @@ impl BindingMap {
         Ok(NamedEntity::Value(value))
     }
 
-    // Evaluates an infix operator.
-    // name is the special alphanumeric name that corresponds to the operator, like "+" expands to "add".
+    /// Evaluates an infix operator.
+    /// name is the special alphanumeric name that corresponds to the operator, like "+" expands to "add".
     fn evaluate_infix(
         &self,
         stack: &mut Stack,
@@ -1498,8 +1498,8 @@ impl BindingMap {
         Ok(value)
     }
 
-    // Imports a name from another module.
-    // The name could either be a type or a value.
+    /// Imports a name from another module.
+    /// The name could either be a type or a value.
     pub fn import_name(
         &mut self,
         project: &Project,
@@ -1664,16 +1664,16 @@ impl BindingMap {
         self.resolve_function(source, project, unresolved, args, expected_type)
     }
 
-    // This creates a version of a typeclass condition that is specialized to a particular
-    // class that isn't an instance of the typeclass.
-    // The class must be defined in this module.
-    //
-    // We use this when we haven't proven that a type is an instance of a typeclass yet.
-    // So for example we can resolve:
-    //   Ring.add<T: Ring> -> Ring.add<Int>
-    // even though Int has not been proven to be an instance of Ring.
-    //
-    // TODO: does this work right for typeclasses outside this module?
+    /// This creates a version of a typeclass condition that is specialized to a particular
+    /// class that isn't an instance of the typeclass.
+    /// The class must be defined in this module.
+    ///
+    /// We use this when we haven't proven that a type is an instance of a typeclass yet.
+    /// So for example we can resolve:
+    ///   Ring.add<T: Ring> -> Ring.add<Int>
+    /// even though Int has not been proven to be an instance of Ring.
+    ///
+    /// TODO: does this work right for typeclasses outside this module?
     pub fn unsafe_instantiate_condition(
         &self,
         source: &dyn ErrorSource,
@@ -1708,8 +1708,8 @@ impl BindingMap {
         Ok(unsafe_instance)
     }
 
-    // Evaluates an expression that describes a value, with a stack given as context.
-    // This must resolve to a completed value, with all types inferred.
+    /// Evaluates an expression that describes a value, with a stack given as context.
+    /// This must resolve to a completed value, with all types inferred.
     pub fn evaluate_value_with_stack(
         &self,
         stack: &mut Stack,
@@ -1721,8 +1721,8 @@ impl BindingMap {
         potential.as_value(expression)
     }
 
-    // Evaluates an expression that could describe a value, but could also describe
-    // a constant with an unresolved type.
+    /// Evaluates an expression that could describe a value, but could also describe
+    /// a constant with an unresolved type.
     fn evaluate_potential_value(
         &self,
         stack: &mut Stack,
