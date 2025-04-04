@@ -1,3 +1,5 @@
+use std::fmt;
+
 use tower_lsp::lsp_types::Range;
 
 use crate::acorn_type::AcornType;
@@ -138,6 +140,12 @@ pub struct Proposition {
 
     // Where this proposition came from.
     pub source: Source,
+}
+
+impl fmt::Display for Proposition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
 }
 
 impl Proposition {
