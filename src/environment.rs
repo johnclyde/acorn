@@ -389,10 +389,7 @@ impl Environment {
             }
         }
 
-        self.bindings
-            .add_constant(constant_name.clone(), vec![], acorn_type, value, None);
-        self.definition_ranges.insert(constant_name.clone(), range);
-        self.add_identity(project, &constant_name);
+        self.define_constant(project, constant_name, vec![], acorn_type, value, range);
         Ok(())
     }
 
