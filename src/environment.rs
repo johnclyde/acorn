@@ -160,8 +160,8 @@ impl Environment {
         }
     }
 
-    // Adds a node to the environment tree.
-    // Returns the index of the newly added node.
+    /// Adds a node to the environment tree.
+    /// Returns the index of the newly added node.
     pub fn add_node(&mut self, node: Node) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
@@ -183,7 +183,8 @@ impl Environment {
             .expect("bad add_identity_props call")
             .to_generic_value();
 
-        // Inflate functional identities. (Do we really need this?)
+        // Inflate functional identities.
+        // Maybe this should ideally be in the normalizer, instead of here.
         let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
             let args: Vec<_> = acorn_types
                 .iter()

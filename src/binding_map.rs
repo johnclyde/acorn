@@ -419,8 +419,8 @@ impl BindingMap {
             .insert(typeclass);
     }
 
-    // Returns a PotentialValue representing this name, if there is one.
-    // This can be either a resolved or unresolved value.
+    /// Returns a PotentialValue representing this name, if there is one.
+    /// This can be either a resolved or unresolved value.
     pub fn get_constant_value(
         &self,
         source: &dyn ErrorSource,
