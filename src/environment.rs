@@ -211,6 +211,22 @@ impl Environment {
         self.add_node(Node::structural(project, self, prop));
     }
 
+    /// Defines a new constant, adding a node for its definition and also tracking its definition range.
+    fn define_constant(
+        &mut self,
+        project: &Project,
+        name: DefinedName,
+        params: Vec<TypeParam>,
+        constant_type: AcornType,
+        definition: Option<AcornValue>,
+        range: Range,
+    ) {
+        self.bindings
+            .add_constant(name.clone(), params, constant_type, definition, None);
+        self.definition_ranges.insert(name.clone(), range);
+        self.add_identity(project, &name);
+    }
+
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         self.bindings.get_definition(name)
     }
@@ -446,6 +462,7 @@ impl Environment {
             }
         }
 
+        // The typical definition case
         if let Some(v) = unbound_value {
             let mut fn_value = AcornValue::lambda(arg_types, v);
 
@@ -459,26 +476,27 @@ impl Environment {
             };
 
             // Add the function value to the environment
-            self.bindings.add_constant(
-                constant_name.clone(),
+            self.define_constant(
+                project,
+                constant_name,
                 params,
                 fn_value.get_type(),
                 Some(fn_value),
-                None,
+                range,
             );
-        } else {
-            let new_axiom_type = AcornType::functional(arg_types, value_type);
-            self.bindings.add_constant(
-                constant_name.clone(),
-                fn_param_names,
-                new_axiom_type,
-                None,
-                None,
-            );
-        };
+            return Ok(());
+        }
 
-        self.definition_ranges.insert(constant_name.clone(), range);
-        self.add_identity(project, &constant_name);
+        // Defining an axiom
+        let new_axiom_type = AcornType::functional(arg_types, value_type);
+        self.define_constant(
+            project,
+            constant_name,
+            fn_param_names,
+            new_axiom_type,
+            None,
+            range,
+        );
         Ok(())
     }
 
