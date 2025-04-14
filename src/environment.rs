@@ -375,17 +375,23 @@ impl Environment {
         };
 
         // Check for aliasing
-        if let DefinedName::Local(local_name) = &constant_name {
-            if let Some(value) = &value {
-                if let Some(global_name) = value.as_simple_constant() {
-                    // 'let x = y' creates an alias for y, not a new constant.
-                    self.bindings.add_alias(
-                        local_name.clone(),
-                        global_name.clone(),
-                        PotentialValue::Resolved(value.clone()),
-                    );
-                    return Ok(());
+        if let Some(value) = &value {
+            if let Some(global_name) = value.as_simple_constant() {
+                // 'let x = y' should create an alias for y, not a new constant.
+                match &constant_name {
+                    // Aliases for local names are handled in the binding map.
+                    DefinedName::Local(local_name) => {
+                        self.bindings.add_alias(
+                            local_name.clone(),
+                            global_name.clone(),
+                            PotentialValue::Resolved(value.clone()),
+                        );
+                    }
+                    DefinedName::Instance(_instance_name) => {
+                        todo!("alias instance names");
+                    }
                 }
+                return Ok(());
             }
         }
 
