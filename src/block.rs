@@ -143,7 +143,7 @@ impl Block {
                     // Within the theorem block, the theorem is treated like a function,
                     // with propositions to define its identity.
                     // This makes it less annoying to define inductive hypotheses.
-                    subenv.add_definition(project, &DefinedName::unqualified(name));
+                    subenv.add_definition(&DefinedName::unqualified(name));
                 }
 
                 if let Some((unbound_premise, premise_range)) = premise {

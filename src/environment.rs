@@ -169,7 +169,7 @@ impl Environment {
 
     /// Adds a node to represent the definition of the provided
     /// constant.
-    pub fn add_definition(&mut self, project: &Project, constant_name: &DefinedName) {
+    pub fn add_definition(&mut self, constant_name: &DefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -191,20 +191,12 @@ impl Environment {
             &name,
         );
 
-        // Create the node.
-        let (params, constant) = match potential {
-            PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
-            PotentialValue::Resolved(c) => (vec![], c.clone()),
-        };
-        let claim = constant.inflate_function_definition(definition);
-        let prop = Proposition::new(claim, params, source);
-        self.add_node(Node::structural(project, self, prop));
+        self.add_node(Node::definition(potential, definition, source));
     }
 
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
     fn define_constant(
         &mut self,
-        project: &Project,
         name: DefinedName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
@@ -214,7 +206,7 @@ impl Environment {
         self.bindings
             .add_constant(name.clone(), params, constant_type, definition, None);
         self.definition_ranges.insert(name.clone(), range);
-        self.add_definition(project, &name);
+        self.add_definition(&name);
     }
 
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
@@ -381,7 +373,7 @@ impl Environment {
             }
         }
 
-        self.define_constant(project, constant_name, vec![], acorn_type, value, range);
+        self.define_constant(constant_name, vec![], acorn_type, value, range);
         Ok(())
     }
 
@@ -466,7 +458,6 @@ impl Environment {
 
             // Add the function value to the environment
             self.define_constant(
-                project,
                 constant_name,
                 params,
                 fn_value.get_type(),
@@ -478,14 +469,7 @@ impl Environment {
 
         // Defining an axiom
         let new_axiom_type = AcornType::functional(arg_types, value_type);
-        self.define_constant(
-            project,
-            constant_name,
-            fn_param_names,
-            new_axiom_type,
-            None,
-            range,
-        );
+        self.define_constant(constant_name, fn_param_names, new_axiom_type, None, range);
         Ok(())
     }
 
