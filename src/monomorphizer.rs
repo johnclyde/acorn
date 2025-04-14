@@ -5,6 +5,7 @@ use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::fact::Fact;
 use crate::names::GlobalName;
+use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
 
@@ -192,8 +193,14 @@ impl Monomorphizer {
             Fact::Instance(class, typeclass, _) => {
                 self.add_instance_of(class, typeclass);
             }
-            Fact::Definition(_potential, _definition, _source) => {
-                todo!("handling adding definition-facts");
+            Fact::Definition(potential, definition, source) => {
+                let (params, constant) = match potential {
+                    PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
+                    PotentialValue::Resolved(c) => (vec![], c.clone()),
+                };
+                let claim = constant.inflate_function_definition(definition);
+                let prop = Proposition::new(claim, params, source);
+                self.add_proposition(prop);
             }
         }
     }
