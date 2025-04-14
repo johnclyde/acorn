@@ -332,11 +332,7 @@ impl Environment {
         ls: &LetStatement,
         range: Range,
     ) -> compilation::Result<()> {
-        if ls.name == "self"
-            || ls.name == "new"
-            || ls.name == "read"
-            || (constant_name.is_qualified() && TokenType::is_magic_method_name(&ls.name))
-        {
+        if ls.name == "self" || ls.name == "new" {
             return Err(ls.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
                 ls.name

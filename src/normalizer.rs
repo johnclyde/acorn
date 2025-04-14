@@ -824,6 +824,6 @@ mod tests {
 
         // Both sides should get normalized to the same thing.
         let mut norm = Normalizer::new();
-        norm.check(&env, "goal", &["true = true"]);
+        norm.check(&env, "goal", &["Foo.mul(x0, x0) = Foo.mul(x0, x0)"]);
     }
 }
