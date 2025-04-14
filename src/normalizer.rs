@@ -387,7 +387,7 @@ impl Normalizer {
     pub fn normalize_fact(&mut self, fact: Fact, steps: &mut Vec<ProofStep>) -> Result<()> {
         self.monomorphizer.add_fact(fact);
         for proposition in self.monomorphizer.take_output() {
-            let local = proposition.truthiness() != Truthiness::Factual;
+            let local = proposition.source.truthiness() != Truthiness::Factual;
             let defined = match &proposition.source.source_type {
                 SourceType::ConstantDefinition(value, _) => {
                     let term = self.term_from_value(&value, local)?;

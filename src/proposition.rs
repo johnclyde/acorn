@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
-use crate::proof_step::Truthiness;
 use crate::source::{Source, SourceType};
 
 /// A value along with information on where to find it in the source.
@@ -62,7 +61,7 @@ impl Proposition {
     }
 
     /// Instantiates a generic proposition to have a particular type.
-    pub fn instantiate(&self, params: &[(String, AcornType)]) -> Proposition {
+    pub fn instantiate(&self, params: &[(String, AcornType)]) -> MonomorphicProposition {
         let value = self.value.instantiate(params);
         if value.has_generic() {
             panic!("tried to instantiate but {} is still generic", value);
@@ -80,20 +79,33 @@ impl Proposition {
             }
             _ => self.source.clone(),
         };
-        Proposition {
-            value,
-            params: vec![],
-            source,
-        }
+        MonomorphicProposition { value, source }
     }
 
-    pub fn truthiness(&self) -> Truthiness {
-        if self.source.source_type == SourceType::NegatedGoal {
-            Truthiness::Counterfactual
-        } else if self.source.depth == 0 {
-            Truthiness::Factual
+    pub fn as_monomorphic(&self) -> Option<MonomorphicProposition> {
+        if self.params.is_empty() {
+            Some(MonomorphicProposition {
+                value: self.value.clone(),
+                source: self.source.clone(),
+            })
         } else {
-            Truthiness::Hypothetical
+            None
         }
+    }
+}
+
+/// A proposition that is not generic.
+#[derive(Debug, Clone)]
+pub struct MonomorphicProposition {
+    /// A boolean value. The essence of the proposition is "value is true".
+    pub value: AcornValue,
+
+    /// Where this proposition came from.
+    pub source: Source,
+}
+
+impl fmt::Display for MonomorphicProposition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
     }
 }

@@ -4,7 +4,7 @@ use std::fmt;
 use crate::atom::Atom;
 use crate::clause::Clause;
 use crate::literal::Literal;
-use crate::proposition::Proposition;
+use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
 use crate::term::Term;
 
@@ -250,7 +250,7 @@ impl ProofStep {
     // Construct a new assumption ProofStep that is not dependent on any other steps.
     // Assumptions are always depth zero, but eventually we may have to revisit that.
     pub fn assumption(
-        proposition: &Proposition,
+        proposition: &MonomorphicProposition,
         clause: Clause,
         defined_atom: Option<Atom>,
     ) -> ProofStep {
@@ -261,7 +261,7 @@ impl ProofStep {
         });
         ProofStep {
             clause,
-            truthiness: proposition.truthiness(),
+            truthiness: proposition.source.truthiness(),
             rule,
             simplification_rules: vec![],
             proof_size: 0,

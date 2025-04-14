@@ -6,7 +6,7 @@ use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::fact::Fact;
 use crate::names::GlobalName;
 use crate::proof_step::Truthiness;
-use crate::proposition::Proposition;
+use crate::proposition::{MonomorphicProposition, Proposition};
 
 /// The type variables used in a generic proposition, along with the types they map to.
 /// Can be a partial instantiation.
@@ -116,7 +116,7 @@ pub struct Monomorphizer {
     /// This works like an output buffer.
     /// Each output proposition is fully monomorphized.
     /// The Monomorphizer only writes to this, never reads.
-    output: Vec<Proposition>,
+    output: Vec<MonomorphicProposition>,
 
     /// An index tracking wherever a generic constant is located in the generic props.
     /// This is updated whenever we add a generic prop.
@@ -167,31 +167,26 @@ impl Monomorphizer {
 
     fn add_proposition(&mut self, proposition: Proposition) {
         // We don't monomorphize to match constants in global facts, because it would blow up.
-        if proposition.truthiness() != Truthiness::Factual {
+        if proposition.source.truthiness() != Truthiness::Factual {
             self.add_monomorphs(&proposition.value);
         }
 
-        let i = self.prop_info.len();
+        if let Some(mp) = proposition.as_monomorphic() {
+            // This is already monomorphic. Just add it to the output.
+            self.output.push(mp);
+            return;
+        }
+
         let mut generic_constants = vec![];
         proposition
             .value
             .find_constants(&|c| c.has_generic(), &mut generic_constants);
         if generic_constants.is_empty() {
-            if let AcornValue::ForAll(args, _) = &proposition.value {
-                if args.iter().any(|arg| arg.has_generic()) {
-                    // This is a generic fact with no generic constants in it.
-                    // It could be something trivial and purely propositional, like
-                    // forall(x: T) { x = x }
-                    // Just skip it.
-                    return;
-                }
-            }
-
-            // The proposition is already monomorphic. Just output it.
-            self.output.push(proposition);
+            // We can never instantiate this, anyway.
             return;
         }
 
+        let i = self.prop_info.len();
         self.prop_info.push(GenericPropInfo {
             proposition,
             instantiations: vec![],
@@ -218,7 +213,7 @@ impl Monomorphizer {
     }
 
     /// Extract monomorphic propositions from the prover.
-    pub fn take_output(&mut self) -> Vec<Proposition> {
+    pub fn take_output(&mut self) -> Vec<MonomorphicProposition> {
         std::mem::take(&mut self.output)
     }
 

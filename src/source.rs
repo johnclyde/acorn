@@ -3,6 +3,7 @@
 // information for human consumption.
 use crate::acorn_value::AcornValue;
 use crate::module::ModuleId;
+use crate::proof_step::Truthiness;
 use tower_lsp::lsp_types::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -245,5 +246,15 @@ impl Source {
     // The source name with a module id to make it unique.
     pub fn qualified_name(&self) -> Option<(ModuleId, String)> {
         self.name().map(|name| (self.module, name))
+    }
+
+    pub fn truthiness(&self) -> Truthiness {
+        if self.source_type == SourceType::NegatedGoal {
+            Truthiness::Counterfactual
+        } else if self.depth == 0 {
+            Truthiness::Factual
+        } else {
+            Truthiness::Hypothetical
+        }
     }
 }
