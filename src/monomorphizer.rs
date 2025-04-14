@@ -192,6 +192,9 @@ impl Monomorphizer {
             Fact::Instance(class, typeclass, _) => {
                 self.add_instance_of(class, typeclass);
             }
+            Fact::Definition(_potential, _definition, _source) => {
+                todo!("handling adding definition-facts");
+            }
         }
     }
 

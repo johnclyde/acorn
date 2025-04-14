@@ -11,6 +11,7 @@ use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
 use crate::names::{DefinedName, LocalName};
+use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
@@ -142,7 +143,7 @@ impl Block {
                     // Within the theorem block, the theorem is treated like a function,
                     // with propositions to define its identity.
                     // This makes it less annoying to define inductive hypotheses.
-                    subenv.add_identity(project, &DefinedName::unqualified(name));
+                    subenv.add_definition(project, &DefinedName::unqualified(name));
                 }
 
                 if let Some((unbound_premise, premise_range)) = premise {
@@ -373,6 +374,12 @@ impl Node {
     pub fn claim(project: &Project, env: &Environment, prop: Proposition) -> Node {
         let prop = env.bindings.expand_theorems(project, prop);
         Node::Claim(prop)
+    }
+
+    // This does not expand theorems. I can imagine this coming up, but it would be weird.
+    pub fn definition(constant: PotentialValue, definition: AcornValue, source: Source) -> Node {
+        let fact = Fact::Definition(constant, definition, source);
+        Node::Structural(fact)
     }
 
     /// The optional proposition is the claim that we can use externally once the block is proven.

@@ -1770,6 +1770,30 @@ impl AcornValue {
         }
     }
 
+    /// Inflating a function definition is when we replace the equality of functions by
+    /// a statement that they are equal for all arguments.
+    /// If this is a function definition, return the inflated version.
+    pub fn inflate_function_definition(&self, definition: AcornValue) -> AcornValue {
+        if let AcornValue::Lambda(acorn_types, return_value) = definition {
+            let args: Vec<_> = acorn_types
+                .iter()
+                .enumerate()
+                .map(|(i, acorn_type)| AcornValue::Variable(i as AtomId, acorn_type.clone()))
+                .collect();
+            let app = AcornValue::apply(self.clone(), args);
+            AcornValue::ForAll(
+                acorn_types,
+                Box::new(AcornValue::Binary(
+                    BinaryOp::Equals,
+                    Box::new(app),
+                    return_value,
+                )),
+            )
+        } else {
+            AcornValue::equals(self.clone(), definition)
+        }
+    }
+
     pub fn check_type(
         &self,
         source: &dyn ErrorSource,

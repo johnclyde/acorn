@@ -169,7 +169,7 @@ impl Environment {
 
     /// Adds a node to represent the definition of the provided
     /// constant.
-    pub fn add_identity(&mut self, project: &Project, constant_name: &DefinedName) {
+    pub fn add_definition(&mut self, project: &Project, constant_name: &DefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -180,32 +180,14 @@ impl Environment {
         let potential = self
             .bindings
             .get_constant_value(&PanicOnError, constant_name)
-            .expect("bad add_identity_props call");
+            .expect("bad add_definition call");
         let (params, constant) = match potential {
             PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
             PotentialValue::Resolved(c) => (vec![], c.clone()),
         };
 
         // Inflate functional identities.
-        // Maybe this should ideally be in the normalizer, instead of here.
-        let claim = if let AcornValue::Lambda(acorn_types, return_value) = definition {
-            let args: Vec<_> = acorn_types
-                .iter()
-                .enumerate()
-                .map(|(i, acorn_type)| AcornValue::Variable(i as AtomId, acorn_type.clone()))
-                .collect();
-            let app = AcornValue::apply(constant.clone(), args);
-            AcornValue::ForAll(
-                acorn_types,
-                Box::new(AcornValue::Binary(
-                    BinaryOp::Equals,
-                    Box::new(app),
-                    return_value,
-                )),
-            )
-        } else {
-            AcornValue::equals(constant.clone(), definition)
-        };
+        let claim = constant.inflate_function_definition(definition);
         let range = self.definition_ranges.get(&constant_name).unwrap().clone();
 
         let name = constant_name.to_string();
@@ -228,7 +210,7 @@ impl Environment {
         self.bindings
             .add_constant(name.clone(), params, constant_type, definition, None);
         self.definition_ranges.insert(name.clone(), range);
-        self.add_identity(project, &name);
+        self.add_definition(project, &name);
     }
 
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {

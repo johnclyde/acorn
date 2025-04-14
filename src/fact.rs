@@ -1,5 +1,6 @@
 use crate::acorn_type::{Class, Typeclass};
 use crate::acorn_value::AcornValue;
+use crate::potential_value::PotentialValue;
 use crate::proposition::Proposition;
 use crate::source::Source;
 
@@ -11,6 +12,11 @@ pub enum Fact {
 
     // The fact that this class is an instance of this typeclass.
     Instance(Class, Typeclass, Source),
+
+    /// A defined constant.
+    /// The tuple is the name of the constant, the definition, and the source.
+    /// Can be generic or not, depending on the potential value.
+    Definition(PotentialValue, AcornValue, Source),
 }
 
 impl Fact {
@@ -22,13 +28,14 @@ impl Fact {
         match self {
             Fact::Proposition(p) => &p.source,
             Fact::Instance(_, _, source) => source,
+            Fact::Definition(_, _, source) => source,
         }
     }
 
     pub fn is_instance(&self) -> bool {
         match self {
-            Fact::Proposition(_) => false,
             Fact::Instance(..) => true,
+            _ => false,
         }
     }
 }
