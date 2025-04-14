@@ -177,11 +177,14 @@ impl Environment {
         };
 
         // This constant can be generic, with type variables in it.
-        let constant = self
+        let potential = self
             .bindings
             .get_constant_value(&PanicOnError, constant_name)
-            .expect("bad add_identity_props call")
-            .to_generic_value();
+            .expect("bad add_identity_props call");
+        let (params, constant) = match potential {
+            PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
+            PotentialValue::Resolved(c) => (vec![], c.clone()),
+        };
 
         // Inflate functional identities.
         // Maybe this should ideally be in the normalizer, instead of here.
@@ -208,7 +211,7 @@ impl Environment {
         let name = constant_name.to_string();
         let source =
             Source::constant_definition(self.module_id, range, self.depth, constant, &name);
-        let prop = Proposition::old(claim, source);
+        let prop = Proposition::new(claim, params, source);
         self.add_node(Node::structural(project, self, prop));
     }
 
