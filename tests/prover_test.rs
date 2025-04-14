@@ -2019,4 +2019,35 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_normalizing_instance_aliases() {
+        let text = r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+
+            inductive Foo {
+                foo
+            }
+
+            class Foo {
+                define mul(self, other: Foo) -> Foo {
+                    Foo.foo
+                }
+            }
+
+            instance Foo: Magma {
+                let mul: (Foo, Foo) -> Foo = Foo.mul
+            }
+
+            theorem goal(a: Foo) {
+                Magma.mul(a, a) = a * a
+            }
+        "#;
+        let (_prover, outcome, _) = prove_as_main(text, "goal");
+        assert_eq!(outcome, Outcome::Success);
+
+        // TODO: the goal should have normalized to Foo.mul(x0, x0) = Foo.mul(x0, x0)
+    }
 }

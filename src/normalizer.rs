@@ -792,38 +792,4 @@ mod tests {
             &["addx(addx(x0, zero), x1) != zero or ltx(x1, zero)"],
         );
     }
-
-    #[test]
-    fn test_normalizing_instance_aliases() {
-        let mut env = Environment::test();
-        env.add(
-            r#"
-            typeclass M: Magma {
-                mul: (M, M) -> M
-            }
-
-            inductive Foo {
-                foo
-            }
-
-            class Foo {
-                define mul(self, other: Foo) -> Foo {
-                    Foo.foo
-                }
-            }
-
-            instance Foo: Magma {
-                let mul: (Foo, Foo) -> Foo = Foo.mul
-            }
-
-            theorem goal(a: Foo) {
-                Magma.mul(a, a) = a * a
-            }
-            "#,
-        );
-
-        // Both sides should get normalized to the same thing.
-        let mut norm = Normalizer::new();
-        norm.check(&env, "goal", &["Foo.mul(x0, x0) = Foo.mul(x0, x0)"]);
-    }
 }

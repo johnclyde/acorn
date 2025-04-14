@@ -986,18 +986,19 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("(-0).suc");
     }
 
-    #[test]
-    fn test_no_magic_names_for_constants() {
-        let mut env = Environment::test();
-        env.add("type Nat: axiom");
-        env.bad(
-            r#"
-            class Nat {
-                let add: Nat = axiom
-            }
-        "#,
-        );
-    }
+    // We started allowing this.
+    // #[test]
+    // fn test_no_magic_names_for_constants() {
+    //     let mut env = Environment::test();
+    //     env.add("type Nat: axiom");
+    //     env.bad(
+    //         r#"
+    //         class Nat {
+    //             let add: Nat = axiom
+    //         }
+    //     "#,
+    //     );
+    // }
 
     #[test]
     fn test_no_magic_names_for_struct_fields() {

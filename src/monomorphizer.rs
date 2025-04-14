@@ -198,6 +198,16 @@ impl Monomorphizer {
                     PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
                     PotentialValue::Resolved(c) => (vec![], c.clone()),
                 };
+
+                // if params.is_empty() {
+                //     if let Some(_name) = definition.as_simple_constant() {
+                //         if let AcornValue::Constant(_ci) = constant {
+                //             // This looks like an aliased monomorph.
+                //             todo!("handle aliased monomorphs");
+                //         }
+                //     }
+                // }
+
                 let claim = constant.inflate_function_definition(definition);
                 let prop = Proposition::new(claim, params, source);
                 self.add_proposition(prop);
