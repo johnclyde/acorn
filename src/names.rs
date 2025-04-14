@@ -60,14 +60,16 @@ impl LocalName {
     }
 }
 
-// An instance name is like Ring.add<Int>.
-// Ring = typeclass
-// add = attribute
-// Int = class
+/// An instance name is something like Ring.add<Int>.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub struct InstanceName {
+    /// Like "Ring", in Ring.add<Int>.
     pub typeclass: Typeclass,
+
+    /// Like "add", in Ring.add<Int>.
     pub attribute: String,
+
+    /// Like "Int", in Ring.add<Int>.
     pub class: Class,
 }
 
