@@ -181,18 +181,22 @@ impl Environment {
             .bindings
             .get_constant_value(&PanicOnError, constant_name)
             .expect("bad add_definition call");
+        let range = self.definition_ranges.get(&constant_name).unwrap().clone();
+        let name = constant_name.to_string();
+        let source = Source::constant_definition(
+            self.module_id,
+            range,
+            self.depth,
+            potential.clone().to_generic_value(),
+            &name,
+        );
+
+        // Create the node.
         let (params, constant) = match potential {
             PotentialValue::Unresolved(u) => (u.params.clone(), u.to_generic_value()),
             PotentialValue::Resolved(c) => (vec![], c.clone()),
         };
-
-        // Inflate functional identities.
         let claim = constant.inflate_function_definition(definition);
-        let range = self.definition_ranges.get(&constant_name).unwrap().clone();
-
-        let name = constant_name.to_string();
-        let source =
-            Source::constant_definition(self.module_id, range, self.depth, constant, &name);
         let prop = Proposition::new(claim, params, source);
         self.add_node(Node::structural(project, self, prop));
     }
