@@ -8,15 +8,15 @@ pub type TypeId = u16;
 pub const EMPTY: TypeId = 0;
 pub const BOOL: TypeId = 1;
 
-// A term with no args is a plain atom.
+/// A term with no args is a plain atom.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Term {
-    // The term type is the type of the entire term.
-    // For example "2 < 3" has type "Bool".
+    /// The term type is the type of the entire term.
+    /// For example "2 < 3" has type "Bool".
     pub term_type: TypeId,
 
-    // The head type is the type of just the head atom.
-    // For example the head type of "2 < 3" is "(int, int) -> bool".
+    /// The head type is the type of just the head atom.
+    /// For example the head type of "2 < 3" is "(int, int) -> bool".
     pub head_type: TypeId,
 
     pub head: Atom,
@@ -33,7 +33,7 @@ impl fmt::Display for Term {
     }
 }
 
-// Formatting terms with slight changes.
+/// Formatting terms with slight changes.
 pub struct TermFormatter<'a> {
     pub term: &'a Term,
     pub var: char,
@@ -66,8 +66,8 @@ impl fmt::Display for TermFormatter<'_> {
     }
 }
 
-// Returns true if a[i] >= b[i] for all i, defaulting to zero.
-// Can be assumed the last element of each array is not zero.
+/// Returns true if a[i] >= b[i] for all i, defaulting to zero.
+/// Can be assumed the last element of each array is not zero.
 fn dominates(a: &Vec<u8>, b: &Vec<u8>) -> bool {
     if b.len() > a.len() {
         return false;
@@ -106,8 +106,8 @@ impl Term {
         self.args.iter()
     }
 
-    // This doesn't change the term type, so the caller is responsible for making sure
-    // the type is correct.
+    /// This doesn't change the term type, so the caller is responsible for making sure
+    /// the type is correct.
     pub fn push_arg(&mut self, arg: Term) {
         self.args.push(arg);
     }
@@ -116,10 +116,10 @@ impl Term {
         self.args.len()
     }
 
-    // This creates a mistyped term, okay for testing but not for real use.
-    // For example, this parses
-    //   c0(c1, c2(x0, x1))
-    // into a term with head c0 and args [c1, c2(x0, x1)].
+    /// This creates a mistyped term, okay for testing but not for real use.
+    /// For example, this parses
+    ///   c0(c1, c2(x0, x1))
+    /// into a term with head c0 and args [c1, c2(x0, x1)].
     pub fn parse(s: &str) -> Term {
         if s == "true" {
             return Term::atom(BOOL, Atom::True);
@@ -184,7 +184,7 @@ impl Term {
         self.args.len() == 0
     }
 
-    // Whether this term is structurally identical to the atom "true".
+    /// Whether this term is structurally identical to the atom "true".
     pub fn is_true(&self) -> bool {
         self.head == Atom::True
     }
@@ -193,7 +193,7 @@ impl Term {
         Term::atom(BOOL, Atom::True)
     }
 
-    // Whether this term contains a variable with this index, anywhere in its body, recursively.
+    /// Whether this term contains a variable with this index, anywhere in its body, recursively.
     pub fn has_variable(&self, index: AtomId) -> bool {
         if let Atom::Variable(i) = self.head {
             if i == index {
@@ -244,7 +244,7 @@ impl Term {
         false
     }
 
-    // If this term is a variable with the given index, return that index.
+    /// If this term is a variable with the given index, return that index.
     pub fn atomic_variable(&self) -> Option<AtomId> {
         if self.args.len() > 0 {
             return None;
@@ -271,7 +271,7 @@ impl Term {
         None
     }
 
-    // A higher order term is one that has a variable as its head.
+    /// A higher order term is one that has a variable as its head.
     pub fn is_higher_order(&self) -> bool {
         match self.head {
             Atom::Variable(_) => true,
@@ -290,7 +290,7 @@ impl Term {
         answer
     }
 
-    // Does not deduplicate
+    /// Does not deduplicate
     pub fn typed_atoms(&self) -> Vec<(TypeId, Atom)> {
         let mut answer = vec![];
         answer.push((self.head_type, self.head));
@@ -300,7 +300,7 @@ impl Term {
         answer
     }
 
-    // value should have no instances of this variable.
+    /// value should have no instances of this variable.
     pub fn replace_variable(&self, id: AtomId, value: &Term) -> Term {
         // Start with just the head (but keep the type_id correct for the answer)
         let mut answer = if self.head == Atom::Variable(id) {
@@ -356,7 +356,7 @@ impl Term {
         }
     }
 
-    // The lowest variable number this term doesn't use.
+    /// The lowest variable number this term doesn't use.
     pub fn least_unused_variable(&self) -> AtomId {
         let mut answer = match self.head {
             Atom::Variable(i) => i + 1,
@@ -368,12 +368,12 @@ impl Term {
         answer
     }
 
-    // The first return value is the number of non-variable atoms in the term.
-    // The second return value gives each atom a different weight according to its index.
-    // These are meant to be used in tiebreak fashion, and should distinguish most
-    // distinguishable terms.
-    // refcounts adds up the number of references to each variable.
-    // "true" is weightless.
+    /// The first return value is the number of non-variable atoms in the term.
+    /// The second return value gives each atom a different weight according to its index.
+    /// These are meant to be used in tiebreak fashion, and should distinguish most
+    /// distinguishable terms.
+    /// refcounts adds up the number of references to each variable.
+    /// "true" is weightless.
     fn multi_weight(&self, refcounts: &mut Vec<u8>) -> (u32, u32) {
         let mut weight1 = 0;
         let mut weight2 = 0;
@@ -410,7 +410,7 @@ impl Term {
         (weight1, weight2)
     }
 
-    // "true" counts as 0.
+    /// "true" counts as 0.
     pub fn atom_count(&self) -> u32 {
         let mut answer = if self.head == Atom::True { 0 } else { 1 };
         for arg in &self.args {
@@ -419,7 +419,7 @@ impl Term {
         answer
     }
 
-    // Lets you extend the KBO ordering to skip the domination check.
+    /// Lets you extend the KBO ordering to skip the domination check.
     fn kbo_helper(&self, other: &Term, check_domination: bool) -> Ordering {
         let mut self_refcounts = vec![];
         let (self_weight1, self_weight2) = self.multi_weight(&mut self_refcounts);
@@ -448,17 +448,17 @@ impl Term {
         Ordering::Equal
     }
 
-    // A "reduction order" is stable under variable substitution.
-    // This implements a Knuth-Bendix partial reduction ordering.
-    // Returns Greater if self > other.
-    // Returns Less if other > self.
-    // Returns Equal if they cannot be ordered. (This is not "Equal" in the usual sense.)
+    /// A "reduction order" is stable under variable substitution.
+    /// This implements a Knuth-Bendix partial reduction ordering.
+    /// Returns Greater if self > other.
+    /// Returns Less if other > self.
+    /// Returns Equal if they cannot be ordered. (This is not "Equal" in the usual sense.)
     pub fn kbo_cmp(&self, other: &Term) -> Ordering {
         self.kbo_helper(other, true)
     }
 
-    // Extends the kbo comparison to be a total ordering, so that the only equal things
-    // are identical terms.
+    /// Extends the kbo comparison to be a total ordering, so that the only equal things
+    /// are identical terms.
     pub fn extended_kbo_cmp(&self, other: &Term) -> Ordering {
         let kbo_cmp = self.kbo_helper(other, false);
         if kbo_cmp != Ordering::Equal {
@@ -473,8 +473,8 @@ impl Term {
         self.total_tiebreak(other)
     }
 
-    // Does a partial ordering that is stable under variable renaming.
-    // This is less good than using a weight, so just use it as a tiebreak.
+    /// Does a partial ordering that is stable under variable renaming.
+    /// This is less good than using a weight, so just use it as a tiebreak.
     fn partial_tiebreak(&self, other: &Term) -> Ordering {
         let head_cmp = self.head.stable_partial_order(&other.head);
         if head_cmp != Ordering::Equal {
@@ -498,8 +498,8 @@ impl Term {
         Ordering::Equal
     }
 
-    // Does a total ordering, not stable under variable renaming.
-    // Only run this after the partial tiebreak.
+    /// Does a total ordering, not stable under variable renaming.
+    /// Only run this after the partial tiebreak.
     fn total_tiebreak(&self, other: &Term) -> Ordering {
         let head_cmp = other.head.cmp(&self.head);
         if head_cmp != Ordering::Equal {
@@ -544,9 +544,9 @@ impl Term {
         }
     }
 
-    // Finds all rewritable subterms of this term, and with their paths, appends to "answer".
-    // It is an error to call this on any variables.
-    // Otherwise, any term is rewritable except for "true".
+    /// Finds all rewritable subterms of this term, and with their paths, appends to "answer".
+    /// It is an error to call this on any variables.
+    /// Otherwise, any term is rewritable except for "true".
     fn push_rewritable_subterms<'a>(
         &'a self,
         prefix: &mut Vec<usize>,
@@ -573,7 +573,7 @@ impl Term {
         answer
     }
 
-    // Replaces x_i with x_{var_map[i]}.
+    /// Replaces x_i with x_{var_map[i]}.
     pub fn remap_variables(&self, var_map: &Vec<AtomId>) -> Term {
         Term {
             head_type: self.head_type,
@@ -595,16 +595,16 @@ impl Term {
         }
     }
 
-    // An inorder traversal of each subterm. Returns a vector of:
-    // (term type, head type, head, arg types).
+    /// An inorder traversal of each subterm. Returns a vector of:
+    /// (term type, head type, head, arg types).
     pub fn inorder(&self) -> Vec<(TypeId, TypeId, Atom, Vec<TypeId>)> {
         let mut answer = vec![];
         self.inorder_helper(&mut answer);
         answer
     }
 
-    // var_ids tracks the order each input variable is seen.
-    // Replace each var id with its index in var_ids.
+    /// var_ids tracks the order each input variable is seen.
+    /// Replace each var id with its index in var_ids.
     pub fn normalize_var_ids(&mut self, var_ids: &mut Vec<AtomId>) {
         if let Atom::Variable(i) = self.head {
             let pos = var_ids.iter().position(|&x| x == i);

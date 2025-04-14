@@ -5,9 +5,9 @@ pub type AtomId = u16;
 
 pub const INVALID_ATOM_ID: AtomId = 0xffff;
 
-// An atomic value does not have any internal structure.
-// The Atom is a lower-level representation.
-// It is used in the prover, but not in the AcornValue / Environment.
+/// An atomic value does not have any internal structure.
+/// The Atom is a lower-level representation.
+/// It is used in the prover, but not in the AcornValue / Environment.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Atom {
     True,
