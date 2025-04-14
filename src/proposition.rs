@@ -44,15 +44,6 @@ impl Proposition {
         }
     }
 
-    // Old constructor. TODO: deprecate
-    pub fn old(value: AcornValue, source: Source) -> Proposition {
-        Proposition {
-            value,
-            params: vec![],
-            source,
-        }
-    }
-
     /// Just changes the value while keeping the other stuff intact
     pub fn with_value(self, value: AcornValue) -> Proposition {
         Proposition {

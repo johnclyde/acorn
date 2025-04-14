@@ -591,7 +591,7 @@ impl Environment {
             self.depth,
             ts.name.clone(),
         );
-        let prop = Proposition::old(external_claim, source);
+        let prop = Proposition::new(external_claim, type_params.clone(), source);
 
         let node = if already_proven {
             Node::structural(project, self, prop)
