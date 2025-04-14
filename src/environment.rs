@@ -23,65 +23,65 @@ use crate::statement::{
 };
 use crate::token::{Token, TokenIter, TokenType};
 
-// Each line has a LineType, to handle line-based user interface.
+/// Each line has a LineType, to handle line-based user interface.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LineType {
-    // Only used within subenvironments.
-    // The line relates to the block, but is outside the opening brace for this block.
+    /// Only used within subenvironments.
+    /// The line relates to the block, but is outside the opening brace for this block.
     Opening,
 
-    // This line corresponds to a node inside the environment.
-    // The usize is an index into the nodes array.
-    // If the node represents a block, this line should also have a line type in the
-    // subenvironment within the block.
+    /// This line corresponds to a node inside the environment.
+    /// The usize is an index into the nodes array.
+    /// If the node represents a block, this line should also have a line type in the
+    /// subenvironment within the block.
     Node(usize),
 
-    // Either only whitespace is here, or a comment.
+    /// Either only whitespace is here, or a comment.
     Empty,
 
-    // Lines with other sorts of statements besides prop statements.
+    /// Lines with other sorts of statements besides prop statements.
     Other,
 
-    // Only used within subenvironments.
-    // The line has the closing brace for this block.
+    /// Only used within subenvironments.
+    /// The line has the closing brace for this block.
     Closing,
 }
 
-// The Environment takes Statements as input and processes them.
-// It does not prove anything directly, but it is responsible for determining which
-// things need to be proved, and which statements are usable in which proofs.
-// It creates subenvironments for nested blocks.
-// It does not have to be efficient enough to run in the inner loop of the prover.
+/// The Environment takes Statements as input and processes them.
+/// It does not prove anything directly, but it is responsible for determining which
+/// things need to be proved, and which statements are usable in which proofs.
+/// It creates subenvironments for nested blocks.
+/// It does not have to be efficient enough to run in the inner loop of the prover.
 pub struct Environment {
     pub module_id: ModuleId,
 
-    // What all the names mean in this environment
+    /// What all the names mean in this environment
     pub bindings: BindingMap,
 
-    // The nodes structure is fundamentally linear.
-    // Each node depends only on the nodes before it.
+    /// The nodes structure is fundamentally linear.
+    /// Each node depends only on the nodes before it.
     pub nodes: Vec<Node>,
 
-    // The region in the source document where a name was defined
+    /// The region in the source document where a name was defined
     definition_ranges: HashMap<DefinedName, Range>,
 
-    // Whether a plain "false" is anywhere in this environment.
-    // This indicates that the environment is supposed to have contradictory facts.
+    /// Whether a plain "false" is anywhere in this environment.
+    /// This indicates that the environment is supposed to have contradictory facts.
     pub includes_explicit_false: bool,
 
-    // For the base environment, first_line is zero.
-    // first_line is usually nonzero when the environment is a subenvironment.
-    // line_types[0] corresponds to first_line in the source document.
+    /// For the base environment, first_line is zero.
+    /// first_line is usually nonzero when the environment is a subenvironment.
+    /// line_types[0] corresponds to first_line in the source document.
     pub first_line: u32,
     pub line_types: Vec<LineType>,
 
-    // Implicit blocks aren't written in the code; they are created for theorems that
-    // the user has asserted without proof.
+    /// Implicit blocks aren't written in the code; they are created for theorems that
+    /// the user has asserted without proof.
     pub implicit: bool,
 
-    // The depth if you think of the environments in a module like a tree structure.
-    // The root environment for a module has depth zero.
-    // Each child node has a depth of one plus its parent.
+    /// The depth if you think of the environments in a module like a tree structure.
+    /// The root environment for a module has depth zero.
+    /// Each child node has a depth of one plus its parent.
     pub depth: u32,
 }
 
@@ -100,8 +100,8 @@ impl Environment {
         }
     }
 
-    // Create a child environment.
-    // theorem_name is provided if this is the newly-created environment for proving a theorem.
+    /// Create a child environment.
+    /// theorem_name is provided if this is the newly-created environment for proving a theorem.
     pub fn create_child(&self, first_line: u32, implicit: bool) -> Self {
         Environment {
             module_id: self.module_id,
@@ -124,8 +124,8 @@ impl Environment {
         self.next_line() - 1
     }
 
-    // Add line types for the given range, inserting empties as needed.
-    // If the line already has a type, do nothing.
+    /// Add line types for the given range, inserting empties as needed.
+    /// If the line already has a type, do nothing.
     pub fn add_line_types(&mut self, line_type: LineType, first: u32, last: u32) {
         while self.next_line() < first {
             self.line_types.push(LineType::Empty);
@@ -143,7 +143,7 @@ impl Environment {
         );
     }
 
-    // Associate the provided node and range.
+    /// Associate the provided node and range.
     fn add_node_lines(&mut self, index: usize, range: &Range) {
         self.add_line_types(LineType::Node(index), range.start.line, range.end.line);
     }
@@ -167,8 +167,8 @@ impl Environment {
         self.nodes.len() - 1
     }
 
-    // Adds a node to represent the definition of the provided
-    // constant.
+    /// Adds a node to represent the definition of the provided
+    /// constant.
     pub fn add_identity(&mut self, project: &Project, constant_name: &DefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
@@ -235,7 +235,7 @@ impl Environment {
         self.bindings.get_definition(name)
     }
 
-    // Returns an error if this isn't the canonical name (and module) for the class.
+    /// Returns an error if this isn't the canonical name (and module) for the class.
     fn check_canonical_classname(
         &self,
         name_token: &Token,
@@ -259,12 +259,12 @@ impl Environment {
         Ok(())
     }
 
-    // Adds a conditional block to the environment.
-    // Takes the condition, the range to associate with the condition, the first line of
-    // the conditional block, and finally the body itself.
-    // If this is an "else" block, we pass in the claim from the "if" part of the block.
-    // This way, if the claim is the same, we can simplify by combining them when externalized.
-    // Returns the last claim in the block, if we didn't have an if-claim to match against.
+    /// Adds a conditional block to the environment.
+    /// Takes the condition, the range to associate with the condition, the first line of
+    /// the conditional block, and finally the body itself.
+    /// If this is an "else" block, we pass in the claim from the "if" part of the block.
+    /// This way, if the claim is the same, we can simplify by combining them when externalized.
+    /// Returns the last claim in the block, if we didn't have an if-claim to match against.
     fn add_conditional(
         &mut self,
         project: &mut Project,
@@ -323,8 +323,8 @@ impl Environment {
         Ok(last_claim)
     }
 
-    // Adds a "let" statement to the environment.
-    // This can also be in a class, typeclass, or instance block.
+    /// Adds a "let" statement to the environment.
+    /// This can also be in a class, typeclass, or instance block.
     fn add_let_statement(
         &mut self,
         project: &Project,
@@ -393,12 +393,12 @@ impl Environment {
         Ok(())
     }
 
-    // Adds a "define" statement to the environment, that may be within a class block.
-    //
-    // The self type is the type of the "self" variable. If it's None, there can't be a self.
-    //
-    // The class params are the parameters for the overall class statement, if we are within one.
-    // They will become the parameters of the newly defined function.
+    /// Adds a "define" statement to the environment, that may be within a class block.
+    ///
+    /// The self type is the type of the "self" variable. If it's None, there can't be a self.
+    ///
+    /// The class params are the parameters for the overall class statement, if we are within one.
+    /// They will become the parameters of the newly defined function.
     fn add_define_statement(
         &mut self,
         project: &Project,
@@ -1544,9 +1544,9 @@ impl Environment {
         Ok(())
     }
 
-    // Adds a statement to the environment.
-    // If the statement has a body, this call creates a sub-environment and adds the body
-    // to that sub-environment.
+    /// Adds a statement to the environment.
+    /// If the statement has a body, this call creates a sub-environment and adds the body
+    /// to that sub-environment.
     pub fn add_statement(
         &mut self,
         project: &mut Project,
@@ -1857,8 +1857,8 @@ impl Environment {
         }
     }
 
-    // Parse these tokens and add them to the environment.
-    // If project is not provided, we won't be able to handle import statements.
+    /// Parse these tokens and add them to the environment.
+    /// If project is not provided, we won't be able to handle import statements.
     pub fn add_tokens(
         &mut self,
         project: &mut Project,
@@ -1878,8 +1878,8 @@ impl Environment {
         }
     }
 
-    // Get all facts that can be imported into other modules from this one.
-    // If the filter is provided, we only return facts whose qualified name is in the filter.
+    /// Get all facts that can be imported into other modules from this one.
+    /// If the filter is provided, we only return facts whose qualified name is in the filter.
     pub fn importable_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];
@@ -1900,10 +1900,10 @@ impl Environment {
         facts
     }
 
-    // Returns a NodeCursor for all nodes that correspond to a goal within this environment,
-    // or subenvironments, recursively.
-    // The order is "proving order", ie the goals inside the block are listed before the
-    // root goal of a block.
+    /// Returns a NodeCursor for all nodes that correspond to a goal within this environment,
+    /// or subenvironments, recursively.
+    /// The order is "proving order", ie the goals inside the block are listed before the
+    /// root goal of a block.
     pub fn iter_goals(&self) -> impl Iterator<Item = NodeCursor> {
         let mut answer = vec![];
         for i in 0..self.nodes.len() {
@@ -1913,8 +1913,8 @@ impl Environment {
         answer.into_iter()
     }
 
-    // Used for integration testing.
-    // Not good for general use because it's based on the human-readable description.
+    /// Used for integration testing.
+    /// Not good for general use because it's based on the human-readable description.
     pub fn get_node_by_description(&self, description: &str) -> NodeCursor {
         let mut descriptions = Vec::new();
         for node in self.iter_goals() {
@@ -1932,11 +1932,11 @@ impl Environment {
         );
     }
 
-    // Returns the path to a given zero-based line.
-    // This is a UI heuristic.
-    // Either returns a path to a proposition, or an error message explaining why this
-    // line is unusable.
-    // Error messages use one-based line numbers.
+    /// Returns the path to a given zero-based line.
+    /// This is a UI heuristic.
+    /// Either returns a path to a proposition, or an error message explaining why this
+    /// line is unusable.
+    /// Error messages use one-based line numbers.
     pub fn path_for_line(&self, line: u32) -> Result<Vec<usize>, String> {
         let mut path = vec![];
         let mut block: Option<&Block> = None;
@@ -2037,7 +2037,7 @@ impl Environment {
         true
     }
 
-    // Finds the narrowest environment that covers the given line.
+    /// Finds the narrowest environment that covers the given line.
     pub fn env_for_line(&self, line: u32) -> &Environment {
         loop {
             match self.get_line_type(line) {
@@ -2057,16 +2057,16 @@ impl Environment {
     }
 }
 
-// Methods used for integration testing.
+/// Methods used for integration testing.
 impl Environment {
-    // Create a test version of the environment.
+    /// Create a test version of the environment.
     pub fn test() -> Self {
         use crate::module::FIRST_NORMAL;
         Environment::new(FIRST_NORMAL)
     }
 
-    // Adds a possibly multi-line statement to the environment.
-    // Panics on failure.
+    /// Adds a possibly multi-line statement to the environment.
+    /// Panics on failure.
     pub fn add(&mut self, input: &str) {
         let tokens = Token::scan(input);
         if let Err(e) = self.add_tokens(&mut Project::new_mock(), tokens) {
@@ -2074,7 +2074,7 @@ impl Environment {
         }
     }
 
-    // Makes sure the lines are self-consistent
+    /// Makes sure the lines are self-consistent
     pub fn check_lines(&self) {
         // Check that each proposition's block covers the lines it claims to cover
         for (line, line_type) in self.line_types.iter().enumerate() {
@@ -2094,7 +2094,7 @@ impl Environment {
         }
     }
 
-    // Expects the given line to be bad
+    /// Expects the given line to be bad
     pub fn bad(&mut self, input: &str) {
         if let Ok(statement) = Statement::parse_str(input) {
             assert!(
@@ -2106,12 +2106,12 @@ impl Environment {
         }
     }
 
-    // Check that the given name actually does have this type in the environment.
+    /// Check that the given name actually does have this type in the environment.
     pub fn expect_type(&mut self, name: &str, type_string: &str) {
         self.bindings.expect_type(name, type_string)
     }
 
-    // Check that the given name is defined to be this value
+    /// Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
         let name = DefinedName::guess(name);
         let env_value = match self.bindings.get_definition(&name) {
@@ -2121,7 +2121,7 @@ impl Environment {
         assert_eq!(env_value.to_string(), value_string);
     }
 
-    // Assert that these two names are defined to equal the same thing
+    /// Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
         let name1 = DefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
@@ -2130,7 +2130,7 @@ impl Environment {
         assert_eq!(def1, def2);
     }
 
-    // Assert that these two names are defined to be different things
+    /// Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
         let name1 = DefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();

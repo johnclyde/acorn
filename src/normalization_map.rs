@@ -90,7 +90,7 @@ impl NormalizationMap {
         &self.local_constants[atom_id as usize].as_ref().unwrap()
     }
 
-    // Returns the id for the new type.
+    /// Returns the id for the new type.
     pub fn add_type(&mut self, acorn_type: &AcornType) -> TypeId {
         if let Some(type_id) = self.type_to_type_id.get(acorn_type) {
             return *type_id;
@@ -105,7 +105,20 @@ impl NormalizationMap {
         &self.type_id_to_type[type_id as usize]
     }
 
-    // The provided constant instance should be monomorphized.
+    /// Make this monomorphized constant an alias for the given name.
+    /// Panics if the name doesn't map to anything.
+    pub fn alias_monomorph(
+        &mut self,
+        c: ConstantInstance,
+        name: &GlobalName,
+        constant_type: &AcornType,
+    ) {
+        let type_id = self.add_type(constant_type);
+        let atom = self.name_to_atom.get(name).unwrap();
+        self.monomorph_to_id.insert(c, (*atom, type_id));
+    }
+
+    /// The provided constant instance should be monomorphized.
     pub fn term_from_monomorph(&mut self, c: &ConstantInstance) -> Term {
         let (atom, type_id) = if let Some((atom, type_id)) = self.monomorph_to_id.get(&c) {
             (*atom, *type_id)
