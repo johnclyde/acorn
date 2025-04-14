@@ -1387,7 +1387,7 @@ impl Environment {
                 self.depth,
                 Some(condition_name.to_string()),
             );
-            let prop = Proposition::old(external_claim, source);
+            let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
             self.add_node(Node::structural(project, self, prop));
             self.bindings.mark_as_theorem(&local_name);
         }
