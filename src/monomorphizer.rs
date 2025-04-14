@@ -138,7 +138,7 @@ impl Monomorphizer {
         }
     }
 
-    pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+    fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
         self.instances
             .entry(typeclass)
             .or_insert_with(HashSet::new)
