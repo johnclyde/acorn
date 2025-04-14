@@ -1608,7 +1608,7 @@ impl BindingMap {
             let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
             if !arg_type.match_instance(
                 &arg.get_type(),
-                &|class, typeclass| self.is_instance_of(&project, class, typeclass),
+                &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
                 &mut mapping,
             ) {
                 return Err(source.error(&format!(

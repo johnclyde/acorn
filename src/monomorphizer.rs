@@ -106,6 +106,14 @@ impl GenericConstantInfo {
     }
 }
 
+///
+#[derive(Clone)]
+struct InstantiationFailure {
+    prop_id: usize,
+    generic_params: ConstantParams,
+    monomorph_params: ConstantParams,
+}
+
 /// A helper structure to determine which monomorphs are necessary.
 #[derive(Clone)]
 pub struct Monomorphizer {
@@ -126,6 +134,12 @@ pub struct Monomorphizer {
     /// A set of all the instance relations we know about.
     /// Monomorphization is only allowed with valid instance relations.
     instances: HashMap<Typeclass, HashSet<Class>>,
+
+    /// When we call try_to_monomorphize_prop, and it fails, but just because a type doesn't match
+    /// a typeclass, we put an entry here.
+    /// Later, if we discover that the type is actually an instance of the typeclass,
+    /// we can monomorphize the proposition.
+    instantiation_failures: HashMap<(Class, Typeclass), Vec<InstantiationFailure>>,
 }
 
 impl Monomorphizer {
@@ -135,14 +149,30 @@ impl Monomorphizer {
             output: vec![],
             constant_info: HashMap::new(),
             instances: HashMap::new(),
+            instantiation_failures: HashMap::new(),
         }
     }
 
     fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+        let key = (class, typeclass);
+        let failures = self.instantiation_failures.remove(&key);
+        let (class, typeclass) = key;
+
         self.instances
             .entry(typeclass)
             .or_insert_with(HashSet::new)
             .insert(class);
+
+        // Check if we have any instantiation failures that can be resolved now.
+        if let Some(failures) = failures {
+            for failure in failures {
+                self.try_to_monomorphize_prop(
+                    failure.prop_id,
+                    &failure.generic_params,
+                    &failure.monomorph_params,
+                );
+            }
+        }
     }
 
     fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
@@ -219,7 +249,7 @@ impl Monomorphizer {
 
     /// Call this on any value that we want to use in proofs.
     /// Makes sure that we are generating any monomorphizations that are used in this value.
-    pub fn add_monomorphs(&mut self, value: &AcornValue) {
+    fn add_monomorphs(&mut self, value: &AcornValue) {
         let mut monomorphs = vec![];
         value.find_constants(
             &|c| !c.params.is_empty() && !c.has_generic(),
@@ -274,6 +304,7 @@ impl Monomorphizer {
         // the whole proposition so that the instance params become the monomorph params.
         assert_eq!(generic_params.params.len(), monomorph_params.params.len());
         let mut prop_params = HashMap::new();
+        let mut failure_key = None;
         for (generic_type, monomorph_type) in generic_params
             .params
             .iter()
@@ -281,13 +312,33 @@ impl Monomorphizer {
         {
             if !generic_type.match_instance(
                 monomorph_type,
-                &|class, typeclass| self.is_instance_of(class, typeclass),
+                &mut |class, typeclass| {
+                    if failure_key.is_none() && !self.is_instance_of(class, typeclass) {
+                        // This is a failure, but maybe it won't be a failure later.
+                        failure_key = Some((class.clone(), typeclass.clone()));
+                    }
+                    true
+                },
                 &mut prop_params,
             ) {
                 // We can't match up the types.
                 return;
             }
         }
+
+        if let Some(failure_key) = failure_key {
+            // We have a failure based on a bad typeclass relation, so we can try again later.
+            self.instantiation_failures
+                .entry(failure_key)
+                .or_insert_with(Vec::new)
+                .push(InstantiationFailure {
+                    prop_id,
+                    generic_params: generic_params.clone(),
+                    monomorph_params: monomorph_params.clone(),
+                });
+            return;
+        }
+
         let prop_params = PropParams::new(prop_params);
         let info = &mut self.prop_info[prop_id];
         if info.instantiations.contains(&prop_params) {

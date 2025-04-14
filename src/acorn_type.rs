@@ -355,7 +355,7 @@ impl AcornType {
     pub fn match_instance(
         &self,
         instance: &AcornType,
-        validator: &dyn Fn(&Class, &Typeclass) -> bool,
+        validator: &mut dyn FnMut(&Class, &Typeclass) -> bool,
         mapping: &mut HashMap<String, AcornType>,
     ) -> bool {
         match (self, instance) {
