@@ -208,7 +208,7 @@ impl Environment {
         let name = constant_name.to_string();
         let source =
             Source::constant_definition(self.module_id, range, self.depth, constant, &name);
-        let prop = Proposition::new(claim, source);
+        let prop = Proposition::old(claim, source);
         self.add_node(Node::structural(project, self, prop));
     }
 
@@ -310,7 +310,7 @@ impl Environment {
             )
         };
         let source = Source::anonymous(self.module_id, claim_range, self.depth);
-        let prop = Proposition::new(external_claim, source);
+        let prop = Proposition::monomorphic(external_claim, source);
         let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_line_types(
             LineType::Node(index),
@@ -588,7 +588,7 @@ impl Environment {
             self.depth,
             ts.name.clone(),
         );
-        let prop = Proposition::new(external_claim, source);
+        let prop = Proposition::old(external_claim, source);
 
         let node = if already_proven {
             Node::structural(project, self, prop)
@@ -635,7 +635,7 @@ impl Environment {
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-        let general_prop = Proposition::new(general_claim, source);
+        let general_prop = Proposition::monomorphic(general_claim, source);
         let index = self.add_node(Node::claim(project, self, general_prop));
         self.add_node_lines(index, &statement.range());
 
@@ -651,7 +651,7 @@ impl Environment {
             self.bindings
                 .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-        let specific_prop = Proposition::new(specific_claim, source);
+        let specific_prop = Proposition::monomorphic(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
 
         Ok(())
@@ -753,7 +753,7 @@ impl Environment {
             function_constant,
             &fss.name,
         );
-        let prop = Proposition::new(external_condition, source);
+        let prop = Proposition::monomorphic(external_condition, source);
 
         let index = self.add_node(Node::block(project, self, block, Some(prop)));
         self.add_node_lines(index, &statement.range());
@@ -897,7 +897,7 @@ impl Environment {
                 ss.name.clone(),
                 "constraint".to_string(),
             );
-            let prop = Proposition::new(constraint_claim, source);
+            let prop = Proposition::old(constraint_claim, source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -921,7 +921,7 @@ impl Environment {
             ss.name.clone(),
             "new".to_string(),
         );
-        let prop = Proposition::generic(new_claim, type_params.clone(), source);
+        let prop = Proposition::new(new_claim, type_params.clone(), source);
         self.add_node(Node::structural(project, self, prop));
 
         // There are also formulas for new followed by member functions. Ie:
@@ -970,7 +970,7 @@ impl Environment {
                 ss.name.clone(),
                 field_name_token.text().to_string(),
             );
-            let prop = Proposition::generic(member_claim, type_params.clone(), source);
+            let prop = Proposition::new(member_claim, type_params.clone(), source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1069,7 +1069,7 @@ impl Environment {
                     is.name.clone(),
                     member_name.to_string(),
                 );
-                let prop = Proposition::new(claim, source);
+                let prop = Proposition::monomorphic(claim, source);
                 self.add_node(Node::structural(project, self, prop));
             }
         }
@@ -1102,7 +1102,7 @@ impl Environment {
             is.name.clone(),
             "new".to_string(),
         );
-        let prop = Proposition::new(claim, source);
+        let prop = Proposition::monomorphic(claim, source);
         self.add_node(Node::structural(project, self, prop));
 
         // The next principle is that each constructor is injective.
@@ -1149,7 +1149,7 @@ impl Environment {
                 is.name.clone(),
                 member_name.to_string(),
             );
-            let prop = Proposition::new(claim, source);
+            let prop = Proposition::monomorphic(claim, source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1232,7 +1232,7 @@ impl Environment {
             self.depth,
             Some(name.to_string()),
         );
-        let prop = Proposition::new(forall_claim, source);
+        let prop = Proposition::monomorphic(forall_claim, source);
         self.add_node(Node::structural(project, self, prop));
 
         Ok(())
@@ -1387,7 +1387,7 @@ impl Environment {
                 self.depth,
                 Some(condition_name.to_string()),
             );
-            let prop = Proposition::new(external_claim, source);
+            let prop = Proposition::old(external_claim, source);
             self.add_node(Node::structural(project, self, prop));
             self.bindings.mark_as_theorem(&local_name);
         }
@@ -1609,12 +1609,12 @@ impl Environment {
                 if self.bindings.is_citation(project, &claim) {
                     // We already know this is true, so we don't need to prove it
                     let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-                    let prop = Proposition::new(claim, source);
+                    let prop = Proposition::monomorphic(claim, source);
                     self.add_node(Node::structural(project, self, prop));
                     self.add_other_lines(statement);
                 } else {
                     let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-                    let prop = Proposition::new(claim, source);
+                    let prop = Proposition::monomorphic(claim, source);
                     let index = self.add_node(Node::claim(project, self, prop));
                     self.add_node_lines(index, &statement.range());
                 }
@@ -1647,7 +1647,7 @@ impl Environment {
                 let (outer_claim, range) =
                     block.externalize_last_claim(self, &fas.body.right_brace)?;
                 let source = Source::anonymous(self.module_id, range, self.depth);
-                let prop = Proposition::new(outer_claim, source);
+                let prop = Proposition::monomorphic(outer_claim, source);
                 let index = self.add_node(Node::block(project, self, block, Some(prop)));
                 self.add_node_lines(index, &statement.range());
                 Ok(())
@@ -1766,7 +1766,7 @@ impl Environment {
                     Some((outer_claim, claim_range)) => {
                         block.goal = None;
                         let source = Source::anonymous(self.module_id, claim_range, self.depth);
-                        Some(Proposition::new(outer_claim, source))
+                        Some(Proposition::monomorphic(outer_claim, source))
                     }
                     None => None,
                 };
@@ -1837,7 +1837,7 @@ impl Environment {
                         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
                         let source =
                             Source::anonymous(self.module_id, statement.range(), self.depth);
-                        let prop = Proposition::new(disjunction, source);
+                        let prop = Proposition::monomorphic(disjunction, source);
                         let index = self.add_node(Node::block(project, self, block, Some(prop)));
                         self.add_node_lines(index, &body.range());
                         return Ok(());

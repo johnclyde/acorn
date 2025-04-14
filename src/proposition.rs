@@ -25,8 +25,8 @@ impl fmt::Display for Proposition {
 }
 
 impl Proposition {
-    /// Creates a new generic proposition.
-    pub fn generic(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
+    /// Creates a proposition that may be generic. Params can be empty.
+    pub fn new(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
         Proposition {
             value,
             params,
@@ -35,10 +35,17 @@ impl Proposition {
     }
 
     /// Creates a non-generic proposition.
-    pub fn new(value: AcornValue, source: Source) -> Proposition {
-        // TODO: make any of the callers that would fail this assert use generic instead.
-        // assert!(!value.has_generic());
+    pub fn monomorphic(value: AcornValue, source: Source) -> Proposition {
+        assert!(!value.has_generic());
+        Proposition {
+            value,
+            params: vec![],
+            source,
+        }
+    }
 
+    // Old constructor. TODO: deprecate
+    pub fn old(value: AcornValue, source: Source) -> Proposition {
         Proposition {
             value,
             params: vec![],

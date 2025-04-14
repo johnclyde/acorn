@@ -15,7 +15,7 @@ pub enum Fact {
 
 impl Fact {
     pub fn proposition(value: AcornValue, source: Source) -> Fact {
-        Fact::Proposition(Proposition::new(value, source))
+        Fact::Proposition(Proposition::monomorphic(value, source))
     }
 
     pub fn source(&self) -> &Source {
