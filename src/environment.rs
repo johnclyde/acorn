@@ -897,7 +897,7 @@ impl Environment {
                 ss.name.clone(),
                 "constraint".to_string(),
             );
-            let prop = Proposition::old(constraint_claim, source);
+            let prop = Proposition::new(constraint_claim, type_params.clone(), source);
             self.add_node(Node::structural(project, self, prop));
         }
 
