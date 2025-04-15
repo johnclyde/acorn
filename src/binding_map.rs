@@ -340,7 +340,6 @@ impl BindingMap {
                 .insert(typeclass.clone(), name.to_string());
         }
 
-        // self.name_to_typeclass.insert(name.to_string(), typeclass);
         match self.name_to_typeclass.entry(name.to_string()) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(typeclass);
@@ -1537,8 +1536,9 @@ impl BindingMap {
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
-            NamedEntity::Typeclass(_) => {
-                Err(name_token.error("cannot import typeclasses indirectly"))
+            NamedEntity::Typeclass(tc) => {
+                self.add_typeclass(&name_token.text(), tc);
+                Ok(())
             }
 
             NamedEntity::UnresolvedValue(uc) => {
