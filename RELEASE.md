@@ -27,10 +27,10 @@ When we create a new release, we release a new language server, and then a new V
 
 All commands are run from `~/acorn`.
 
-1. Bump the version using the `version.py` tool.
+1. Bump the version using the `version.py` tool. Or you can set it manually for bigger version changes.
 
    ```bash
-   ./python/version.py 0.0.1
+   ./python/version.py bump
    ```
 
    Commit all changes and merge them upstream.
@@ -41,9 +41,7 @@ All commands are run from `~/acorn`.
    ./crossbuild.sh
    ```
 
-3. Make a tag for the new language server release, "v" plus the version.
-
-   Then:
+3. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
 
    ```bash
    git tag v0.0.1

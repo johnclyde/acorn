@@ -1,7 +1,8 @@
 #!/usr/bin/env -S uv run
 
 # Run version.py to show the current version.
-# Run version.py <new_version> to change the version.
+# Run `version.py <new_version>` to change the version.
+# Run `version.py bump` to increment the last number in the version.
 
 import os
 import sys
@@ -51,9 +52,16 @@ def main():
     if len(sys.argv) < 2:
         return
 
-    new_version = sys.argv[1]
-    if not looks_like_version_string(new_version):
-        raise Exception(f"invalid version string: {new_version}")
+    # Handle bump command
+    if sys.argv[1] == "bump":
+        # Split version into components and increment the last part
+        parts = old_version.split(".")
+        parts[-1] = str(int(parts[-1]) + 1)
+        new_version = ".".join(parts)
+    else:
+        new_version = sys.argv[1]
+        if not looks_like_version_string(new_version):
+            raise Exception(f"invalid version string: {new_version}")
 
     # Update Cargo.toml
     old_cargo_str = f'version = "{old_version}"'
