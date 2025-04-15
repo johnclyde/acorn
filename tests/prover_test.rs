@@ -2074,10 +2074,8 @@ mod prover_test {
                 }
             }
 
-            theorem bar_true<F: FooTrue>(a: F) {
+            theorem bar_true<G: FooTrue>(a: G) {
                 a.bar
-            } by {
-                a.foo
             }
         "#;
         verify_succeeds(text);

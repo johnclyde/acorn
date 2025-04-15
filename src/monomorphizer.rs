@@ -366,6 +366,7 @@ impl Monomorphizer {
         }
         info.instantiations.push(prop_params);
 
+        self.add_monomorphs(&monomorphic_prop.value);
         self.output.push(monomorphic_prop);
     }
 }
