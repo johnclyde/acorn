@@ -46,10 +46,6 @@ pub struct BindingMap {
     /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
-    /// Maps the typeclass to its name in this environment.
-    /// Includes every typeclass that has a top-level name in this environment.
-    typeclass_to_name: HashMap<Typeclass, String>,
-
     /// Attribute names of both classes and typeclasses defined in this module.
     /// We use a map-to-nothing so that we can share autocomplete code.
     attributes: HashMap<String, BTreeMap<String, ()>>,
@@ -170,7 +166,6 @@ impl BindingMap {
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
-            typeclass_to_name: HashMap::new(),
             attributes: HashMap::new(),
             unqualified: BTreeMap::new(),
             canonical_to_alias: HashMap::new(),
@@ -334,11 +329,6 @@ impl BindingMap {
     pub fn add_typeclass(&mut self, name: &str, typeclass: Typeclass) {
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
-        if !self.typeclass_to_name.contains_key(&typeclass) {
-            self.typeclass_to_name
-                .insert(typeclass.clone(), name.to_string());
-        }
-
         let canonical_name =
             GlobalName::new(typeclass.module_id, LocalName::unqualified(&typeclass.name));
         self.canonical_to_alias
