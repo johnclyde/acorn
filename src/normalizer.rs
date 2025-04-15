@@ -100,12 +100,12 @@ impl Normalizer {
     /// But there's a redundant arg here. The simpler form is just
     ///   forall(x, f(x) & g(skolem()))
     /// which is what we get if we don't convert to prenex first.
-    pub fn skolemize(&mut self, stack: &Vec<AcornType>, value: AcornValue) -> AcornValue {
-        match value {
+    pub fn skolemize(&mut self, stack: &Vec<AcornType>, value: AcornValue) -> Result<AcornValue> {
+        Ok(match value {
             AcornValue::ForAll(quants, subvalue) => {
                 let mut new_stack = stack.clone();
                 new_stack.extend(quants.clone());
-                let new_subvalue = self.skolemize(&new_stack, *subvalue);
+                let new_subvalue = self.skolemize(&new_stack, *subvalue)?;
                 AcornValue::ForAll(quants, Box::new(new_subvalue))
             }
 
@@ -128,21 +128,21 @@ impl Normalizer {
 
                 // Replace references to the existential quantifiers
                 let stack_size = stack.len() as AtomId;
-                self.skolemize(
+                return self.skolemize(
                     stack,
                     subvalue.bind_values(stack_size, stack_size, &replacements),
-                )
+                );
             }
 
             AcornValue::Binary(BinaryOp::And, left, right) => {
-                let left = self.skolemize(stack, *left);
-                let right = self.skolemize(stack, *right);
+                let left = self.skolemize(stack, *left)?;
+                let right = self.skolemize(stack, *right)?;
                 AcornValue::Binary(BinaryOp::And, Box::new(left), Box::new(right))
             }
 
             AcornValue::Binary(BinaryOp::Or, left, right) => {
-                let left = self.skolemize(stack, *left);
-                let right = self.skolemize(stack, *right);
+                let left = self.skolemize(stack, *left)?;
+                let right = self.skolemize(stack, *right)?;
                 AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
             }
 
@@ -151,15 +151,16 @@ impl Normalizer {
             | AcornValue::Not(_)
             | AcornValue::Binary(_, _, _)
             | AcornValue::Variable(_, _)
-            | AcornValue::Bool(_) => value,
+            | AcornValue::Bool(_)
+            | AcornValue::Constant(_) => value,
 
-            AcornValue::Constant(ref c) if c.params.is_empty() => value,
-
-            _ => panic!(
-                "moving negation inwards should have eliminated this node: {:?}",
-                value
-            ),
-        }
+            _ => {
+                return Err(format!(
+                    "moving negation inwards should have eliminated this node: {:?}",
+                    value
+                ));
+            }
+        })
     }
 
     /// Constructs a new term from a function application
@@ -341,7 +342,7 @@ impl Normalizer {
         let value = value.replace_match();
         let value = value.move_negation_inwards(true, false);
         // println!("negin'd: {}", value);
-        let value = self.skolemize(&vec![], value);
+        let value = self.skolemize(&vec![], value)?;
         // println!("skolemized: {}", value);
 
         self.normalize_cnf(value, local)

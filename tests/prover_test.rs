@@ -2080,4 +2080,34 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_use_typeclass_axiom_on_instance() {
+        let text = r#"
+            typeclass F: FooTrue {
+                b: Bool
+            }
+
+            define foo<T>(t: T) -> Bool {
+                axiom
+            }
+
+            axiom foo_true<F: FooTrue>(a: F) {
+                foo(a)
+            }
+
+            inductive Z1 {
+                zero
+            }
+
+            instance Z1: FooTrue {
+                let b: Bool = true
+            }
+
+            theorem goal(z: Z1) {
+                foo(z)
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
