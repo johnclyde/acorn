@@ -2073,9 +2073,11 @@ mod prover_test {
                     a.foo implies a.bar
                 }
             }
-            
+
             theorem bar_true<F: FooTrue>(a: F) {
                 a.bar
+            } by {
+                a.foo
             }
         "#;
         verify_succeeds(text);
