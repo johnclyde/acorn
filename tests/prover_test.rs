@@ -2057,4 +2057,27 @@ mod prover_test {
             panic!("expected a final step");
         }
     }
+
+    #[test]
+    fn test_prover_handling_typeclasses() {
+        let text = r#"
+            typeclass F: FooTrue {
+                foo: F -> Bool
+                bar: F -> Bool
+
+                foo_true(a: F) {
+                    a.foo
+                }
+
+                foo_imp_bar(a: F) {
+                    a.foo implies a.bar
+                }
+            }
+            
+            theorem bar_true<F: FooTrue>(a: F) {
+                a.bar
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
