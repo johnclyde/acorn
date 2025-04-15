@@ -197,6 +197,30 @@ pub struct TypeParam {
     pub typeclass: Option<Typeclass>,
 }
 
+impl fmt::Display for TypeParam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(tc) = &self.typeclass {
+            write!(f, "{}: {}", self.name, tc.name)
+        } else {
+            write!(f, "{}", self.name)
+        }
+    }
+}
+
+impl TypeParam {
+    pub fn params_to_str(params: &[TypeParam]) -> String {
+        let mut result = "<".to_string();
+        for (i, param) in params.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+            result.push_str(&format!("{}", param));
+        }
+        result.push('>');
+        result
+    }
+}
+
 /// Every AcornValue has an AcornType.
 /// This is the "richer" form of a type. The environment uses these types; the prover uses ids.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -292,7 +316,7 @@ impl AcornType {
         }
     }
 
-    pub fn types_to_str(types: &[AcornType]) -> String {
+    fn types_to_str(types: &[AcornType]) -> String {
         let mut result = String::new();
         for (i, acorn_type) in types.iter().enumerate() {
             if i > 0 {
@@ -500,9 +524,6 @@ impl fmt::Display for AcornType {
             AcornType::Empty => write!(f, "empty"),
             AcornType::Variable(param) | AcornType::Arbitrary(param) => {
                 write!(f, "{}", param.name)?;
-                if let Some(tc) = param.typeclass.as_ref() {
-                    write!(f, ": {}", tc.name)?;
-                }
                 Ok(())
             }
         }
