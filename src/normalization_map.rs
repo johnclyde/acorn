@@ -106,16 +106,18 @@ impl NormalizationMap {
     }
 
     /// Make this monomorphized constant an alias for the given name.
-    /// Panics if the name doesn't map to anything.
+    /// If neither of the names map to anything, we create a new entry.
+    /// This is rare but can happen if we're aliasing something that was structurally generated.
     pub fn alias_monomorph(
         &mut self,
         c: ConstantInstance,
         name: &GlobalName,
         constant_type: &AcornType,
+        local: bool,
     ) {
         let type_id = self.add_type(constant_type);
-        let atom = self.name_to_atom.get(name).unwrap();
-        self.monomorph_to_id.insert(c, (*atom, type_id));
+        let atom = self.add_constant(name.clone(), local);
+        self.monomorph_to_id.insert(c, (atom, type_id));
     }
 
     /// The provided constant instance should be monomorphized.

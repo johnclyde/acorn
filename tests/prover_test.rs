@@ -2045,9 +2045,16 @@ mod prover_test {
                 Magma.mul(a, a) = a * a
             }
         "#;
-        let (_prover, outcome, _) = prove_as_main(text, "goal");
+        let (prover, outcome, _) = prove_as_main(text, "goal");
         assert_eq!(outcome, Outcome::Success);
-
-        // TODO: the goal should have normalized to Foo.mul(x0, x0) = Foo.mul(x0, x0)
+        if let Some(final_step) = prover.get_final_step() {
+            // TODO: the goal should have just normalized to Foo.mul(x0, x0) = Foo.mul(x0, x0)
+            // i.e. a trivial one.
+            if !final_step.rule.is_assumption() {
+                panic!("final step is not trivial: {:?}", final_step);
+            }
+        } else {
+            panic!("expected a final step");
+        }
     }
 }
