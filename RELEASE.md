@@ -33,7 +33,7 @@ All commands are run from `~/acorn`.
    ./python/version.py bump
    ```
 
-   Commit all changes and merge them upstream.
+   Commit all changes and merge them upstream with `git push upstream master`.
 
 2. Do the cross-platform build.
 
@@ -42,6 +42,12 @@ All commands are run from `~/acorn`.
    ```
 
 3. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
+
+   ```bash
+   ./python/tag.py
+   ```
+
+   or to do it step by step:
 
    ```bash
    git tag v0.0.1
