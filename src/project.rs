@@ -1773,4 +1773,64 @@ mod tests {
         );
         p.check_code("main", "pair.double(true)");
     }
+
+    #[test]
+    fn test_importing_typeclasses_with_import() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/magma.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import magma
+
+            inductive Z1 {
+                zero
+            }
+
+            instance Z1: magma.Magma {
+                define mul(self, other: Z1) -> Z1 {
+                    Z1.zero
+                }
+            }
+            "#,
+        );
+        p.check_code("main", "magma.Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+    }
+
+    // #[test]
+    // fn test_importing_typeclasses_with_from() {
+    //     let mut p = Project::new_mock();
+    //     p.mock(
+    //         "/mock/magma.ac",
+    //         r#"
+    //         typeclass M: Magma {
+    //             mul: (M, M) -> M
+    //         }
+    //         "#,
+    //     );
+    //     p.mock(
+    //         "/mock/main.ac",
+    //         r#"
+    //         from magma import Magma
+
+    //         inductive Z1 {
+    //             zero
+    //         }
+
+    //         instance Z1: Magma {
+    //             define mul(self, other: Z1) -> Z1 {
+    //                 Z1.zero
+    //             }
+    //         }
+    //         "#,
+    //     );
+    //     p.check_code("main", "Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+    // }
 }
