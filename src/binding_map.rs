@@ -60,8 +60,7 @@ pub struct BindingMap {
 
     /// Whenever a name from some other scope has a local alias in this one,
     /// if we're generating code, we prefer to use the local name.
-    /// This is not just constants, but also types and typeclasses.
-    /// So, the GlobalConstantName is slightly misused.
+    /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
     canonical_to_alias: HashMap<GlobalName, String>,
 
@@ -339,6 +338,12 @@ impl BindingMap {
             self.typeclass_to_name
                 .insert(typeclass.clone(), name.to_string());
         }
+
+        let canonical_name =
+            GlobalName::new(typeclass.module_id, LocalName::unqualified(&typeclass.name));
+        self.canonical_to_alias
+            .entry(canonical_name)
+            .or_insert(name.to_string());
 
         match self.name_to_typeclass.entry(name.to_string()) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -2471,11 +2476,12 @@ impl BindingMap {
             return Ok(Expression::generate_identifier(alias));
         }
 
-        // If it's a member function, check if there's a local alias for its class.
-        if let LocalName::Attribute(class, attr) = &name.local_name {
-            let type_name = GlobalName::new(name.module_id, LocalName::unqualified(class));
-            if let Some(type_alias) = self.canonical_to_alias.get(&type_name) {
-                let lhs = Expression::generate_identifier(type_alias);
+        // If it's a member function, check if there's a local alias for its receiver.
+        // Note that the receiver could be either a class or a typeclass.
+        if let LocalName::Attribute(rname, attr) = &name.local_name {
+            let receiver = GlobalName::new(name.module_id, LocalName::unqualified(rname));
+            if let Some(alias) = self.canonical_to_alias.get(&receiver) {
+                let lhs = Expression::generate_identifier(alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::generate_dot(lhs, rhs));
             }
