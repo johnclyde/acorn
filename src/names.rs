@@ -176,4 +176,17 @@ impl GlobalName {
             local_name: LocalName::guess(s),
         }
     }
+
+    /// If this value is a dotted attribute of the given typeclass, return its name.
+    pub fn as_typeclass_attribute(&self, typeclass: &Typeclass) -> Option<String> {
+        if self.module_id != typeclass.module_id {
+            return None;
+        }
+        if let LocalName::Attribute(receiver, member) = &self.local_name {
+            if receiver == &typeclass.name {
+                return Some(member.to_string());
+            }
+        }
+        None
+    }
 }

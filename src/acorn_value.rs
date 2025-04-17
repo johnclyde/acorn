@@ -155,10 +155,10 @@ impl ConstantInstance {
         }
     }
 
-    /// If this value is a dotted attribute of the given type, return its name.
+    /// If this value is a dotted attribute of the given receiver type, return its name.
     /// This can be constants or functions on a class, or attributes of a typeclass if the type
     /// is a variable or arbitrary.
-    pub fn is_attribute(&self, t: &AcornType) -> Option<String> {
+    pub fn as_attribute(&self, t: &AcornType) -> Option<String> {
         match t {
             AcornType::Data(class, _) => {
                 if self.name.module_id != class.module_id {
@@ -171,15 +171,8 @@ impl ConstantInstance {
                 }
             }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
-                if let Some(typeclass) = &param.typeclass {
-                    if self.name.module_id != typeclass.module_id {
-                        return None;
-                    }
-                    if let LocalName::Attribute(receiver, member) = &self.name.local_name {
-                        if receiver == &typeclass.name {
-                            return Some(member.to_string());
-                        }
-                    }
+                if let Some(tc) = &param.typeclass {
+                    return self.name.as_typeclass_attribute(&tc);
                 }
             }
             _ => {}
@@ -1757,12 +1750,12 @@ impl AcornValue {
         answer.unwrap()
     }
 
-    /// If this value is a dotted attribute of the given type, return its name.
+    /// If this value is a dotted attribute of the given receiver type, return its name.
     /// This can be constants or functions on a class, or attributes of a typeclass if the type
     /// is a variable or arbitrary.
-    pub fn is_attribute(&self, t: &AcornType) -> Option<String> {
+    pub fn as_attribute(&self, t: &AcornType) -> Option<String> {
         match &self {
-            AcornValue::Constant(c) => c.is_attribute(t),
+            AcornValue::Constant(c) => c.as_attribute(t),
             _ => None,
         }
     }
