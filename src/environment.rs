@@ -1317,10 +1317,11 @@ impl Environment {
             typeclass: Some(typeclass.clone()),
         };
         self.bindings.add_arbitrary_type(type_param.clone());
+        let type_params = vec![type_param.clone()];
 
         for (attr_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
-            let var_type = arb_type.to_generic();
+            let var_type = arb_type.genericize(&type_params);
             let local_name = LocalName::attribute(typeclass_name, attr_name.text());
             self.bindings
                 .check_local_name_available(attr_name, &local_name)?;
@@ -1362,17 +1363,17 @@ impl Environment {
             }
             let unbound_claim = unbound_claim
                 .ok_or_else(|| condition.claim.error("conditions must have values"))?;
-            let external_claim =
-                AcornValue::forall(arg_types.clone(), unbound_claim.clone()).to_generic();
+            let external_claim = AcornValue::forall(arg_types.clone(), unbound_claim.clone())
+                .genericize(&type_params);
             if let Err(message) = external_claim.validate() {
                 return Err(condition.claim.error(&message));
             }
-            let lambda_claim =
-                AcornValue::lambda(arg_types.clone(), unbound_claim.clone()).to_generic();
+            let lambda_claim = AcornValue::lambda(arg_types.clone(), unbound_claim.clone())
+                .genericize(&type_params);
             let theorem_type = lambda_claim.get_type();
             self.bindings.add_local_constant(
                 local_name.clone(),
-                vec![type_param.clone()],
+                type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim),
                 None,
