@@ -27,7 +27,14 @@ impl Body {
 pub struct LetStatement {
     pub name: String,
     pub name_token: Token,
+
+    /// What the constant is parametrized by, if anything.
+    pub type_params: Vec<TypeParamExpr>,
+
+    /// The expression for the type of this constant
     pub type_expr: Expression,
+
+    // /// The expression for the value of this constant
     pub value: Expression,
 }
 
@@ -483,6 +490,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
             });
         }
     }
+    let type_params = TypeParamExpr::parse_list(tokens)?;
     tokens.expect_type(TokenType::Colon)?;
     let (type_expr, middle_token) = Expression::parse_type(
         tokens,
@@ -500,6 +508,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
     let ls = LetStatement {
         name,
         name_token,
+        type_params,
         type_expr,
         value,
     };
@@ -1056,7 +1065,9 @@ impl Statement {
         write!(f, "{}", indentation)?;
         match &self.statement {
             StatementInfo::Let(ls) => {
-                write!(f, "let {}: {} = {}", ls.name, ls.type_expr, ls.value)
+                write!(f, "let {}", ls.name)?;
+                write_type_params(f, &ls.type_params)?;
+                write!(f, ": {} = {}", ls.type_expr, ls.value)
             }
 
             StatementInfo::Define(ds) => {
@@ -1988,17 +1999,9 @@ mod tests {
         }"});
     }
 
-    // #[test]
-    // fn test_parsing_parametrized_let_statement() {
-    //     ok(indoc! {"
-    //         let foo<T>: T = bar<T>
-    //     "});
-    // }
-
-    // #[test]
-    // fn test_parsing_parametrized_let_statement_with_typeclass() {
-    //     ok(indoc! {"
-    //         let foo<T: Thing>: T = bar<T>
-    //     "});
-    // }
+    #[test]
+    fn test_parsing_parametrized_let_statements() {
+        ok("let foo<T>: T = bar<T>");
+        ok("let foo<T: Thing>: T = bar<T>");
+    }
 }
