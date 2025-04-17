@@ -2931,4 +2931,25 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_typeclass_codegen() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                inverse: F -> F
+                add: (F, F) -> F
+                bar: F
+            }
+
+            theorem goal<F: Foo> {
+                true
+            }
+        "#,
+        );
+
+        // TODO: run this on the bindings for "goal"
+        // env.bindings.expect_good_code("F.bar.inverse");
+    }
 }
