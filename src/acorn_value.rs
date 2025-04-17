@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, TypeParam};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::names::{GlobalName, InstanceName, LocalName};
@@ -134,6 +134,16 @@ impl ConstantInstance {
         self.params.iter().any(|t| t.has_generic()) || self.instance_type.has_generic()
     }
 
+    /// Change the arbitrary types in this list of parameters to generic ones.
+    pub fn genericize(&self, params: &[TypeParam]) -> ConstantInstance {
+        ConstantInstance {
+            name: self.name.clone(),
+            params: self.params.iter().map(|t| t.genericize(params)).collect(),
+            instance_type: self.instance_type.genericize(params),
+        }
+    }
+
+    /// Turn every arbitrary type into a generic type.
     pub fn to_generic(&self) -> ConstantInstance {
         ConstantInstance {
             name: self.name.clone(),
@@ -1581,6 +1591,58 @@ impl AcornValue {
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.to_arbitrary())),
             AcornValue::Constant(c) => AcornValue::Constant(c.to_arbitrary()),
+            AcornValue::Bool(_) => self.clone(),
+        }
+    }
+
+    /// Change the arbitrary types in this list of parameters to generic ones.
+    pub fn genericize(&self, params: &[TypeParam]) -> AcornValue {
+        match self {
+            AcornValue::Variable(i, var_type) => {
+                AcornValue::Variable(*i, var_type.genericize(params))
+            }
+            AcornValue::Application(app) => AcornValue::Application(FunctionApplication {
+                function: Box::new(app.function.genericize(params)),
+                args: app.args.iter().map(|x| x.genericize(params)).collect(),
+            }),
+            AcornValue::Lambda(args, value) => AcornValue::Lambda(
+                args.iter().map(|x| x.genericize(params)).collect(),
+                Box::new(value.genericize(params)),
+            ),
+            AcornValue::ForAll(args, value) => AcornValue::ForAll(
+                args.iter().map(|x| x.genericize(params)).collect(),
+                Box::new(value.genericize(params)),
+            ),
+            AcornValue::Exists(args, value) => AcornValue::Exists(
+                args.iter().map(|x| x.genericize(params)).collect(),
+                Box::new(value.genericize(params)),
+            ),
+            AcornValue::Binary(op, left, right) => AcornValue::Binary(
+                *op,
+                Box::new(left.genericize(params)),
+                Box::new(right.genericize(params)),
+            ),
+            AcornValue::IfThenElse(cond, if_value, else_value) => AcornValue::IfThenElse(
+                Box::new(cond.genericize(params)),
+                Box::new(if_value.genericize(params)),
+                Box::new(else_value.genericize(params)),
+            ),
+            AcornValue::Match(scrutinee, cases) => {
+                let new_scrutinee = scrutinee.genericize(params);
+                let new_cases = cases
+                    .iter()
+                    .map(|(new_vars, pattern, result)| {
+                        (
+                            new_vars.clone(),
+                            pattern.genericize(params),
+                            result.genericize(params),
+                        )
+                    })
+                    .collect();
+                AcornValue::Match(Box::new(new_scrutinee), new_cases)
+            }
+            AcornValue::Not(x) => AcornValue::Not(Box::new(x.genericize(params))),
+            AcornValue::Constant(c) => AcornValue::Constant(c.genericize(params)),
             AcornValue::Bool(_) => self.clone(),
         }
     }

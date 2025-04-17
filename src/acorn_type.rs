@@ -443,6 +443,33 @@ impl AcornType {
         }
     }
 
+    // Change the arbitrary types in this list of parameters to generic ones.
+    pub fn genericize(&self, params: &[TypeParam]) -> AcornType {
+        match self {
+            AcornType::Arbitrary(param) => {
+                for p in params {
+                    if p.name == param.name {
+                        return AcornType::Variable(p.clone());
+                    }
+                }
+                self.clone()
+            }
+            AcornType::Function(ftype) => AcornType::functional(
+                ftype
+                    .arg_types
+                    .iter()
+                    .map(|t| t.genericize(params))
+                    .collect(),
+                ftype.return_type.genericize(params),
+            ),
+            AcornType::Data(class, types) => AcornType::Data(
+                class.clone(),
+                types.iter().map(|t| t.genericize(params)).collect(),
+            ),
+            _ => self.clone(),
+        }
+    }
+
     // Converts all arbitrary types to type variables.
     pub fn to_generic(&self) -> AcornType {
         match self {
