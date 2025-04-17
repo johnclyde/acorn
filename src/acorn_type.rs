@@ -3,14 +3,14 @@ use std::{collections::HashMap, fmt};
 use crate::compilation::{ErrorSource, Result};
 use crate::module::ModuleId;
 
-// Classes are represented by the module they were defined in, and their name.
+/// Classes are represented by the module they were defined in, and their name.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Class {
     pub module_id: ModuleId,
     pub name: String,
 }
 
-// Typeclasses are represented by the module they were defined in, and their name.
+/// Typeclasses are represented by the module they were defined in, and their name.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Typeclass {
     pub module_id: ModuleId,
@@ -19,15 +19,15 @@ pub struct Typeclass {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnresolvedType {
-    // The underlying generic type.
+    /// The underlying generic type.
     pub class: Class,
 
-    // The parameters we need to instantiate this type, along with their typeclass if any..
+    /// The parameters we need to instantiate this type, along with their typeclass if any.
     pub params: Vec<Option<Typeclass>>,
 }
 
 impl UnresolvedType {
-    // Just sticks fake names in there to print.
+    /// Just sticks fake names in there to print.
     pub fn to_display_type(&self) -> AcornType {
         let mut params = vec![];
         for (i, param) in self.params.iter().enumerate() {
@@ -42,17 +42,17 @@ impl UnresolvedType {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum PotentialType {
-    // A usable type.
+    /// A usable type.
     Resolved(AcornType),
 
-    // A generic type that we don't know the parameters for yet.
-    // (module, name, number of parameters).
+    /// A generic type that we don't know the parameters for yet.
+    /// (module, name, number of parameters).
     Unresolved(UnresolvedType),
 }
 
 impl PotentialType {
-    // Resolves the type given the parameters.
-    // Every replacement must be a type variable being replaced with an arbitrary type.
+    /// Resolves the type given the parameters.
+    /// Every replacement must be a type variable being replaced with an arbitrary type.
     pub fn invertible_resolve(
         self,
         params: Vec<AcornType>,
@@ -87,8 +87,8 @@ impl PotentialType {
         self.resolve(params, source)
     }
 
-    // Resolves the type given the parameters.
-    // Reports an error if the parameters don't match what we expected.
+    /// Resolves the type given the parameters.
+    /// Reports an error if the parameters don't match what we expected.
     pub fn resolve(self, params: Vec<AcornType>, source: &dyn ErrorSource) -> Result<AcornType> {
         match self {
             PotentialType::Resolved(t) => {
@@ -138,6 +138,7 @@ impl fmt::Display for FunctionType {
 }
 
 impl FunctionType {
+    /// Creates a new function type by normalizing arguments and return type.
     fn new(arg_types: Vec<AcornType>, return_type: AcornType) -> FunctionType {
         assert!(arg_types.len() > 0);
         if let AcornType::Function(ftype) = return_type {
@@ -158,7 +159,7 @@ impl FunctionType {
         }
     }
 
-    // Makes a partial type by removing the first n arguments.
+    /// Makes a partial type by removing the first n arguments.
     fn remove_args(&self, n: usize) -> FunctionType {
         assert!(n < self.arg_types.len());
         FunctionType {
@@ -167,8 +168,8 @@ impl FunctionType {
         }
     }
 
-    // The type after applying this function to a certain number of arguments.
-    // Panics if the application is invalid.
+    /// The type after applying this function to a certain number of arguments.
+    /// Panics if the application is invalid.
     pub fn applied_type(&self, num_args: usize) -> AcornType {
         if num_args > self.arg_types.len() {
             panic!(
@@ -185,6 +186,7 @@ impl FunctionType {
         }
     }
 
+    /// Checks if this function type contains any arbitrary types.
     pub fn has_arbitrary(&self) -> bool {
         self.arg_types.iter().any(|t| t.has_arbitrary()) || self.return_type.has_arbitrary()
     }
@@ -208,6 +210,7 @@ impl fmt::Display for TypeParam {
 }
 
 impl TypeParam {
+    /// Converts a list of type parameters to a string representation.
     pub fn params_to_str(params: &[TypeParam]) -> String {
         let mut result = "<".to_string();
         for (i, param) in params.iter().enumerate() {
@@ -316,6 +319,7 @@ impl AcornType {
         }
     }
 
+    /// Converts a list of types to a string representation.
     fn types_to_str(types: &[AcornType]) -> String {
         let mut result = String::new();
         for (i, acorn_type) in types.iter().enumerate() {
@@ -327,6 +331,7 @@ impl AcornType {
         result
     }
 
+    /// Converts a list of declaration types to a string representation.
     pub fn decs_to_str(dec_types: &Vec<AcornType>, stack_size: usize) -> String {
         let mut result = String::new();
         for (i, dec_type) in dec_types.iter().enumerate() {
@@ -338,8 +343,8 @@ impl AcornType {
         result
     }
 
-    // Replaces type variables in the provided list with the corresponding type.
-    // Note that this does not check if typeclasses match.
+    /// Replaces type variables in the provided list with the corresponding type.
+    /// Note that this does not check if typeclasses match.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> AcornType {
         match self {
             AcornType::Variable(param) => {
@@ -366,16 +371,16 @@ impl AcornType {
         }
     }
 
-    // Figures out whether it is possible to instantiate self to get instance.
-    //
-    // Fills in a mapping for any parametric types that need to be specified, in order to make it match.
-    // This will include "Foo" -> Parameter("Foo") mappings for types that should remain the same.
-    // Every parameter used in self will get a mapping entry.
-    //
-    // "validator" is a function that checks whether a typeclass is valid for a given type.
-    // This is abstracted out because the prover and the compiler have different ideas of what is valid.
-    //
-    // Returns whether it was successful.
+    /// Figures out whether it is possible to instantiate self to get instance.
+    ///
+    /// Fills in a mapping for any parametric types that need to be specified, in order to make it match.
+    /// This will include "Foo" -> Parameter("Foo") mappings for types that should remain the same.
+    /// Every parameter used in self will get a mapping entry.
+    ///
+    /// "validator" is a function that checks whether a typeclass is valid for a given type.
+    /// This is abstracted out because the prover and the compiler have different ideas of what is valid.
+    ///
+    /// Returns whether it was successful.
     pub fn match_instance(
         &self,
         instance: &AcornType,
@@ -443,7 +448,7 @@ impl AcornType {
         }
     }
 
-    // Change the arbitrary types in this list of parameters to generic ones.
+    /// Change the arbitrary types in this list of parameters to generic ones.
     pub fn genericize(&self, params: &[TypeParam]) -> AcornType {
         match self {
             AcornType::Arbitrary(param) => {
@@ -470,7 +475,7 @@ impl AcornType {
         }
     }
 
-    // Converts all arbitrary types to type variables.
+    /// Converts all arbitrary types to type variables.
     pub fn to_generic(&self) -> AcornType {
         match self {
             AcornType::Arbitrary(param) => AcornType::Variable(param.clone()),
@@ -486,7 +491,7 @@ impl AcornType {
         }
     }
 
-    // A type is generic if it has any type variables within it.
+    /// A type is generic if it has any type variables within it.
     pub fn has_generic(&self) -> bool {
         match self {
             AcornType::Bool | AcornType::Empty | AcornType::Arbitrary(..) => false,
@@ -503,7 +508,7 @@ impl AcornType {
         }
     }
 
-    // Converts all type variables to arbitrary types.
+    /// Converts all type variables to arbitrary types.
     pub fn to_arbitrary(&self) -> AcornType {
         match self {
             AcornType::Variable(param) => AcornType::Arbitrary(param.clone()),
@@ -519,6 +524,7 @@ impl AcornType {
         }
     }
 
+    /// Checks if this type contains any arbitrary types.
     pub fn has_arbitrary(&self) -> bool {
         match self {
             AcornType::Arbitrary(..) => true,
@@ -528,6 +534,7 @@ impl AcornType {
         }
     }
 
+    /// Returns whether this type is a function type.
     pub fn is_functional(&self) -> bool {
         match self {
             AcornType::Function(_) => true,
