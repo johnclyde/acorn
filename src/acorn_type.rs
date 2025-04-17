@@ -475,22 +475,6 @@ impl AcornType {
         }
     }
 
-    /// Converts all arbitrary types to type variables.
-    pub fn to_generic(&self) -> AcornType {
-        match self {
-            AcornType::Arbitrary(param) => AcornType::Variable(param.clone()),
-            AcornType::Function(ftype) => AcornType::functional(
-                ftype.arg_types.iter().map(|t| t.to_generic()).collect(),
-                ftype.return_type.to_generic(),
-            ),
-            AcornType::Data(class, params) => AcornType::Data(
-                class.clone(),
-                params.iter().map(|t| t.to_generic()).collect(),
-            ),
-            _ => self.clone(),
-        }
-    }
-
     /// A type is generic if it has any type variables within it.
     pub fn has_generic(&self) -> bool {
         match self {
