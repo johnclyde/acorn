@@ -2914,21 +2914,21 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         );
     }
 
-    // #[test]
-    // fn test_env_let_statements_with_params() {
-    //     let mut env = Environment::test();
-    //     env.add(
-    //         r#"
-    //     typeclass P: PointedSet {
-    //         zero: P
-    //     }
+    #[test]
+    fn test_env_let_statements_with_params() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+        typeclass P: PointedSet {
+            zero: P
+        }
 
-    //     let z<P: PointedSet>: P = P.zero
+        let z<P: PointedSet>: P = P.zero
 
-    //     define is_zero<P: PointedSet>(x: P) -> Bool {
-    //         z<P> = x
-    //     }
-    //     "#,
-    //     );
-    // }
+        define is_zero<P: PointedSet>(x: P) -> Bool {
+            z<P> = x
+        }
+        "#,
+        );
+    }
 }

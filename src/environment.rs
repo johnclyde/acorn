@@ -366,6 +366,9 @@ impl Environment {
             Some(v)
         };
 
+        let acorn_type = acorn_type.genericize(&type_params);
+        let value = value.map(|v| v.genericize(&type_params));
+
         // Reset the bindings
         for param in type_params.iter().rev() {
             self.bindings.remove_type(&param.name);
