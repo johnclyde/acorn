@@ -2110,4 +2110,21 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_parametrized_constant() {
+        let text = r#"
+            typeclass P: PointedSet {
+                point: P
+            }
+        
+            let get_point1<P: PointedSet>: P = P.point
+            let get_point2<P: PointedSet>: P = P.point
+        
+            theorem goal<P: PointedSet> {
+                get_point1<P> = get_point2<P>
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
