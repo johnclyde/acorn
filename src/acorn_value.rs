@@ -154,6 +154,38 @@ impl ConstantInstance {
             instance_type: self.instance_type.to_arbitrary(),
         }
     }
+
+    /// If this value is a dotted attribute of the given type, return its name.
+    /// This can be constants or functions on a class, or attributes of a typeclass if the type
+    /// is a variable or arbitrary.
+    pub fn is_attribute(&self, t: &AcornType) -> Option<String> {
+        match t {
+            AcornType::Data(class, _) => {
+                if self.name.module_id != class.module_id {
+                    return None;
+                }
+                if let LocalName::Attribute(receiver, member) = &self.name.local_name {
+                    if receiver == &class.name {
+                        return Some(member.to_string());
+                    }
+                }
+            }
+            AcornType::Arbitrary(param) | AcornType::Variable(param) => {
+                if let Some(typeclass) = &param.typeclass {
+                    if self.name.module_id != typeclass.module_id {
+                        return None;
+                    }
+                    if let LocalName::Attribute(receiver, member) = &self.name.local_name {
+                        if receiver == &typeclass.name {
+                            return Some(member.to_string());
+                        }
+                    }
+                }
+            }
+            _ => {}
+        };
+        None
+    }
 }
 
 /// Two AcornValue compare to equal if they are structurally identical.
@@ -1729,34 +1761,10 @@ impl AcornValue {
     /// This can be constants or functions on a class, or attributes of a typeclass if the type
     /// is a variable or arbitrary.
     pub fn is_attribute(&self, t: &AcornType) -> Option<String> {
-        if let AcornValue::Constant(c) = &self {
-            match t {
-                AcornType::Data(class, _) => {
-                    if c.name.module_id != class.module_id {
-                        return None;
-                    }
-                    if let LocalName::Attribute(receiver, member) = &c.name.local_name {
-                        if receiver == &class.name {
-                            return Some(member.to_string());
-                        }
-                    }
-                }
-                AcornType::Arbitrary(param) | AcornType::Variable(param) => {
-                    if let Some(typeclass) = &param.typeclass {
-                        if c.name.module_id != typeclass.module_id {
-                            return None;
-                        }
-                        if let LocalName::Attribute(receiver, member) = &c.name.local_name {
-                            if receiver == &typeclass.name {
-                                return Some(member.to_string());
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            };
+        match &self {
+            AcornValue::Constant(c) => c.is_attribute(t),
+            _ => None,
         }
-        None
     }
 
     /// If this is a plain constant, give access to its name.
