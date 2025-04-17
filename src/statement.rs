@@ -21,9 +21,9 @@ impl Body {
     }
 }
 
-// Let statements introduce new named constants. For example:
-//   let a: int = x + 2
-// The name token can either be an identifier or a number.
+/// Let statements introduce new named constants. For example:
+///   let a: int = x + 2
+/// The name token can either be an identifier or a number.
 pub struct LetStatement {
     pub name: String,
     pub name_token: Token,
@@ -31,31 +31,31 @@ pub struct LetStatement {
     pub value: Expression,
 }
 
-// Define statements introduce new named functions. For example:
-//   define foo(a: int, b: int) -> int = a + a + b
+/// Define statements introduce new named functions. For example:
+///   define foo(a: int, b: int) -> int = a + a + b
 pub struct DefineStatement {
     pub name: String,
     pub name_token: Token,
 
-    // For templated definitions
+    /// For templated definitions
     pub type_params: Vec<TypeParamExpr>,
 
-    // A list of the named arg types, like "a: int" and "b: int".
+    /// A list of the named arg types, like "a: int" and "b: int".
     pub args: Vec<Declaration>,
 
-    // The specified return type of the function, like "int"
+    /// The specified return type of the function, like "int"
     pub return_type: Expression,
 
-    // The body of the function, like "a + a + b"
+    /// The body of the function, like "a + a + b"
     pub return_value: Expression,
 }
 
-// There are two keywords for theorems.
-// The "axiom" keyword indicates theorems that are axiomatic.
-// The "theorem" keyword is used for the vast majority of normal theorems.
-// For example, in:
-//   axiom foo(p, q): p -> (q -> p)
-// axiomatic would be "true", the name is "foo", the args are p, q, and the claim is "p -> (q -> p)".
+/// There are two keywords for theorems.
+/// The "axiom" keyword indicates theorems that are axiomatic.
+/// The "theorem" keyword is used for the vast majority of normal theorems.
+/// For example, in:
+///   axiom foo(p, q): p -> (q -> p)
+/// axiomatic would be "true", the name is "foo", the args are p, q, and the claim is "p -> (q -> p)".
 pub struct TheoremStatement {
     pub axiomatic: bool,
     pub name: Option<String>,
@@ -66,189 +66,189 @@ pub struct TheoremStatement {
     pub body: Option<Body>,
 }
 
-// Claim statements are a boolean expression.
-// We're implicitly asserting that it is true and provable.
-// It's like an anonymous theorem.
+/// Claim statements are a boolean expression.
+/// We're implicitly asserting that it is true and provable.
+/// It's like an anonymous theorem.
 pub struct ClaimStatement {
     pub claim: Expression,
 }
 
-// Type statements declare a name as an alias to a type expression.
+/// Type statements declare a name as an alias to a type expression.
 pub struct TypeStatement {
     pub name: String,
     pub type_expr: Expression,
 }
 
-// ForAll statements create a new block in which new variables are introduced.
+/// ForAll statements create a new block in which new variables are introduced.
 pub struct ForAllStatement {
     pub quantifiers: Vec<Declaration>,
     pub body: Body,
 }
 
-// If statements create a new block that introduces no variables but has an implicit condition.
-// They can optionally create a second block with an "else" keyword followed by a block.
+/// If statements create a new block that introduces no variables but has an implicit condition.
+/// They can optionally create a second block with an "else" keyword followed by a block.
 pub struct IfStatement {
     pub condition: Expression,
     pub body: Body,
     pub else_body: Option<Body>,
 
-    // Just for error reporting
+    /// Just for error reporting
     pub token: Token,
 }
 
-// A variable satisfy statement introduces new variables to the outside block.
-// It is written like:
-//   let a: Nat satisfy {
-//     a > 0
-//   }
+/// A variable satisfy statement introduces new variables to the outside block.
+/// It is written like:
+///   let a: Nat satisfy {
+///     a > 0
+///   }
 pub struct VariableSatisfyStatement {
     pub declarations: Vec<Declaration>,
     pub condition: Expression,
 }
 
-// A function satisfy statement introduces a new function to the outside block,
-// by giving a condition that the output of the function obeys, and claiming that
-// there is such a function.
-// It's like a combination of a "define" and a "theorem".
+/// A function satisfy statement introduces a new function to the outside block,
+/// by giving a condition that the output of the function obeys, and claiming that
+/// there is such a function.
+/// It's like a combination of a "define" and a "theorem".
 pub struct FunctionSatisfyStatement {
-    // Name of the new function.
+    /// Name of the new function.
     pub name: String,
     pub name_token: Token,
 
-    // The declarations are mostly arguments to the function, but the last one is the return
-    // value of the function.
+    /// The declarations are mostly arguments to the function, but the last one is the return
+    /// value of the function.
     pub declarations: Vec<Declaration>,
 
     pub satisfy_token: Token,
 
-    // The condition is the only thing we know about the function, that the condition is true.
+    /// The condition is the only thing we know about the function, that the condition is true.
     pub condition: Expression,
 
-    // The body is a proof that such a function exists, or more specifically, that an output
-    // exists for every input.
-    // This is implicitly using the axiom of choice. It's convenient for the axiom of choice
-    // to just be true. Maybe we have to worry about this more in the future.
+    /// The body is a proof that such a function exists, or more specifically, that an output
+    /// exists for every input.
+    /// This is implicitly using the axiom of choice. It's convenient for the axiom of choice
+    /// to just be true. Maybe we have to worry about this more in the future.
     pub body: Option<Body>,
 }
 
-// Struct statements define a new type by combining existing types
+/// Struct statements define a new type by combining existing types
 pub struct StructureStatement {
     pub name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
-    // Each field contains a field name-token and a type expression
+    /// Each field contains a field name-token and a type expression
     pub fields: Vec<(Token, Expression)>,
 
-    // The token that ends the first part of the structure statement
+    /// The token that ends the first part of the structure statement
     pub first_right_brace: Token,
 
-    // The constraint on the structure, if there is one.
+    /// The constraint on the structure, if there is one.
     pub constraint: Option<Expression>,
 
-    // The body is a proof that some value satisfies the constraint.
-    // We need to prove this because every type must be inhabited.
-    // If there's no constraint, there cannot be a body.
+    /// The body is a proof that some value satisfies the constraint.
+    /// We need to prove this because every type must be inhabited.
+    /// If there's no constraint, there cannot be a body.
     pub body: Option<Body>,
 }
 
-// Inductive statements define a new type by defining a set of constructors.
+/// Inductive statements define a new type by defining a set of constructors.
 pub struct InductiveStatement {
     pub name: String,
     pub name_token: Token,
 
-    // Each constructor has a name token and an expression for a list of types.
-    // If the expression is None, the constructor is a base value.
-    // The types can refer to the inductive type itself.
+    /// Each constructor has a name token and an expression for a list of types.
+    /// If the expression is None, the constructor is a base value.
+    /// The types can refer to the inductive type itself.
     pub constructors: Vec<(Token, Option<Expression>)>,
 }
 
 pub struct ImportStatement {
-    // The full path to the module, like in "foo.bar.baz" the module would be ["foo", "bar", "baz"]
+    /// The full path to the module, like in "foo.bar.baz" the module would be ["foo", "bar", "baz"]
     pub components: Vec<String>,
 
-    // What names to import from the module.
-    // If this is empty, we just import the module itself.
+    /// What names to import from the module.
+    /// If this is empty, we just import the module itself.
     pub names: Vec<Token>,
 }
 
-// A class statement defines additional attributes for a type.
-// They can be accessed either by the class name, or via an instance of the class.
+/// A class statement defines additional attributes for a type.
+/// They can be accessed either by the class name, or via an instance of the class.
 pub struct ClassStatement {
     pub name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
-    // The body of a class statement
+    /// The body of a class statement
     pub body: Body,
 }
 
-// A numerals statement determines what class is used for numeric literals.
+/// A numerals statement determines what class is used for numeric literals.
 pub struct NumeralsStatement {
     pub type_expr: Expression,
 }
 
 pub struct SolveStatement {
-    // The expression we are trying to find equalities for.
+    /// The expression we are trying to find equalities for.
     pub target: Expression,
 
-    // Statements used to solve the problem.
+    /// Statements used to solve the problem.
     pub body: Body,
 }
 
 pub struct MatchStatement {
-    // The thing we are matching patterns against.
+    /// The thing we are matching patterns against.
     pub scrutinee: Expression,
 
-    // (pattern, body) pairs.
+    /// (pattern, body) pairs.
     pub cases: Vec<(Expression, Body)>,
 }
 
-// A typeclass condition is a theorem that must be proven for an instance type, to show
-// that it belongs to the typeclass.
+/// A typeclass condition is a theorem that must be proven for an instance type, to show
+/// that it belongs to the typeclass.
 pub struct TypeclassCondition {
     pub name: Token,
     pub args: Vec<Declaration>,
     pub claim: Expression,
 }
 
-// A typeclass statement defines a typeclass. It can contain some constants that must be
-// specified, and theorems that must be proven.
+/// A typeclass statement defines a typeclass. It can contain some constants that must be
+/// specified, and theorems that must be proven.
 pub struct TypeclassStatement {
-    // The definition of the typeclass uses a named instance type.
-    // Like Self in Rust, but "Self" would be weird mathematically.
+    /// The definition of the typeclass uses a named instance type.
+    /// Like Self in Rust, but "Self" would be weird mathematically.
     pub instance_name: Token,
 
-    // The name of the typeclass being defined.
+    /// The name of the typeclass being defined.
     pub typeclass_name: Token,
 
-    // Each instance type in the typeclass has a list of constants that must be defined.
-    // This is a list of (name, type) pairs.
-    // The type may refer to the instance type itself.
-    // For example, all groups must define the identity, of the type of the group elements.
+    /// Each instance type in the typeclass has a list of constants that must be defined.
+    /// This is a list of (name, type) pairs.
+    /// The type may refer to the instance type itself.
+    /// For example, all groups must define the identity, of the type of the group elements.
     pub constants: Vec<(Token, Expression)>,
 
-    // Conditions that must be proven for the typeclass to be valid.
+    /// Conditions that must be proven for the typeclass to be valid.
     pub conditions: Vec<TypeclassCondition>,
 }
 
-// An instance statement describes how a type is an instance of a typeclass.
+/// An instance statement describes how a type is an instance of a typeclass.
 pub struct InstanceStatement {
-    // The type that is an instance of the typeclass.
+    /// The type that is an instance of the typeclass.
     pub type_name: Token,
 
-    // The typeclass that the type is an instance of.
+    /// The typeclass that the type is an instance of.
     pub typeclass: Expression,
 
-    // Definitions of each constant the typeclass requires.
+    /// Definitions of each constant the typeclass requires.
     pub definitions: Body,
 
-    // The body is a proof that the type is an instance of the typeclass, if needed.
+    /// The body is a proof that the type is an instance of the typeclass, if needed.
     pub body: Option<Body>,
 }
 
-// Acorn is a statement-based language. There are several types.
-// Each type has its own struct.
+/// Acorn is a statement-based language. There are several types.
+/// Each type has its own struct.
 pub struct Statement {
     pub first_token: Token,
     pub last_token: Token,
@@ -261,7 +261,7 @@ impl ErrorSource for Statement {
     }
 }
 
-// Information about a statement that is specific to the type of statement it is
+/// Information about a statement that is specific to the type of statement it is
 pub enum StatementInfo {
     Let(LetStatement),
     Define(DefineStatement),
@@ -290,8 +290,8 @@ fn add_indent(indentation: &str) -> String {
     format!("{}{}", indentation, ONE_INDENT)
 }
 
-// Writes out a block, starting with the space before the open-brace, indenting the rest.
-// Does not write a trailing newline.
+/// Writes out a block, starting with the space before the open-brace, indenting the rest.
+/// Does not write a trailing newline.
 fn write_block(f: &mut fmt::Formatter, statements: &[Statement], indentation: &str) -> fmt::Result {
     write!(f, " {{\n")?;
     let new_indentation = add_indent(indentation);
@@ -308,9 +308,9 @@ impl fmt::Display for Statement {
     }
 }
 
-// Parses a block (a list of statements) where the left brace has already been consumed.
-// Returns the statements along with the token for the final right brace.
-// Consumes the right brace, but nothing after that.
+/// Parses a block (a list of statements) where the left brace has already been consumed.
+/// Returns the statements along with the token for the final right brace.
+/// Consumes the right brace, but nothing after that.
 fn parse_block(tokens: &mut TokenIter) -> Result<(Vec<Statement>, Token)> {
     let mut body = Vec::new();
     loop {
@@ -331,9 +331,9 @@ fn parse_block(tokens: &mut TokenIter) -> Result<(Vec<Statement>, Token)> {
     }
 }
 
-// Parse some optional arguments.
-// The tokens should either be "(args) terminator", or just the terminator.
-// Returns the arguments, and the terminator token.
+/// Parse some optional arguments.
+/// The tokens should either be "(args) terminator", or just the terminator.
+/// Returns the arguments, and the terminator token.
 fn parse_args(tokens: &mut TokenIter, terminator: TokenType) -> Result<(Vec<Declaration>, Token)> {
     let token = tokens.expect_token()?;
 
@@ -351,10 +351,10 @@ fn parse_args(tokens: &mut TokenIter, terminator: TokenType) -> Result<(Vec<Decl
     return Ok((declarations, terminator));
 }
 
-// Parses a by block if that's the next thing in the token stream.
-// Takes the right brace that ended the previous expression.
-// Returns the last token parsed.
-// Consumes newlines in any case.
+/// Parses a by block if that's the next thing in the token stream.
+/// Takes the right brace that ended the previous expression.
+/// Returns the last token parsed.
+/// Consumes newlines in any case.
 fn parse_by_block(right_brace: Token, tokens: &mut TokenIter) -> Result<(Option<Body>, Token)> {
     loop {
         match tokens.peek() {
@@ -384,8 +384,8 @@ fn parse_by_block(right_brace: Token, tokens: &mut TokenIter) -> Result<(Option<
     Ok((None, right_brace))
 }
 
-// Parses a theorem where the keyword identifier (axiom or theorem) has already been found.
-// "axiomatic" is whether this is an axiom.
+/// Parses a theorem where the keyword identifier (axiom or theorem) has already been found.
+/// "axiomatic" is whether this is an axiom.
 fn parse_theorem_statement(
     keyword: Token,
     tokens: &mut TokenIter,
@@ -419,7 +419,7 @@ fn parse_theorem_statement(
     Ok(statement)
 }
 
-// Finish the rest of a variable satisfy statement, after we've consumed the 'satisfy' keyword
+/// Finish the rest of a variable satisfy statement, after we've consumed the 'satisfy' keyword
 fn complete_variable_satisfy(
     keyword: Token,
     tokens: &mut TokenIter,
@@ -440,8 +440,8 @@ fn complete_variable_satisfy(
     Ok(statement)
 }
 
-// Parses a statement where the "let" keyword has already been found.
-// This might not be a LetStatement because multiple statement types can start with "let".
+/// Parses a statement where the "let" keyword has already been found.
+/// This might not be a LetStatement because multiple statement types can start with "let".
 fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     match tokens.peek() {
         Some(token) => {
@@ -510,7 +510,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
     })
 }
 
-// Parses a define statement where the "define" keyword has already been found.
+/// Parses a define statement where the "define" keyword has already been found.
 fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_variable_name(false)?;
     let type_params = TypeParamExpr::parse_list(tokens)?;
@@ -534,7 +534,7 @@ fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stat
     Ok(statement)
 }
 
-// Parses a type statement where the "type" keyword has already been found.
+/// Parses a type statement where the "type" keyword has already been found.
 fn parse_type_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
@@ -553,7 +553,7 @@ fn parse_type_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     Ok(statement)
 }
 
-// Parses a forall statement where the "forall" keyword has already been found.
+/// Parses a forall statement where the "forall" keyword has already been found.
 fn parse_forall_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let (quantifiers, left_brace) = parse_args(tokens, TokenType::LeftBrace)?;
     let (statements, right_brace) = parse_block(tokens)?;
@@ -571,8 +571,8 @@ fn parse_forall_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stat
     Ok(statement)
 }
 
-// If there is an "else { ...statements }" body, parse and consume it.
-// Returns None and consumes nothing if there is not an "else" body here.
+/// If there is an "else { ...statements }" body, parse and consume it.
+/// Returns None and consumes nothing if there is not an "else" body here.
 fn parse_else_body(tokens: &mut TokenIter) -> Result<Option<Body>> {
     loop {
         match tokens.peek() {
@@ -599,7 +599,7 @@ fn parse_else_body(tokens: &mut TokenIter) -> Result<Option<Body>> {
     Ok(Some(body))
 }
 
-// Parses an if statement where the "if" keyword has already been found.
+/// Parses an if statement where the "if" keyword has already been found.
 fn parse_if_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let token = tokens.peek().unwrap().clone();
     let (condition, left_brace) =
@@ -625,7 +625,7 @@ fn parse_if_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statemen
     Ok(statement)
 }
 
-// Parses a structure statement where the "structure" keyword has already been found.
+/// Parses a structure statement where the "structure" keyword has already been found.
 fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
     let type_params = TypeParamExpr::parse_list(tokens)?;
@@ -692,7 +692,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     Err(keyword.error("unterminated structure statement"))
 }
 
-// Parses an inductive statement where the "inductive" keyword has already been found.
+/// Parses an inductive statement where the "inductive" keyword has already been found.
 fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let type_token = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::LeftBrace)?;
@@ -743,9 +743,9 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     Err(keyword.error("unterminated inductive statement"))
 }
 
-// Parses a module component list, like "foo.bar.baz".
-// Expects to consume a terminator token at the end.
-// Returns the strings, along with the token right before the terminator.
+/// Parses a module component list, like "foo.bar.baz".
+/// Expects to consume a terminator token at the end.
+/// Returns the strings, along with the token right before the terminator.
 fn parse_module_components(
     tokens: &mut TokenIter,
     terminator: TokenType,
@@ -766,7 +766,7 @@ fn parse_module_components(
     Ok((components, last_token))
 }
 
-// Parses an import statement where the "import" keyword has already been found.
+/// Parses an import statement where the "import" keyword has already been found.
 fn parse_import_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let (components, last_token) = parse_module_components(tokens, TokenType::NewLine)?;
     let is = ImportStatement {
@@ -781,7 +781,7 @@ fn parse_import_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stat
     Ok(statement)
 }
 
-// Parses a "from" statement where the "from" keyword has already been found.
+/// Parses a "from" statement where the "from" keyword has already been found.
 fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let (components, _) = parse_module_components(tokens, TokenType::Import)?;
     let mut names = vec![];
@@ -811,7 +811,7 @@ fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     Ok(statement)
 }
 
-// Parses a class statement where the "class" keyword has already been found.
+/// Parses a class statement where the "class" keyword has already been found.
 fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
     let type_params = TypeParamExpr::parse_list(tokens)?;
@@ -836,7 +836,7 @@ fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     Ok(statement)
 }
 
-// Parses a solve statement where the "solve" keyword has already been found.
+/// Parses a solve statement where the "solve" keyword has already been found.
 fn parse_solve_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let (target, _) = Expression::parse_value(tokens, Terminator::Is(TokenType::By))?;
     let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
@@ -855,6 +855,7 @@ fn parse_solve_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     Ok(s)
 }
 
+/// Parses a match statement where the "match" keyword has already been found.
 fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let (scrutinee, _) = Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
     let mut cases = vec![];
@@ -893,6 +894,7 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     })
 }
 
+/// Parses a typeclass statement where the "typeclass" keyword has already been found.
 fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let instance_type = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
@@ -975,6 +977,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     Err(keyword.error("unterminated typeclass statement"))
 }
 
+/// Parses an instance statement where the "instance" keyword has already been found.
 fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let type_name = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
@@ -1001,6 +1004,7 @@ fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<St
     Ok(statement)
 }
 
+/// Writes the type parameters for a statement.
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParamExpr]) -> fmt::Result {
     if type_params.len() == 0 {
         return Ok(());
@@ -1016,6 +1020,7 @@ fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParamExpr]) -> f
     Ok(())
 }
 
+/// Writes the arguments for a statement.
 fn write_args(f: &mut fmt::Formatter, args: &[Declaration]) -> fmt::Result {
     if args.len() == 0 {
         return Ok(());
@@ -1031,7 +1036,7 @@ fn write_args(f: &mut fmt::Formatter, args: &[Declaration]) -> fmt::Result {
     Ok(())
 }
 
-// Writes everything after the name of the theorem.
+/// Writes everything after the name of the theorem.
 fn write_theorem(
     f: &mut fmt::Formatter,
     indentation: &str,
@@ -1242,13 +1247,13 @@ impl Statement {
         }
     }
 
-    // Tries to parse a single statement from the provided tokens.
-    // If in_block is true, we might get a right brace instead of a statement.
-    // Returns statement, as well as the right brace token, if the current block ended.
-    // Returns Ok((None, None)) if the end of the file was reached.
-    //
-    // Normally, this function consumes the final newline.
-    // When it's a right brace that ends a block, though, the last token consumed is the right brace.
+    /// Tries to parse a single statement from the provided tokens.
+    /// If in_block is true, we might get a right brace instead of a statement.
+    /// Returns statement, as well as the right brace token, if the current block ended.
+    /// Returns Ok((None, None)) if the end of the file was reached.
+    ///
+    /// Normally, this function consumes the final newline.
+    /// When it's a right brace that ends a block, though, the last token consumed is the right brace.
     pub fn parse(
         tokens: &mut TokenIter,
         in_block: bool,
@@ -1982,4 +1987,18 @@ mod tests {
             }
         }"});
     }
+
+    // #[test]
+    // fn test_parsing_parametrized_let_statement() {
+    //     ok(indoc! {"
+    //         let foo<T>: T = bar<T>
+    //     "});
+    // }
+
+    // #[test]
+    // fn test_parsing_parametrized_let_statement_with_typeclass() {
+    //     ok(indoc! {"
+    //         let foo<T: Thing>: T = bar<T>
+    //     "});
+    // }
 }
