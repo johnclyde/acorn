@@ -2198,11 +2198,8 @@ impl BindingMap {
             self.remove_constant(&function_name);
         }
 
-        // This part is awkward. We might have types parametrized on this function, or they
-        // might be parametrized on the class definition. We only want to genericize the
-        // parameters that we created. But, we are not quite doing that, we are just genericizing
-        // all or nothing.
-        // TODO: do this the right way.
+        // We might have types parametrized on this function, or they might be parametrized on the
+        // class definition. We only want to genericize the parameters that we created.
         if type_params.is_empty() {
             // Just keep the types as they are.
             Ok((
@@ -2226,18 +2223,21 @@ impl BindingMap {
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
                     let derecursed = internal_value.set_params(&global_name, &generic_params);
-                    Some(derecursed.to_generic())
+                    Some(derecursed.genericize(&type_params))
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
                     // This is simpler, but we still need to remove arbitrary local types.
-                    Some(internal_value.to_generic())
+                    Some(internal_value.genericize(&type_params))
                 }
             } else {
                 // No internal value, no external value.
                 None
             };
-            let external_arg_types = internal_arg_types.iter().map(|t| t.to_generic()).collect();
-            let external_value_type = internal_value_type.to_generic();
+            let external_arg_types = internal_arg_types
+                .iter()
+                .map(|t| t.genericize(&type_params))
+                .collect();
+            let external_value_type = internal_value_type.genericize(&type_params);
 
             Ok((
                 type_params,
