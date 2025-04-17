@@ -471,7 +471,7 @@ impl Environment {
 
             let params = if let Some(class_params) = class_params {
                 // When a class is parametrized, the member gets parameters from the class.
-                fn_value = fn_value.to_generic();
+                fn_value = fn_value.genericize(&class_params);
                 class_params.clone()
             } else {
                 // When there's no class, we just have the function's own type parameters.
@@ -843,7 +843,7 @@ impl Environment {
             let potential = self.bindings.add_local_constant(
                 member_fn_name,
                 type_params.clone(),
-                member_fn_type.to_generic(),
+                member_fn_type.genericize(&type_params),
                 None,
                 None,
             );
@@ -856,7 +856,7 @@ impl Environment {
         let new_fn = self.bindings.add_local_constant(
             new_fn_name,
             type_params.clone(),
-            new_fn_type.to_generic(),
+            new_fn_type.genericize(&type_params),
             None,
             Some((struct_type.clone(), 0, 1)),
         );
@@ -886,7 +886,7 @@ impl Environment {
             let bound_constraint = unbound_constraint.clone().bind_values(0, 0, &member_args);
             let constraint_claim =
                 AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
-                    .to_generic();
+                    .genericize(&type_params);
             let source = Source::type_definition(
                 self.module_id,
                 range,
@@ -910,7 +910,8 @@ impl Environment {
         )?;
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
-        let new_claim = AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).to_generic();
+        let new_claim =
+            AcornValue::ForAll(vec![struct_type], Box::new(new_eq)).genericize(&type_params);
         let source = Source::type_definition(
             self.module_id,
             range,
@@ -955,7 +956,7 @@ impl Environment {
             };
             let member_claim =
                 AcornValue::ForAll(field_types.clone(), Box::new(unbound_member_claim))
-                    .to_generic();
+                    .genericize(&type_params);
             let range = Range {
                 start: field_name_token.start_pos(),
                 end: field_type_expr.last_token().end_pos(),
