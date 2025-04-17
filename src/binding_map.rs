@@ -2547,7 +2547,8 @@ impl BindingMap {
                     args.push(self.value_to_expr(arg, var_names, next_x, next_k)?);
                 }
 
-                if let Some(name) = fa.function.is_member(&fa.args[0].get_type()) {
+                // Check if this is a member function
+                if let Some(name) = fa.function.is_attribute(&fa.args[0].get_type()) {
                     if args.len() == 1 {
                         // Prefix operators
                         if let Some(op) = TokenType::from_prefix_magic_method_name(&name) {

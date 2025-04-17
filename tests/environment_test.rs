@@ -2933,6 +2933,22 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
+    fn test_class_attribute_codegen() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            structure BoolPair {
+                first: Bool
+                second: Bool
+            }
+
+            let bp: BoolPair = axiom
+        "#,
+        );
+        env.bindings.expect_good_code("bp.first");
+    }
+
+    #[test]
     fn test_typeclass_codegen() {
         let mut env = Environment::test();
         env.add(
