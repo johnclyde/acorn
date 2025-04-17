@@ -2959,13 +2959,16 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 bar: F
             }
 
-            theorem goal<F: Foo> {
+            theorem goal<F: Foo>(f: F) {
                 true
             }
         "#,
         );
 
+        env.get_bindings("goal").expect_good_code("f.inverse");
+        env.get_bindings("goal").expect_good_code("f + f");
+
         // TODO: fix and uncomment
-        // env.get_bindings("goal").expect_good_code("F.bar.inverse");
+        // env.get_bindings("goal").expect_good_code("F.bar");
     }
 }
