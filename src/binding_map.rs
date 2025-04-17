@@ -2547,7 +2547,7 @@ impl BindingMap {
                     args.push(self.value_to_expr(arg, var_names, next_x, next_k)?);
                 }
 
-                // Check if this is a member function
+                // Check if we could replace this with receiver+attribute syntax
                 if let Some(name) = fa.function.is_attribute(&fa.args[0].get_type()) {
                     if args.len() == 1 {
                         // Prefix operators
