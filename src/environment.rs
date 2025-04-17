@@ -2138,4 +2138,11 @@ impl Environment {
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_ne!(def1, def2);
     }
+
+    /// Get the bindings for the theorem block with the given name.
+    pub fn get_bindings(&self, theorem_name: &str) -> &BindingMap {
+        let mut cursor = self.get_node_by_description(theorem_name);
+        cursor.descend(0);
+        &cursor.env().bindings
+    }
 }
