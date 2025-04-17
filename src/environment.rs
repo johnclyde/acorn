@@ -323,6 +323,20 @@ impl Environment {
                 &constant_name
             )));
         }
+
+        if self.depth > 0 && !ls.type_params.is_empty() {
+            return Err(ls
+                .name_token
+                .error("parametrized constants may only be defined at the top level"));
+        }
+
+        let type_params = self
+            .bindings
+            .evaluate_type_params(project, &ls.type_params)?;
+        for param in &type_params {
+            self.bindings.add_arbitrary_type(param.clone());
+        }
+
         let acorn_type = self.bindings.evaluate_type(project, &ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
             let class_name = match constant_name.as_attribute() {
@@ -346,11 +360,16 @@ impl Environment {
         let value = if ls.value.is_axiom() {
             None
         } else {
-            Some(
-                self.bindings
-                    .evaluate_value(project, &ls.value, Some(&acorn_type))?,
-            )
+            let v = self
+                .bindings
+                .evaluate_value(project, &ls.value, Some(&acorn_type))?;
+            Some(v)
         };
+
+        // Reset the bindings
+        for param in type_params.iter().rev() {
+            self.bindings.remove_type(&param.name);
+        }
 
         // Check for aliasing
         if let Some(value) = &value {
@@ -373,7 +392,7 @@ impl Environment {
             }
         }
 
-        self.define_constant(constant_name, vec![], acorn_type, value, range);
+        self.define_constant(constant_name, type_params, acorn_type, value, range);
         Ok(())
     }
 

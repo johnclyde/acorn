@@ -2071,6 +2071,8 @@ impl BindingMap {
         }
     }
 
+    /// Evaluates a list of type parameter expressions.
+    /// This does not bind them into the environment.
     pub fn evaluate_type_params(
         &self,
         project: &Project,
