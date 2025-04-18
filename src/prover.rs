@@ -25,68 +25,68 @@ use crate::term_graph::TermGraphContradiction;
 
 #[derive(Clone)]
 pub struct Prover {
-    // The normalizer is used when we are turning the facts and goals from the environment into
-    // clauses that we can use internally.
+    /// The normalizer is used when we are turning the facts and goals from the environment into
+    /// clauses that we can use internally.
     normalizer: Normalizer,
 
-    // The "active" clauses are the ones we use for reasoning.
+    /// The "active" clauses are the ones we use for reasoning.
     active_set: ActiveSet,
 
-    // The "passive" clauses are a queue of pending clauses that
-    // we will add to the active clauses in the future.
+    /// The "passive" clauses are a queue of pending clauses that
+    /// we will add to the active clauses in the future.
     passive_set: PassiveSet,
 
-    // A verbose prover prints out a lot of stuff.
+    /// A verbose prover prints out a lot of stuff.
     pub verbose: bool,
 
-    // The last step of the proof search that leads to a contradiction.
-    // If we haven't finished the search, this is None.
+    /// The last step of the proof search that leads to a contradiction.
+    /// If we haven't finished the search, this is None.
     final_step: Option<ProofStep>,
 
-    // Clauses that we never activated, but we did use to find a contradiction.
+    /// Clauses that we never activated, but we did use to find a contradiction.
     useful_passive: Vec<ProofStep>,
 
-    // Setting any of these flags to true externally will stop the prover.
+    /// Setting any of these flags to true externally will stop the prover.
     pub stop_flags: Vec<Arc<AtomicBool>>,
 
-    // This error gets set when there is a problem during the construction of the prover.
-    // It would be nicer to report the error immediately, but we wait so that we have
-    // a reasonable location to attach the error to, when running in the LSP.
+    /// This error gets set when there is a problem during the construction of the prover.
+    /// It would be nicer to report the error immediately, but we wait so that we have
+    /// a reasonable location to attach the error to, when running in the LSP.
     error: Option<String>,
 
-    // Number of proof steps activated, not counting Factual ones.
+    /// Number of proof steps activated, not counting Factual ones.
     nonfactual_activations: i32,
 
-    // The goal of the prover.
-    // If this is None, the goal hasn't been set yet.
+    /// The goal of the prover.
+    /// If this is None, the goal hasn't been set yet.
     goal: Option<NormalizedGoal>,
 
-    // If strict codegen is set, we panic when we can't generate code correctly.
-    // Good for testing.
-    // Otherwise, we kinda guess. Good for production.
+    /// If strict codegen is set, we panic when we can't generate code correctly.
+    /// Good for testing.
+    /// Otherwise, we kinda guess. Good for production.
     pub strict_codegen: bool,
 }
 
 #[derive(Clone)]
 enum NormalizedGoal {
-    // The value expresses the negation of the goal we are trying to prove.
-    // It is normalized in the sense that we would use this form to generate code.
-    // The flag indicates whether inconsistencies are okay.
-    // Ie, if we find a contradiction, is that Outcome::Success or Outcome::Inconsistent?
+    /// The value expresses the negation of the goal we are trying to prove.
+    /// It is normalized in the sense that we would use this form to generate code.
+    /// The flag indicates whether inconsistencies are okay.
+    /// Ie, if we find a contradiction, is that Outcome::Success or Outcome::Inconsistent?
     ProveNegated(AcornValue, bool),
 
-    // The normalized term we are solving for, if there is one.
+    /// The normalized term we are solving for, if there is one.
     Solve(Term),
 }
 
-// The outcome of a prover operation.
-// "Success" means we proved it.
-// "Exhausted" means we tried every possibility and couldn't prove it.
-// "Inconsistent" means that we found a contradiction just in our initial assumptions.
-// "Interrupted" means that the prover was explicitly stopped.
-// "Timeout" means that we hit a nondeterministic timing limit.
-// "Constrained" means that we hit some deterministic limit.
-// "Error" means that we found a problem in the code that needs to be fixed by the user.
+/// The outcome of a prover operation.
+/// - "Success" means we proved it.
+/// - "Exhausted" means we tried every possibility and couldn't prove it.
+/// - "Inconsistent" means that we found a contradiction just in our initial assumptions.
+/// - "Interrupted" means that the prover was explicitly stopped.
+/// - "Timeout" means that we hit a nondeterministic timing limit.
+/// - "Constrained" means that we hit some deterministic limit.
+/// - "Error" means that we found a problem in the code that needs to be fixed by the user.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Outcome {
     Success,
@@ -113,6 +113,7 @@ impl fmt::Display for Outcome {
 }
 
 impl Prover {
+    /// Creates a new Prover instance
     pub fn new(project: &Project, verbose: bool) -> Prover {
         Prover {
             normalizer: Normalizer::new(),
@@ -129,8 +130,8 @@ impl Prover {
         }
     }
 
-    // Add a fact to the prover.
-    // The fact can be either polymorphic or monomorphic.
+    /// Add a fact to the prover.
+    /// The fact can be either polymorphic or monomorphic.
     pub fn add_fact(&mut self, fact: Fact) {
         let mut steps = vec![];
         match self.normalizer.normalize_fact(fact, &mut steps) {
@@ -143,6 +144,7 @@ impl Prover {
         self.passive_set.push_batch(steps);
     }
 
+    /// Sets the goal for the prover
     pub fn set_goal(&mut self, goal_context: &GoalContext) {
         assert!(self.goal.is_none());
 
@@ -173,14 +175,17 @@ impl Prover {
         }
     }
 
+    /// Returns the final step of the proof if available
     pub fn get_final_step(&self) -> Option<&ProofStep> {
         self.final_step.as_ref()
     }
 
+    /// Returns an iterator over the active proof steps
     pub fn iter_active_steps(&self) -> impl Iterator<Item = (usize, &ProofStep)> {
         self.active_set.iter_steps()
     }
 
+    /// Prints statistics about the prover state
     pub fn print_stats(&self) {
         // Kinda only printing this so that Solve(term) isn't unused
         match &self.goal {
@@ -198,7 +203,7 @@ impl Prover {
         println!("{} clauses in the passive set", self.passive_set.len());
     }
 
-    // Prints out the entire active set
+    /// Prints out the entire active set
     pub fn print_active(&self, substr: Option<&str>) {
         let mut count = 0;
         for clause in self.active_set.iter_clauses() {
@@ -218,6 +223,7 @@ impl Prover {
         }
     }
 
+    /// Lists the clauses in the passive set, optionally filtered by a substring
     pub fn print_passive(&self, substr: Option<&str>) {
         let mut count = 0;
         let steps: Vec<_> = self.passive_set.iter_steps().collect();
@@ -243,7 +249,7 @@ impl Prover {
         }
     }
 
-    // Prints out information for a specific term
+    /// Prints out information for a specific term
     pub fn print_term_info(&self, s: &str) {
         let mut count = 0;
         for clause in self.active_set.iter_clauses() {
@@ -260,9 +266,9 @@ impl Prover {
         );
     }
 
-    // (description, id) for every clause this rule depends on.
-    // Entries with an id are references to clauses we are using.
-    // An entry with no id is like a comment, it won't be linked to anything.
+    /// (description, id) for every clause this rule depends on.
+    /// Entries with an id are references to clauses we are using.
+    /// An entry with no id is like a comment, it won't be linked to anything.
     fn descriptive_dependencies(&self, step: &ProofStep) -> Vec<(String, ProofStepId)> {
         let mut answer = vec![];
         match &step.rule {
@@ -314,6 +320,7 @@ impl Prover {
         answer
     }
 
+    /// Prints a proof step with a preface
     fn print_proof_step(&self, preface: &str, step: &ProofStep) {
         println!(
             "\n{}{} generated (depth {}):\n    {}",
@@ -340,14 +347,17 @@ impl Prover {
         }
     }
 
+    /// Returns the number of activated clauses
     pub fn num_activated(&self) -> usize {
         self.active_set.len()
     }
 
+    /// Returns the number of passive clauses
     pub fn num_passive(&self) -> usize {
         self.passive_set.len()
     }
 
+    /// Gets and prints the proof, if one exists
     pub fn get_and_print_proof(&self, _project: &Project, _bindings: &BindingMap) -> Option<Proof> {
         let proof = match self.get_condensed_proof() {
             Some(proof) => proof,
@@ -381,11 +391,11 @@ impl Prover {
         Some(proof)
     }
 
-    // get_uncondensed_proof gets a proof, if we have one.
-    // It does not do any simplification of the proof, it's just exactly how we found it.
-    // We always include all of the steps that are mathematically necessary for the proof.
-    // The include_inspiration flag determines whether we include the "inspiration" steps,
-    // which the prover used to find the proof, but are not needed for the proof to be valid.
+    /// get_uncondensed_proof gets a proof, if we have one.
+    /// It does not do any simplification of the proof, it's just exactly how we found it.
+    /// We always include all of the steps that are mathematically necessary for the proof.
+    /// The include_inspiration flag determines whether we include the "inspiration" steps,
+    /// which the prover used to find the proof, but are not needed for the proof to be valid.
     fn get_uncondensed_proof(&self, include_inspiration: bool) -> Option<Proof> {
         let final_step = match &self.final_step {
             Some(step) => step,
@@ -427,8 +437,8 @@ impl Prover {
         Some(proof)
     }
 
-    // Returns a condensed proof, if we have a proof.
-    // The condensed proof is what we recommend inserting into the code.
+    /// Returns a condensed proof, if we have a proof.
+    /// The condensed proof is what we recommend inserting into the code.
     pub fn get_condensed_proof(&self) -> Option<Proof> {
         let mut proof = self.get_uncondensed_proof(false)?;
         proof.condense();
@@ -500,8 +510,8 @@ impl Prover {
         self.final_step = Some(ProofStep::passive_contradiction(&self.useful_passive));
     }
 
-    // Activates the next clause from the queue, unless we're already done.
-    // Returns whether the prover finished.
+    /// Activates the next clause from the queue, unless we're already done.
+    /// Returns whether the prover finished.
     pub fn activate_next(&mut self) -> bool {
         if self.final_step.is_some() {
             return true;
@@ -546,16 +556,16 @@ impl Prover {
         self.activate(step)
     }
 
-    // Generates new passive clauses, simplifying appropriately, and adds them to the passive set.
-    //
-    // This does two forms of simplification. It simplifies all existing passive clauses based on
-    // the newly activated clause, and simplifies the new passive clauses based on all
-    // existing active clauses.
-    //
-    // This double simplification ensures that every passive clause is always simplified with
-    // respect to every active clause.
-    //
-    // Returns whether the prover finished.
+    /// Generates new passive clauses, simplifying appropriately, and adds them to the passive set.
+    ///
+    /// This does two forms of simplification. It simplifies all existing passive clauses based on
+    /// the newly activated clause, and simplifies the new passive clauses based on all
+    /// existing active clauses.
+    ///
+    /// This double simplification ensures that every passive clause is always simplified with
+    /// respect to every active clause.
+    ///
+    /// Returns whether the prover finished.
     fn activate(&mut self, activated_step: ProofStep) -> bool {
         // Use the step for simplification
         let activated_id = self.active_set.next_id();
@@ -609,37 +619,37 @@ impl Prover {
         false
     }
 
-    // The activation_limit to use for verification mode.
+    /// The activation_limit to use for verification mode.
     const VERIFICATION_LIMIT: i32 = 2000;
 
-    // Searches with a short duration.
-    // Designed to be called multiple times in succession.
-    // The time-based limit is set low, so that it feels interactive.
+    /// Searches with a short duration.
+    /// Designed to be called multiple times in succession.
+    /// The time-based limit is set low, so that it feels interactive.
     pub fn partial_search(&mut self) -> Outcome {
         self.search_for_contradiction(5000, 0.1, false)
     }
 
-    // Search in verification mode to see if this goal can be easily proven.
-    // The time-based limit is set high enough so that hopefully it will not apply,
-    // because we don't want the result of verification to be machine-dependent.
+    /// Search in verification mode to see if this goal can be easily proven.
+    /// The time-based limit is set high enough so that hopefully it will not apply,
+    /// because we don't want the result of verification to be machine-dependent.
     pub fn verification_search(&mut self) -> Outcome {
         self.search_for_contradiction(Self::VERIFICATION_LIMIT, 5.0, false)
     }
 
-    // A fast search, for testing.
+    /// A fast search, for testing.
     pub fn quick_search(&mut self) -> Outcome {
         self.search_for_contradiction(500, 0.2, false)
     }
 
-    // A fast search that only uses shallow steps, for testing.
+    /// A fast search that only uses shallow steps, for testing.
     pub fn quick_shallow_search(&mut self) -> Outcome {
         self.search_for_contradiction(500, 0.2, true)
     }
 
-    // The prover will exit with Outcome::Constrained if it hits a constraint:
-    //   Activating activation_limit nonfactual clauses
-    //   Going over the time limit, in seconds
-    //   Activating all shallow steps, if shallow_only is set
+    /// The prover will exit with Outcome::Constrained if it hits a constraint:
+    ///   Activating activation_limit nonfactual clauses
+    ///   Going over the time limit, in seconds
+    ///   Activating all shallow steps, if shallow_only is set
     pub fn search_for_contradiction(
         &mut self,
         activation_limit: i32,
@@ -701,6 +711,7 @@ impl Prover {
         }
     }
 
+    /// Gets a clause by its proof step ID
     fn get_clause(&self, id: ProofStepId) -> &Clause {
         match id {
             ProofStepId::Active(i) => self.active_set.get_clause(i),
@@ -712,7 +723,7 @@ impl Prover {
         }
     }
 
-    // Attempts to convert this clause to code, but shows the clause form if that's all we can.
+    /// Attempts to convert this clause to code, but shows the clause form if that's all we can.
     fn clause_to_code(&self, bindings: &BindingMap, clause: &Clause) -> String {
         let denormalized = self.normalizer.denormalize(clause);
         if let Ok(code) = bindings.value_to_code(&denormalized) {
@@ -724,9 +735,9 @@ impl Prover {
         self.display(clause).to_string()
     }
 
-    // Convert a clause to a jsonable form
-    // We only take active ids, because the others have no external meaning.
-    // If we are given a binding map, use it to make a nicer-looking display.
+    /// Convert a clause to a jsonable form
+    /// We only take active ids, because the others have no external meaning.
+    /// If we are given a binding map, use it to make a nicer-looking display.
     pub fn to_clause_info(
         &self,
         bindings: &BindingMap,
@@ -778,10 +789,10 @@ impl Prover {
         }
     }
 
-    // Call this after the prover succeeds to get the proof steps in jsonable form.
-    // This is called with the bindings for the top-level environment.
-    // However, that doesn't really seem like the right thing to od.
-    // It isn't clear to me whether this is okay or not.
+    /// Call this after the prover succeeds to get the proof steps in jsonable form.
+    /// This is called with the bindings for the top-level environment.
+    /// However, that doesn't really seem like the right thing to od.
+    /// It isn't clear to me whether this is okay or not.
     pub fn to_proof_info(
         &self,
         project: &Project,
@@ -795,8 +806,8 @@ impl Prover {
         result
     }
 
-    // Generates information about a clause in jsonable format.
-    // Returns None if we don't have any information about this clause.
+    /// Generates information about a clause in jsonable format.
+    /// Returns None if we don't have any information about this clause.
     pub fn info_result(
         &self,
         project: &Project,
@@ -844,10 +855,10 @@ impl Prover {
         })
     }
 
-    // Should only be called after proving completes successfully.
-    // Gets the qualified name of every fact that was used in the proof.
-    // This includes the "inspiration" facts that were used to find the proof but are
-    // not mathematically necessary for the proof to be valid.
+    /// Should only be called after proving completes successfully.
+    /// Gets the qualified name of every fact that was used in the proof.
+    /// This includes the "inspiration" facts that were used to find the proof but are
+    /// not mathematically necessary for the proof to be valid.
     pub fn get_useful_source_names(&self, names: &mut HashSet<(ModuleId, String)>) {
         let proof = match self.get_uncondensed_proof(true) {
             Some(proof) => proof,
