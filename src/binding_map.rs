@@ -2643,6 +2643,19 @@ impl BindingMap {
                 Ok(Expression::Singleton(token))
             }
             AcornValue::Constant(c) => {
+                if c.params.len() == 1 {
+                    if let Some(typeclass) = c.params[0].as_typeclass_representative() {
+                        if let Some(attribute) = c.name.as_typeclass_attribute(typeclass) {
+                            // This type is an abstract representation of the typeclass, so we
+                            // can represent this constant with dot syntax on the type rather than
+                            // the typeclass.
+                            let lhs = self.type_to_expr(&c.params[0])?;
+                            let rhs = Expression::generate_identifier(&attribute);
+                            return Ok(Expression::generate_dot(lhs, rhs));
+                        }
+                    }
+                }
+
                 // Here we are assuming that the context will be enough to disambiguate
                 // the type of the templated name.
                 // I'm not sure if this is a good assumption.

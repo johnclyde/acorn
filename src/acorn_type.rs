@@ -525,6 +525,16 @@ impl AcornType {
             _ => false,
         }
     }
+
+    /// Returns the typeclass if this type is an abstract representative of a typeclass.
+    /// This means that with this type, you can use typeclass attributes with dot syntax.
+    /// Specifically, this is type variables or arbitrary types.
+    pub fn as_typeclass_representative(&self) -> Option<&Typeclass> {
+        match &self {
+            AcornType::Variable(param) | AcornType::Arbitrary(param) => param.typeclass.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for AcornType {
