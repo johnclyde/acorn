@@ -1787,8 +1787,10 @@ impl BindingMap {
             },
             Expression::Binary(left, token, right) => match token.token_type {
                 TokenType::RightArrow | TokenType::Implies => {
+                    // We still allow right arrow in values for now, but eventually
+                    // we should deprecate it.
                     // if token.token_type == TokenType::RightArrow {
-                    //     panic!("XXX");
+                    //     return Err(token.error("RightArrow in values is deprecated"));
                     // }
                     AcornType::Bool.check_eq(token, expected_type)?;
                     let left_value = self.evaluate_value_with_stack(
