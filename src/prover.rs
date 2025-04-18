@@ -60,6 +60,11 @@ pub struct Prover {
     // The goal of the prover.
     // If this is None, the goal hasn't been set yet.
     goal: Option<NormalizedGoal>,
+
+    // If strict codegen is set, we panic when we can't generate code correctly.
+    // Good for testing.
+    // Otherwise, we kinda guess. Good for production.
+    pub strict_codegen: bool,
 }
 
 #[derive(Clone)]
@@ -120,6 +125,7 @@ impl Prover {
             useful_passive: vec![],
             nonfactual_activations: 0,
             goal: None,
+            strict_codegen: false,
         }
     }
 
@@ -710,6 +716,9 @@ impl Prover {
         let denormalized = self.normalizer.denormalize(clause);
         if let Ok(code) = bindings.value_to_code(&denormalized) {
             return code;
+        }
+        if self.strict_codegen {
+            panic!("could not generate code for clause: {}", clause);
         }
         self.display(clause).to_string()
     }

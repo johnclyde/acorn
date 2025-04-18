@@ -28,6 +28,7 @@ mod prover_test {
         let facts = node.usable_facts(project);
         let goal_context = node.goal_context().unwrap();
         let mut prover = Prover::new(&project, false);
+        prover.strict_codegen = true;
         for fact in facts {
             prover.add_fact(fact);
         }
