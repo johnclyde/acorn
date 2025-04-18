@@ -163,6 +163,7 @@ pub struct StructureStatement {
 pub struct InductiveStatement {
     pub name: String,
     pub name_token: Token,
+    pub type_params: Vec<TypeParamExpr>,
 
     /// Each constructor has a name token and an expression for a list of types.
     /// If the expression is None, the constructor is a base value.
@@ -704,6 +705,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
 /// Parses an inductive statement where the "inductive" keyword has already been found.
 fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let type_token = tokens.expect_type_name()?;
+    let type_params = TypeParamExpr::parse_list(tokens)?;
     tokens.expect_type(TokenType::LeftBrace)?;
     let mut constructors = vec![];
     loop {
@@ -726,6 +728,7 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     statement: StatementInfo::Inductive(InductiveStatement {
                         name: type_token.to_string(),
                         name_token: type_token,
+                        type_params,
                         constructors,
                     }),
                 });
@@ -1179,7 +1182,9 @@ impl Statement {
 
             StatementInfo::Inductive(is) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "inductive {} {{\n", is.name)?;
+                write!(f, "inductive {}", is.name)?;
+                write_type_params(f, &is.type_params)?;
+                write!(f, " {{\n")?;
                 for (name, type_expr) in &is.constructors {
                     match type_expr {
                         Some(te) => write!(f, "{}{}{}\n", new_indentation, name, te)?,
@@ -2003,5 +2008,14 @@ mod tests {
     fn test_parsing_parametrized_let_statements() {
         ok("let foo<T>: T = bar<T>");
         ok("let foo<T: Thing>: T = bar<T>");
+    }
+
+    #[test]
+    fn test_parsing_parametrized_inductive_statement() {
+        ok(indoc! {"
+        inductive List<T> {
+            nil
+            cons(T, List<T>)
+        }"});
     }
 }
