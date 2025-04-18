@@ -693,6 +693,7 @@ impl Prover {
         }
     }
 
+    /// Creates a display helper for a clause
     fn display<'a>(&'a self, clause: &'a Clause) -> DisplayClause<'a> {
         DisplayClause {
             clause,
