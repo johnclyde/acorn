@@ -2364,20 +2364,28 @@ impl BindingMap {
             return Ok(Expression::generate_identifier(name));
         }
 
-        // Check if it's a type from a module that we have imported
-        if let AcornType::Data(class, params) = acorn_type {
-            // See if we have an alias
-            let global_name = GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-            if let Some(name) = self.canonical_to_alias.get(&global_name) {
-                let base_expr = Expression::generate_identifier(name);
-                return self.parametrize_expr(base_expr, params);
-            }
+        match acorn_type {
+            AcornType::Data(class, params) => {
+                // Check if it's a type from a module that we have imported
+                // See if we have an alias
+                let global_name =
+                    GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
+                if let Some(name) = self.canonical_to_alias.get(&global_name) {
+                    let base_expr = Expression::generate_identifier(name);
+                    return self.parametrize_expr(base_expr, params);
+                }
 
-            // Reference this type via referencing the imported module
-            if let Some(module_name) = self.module_to_name.get(&class.module_id) {
-                let base_expr = Expression::generate_identifier_chain(&[module_name, &class.name]);
-                return self.parametrize_expr(base_expr, params);
+                // Reference this type via referencing the imported module
+                if let Some(module_name) = self.module_to_name.get(&class.module_id) {
+                    let base_expr =
+                        Expression::generate_identifier_chain(&[module_name, &class.name]);
+                    return self.parametrize_expr(base_expr, params);
+                }
             }
+            AcornType::Variable(param) | AcornType::Arbitrary(param) => {
+                return Ok(Expression::generate_identifier(&param.name));
+            }
+            _ => {}
         }
 
         Err(CodeGenError::unnamed_type(acorn_type))
