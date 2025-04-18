@@ -594,7 +594,7 @@ mod tests {
         env.add("let one: Nat = suc(zero)");
         env.expect_type("one", "Nat");
 
-        env.add("axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) -> x = y }");
+        env.add("axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) implies x = y }");
         norm.check(&env, "suc_injective", &["suc(x0) != suc(x1) or x0 = x1"]);
         env.expect_type("suc_injective", "(Nat, Nat) -> Bool");
 
@@ -604,7 +604,7 @@ mod tests {
 
         env.add(
             "axiom induction(f: Nat -> Bool) {\
-            f(zero) and forall(k: Nat) { f(k) -> f(suc(k)) } -> forall(n: Nat) { f(n) } }",
+            f(zero) and forall(k: Nat) { f(k) implies f(suc(k)) } implies forall(n: Nat) { f(n) } }",
         );
 
         norm.check(
@@ -641,10 +641,10 @@ mod tests {
     fn test_bool_formulas() {
         let mut env = Environment::test();
         let mut norm = Normalizer::new();
-        env.add("theorem one(a: Bool) { a -> a or (a or a) }");
+        env.add("theorem one(a: Bool) { a implies a or (a or a) }");
         norm.check(&env, "one", &["not x0 or x0"]);
 
-        env.add("theorem two(a: Bool) { a -> a and (a and a) }");
+        env.add("theorem two(a: Bool) { a implies a and (a and a) }");
         norm.check(
             &env,
             "two",

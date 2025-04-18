@@ -333,11 +333,11 @@ mod prover_test {
             let foo: Thing -> Bool = axiom
             axiom foo_t { foo(t) }
             forall(x: Thing) {
-                x = t -> foo(x)
+                x = t implies foo(x)
             }
             "#;
 
-        expect_proof(text, "x = t -> foo(x)", &[]);
+        expect_proof(text, "x = t implies foo(x)", &[]);
     }
 
     #[test]

@@ -123,11 +123,11 @@ mod environment_test {
         env.add("let one: Nat = suc(zero)");
         env.expect_def("one", "suc(zero)");
 
-        env.add("axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) -> x = y }");
+        env.add("axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) implies x = y }");
         env.expect_type("suc_injective", "(Nat, Nat) -> Bool");
         env.expect_def(
             "suc_injective",
-            "function(x0: Nat, x1: Nat) { ((suc(x0) = suc(x1)) -> (x0 = x1)) }",
+            "function(x0: Nat, x1: Nat) { ((suc(x0) = suc(x1)) implies (x0 = x1)) }",
         );
 
         env.add("axiom suc_neq_zero(x: Nat) { suc(x) != zero }");
@@ -150,9 +150,9 @@ mod environment_test {
 
         env.add(
             "axiom induction(f: Nat -> Bool, n: Nat) {
-            f(zero) and forall(k: Nat) { f(k) -> f(suc(k)) } -> f(n) }",
+            f(zero) and forall(k: Nat) { f(k) implies f(suc(k)) } implies f(n) }",
         );
-        env.expect_def("induction", "function(x0: Nat -> Bool, x1: Nat) { ((x0(zero) and forall(x2: Nat) { (x0(x2) -> x0(suc(x2))) }) -> x0(x1)) }");
+        env.expect_def("induction", "function(x0: Nat -> Bool, x1: Nat) { ((x0(zero) and forall(x2: Nat) { (x0(x2) implies x0(suc(x2))) }) implies x0(x1)) }");
 
         env.add("define recursion(f: Nat -> Nat, a: Nat, n: Nat) -> Nat { axiom }");
         env.expect_type("recursion", "(Nat -> Nat, Nat, Nat) -> Nat");
@@ -191,11 +191,11 @@ let zero: Nat = axiom
 let suc: Nat -> Nat = axiom
 let one: Nat = suc(zero)
 
-axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) -> x = y }
+axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) implies x = y }
 
 axiom suc_neq_zero(x: Nat) { suc(x) != zero }
 
-axiom induction(f: Nat -> Bool) { f(zero) and forall(k: Nat) { f(k) -> f(suc(k)) } -> forall(n: Nat) { f(n) } }
+axiom induction(f: Nat -> Bool) { f(zero) and forall(k: Nat) { f(k) implies f(suc(k)) } implies forall(n: Nat) { f(n) } }
 
 // The old version. In the modern codebase these are parametric.
 define recursion(f: Nat -> Nat, a: Nat, n: Nat) -> Nat { axiom }
@@ -537,7 +537,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.add(
             r#"
             axiom induction(f: Nat -> Bool) {
-                f(zero) and forall(k: Nat) { f(k) -> f(suc(k)) } -> forall(n: Nat) { f(n) }
+                f(zero) and forall(k: Nat) { f(k) implies f(suc(k)) } implies forall(n: Nat) { f(n) }
             }
             "#,
         );

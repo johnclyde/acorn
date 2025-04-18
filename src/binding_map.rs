@@ -1787,6 +1787,9 @@ impl BindingMap {
             },
             Expression::Binary(left, token, right) => match token.token_type {
                 TokenType::RightArrow | TokenType::Implies => {
+                    // if token.token_type == TokenType::RightArrow {
+                    //     panic!("XXX");
+                    // }
                     AcornType::Bool.check_eq(token, expected_type)?;
                     let left_value = self.evaluate_value_with_stack(
                         stack,

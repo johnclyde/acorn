@@ -81,7 +81,7 @@ impl BinaryOp {
     /// Converts this binary operator to its corresponding token type
     pub fn token_type(&self) -> TokenType {
         match self {
-            BinaryOp::Implies => TokenType::RightArrow,
+            BinaryOp::Implies => TokenType::Implies,
             BinaryOp::Equals => TokenType::Equals,
             BinaryOp::NotEquals => TokenType::NotEquals,
             BinaryOp::And => TokenType::And,
