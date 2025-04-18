@@ -994,7 +994,18 @@ impl Environment {
         };
 
         // Add the new type first, because we can have self-reference in the inductive type.
-        let inductive_type = self.bindings.add_data_type(&is.name);
+        let mut arbitrary_params = vec![];
+        let type_params = self
+            .bindings
+            .evaluate_type_params(project, &is.type_params)?;
+        for type_param in &type_params {
+            // Internally to the structure definition, the type parameters are
+            // treated as arbitrary types.
+            arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.clone()));
+        }
+        let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
+        let potential_type = self.bindings.add_potential_type(&is.name, typeclasses);
+        let inductive_type = potential_type.resolve(arbitrary_params, &is.name_token)?;
 
         // Parse (member name, list of arg types) for each constructor.
         let mut constructors = vec![];
@@ -1233,6 +1244,10 @@ impl Environment {
         let prop = Proposition::monomorphic(forall_claim, source);
         self.add_node(Node::structural(project, self, prop));
 
+        // Clean up the type parameters
+        for type_param in &is.type_params {
+            self.bindings.remove_type(type_param.name.text());
+        }
         Ok(())
     }
 

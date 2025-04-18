@@ -3001,4 +3001,17 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bindings.expect_good_code("Foo.bar<Qux>");
         env.bindings.expect_good_code("Foo.inverse(Qux.qux)");
     }
+
+    #[test]
+    fn test_env_inductive_parameters() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+            "#,
+        );
+    }
 }
