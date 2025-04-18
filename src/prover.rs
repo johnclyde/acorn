@@ -348,7 +348,7 @@ impl Prover {
         self.passive_set.len()
     }
 
-    pub fn get_and_print_proof(&self) -> Option<Proof> {
+    pub fn get_and_print_proof(&self, _project: &Project, _bindings: &BindingMap) -> Option<Proof> {
         let proof = match self.get_condensed_proof() {
             Some(proof) => proof,
             None => {
@@ -778,6 +778,9 @@ impl Prover {
     }
 
     // Call this after the prover succeeds to get the proof steps in jsonable form.
+    // This is called with the bindings for the top-level environment.
+    // However, that doesn't really seem like the right thing to od.
+    // It isn't clear to me whether this is okay or not.
     pub fn to_proof_info(
         &self,
         project: &Project,

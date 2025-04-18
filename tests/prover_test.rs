@@ -38,7 +38,7 @@ mod prover_test {
         if let Outcome::Error(s) = outcome {
             panic!("prover error: {}", s);
         }
-        let code = match prover.get_and_print_proof() {
+        let code = match prover.get_and_print_proof(project, &env.bindings) {
             Some(proof) => proof.to_code(&env.bindings),
             None => Err(CodeGenError::NoProof),
         };
