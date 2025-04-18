@@ -38,6 +38,7 @@ async fn main() {
     println!("proving {} ...", goal_context.description);
     let verbose = true;
     let mut prover = Prover::new(&project, verbose);
+    prover.strict_codegen = true;
     for fact in node.usable_facts(&project) {
         prover.add_fact(fact);
     }
@@ -54,7 +55,7 @@ async fn main() {
                 let proof = prover.get_condensed_proof().unwrap();
                 match proof.to_code(&env.bindings) {
                     Ok(code) => {
-                        println!("\ngenerated code:\n");
+                        println!("generated code:\n");
                         for line in &code {
                             println!("{}", line);
                         }

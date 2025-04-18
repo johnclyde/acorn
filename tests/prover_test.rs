@@ -28,12 +28,12 @@ mod prover_test {
         let facts = node.usable_facts(project);
         let goal_context = node.goal_context().unwrap();
         let mut prover = Prover::new(&project, false);
-        prover.strict_codegen = true;
         for fact in facts {
             prover.add_fact(fact);
         }
         prover.set_goal(&goal_context);
         prover.verbose = true;
+        prover.strict_codegen = true;
         let outcome = prover.quick_search();
         if let Outcome::Error(s) = outcome {
             panic!("prover error: {}", s);

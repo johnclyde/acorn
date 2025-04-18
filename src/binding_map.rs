@@ -8,7 +8,7 @@ use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
-use crate::module::{ModuleId, FIRST_NORMAL};
+use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
 use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
 use crate::potential_value::PotentialValue;
@@ -159,7 +159,7 @@ fn keys_with_prefix<'a, T>(
 
 impl BindingMap {
     pub fn new(module: ModuleId) -> Self {
-        assert!(module >= FIRST_NORMAL);
+        assert!(module >= Module::FIRST_NORMAL);
         let mut answer = BindingMap {
             module,
             constant_info: HashMap::new(),
@@ -2438,6 +2438,11 @@ impl BindingMap {
     /// is different from
     ///   self.module, the module we are trying to express the name in
     fn name_to_expr(&self, name: &GlobalName) -> Result<Expression, CodeGenError> {
+        // We can't do skolems
+        if name.module_id == Module::SKOLEM {
+            return Err(CodeGenError::skolem(&name.local_name.to_string()));
+        }
+
         // Handle numeric literals
         if let LocalName::Attribute(class, attr) = &name.local_name {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
@@ -2767,7 +2772,7 @@ mod tests {
 
     #[test]
     fn test_env_types() {
-        let mut b = BindingMap::new(FIRST_NORMAL);
+        let mut b = BindingMap::new(Module::FIRST_NORMAL);
         b.assert_type_ok("Bool");
         b.assert_type_ok("Bool -> Bool");
         b.assert_type_ok("Bool -> (Bool -> Bool)");

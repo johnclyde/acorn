@@ -9,6 +9,7 @@ use crate::acorn_value::AcornValue;
 use crate::active_set::ActiveSet;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
+use crate::code_gen_error::CodeGenError;
 use crate::display::DisplayClause;
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -320,33 +321,6 @@ impl Prover {
         answer
     }
 
-    /// Prints a proof step with a preface
-    fn print_proof_step(&self, preface: &str, step: &ProofStep) {
-        println!(
-            "\n{}{} generated (depth {}):\n    {}",
-            preface,
-            step.rule.name(),
-            step.depth,
-            self.display(&step.clause)
-        );
-
-        for (description, id) in self.descriptive_dependencies(&step) {
-            match id {
-                ProofStepId::Active(i) => {
-                    let c = self.display(self.active_set.get_clause(i));
-                    println!("  using {} {}:\n    {}", description, i, c);
-                }
-                ProofStepId::Passive(i) => {
-                    let c = self.display(&self.useful_passive[i as usize].clause);
-                    println!("  using {}:\n    {}", description, c);
-                }
-                ProofStepId::Final => {
-                    println!("  <unexpected dependency on final proof step>");
-                }
-            }
-        }
-    }
-
     /// Returns the number of activated clauses
     pub fn num_activated(&self) -> usize {
         self.active_set.len()
@@ -358,7 +332,7 @@ impl Prover {
     }
 
     /// Gets and prints the proof, if one exists
-    pub fn get_and_print_proof(&self, _project: &Project, _bindings: &BindingMap) -> Option<Proof> {
+    pub fn get_and_print_proof(&self, project: &Project, bindings: &BindingMap) -> Option<Proof> {
         let proof = match self.get_condensed_proof() {
             Some(proof) => proof,
             None => {
@@ -373,21 +347,54 @@ impl Prover {
         );
         println!("non-factual activations: {}", self.nonfactual_activations);
 
-        println!("the proof uses {} steps:", proof.all_steps.len());
-        for (id, step) in &proof.all_steps {
-            let preface = match id {
-                ProofStepId::Active(i) => {
-                    if step.rule.is_negated_goal() {
-                        format!("clause {} (negating goal): ", i)
-                    } else {
-                        format!("clause {}: ", i)
+        // This logic is similar to the display logic in ProofStep.svelte, but for the terminal.
+        let proof_info = self.to_proof_info(project, bindings, &proof);
+        println!("the proof uses {} steps:", proof_info.len());
+        println!();
+
+        for step in proof_info {
+            let preposition = match step.location {
+                None => "by",
+                Some(_) => "from",
+            };
+            let rule = format!("{} {}", preposition, step.rule);
+
+            // New
+            match step.clause.text {
+                None => {
+                    println!("Contradiction, depth {}, {}.", step.depth, rule);
+                }
+                Some(clause) => {
+                    match &step.clause.id {
+                        None => {
+                            println!(
+                                "An unactivated clause, depth {}, {}:\n    {}",
+                                step.depth, rule, clause
+                            );
+                        }
+                        Some(id) => {
+                            println!(
+                                "Clause {}, depth {}, {}:\n    {}",
+                                id, step.depth, rule, clause
+                            );
+                        }
+                    };
+                }
+            }
+            for (desc, premise) in step.premises {
+                match premise.id {
+                    Some(id) => {
+                        println!("  using clause {} as {}:", id, desc);
+                    }
+                    None => {
+                        println!("  using {}:", desc);
                     }
                 }
-                ProofStepId::Passive(_) => "".to_string(),
-                ProofStepId::Final => "final step: ".to_string(),
-            };
-            self.print_proof_step(&preface, &step);
+                println!("    {}", premise.text.unwrap_or_else(|| "???".to_string()));
+            }
+            println!();
         }
+
         Some(proof)
     }
 
@@ -726,12 +733,18 @@ impl Prover {
     /// Attempts to convert this clause to code, but shows the clause form if that's all we can.
     fn clause_to_code(&self, bindings: &BindingMap, clause: &Clause) -> String {
         let denormalized = self.normalizer.denormalize(clause);
-        if let Ok(code) = bindings.value_to_code(&denormalized) {
-            return code;
-        }
-        if self.strict_codegen {
-            panic!("could not generate code for clause: {}", clause);
-        }
+        match bindings.value_to_code(&denormalized) {
+            Ok(code) => return code,
+            Err(CodeGenError::Skolem(_)) => {
+                // This is a known problem - our code generator doesn't handle skolems.
+            }
+            Err(e) => {
+                // We shouldn't run into these sorts of errors in testing.
+                if self.strict_codegen {
+                    panic!("{}: could not generate code for clause: {}", e, clause);
+                }
+            }
+        };
         self.display(clause).to_string()
     }
 

@@ -34,6 +34,13 @@ pub struct Module {
 }
 
 impl Module {
+    // Some entities that are created for the prover get their own modules.
+    // Skolem functions are created during normalization to replace "exists" quantifiers.
+    pub const SKOLEM: ModuleId = 0;
+
+    // The regular module ids start here.
+    pub const FIRST_NORMAL: ModuleId = 1;
+
     pub fn default_modules() -> Vec<Module> {
         let mut modules = vec![];
         while modules.len() < FIRST_NORMAL as usize {
