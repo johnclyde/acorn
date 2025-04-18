@@ -2973,4 +2973,32 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.get_bindings("goal").expect_good_code("F.add");
         env.get_bindings("goal").expect_good_code("qux<F>");
     }
+
+    #[test]
+    fn test_instance_codegen() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                inverse: F -> F
+                bar: F
+            }
+
+            inductive Qux {
+                qux
+                quux
+            }
+
+            let other: Qux -> Qux = axiom
+
+            instance Qux: Foo {
+                let inverse: Qux -> Qux = other
+                let bar: Qux = Qux.qux
+            }
+        "#,
+        );
+
+        env.bindings.expect_good_code("Foo.bar<Qux>");
+        env.bindings.expect_good_code("Foo.inverse(Qux.qux)");
+    }
 }
