@@ -2419,7 +2419,7 @@ impl BindingMap {
         let mut var_names = vec![];
         let mut next_x = 0;
         let mut next_k = 0;
-        let expr = self.value_to_expr(value, &mut var_names, &mut next_x, &mut next_k)?;
+        let expr = self.value_to_expr(value, &mut var_names, &mut next_x, &mut next_k, false)?;
         Ok(expr.to_string())
     }
 
@@ -2519,7 +2519,7 @@ impl BindingMap {
             let decl = var_name;
             decls.push(decl);
         }
-        let subresult = self.value_to_expr(value, var_names, next_x, next_k)?;
+        let subresult = self.value_to_expr(value, var_names, next_x, next_k, false)?;
         var_names.truncate(initial_var_names_len);
         Ok(Expression::Binder(
             token_type.generate(),
@@ -2530,12 +2530,17 @@ impl BindingMap {
     }
 
     // Convert an AcornValue to an Expression.
+    // var_names is the names we have assigned to indexed variables so far.
+    // We automatically generate variable names somtimes, using next_x and next_k.
+    // "inferrable" is true if the type of this value can be inferred, which means
+    // we don't need top level parameters.
     fn value_to_expr(
         &self,
         value: &AcornValue,
         var_names: &mut Vec<String>,
         next_x: &mut u32,
         next_k: &mut u32,
+        inferrable: bool,
     ) -> Result<Expression, CodeGenError> {
         match value {
             AcornValue::Variable(i, _) => {
@@ -2544,7 +2549,10 @@ impl BindingMap {
             AcornValue::Application(fa) => {
                 let mut args = vec![];
                 for arg in &fa.args {
-                    args.push(self.value_to_expr(arg, var_names, next_x, next_k)?);
+                    // We currently never infer the type of arguments from the type of the function.
+                    // Inference only goes the other way.
+                    // We could improve this at some point.
+                    args.push(self.value_to_expr(arg, var_names, next_x, next_k, false)?);
                 }
 
                 // Check if we could replace this with receiver+attribute syntax
@@ -2593,18 +2601,18 @@ impl BindingMap {
                     }
                 }
 
-                let f = self.value_to_expr(&fa.function, var_names, next_x, next_k)?;
+                let f = self.value_to_expr(&fa.function, var_names, next_x, next_k, true)?;
                 let grouped_args = Expression::generate_paren_grouping(args);
                 Ok(Expression::Apply(Box::new(f), Box::new(grouped_args)))
             }
             AcornValue::Binary(op, left, right) => {
-                let left = self.value_to_expr(left, var_names, next_x, next_k)?;
-                let right = self.value_to_expr(right, var_names, next_x, next_k)?;
+                let left = self.value_to_expr(left, var_names, next_x, next_k, false)?;
+                let right = self.value_to_expr(right, var_names, next_x, next_k, false)?;
                 let token = op.token_type().generate();
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
             }
             AcornValue::Not(x) => {
-                let x = self.value_to_expr(x, var_names, next_x, next_k)?;
+                let x = self.value_to_expr(x, var_names, next_x, next_k, false)?;
                 Ok(Expression::generate_unary(TokenType::Not, x))
             }
             AcornValue::ForAll(quants, value) => self.generate_quantifier_expr(
@@ -2656,15 +2664,20 @@ impl BindingMap {
                     }
                 }
 
-                // Here we are assuming that the context will be enough to disambiguate
-                // the type of the templated name.
-                // I'm not sure if this is a good assumption.
-                self.name_to_expr(&c.name)
+                let name_expr = self.name_to_expr(&c.name)?;
+
+                if !inferrable && !c.params.is_empty() {
+                    self.parametrize_expr(name_expr, &c.params)
+                } else {
+                    // We don't need to parametrize because it can be inferred
+                    Ok(name_expr)
+                }
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
-                let condition = self.value_to_expr(condition, var_names, next_x, next_k)?;
-                let if_value = self.value_to_expr(if_value, var_names, next_x, next_k)?;
-                let else_value = self.value_to_expr(else_value, var_names, next_x, next_k)?;
+                let condition = self.value_to_expr(condition, var_names, next_x, next_k, false)?;
+                let if_value = self.value_to_expr(if_value, var_names, next_x, next_k, false)?;
+                let else_value =
+                    self.value_to_expr(else_value, var_names, next_x, next_k, false)?;
                 Ok(Expression::IfThenElse(
                     TokenType::If.generate(),
                     Box::new(condition),

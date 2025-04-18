@@ -2971,8 +2971,6 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.get_bindings("goal").expect_good_code("f + f");
         env.get_bindings("goal").expect_good_code("F.bar");
         env.get_bindings("goal").expect_good_code("F.add");
-
-        // TODO: fix and uncomment
-        // env.get_bindings("goal").expect_good_code("qux<F>");
+        env.get_bindings("goal").expect_good_code("qux<F>");
     }
 }
