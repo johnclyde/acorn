@@ -362,9 +362,9 @@ mod prover_test {
             let f3: Bool -> Bool = axiom
             let f4: Bool -> Bool = axiom
             axiom a1 { f1(b) }
-            axiom a12(x: Bool) { f1(x) -> f2(x) }
-            axiom a23(x: Bool) { f2(x) -> f3(x) }
-            axiom a34(x: Bool) { f3(x) -> f4(x) }
+            axiom a12(x: Bool) { f1(x) implies f2(x) }
+            axiom a23(x: Bool) { f2(x) implies f3(x) }
+            axiom a34(x: Bool) { f3(x) implies f4(x) }
             theorem goal(x: Bool) { f4(b) }
         "#;
         expect_proof(text, "goal", &["f2(b)", "f3(b)"]);
@@ -532,7 +532,7 @@ mod prover_test {
                 zero
                 suc(Nat)
             }
-            theorem goal(a: Nat, b: Nat) { Nat.suc(a) = Nat.suc(b) -> a = b }
+            theorem goal(a: Nat, b: Nat) { Nat.suc(a) = Nat.suc(b) implies a = b }
         "#;
         assert_eq!(prove_text(text, "goal"), Outcome::Success);
     }
@@ -549,7 +549,7 @@ mod prover_test {
                 f(Nat.zero)
             }
             axiom step(k: Nat) {
-                f(k) -> f(k.suc)
+                f(k) implies f(k.suc)
             }
             theorem goal(n: Nat) {
                 f(n)
@@ -562,7 +562,7 @@ mod prover_test {
     fn test_proving_parametric_theorem_basic() {
         let text = r#"
             theorem goal<T>(a: T, b: T, c: T) {
-                a = b and b = c -> a = c
+                a = b and b = c implies a = c
             } by {
                 if (a = b and b = c) {
                     a = c
@@ -575,7 +575,7 @@ mod prover_test {
     #[test]
     fn test_proving_parametric_theorem_no_block() {
         let text = r#"
-            theorem goal<T>(a: T, b: T, c: T) { a = b and b = c -> a = c }
+            theorem goal<T>(a: T, b: T, c: T) { a = b and b = c implies a = c }
         "#;
         assert_eq!(prove_text(text, "goal"), Outcome::Success);
     }
@@ -727,7 +727,7 @@ mod prover_test {
             let c: Nat = axiom
             let f: (Nat, Nat) -> Bool = axiom
             axiom trans(x: Nat, y: Nat, z: Nat) {
-                f(x, y) and f(y, z) -> f(x, z)
+                f(x, y) and f(y, z) implies f(x, z)
             }
             axiom fab { f(a, b) }
             axiom fbc { f(b, c) }
@@ -747,10 +747,10 @@ mod prover_test {
             let f: Nat -> Bool = axiom
             let g: (Nat, Nat) -> Bool = axiom
             axiom foo(x: Nat) {
-                f(x) -> exists(y: Nat) { g(x, y) and g(y, x) }
+                f(x) implies exists(y: Nat) { g(x, y) and g(y, x) }
             }
             theorem goal {
-                f(a) -> exists(y: Nat) { g(a, y) and g(y, a) }
+                f(a) implies exists(y: Nat) { g(a, y) and g(y, a) }
             }
             "#,
         );
@@ -794,7 +794,7 @@ mod prover_test {
             type Nat: axiom
             let f: Nat -> Nat = axiom
             let g: Nat -> Nat = axiom
-            theorem goal { forall(x: Nat) { f(x) = g(x) } -> f = g }
+            theorem goal { forall(x: Nat) { f(x) = g(x) } implies f = g }
         "#,
         );
     }
@@ -836,7 +836,7 @@ mod prover_test {
             type Nat: axiom
             let zero: Nat = axiom
             let addx: (Nat, Nat) -> Nat = axiom
-            theorem goal(f: Nat -> Nat) { f = addx(zero) -> f(zero) = addx(zero, zero) }
+            theorem goal(f: Nat -> Nat) { f = addx(zero) implies f(zero) = addx(zero, zero) }
         "#,
         );
     }
@@ -870,7 +870,7 @@ mod prover_test {
             r#"
             type Nat: axiom
             let suc: Nat -> Nat = axiom
-            axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) -> x = y }
+            axiom suc_injective(x: Nat, y: Nat) { suc(x) = suc(y) implies x = y }
             let n: Nat = axiom
             axiom hyp { suc(n) != n }
             theorem goal { suc(suc(n)) != suc(n) }
@@ -896,8 +896,8 @@ mod prover_test {
         let text = r#"
             let a: Bool = axiom
             let b: Bool = axiom
-            axiom bimpa { b -> a }
-            axiom bimpna { b -> not a }
+            axiom bimpa { b implies a }
+            axiom bimpna { b implies not a }
             theorem goal { not b }
         "#;
         expect_proof(text, "goal", &[]);
@@ -910,9 +910,9 @@ mod prover_test {
             let f: Nat -> Bool = axiom
             let g: Nat -> Bool = axiom
             let h: Nat -> Bool = axiom
-            axiom fimpg { forall(x: Nat) { f(x) -> g(x) } }
-            axiom gimph { forall(x: Nat) { g(x) -> h(x) } }
-            theorem goal { forall(x: Nat) { f(x) -> h(x) } }
+            axiom fimpg { forall(x: Nat) { f(x) implies g(x) } }
+            axiom gimph { forall(x: Nat) { g(x) implies h(x) } }
+            theorem goal { forall(x: Nat) { f(x) implies h(x) } }
         "#;
         expect_proof(text, "goal", &[]);
     }
@@ -925,7 +925,7 @@ mod prover_test {
         let f: Nat -> Bool = axiom
         let g: Nat -> Bool = axiom
         axiom forg(x: Nat) { f(x) or g(x) }
-        axiom fgimpb { forall(x: Nat) { f(x) or g(x) } -> b }
+        axiom fgimpb { forall(x: Nat) { f(x) or g(x) } implies b }
         theorem goal { b }
         "#;
         expect_proof(text, "goal", &[]);
@@ -938,9 +938,9 @@ mod prover_test {
             let a: Bool = axiom
             let b: Bool = axiom
             let c: Bool = axiom
-            axiom aimpb { a -> b }
-            axiom bimpc { b -> c }
-            theorem goal { a -> c } by {
+            axiom aimpb { a implies b }
+            axiom bimpc { b implies c }
+            theorem goal { a implies c } by {
                 b
             }
         "#,
@@ -957,9 +957,9 @@ mod prover_test {
             
             define foo<T>(x: T) -> Bool { axiom }
 
-            axiom a12 { foo(t1) -> foo(t2) }
-            axiom a23 { foo(t2) -> foo(t3) }
-            theorem goal { foo(t1) -> foo(t3) }
+            axiom a12 { foo(t1) implies foo(t2) }
+            axiom a23 { foo(t2) implies foo(t3) }
+            theorem goal { foo(t1) implies foo(t3) }
             "#;
 
         expect_proof(text, "goal", &[]);
@@ -976,7 +976,7 @@ mod prover_test {
         } else {
             c
         }
-        theorem goal { not a -> c }
+        theorem goal { not a implies c }
         "#;
         assert_eq!(prove_text(text, "goal"), Outcome::Success);
     }
@@ -990,7 +990,7 @@ mod prover_test {
         } else {
             b
         }
-        theorem goal { not a -> b }
+        theorem goal { not a implies b }
         "#;
         assert_eq!(prove_text(text, "goal"), Outcome::Success);
     }
@@ -1002,10 +1002,10 @@ mod prover_test {
         let zero: Nat = axiom
         let suc: Nat -> Nat = axiom
         axiom induction(f: Nat -> Bool) {
-            f(zero) and forall(k: Nat) { f(k) -> f(suc(k)) } -> forall(n: Nat) { f(n) }
+            f(zero) and forall(k: Nat) { f(k) implies f(suc(k)) } implies forall(n: Nat) { f(n) }
         }
         let foo: Nat -> Bool = axiom
-        theorem goal { foo(zero) and forall(k: Nat) { foo(k) -> foo(suc(k)) } -> forall(n: Nat) { foo(n) } }
+        theorem goal { foo(zero) and forall(k: Nat) { foo(k) implies foo(suc(k)) } implies forall(n: Nat) { foo(n) } }
         "#;
         expect_proof(text, "goal", &[]);
     }
@@ -1029,7 +1029,7 @@ mod prover_test {
         let a: Nat = axiom
         let f: Nat -> Bool = axiom
         let g: Nat -> Bool = axiom
-        axiom fimpg(x: Nat) { f(x) -> g(x) }
+        axiom fimpg(x: Nat) { f(x) implies g(x) }
         axiom fa { f(a) }
         theorem goal { g(a) }
         "#;
@@ -1043,9 +1043,9 @@ mod prover_test {
             let f: Nat -> Bool = axiom
             let g: Nat -> Bool = axiom
             let h: Nat -> Bool = axiom
-            axiom fimpg(x: Nat) { f(x) -> g(x) }
-            axiom gimph(x: Nat) { g(x) -> h(x) }
-            axiom fimpnh(x: Nat) { f(x) -> not h(x) }
+            axiom fimpg(x: Nat) { f(x) implies g(x) }
+            axiom gimph(x: Nat) { g(x) implies h(x) }
+            axiom fimpnh(x: Nat) { f(x) implies not h(x) }
             theorem goal(x: Nat) { not f(x) }
         "#;
 
@@ -1069,7 +1069,7 @@ mod prover_test {
                 c
             }
         }
-        theorem goal { a -> c }
+        theorem goal { a implies c }
         "#;
         assert_eq!(prove_text(text, "goal"), Outcome::Success);
     }
@@ -1173,7 +1173,7 @@ mod prover_test {
         let a: Nat = axiom
         axiom ga { g(a) }
         theorem goal {
-            not forall(x: Nat) { g(x) -> g(f(x)) }
+            not forall(x: Nat) { g(x) implies g(f(x)) }
         }
         "#;
         verify_fails(text);
@@ -1247,9 +1247,9 @@ mod prover_test {
         let f: Nat -> Bool = axiom
         let g: Nat -> Bool = axiom
         let h: Nat -> Bool = axiom
-        define fimp(x: Nat) -> Bool { f(x) -> (g(x) and h(x)) }
+        define fimp(x: Nat) -> Bool { f(x) implies (g(x) and h(x)) }
         axiom fimpa { fimp(a) }
-        theorem goal { f(a) -> (g(a) and h(a)) }
+        theorem goal { f(a) implies (g(a) and h(a)) }
         "#;
         verify_succeeds(text);
     }
@@ -1262,8 +1262,8 @@ mod prover_test {
         let f: Nat -> Bool = axiom
         let g: Nat -> Bool = axiom
         let h: Nat -> Bool = axiom
-        define fimp(x: Nat) -> Bool { f(x) -> (g(x) and h(x)) }
-        axiom fimpa { f(a) -> (g(a) and h(a)) }
+        define fimp(x: Nat) -> Bool { f(x) implies (g(x) and h(x)) }
+        axiom fimpa { f(a) implies (g(a) and h(a)) }
         theorem goal { fimp(a) }
         "#;
         verify_succeeds(text);
@@ -1296,7 +1296,7 @@ mod prover_test {
         let is_min: (Nat -> Bool, Nat) -> Bool = axiom
         let foo: Nat -> (Nat -> Bool) = axiom
         axiom has_min(f: Nat -> Bool, n: Nat) {
-            f(n) -> exists(m: Nat) { is_min(f, m) }
+            f(n) implies exists(m: Nat) { is_min(f, m) }
         }
         axiom foo_is_true_somewhere(a: Nat) {
             exists(b: Nat) { foo(a, b) }
@@ -1564,7 +1564,7 @@ mod prover_test {
             foof(f)
         }
         theorem goal(f: Foo) {
-            foof(f) -> Bar.new(f).f = f
+            foof(f) implies Bar.new(f).f = f
         }
         "#;
         verify_succeeds(text);
@@ -1599,10 +1599,10 @@ mod prover_test {
         let a: Bool = axiom
         let b: Bool = axiom
         axiom {
-            a -> b
+            a implies b
         }
         axiom {
-            b -> a
+            b implies a
         }
         theorem goal {
             a = b
@@ -1644,7 +1644,7 @@ mod prover_test {
             }
 
             axiom mul_zero_right(a: Foo, b: Foo) {
-                b = zero -> mul(a, b) = zero
+                b = zero implies mul(a, b) = zero
             }
 
             theorem goal {
