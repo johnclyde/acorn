@@ -214,7 +214,7 @@ impl BindingMap {
         }
     }
 
-    // Checks against names for both types and typeclasses because they can conflict.
+    /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
         &self,
         source: &dyn ErrorSource,
@@ -226,7 +226,7 @@ impl BindingMap {
         Ok(())
     }
 
-    // Returns an error if this name is already in use.
+    /// Returns an error if this name is already in use.
     pub fn check_unqualified_name_available(
         &self,
         source: &dyn ErrorSource,
@@ -366,12 +366,12 @@ impl BindingMap {
             .unwrap()
     }
 
-    // Call this after an instance attribute has been defined to typecheck it.
-    // Returns (resolved typeclass attribute, defined instance attribute).
-    // The resolved typeclass attribute is like
-    // Ring.add<Int>
-    // and the defined instance attribute is the one that we defined, before
-    // proving that Int was actually a Ring.
+    /// Call this after an instance attribute has been defined to typecheck it.
+    /// Returns (resolved typeclass attribute, defined instance attribute).
+    /// The resolved typeclass attribute is like
+    /// Ring.add<Int>
+    /// and the defined instance attribute is the one that we defined, before
+    /// proving that Int was actually a Ring.
     pub fn check_instance_attribute(
         &self,
         source: &dyn ErrorSource,
@@ -437,7 +437,7 @@ impl BindingMap {
         }
     }
 
-    // Gets the type for a type name, not for an identifier.
+    /// Gets the type for a type name, not for an identifier.
     pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
         self.typename_to_type.get(type_name)
     }
@@ -454,14 +454,14 @@ impl BindingMap {
         self.name_to_typeclass.contains_key(typeclass_name)
     }
 
-    // Just use this for testing.
+    /// Just use this for testing.
     pub fn has_constant_name(&self, name: &str) -> bool {
         let name = LocalName::guess(name);
         self.constant_info.contains_key(&name)
     }
 
-    // Returns the defined value, if there is a defined value.
-    // If there isn't, returns None.
+    /// Returns the defined value, if there is a defined value.
+    /// If there isn't, returns None.
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         match name {
             DefinedName::Local(local_name) => {
@@ -471,8 +471,8 @@ impl BindingMap {
         }
     }
 
-    // Returns the defined value and its parameters in their canonical order.
-    // Returns None if there is no definition.
+    /// Returns the defined value and its parameters in their canonical order.
+    /// Returns None if there is no definition.
     pub fn get_definition_and_params(
         &self,
         local_name: &LocalName,
@@ -1149,7 +1149,7 @@ impl BindingMap {
         bindings.constant_info.contains_key(&constant_name)
     }
 
-    // Evaluates a name scoped by a class or typeclass name, like MyClass.foo
+    /// Evaluates a name scoped by a class or typeclass name, like MyClass.foo
     fn evaluate_type_attribute(
         &self,
         source: &dyn ErrorSource,
@@ -1639,7 +1639,7 @@ impl BindingMap {
         Ok(value)
     }
 
-    // Apply an unresolved name to arguments, inferring the types.
+    /// Apply an unresolved name to arguments, inferring the types.
     fn infer_and_apply(
         &self,
         stack: &mut Stack,
@@ -2249,8 +2249,8 @@ impl BindingMap {
         }
     }
 
-    // Finds the names of all constants that are in this module but unknown to this binding map.
-    // The unknown constants may not be polymorphic.
+    /// Finds the names of all constants that are in this module but unknown to this binding map.
+    /// The unknown constants may not be polymorphic.
     pub fn find_unknown_local_constants(
         &self,
         value: &AcornValue,
@@ -2300,10 +2300,10 @@ impl BindingMap {
         }
     }
 
-    // Replaces all theorems in the proposition with their definitions.
-    // This is admittedly weird.
-    // Note that it needs to work with templated theorems, which makes it tricky to do the
-    // type inference.
+    /// Replaces all theorems in the proposition with their definitions.
+    /// This is admittedly weird.
+    /// Note that it needs to work with templated theorems, which makes it tricky to do the
+    /// type inference.
     pub fn expand_theorems(&self, project: &Project, proposition: Proposition) -> Proposition {
         proposition
             .value
@@ -2334,9 +2334,9 @@ impl BindingMap {
     // Tools for going the other way, to create expressions and code strings from values and types.
     ////////////////////////////////////////////////////////////////////////////////
 
-    // Returns an error if this type can't be encoded as an expression.
-    // Currently this should only happen when it's defined in a module that isn't directly imported.
-    // In theory we could fix this, but we would have to track the web of dependencies.
+    /// Returns an error if this type can't be encoded as an expression.
+    /// Currently this should only happen when it's defined in a module that isn't directly imported.
+    /// In theory we could fix this, but we would have to track the web of dependencies.
     fn type_to_expr(&self, acorn_type: &AcornType) -> Result<Expression, CodeGenError> {
         if let AcornType::Function(ft) = acorn_type {
             let mut args = vec![];
@@ -2383,7 +2383,7 @@ impl BindingMap {
         Err(CodeGenError::unnamed_type(acorn_type))
     }
 
-    // Adds parameters, if there are any, to an expression representing a type.
+    /// Adds parameters, if there are any, to an expression representing a type.
     fn parametrize_expr(
         &self,
         base_expr: Expression,
@@ -2401,8 +2401,8 @@ impl BindingMap {
         Ok(applied)
     }
 
-    // We use variables named x0, x1, x2, etc when new temporary variables are needed.
-    // Find the next one that's available.
+    /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
+    /// Find the next one that's available.
     fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
             let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
@@ -2413,8 +2413,8 @@ impl BindingMap {
         }
     }
 
-    // If this value cannot be expressed in a single chunk of code, returns an error.
-    // For example, it might refer to a constant that is not in scope.
+    /// If this value cannot be expressed in a single chunk of code, returns an error.
+    /// For example, it might refer to a constant that is not in scope.
     pub fn value_to_code(&self, value: &AcornValue) -> Result<String, CodeGenError> {
         let mut var_names = vec![];
         let mut next_x = 0;
@@ -2423,12 +2423,12 @@ impl BindingMap {
         Ok(expr.to_string())
     }
 
-    // Given a module and a name, find an expression that refers to the name.
-    // The name can be dotted, if it's a class member.
-    // Note that:
-    //   module, the canonical module of the entity we are trying to express
-    // is different from
-    //   self.module, the module we are trying to express the name in
+    /// Given a module and a name, find an expression that refers to the name.
+    /// The name can be dotted, if it's a class member.
+    /// Note that:
+    ///   module, the canonical module of the entity we are trying to express
+    /// is different from
+    ///   self.module, the module we are trying to express the name in
     fn name_to_expr(&self, name: &GlobalName) -> Result<Expression, CodeGenError> {
         // Handle numeric literals
         if let LocalName::Attribute(class, attr) = &name.local_name {
@@ -2493,7 +2493,7 @@ impl BindingMap {
         }
     }
 
-    // If use_x is true we use x-variables; otherwise we use k-variables.
+    /// If use_x is true we use x-variables; otherwise we use k-variables.
     fn generate_quantifier_expr(
         &self,
         token_type: TokenType,
@@ -2529,11 +2529,11 @@ impl BindingMap {
         ))
     }
 
-    // Convert an AcornValue to an Expression.
-    // var_names is the names we have assigned to indexed variables so far.
-    // We automatically generate variable names somtimes, using next_x and next_k.
-    // "inferrable" is true if the type of this value can be inferred, which means
-    // we don't need top level parameters.
+    /// Convert an AcornValue to an Expression.
+    /// var_names is the names we have assigned to indexed variables so far.
+    /// We automatically generate variable names somtimes, using next_x and next_k.
+    /// "inferrable" is true if the type of this value can be inferred, which means
+    /// we don't need top level parameters.
     fn value_to_expr(
         &self,
         value: &AcornValue,
@@ -2731,7 +2731,7 @@ impl BindingMap {
             .is_err());
     }
 
-    // Check that the given name actually does have this type in the environment.
+    /// Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
         let name = DefinedName::guess(name);
         let value = self
@@ -2741,7 +2741,7 @@ impl BindingMap {
         assert_eq!(env_type.to_string(), type_string);
     }
 
-    // Check that this code, when converted to a value and back to code, is the same.
+    /// Check that this code, when converted to a value and back to code, is the same.
     pub fn expect_good_code(&self, input_code: &str) {
         let project = Project::new_mock();
         let expression = Expression::expect_value(input_code);
