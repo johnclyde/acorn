@@ -18,47 +18,47 @@ use crate::source::{Source, SourceType};
 use crate::statement::Body;
 use crate::token::Token;
 
-// Proofs are structured into blocks.
-// The environment specific to this block can have a bunch of propositions that need to be
-// proved, along with helper statements to express those propositions, but they are not
-// visible to the outside world.
+/// Proofs are structured into blocks.
+/// The environment specific to this block can have a bunch of propositions that need to be
+/// proved, along with helper statements to express those propositions, but they are not
+/// visible to the outside world.
 pub struct Block {
-    // The arguments to this block.
-    // They can either be "forall" arguments, or the arguments to a theorem.
-    // This does not include pattern-matched variables because those have additional constraints.
-    // Internally to the block, the arguments are constants.
-    // Externally, these arguments are variables.
+    /// The arguments to this block.
+    /// They can either be "forall" arguments, or the arguments to a theorem.
+    /// This does not include pattern-matched variables because those have additional constraints.
+    /// Internally to the block, the arguments are constants.
+    /// Externally, these arguments are variables.
     args: Vec<(String, AcornType)>,
 
-    // Sometimes the user specifies a goal for a block, that must be proven.
-    // The goal for a block is relative to its internal environment.
-    // In particular, the goal should not be generic. It should use arbitrary fixed types instead.
-    //
-    // Everything in the block can be used to achieve this goal.
-    // If there is no goal for the block, we can still use its conclusion externally,
-    // but we let the conclusion be determined by the code in the block.
+    /// Sometimes the user specifies a goal for a block, that must be proven.
+    /// The goal for a block is relative to its internal environment.
+    /// In particular, the goal should not be generic. It should use arbitrary fixed types instead.
+    ///
+    /// Everything in the block can be used to achieve this goal.
+    /// If there is no goal for the block, we can still use its conclusion externally,
+    /// but we let the conclusion be determined by the code in the block.
     pub goal: Option<Goal>,
 
-    // The environment created inside the block.
+    /// The environment created inside the block.
     pub env: Environment,
 }
 
-// The different ways to construct a block.
-// Note that these don't necessarily have anything to do with type params.
-// I should probably rename this object.
+/// The different ways to construct a block.
+/// Note that these don't necessarily have anything to do with type params.
+/// I should probably rename this object.
 #[derive(Debug)]
 pub enum BlockParams<'a> {
-    // (theorem name, theorem range, premise, goal)
-    //
-    // The premise and goal are unbound, to be proved based on the args of the theorem.
-    //
-    // The theorem should already be defined by this name in the external environment.
-    // It is either a bool, or a function from something -> bool.
-    // The meaning of the theorem is that it is true for all args.
-    //
-    // The premise is optional.
-    //
-    // The premise and goal should not have type variables in them.
+    /// (theorem name, theorem range, premise, goal)
+    ///
+    /// The premise and goal are unbound, to be proved based on the args of the theorem.
+    ///
+    /// The theorem should already be defined by this name in the external environment.
+    /// It is either a bool, or a function from something -> bool.
+    /// The meaning of the theorem is that it is true for all args.
+    ///
+    /// The premise is optional.
+    ///
+    /// The premise and goal should not have type variables in them.
     Theorem(
         Option<&'a str>,
         Range,

@@ -3,15 +3,15 @@ use std::fmt;
 use crate::acorn_type::{Class, Typeclass};
 use crate::module::ModuleId;
 
-// The LocalName provides an identifier for a constant that is unique within its module.
+/// The LocalName provides an identifier for a constant that is unique within its module.
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub enum LocalName {
-    // An unqualified name has no dots.
+    /// An unqualified name has no dots.
     Unqualified(String),
 
-    // An attribute can either be of a class or a typeclass.
-    // The first string is the class or typeclass name, defined in this module.
-    // The second string is the attribute name.
+    /// An attribute can either be of a class or a typeclass.
+    /// The first string is the class or typeclass name, defined in this module.
+    /// The second string is the attribute name.
     Attribute(String, String),
 }
 
@@ -33,7 +33,7 @@ impl LocalName {
         LocalName::Attribute(class.to_string(), attr.to_string())
     }
 
-    // Just use this for testing.
+    /// Just use this for testing.
     pub fn guess(s: &str) -> LocalName {
         if s.contains('.') {
             let parts: Vec<&str> = s.split('.').collect();
@@ -51,7 +51,7 @@ impl LocalName {
         DefinedName::Local(self)
     }
 
-    // Return this constant's name as a chain of strings, if that's possible.
+    /// Return this constant's name as a chain of strings, if that's possible.
     pub fn name_chain(&self) -> Option<Vec<&str>> {
         match self {
             LocalName::Unqualified(name) => Some(vec![name]),
@@ -90,13 +90,13 @@ impl fmt::Display for InstanceName {
     }
 }
 
-// The DefinedName describes how a constant, type, or typeclass was defined.
+/// The DefinedName describes how a constant, type, or typeclass was defined.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub enum DefinedName {
-    // A regular local name.
+    /// A regular local name.
     Local(LocalName),
 
-    // An attribute defined via an instance statement.
+    /// An attribute defined via an instance statement.
     Instance(InstanceName),
 }
 
@@ -155,13 +155,13 @@ impl DefinedName {
         }
     }
 
-    // Just use this for testing.
+    /// Just use this for testing.
     pub fn guess(s: &str) -> DefinedName {
         DefinedName::Local(LocalName::guess(s))
     }
 }
 
-// The GlobalName provides a globally unique identifier for a constant.
+/// The GlobalName provides a globally unique identifier for a constant.
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub struct GlobalName {
     pub module_id: ModuleId,
@@ -176,7 +176,7 @@ impl GlobalName {
         }
     }
 
-    // Only use this for testing.
+    /// Only use this for testing.
     pub fn guess(module_id: ModuleId, s: &str) -> GlobalName {
         GlobalName {
             module_id,

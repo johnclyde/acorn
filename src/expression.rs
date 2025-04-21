@@ -5,55 +5,55 @@ use tower_lsp::lsp_types::Range;
 use crate::compilation::{Error, ErrorSource, Result};
 use crate::token::{Token, TokenIter, TokenType};
 
-// There are two main sorts of expressions.
-// Value expressions, like:
-//    1 + 2
-// Type expressions, like:
-//    (int, bool) -> bool
-//
-// There are other sorts of expressions. Module names, argument lists, type parameters.
+/// There are two main sorts of expressions.
+/// Value expressions, like:
+///    1 + 2
+/// Type expressions, like:
+///    (int, bool) -> bool
+///
+/// There are other sorts of expressions. Module names, argument lists, type parameters.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum ExpressionType {
     Value,
     Type,
 }
 
-// An Expression represents the basic structuring of tokens into a syntax tree.
-// The expression does not typecheck and enforce semantics; it's just parsing into a tree.
+/// An Expression represents the basic structuring of tokens into a syntax tree.
+/// The expression does not typecheck and enforce semantics; it's just parsing into a tree.
 #[derive(Debug)]
 pub enum Expression {
-    // A singleton expression is one that consists of just a single token.
-    // This includes identifiers, true, false, numeric literals, and "axiom".
+    /// A singleton expression is one that consists of just a single token.
+    /// This includes identifiers, true, false, numeric literals, and "axiom".
     Singleton(Token),
 
-    // A unary operator applied to another expression.
+    /// A unary operator applied to another expression.
     Unary(Token, Box<Expression>),
 
-    // An infix binary operator, with the left and right expressions.
+    /// An infix binary operator, with the left and right expressions.
     Binary(Box<Expression>, Token, Box<Expression>),
 
-    // Expressions you get by placing two expressions next to each other.
-    // This can either be the application of a function, or a type instantiation.
-    // The second parameter can either be an argument list or a type parameter list.
+    /// Expressions you get by placing two expressions next to each other.
+    /// This can either be the application of a function, or a type instantiation.
+    /// The second parameter can either be an argument list or a type parameter list.
     Concatenation(Box<Expression>, Box<Expression>),
 
-    // A grouping like ( <expr> ) or < <expr> >.
-    // The tokens that delimit the grouping are included.
+    /// A grouping like ( <expr> ) or < <expr> >.
+    /// The tokens that delimit the grouping are included.
     Grouping(Token, Box<Expression>, Token),
 
-    // A binder is an expression that binds variables, like a forall/exists/function.
-    // The first token is the binder keyword, like "forall".
-    // The declarations are the argument list, like "(x: Nat, y: Nat)".
-    // The expression is the body block.
-    // The last token is the closing brace.
+    /// A binder is an expression that binds variables, like a forall/exists/function.
+    /// The first token is the binder keyword, like "forall".
+    /// The declarations are the argument list, like "(x: Nat, y: Nat)".
+    /// The expression is the body block.
+    /// The last token is the closing brace.
     Binder(Token, Vec<Declaration>, Box<Expression>, Token),
 
-    // If-then-else expressions have to have the else block.
-    // The first token is the "if" keyword.
-    // The first expression is the condition.
-    // The second expression is the "if" block.
-    // The third expression is the "else" block.
-    // The last token is the closing brace.
+    /// If-then-else expressions have to have the else block.
+    /// The first token is the "if" keyword.
+    /// The first expression is the condition.
+    /// The second expression is the "if" block.
+    /// The third expression is the "else" block.
+    /// The last token is the closing brace.
     IfThenElse(
         Token,
         Box<Expression>,
@@ -62,12 +62,12 @@ pub enum Expression {
         Token,
     ),
 
-    // The first token is the "match" keyword.
-    // The first expression is the "scrutinee", which we are matching.
-    // The pairs indicate exhaustive and mutually exclusive cases for matching the scrutinee, which
-    // must have an inductive type.
-    // For the pair (exp1, exp2) where exp1 matches the scrutinee, the value of our expression is exp2.
-    // The last token is the closing brace.
+    /// The first token is the "match" keyword.
+    /// The first expression is the "scrutinee", which we are matching.
+    /// The pairs indicate exhaustive and mutually exclusive cases for matching the scrutinee, which
+    /// must have an inductive type.
+    /// For the pair (exp1, exp2) where exp1 matches the scrutinee, the value of our expression is exp2.
+    /// The last token is the closing brace.
     Match(Token, Box<Expression>, Vec<(Expression, Expression)>, Token),
 }
 
