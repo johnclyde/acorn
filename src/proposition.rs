@@ -29,6 +29,10 @@ impl fmt::Display for Proposition {
 impl Proposition {
     /// Creates a proposition that may be generic. Params can be empty.
     pub fn new(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
+        // TODO: is it correct to have this check here?
+        // if source.importable && value.has_arbitrary() {
+        //     panic!("importable propositions should not have arbitrary types");
+        // }
         Proposition {
             value,
             params,
@@ -39,20 +43,12 @@ impl Proposition {
     /// Creates a non-generic proposition.
     pub fn monomorphic(value: AcornValue, source: Source) -> Proposition {
         assert!(!value.has_generic());
-        Proposition {
-            value,
-            params: vec![],
-            source,
-        }
+        Proposition::new(value, vec![], source)
     }
 
     /// Just changes the value while keeping the other stuff intact
     pub fn with_value(self, value: AcornValue) -> Proposition {
-        Proposition {
-            value,
-            params: self.params,
-            source: self.source,
-        }
+        Proposition::new(value, self.params, self.source)
     }
 
     /// Theorems have theorem names, and so do axioms because those work like theorems.
