@@ -3,22 +3,24 @@ use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
 use crate::names::GlobalName;
 
-// A generic constant that we don't know the type of yet.
-// It's more of a "constant with unresolved type" than an "unresolved constant".
+/// A generic constant that we don't know the type of yet.
+/// It's more of a "constant with unresolved type" than an "unresolved constant".
 #[derive(Debug, Clone)]
 pub struct UnresolvedConstant {
+    /// The global name of the constant.
     pub name: GlobalName,
 
-    // The type parameters are all the type variables used in the definition of this constant,
-    // in their canonical order. Each of these type parameters should be referenced in the type of
-    // the constant itself. Otherwise we would not be able to infer them.
+    /// The type parameters are all the type variables used in the definition of this constant,
+    /// in their canonical order. Each of these type parameters should be referenced in the type of
+    /// the constant itself. Otherwise we would not be able to infer them.
     pub params: Vec<TypeParam>,
 
-    // The generic type uses the params.
+    /// The generic type uses the params.
     pub generic_type: AcornType,
 }
 
 impl UnresolvedConstant {
+    /// Resolves the constant with the given parameters.
     pub fn resolve(
         &self,
         source: &dyn ErrorSource,
@@ -46,7 +48,7 @@ impl UnresolvedConstant {
         ))
     }
 
-    // Turn this into a constant value by keeping each parameter as a type variable.
+    /// Turn this into a constant value by keeping each parameter as a type variable.
     pub fn to_generic_value(self) -> AcornValue {
         let params = self
             .params

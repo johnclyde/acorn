@@ -1576,6 +1576,7 @@ impl BindingMap {
             .map_or(false, |set| set.contains(typeclass))
     }
 
+    /// Determine the type of an unresolved function, based on its resolved arguments.
     fn resolve_function(
         &self,
         source: &dyn ErrorSource,
