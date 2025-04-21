@@ -5,18 +5,18 @@ use crate::unresolved_constant::UnresolvedConstant;
 
 pub static EMPTY_TYPE_PARAMS: [TypeParam; 0] = [];
 
-// Could be a value, but could also be an unresolved constant.
+/// Could be a value, but could also be an unresolved constant.
 #[derive(Debug, Clone)]
 pub enum PotentialValue {
-    // (module, constant name, type, type parameters)
+    /// (module, constant name, type, type parameters)
     Unresolved(UnresolvedConstant),
 
-    // Something that we do know the type of.
+    /// Something that we do know the type of.
     Resolved(AcornValue),
 }
 
 impl PotentialValue {
-    // Convert this to a value, panicking if it's unresolved.
+    /// Convert this to a value, panicking if it's unresolved.
     pub fn force_value(self) -> AcornValue {
         match self {
             PotentialValue::Unresolved(u) => {
@@ -26,7 +26,7 @@ impl PotentialValue {
         }
     }
 
-    // Convert this to a value, or return an error if it's unresolved.
+    /// Convert this to a value, or return an error if it's unresolved.
     pub fn as_value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
         match self {
             PotentialValue::Unresolved(u) => {
@@ -36,7 +36,7 @@ impl PotentialValue {
         }
     }
 
-    // If this is an unresolved value, it will have a generic type.
+    /// If this is an unresolved value, it will have a generic type.
     pub fn get_type(&self) -> AcornType {
         match &self {
             PotentialValue::Unresolved(u) => u.generic_type.clone(),
@@ -44,7 +44,7 @@ impl PotentialValue {
         }
     }
 
-    // Gets the unresolved parameters, if this is unresolved.
+    /// Gets the unresolved parameters, if this is unresolved.
     pub fn unresolved_params(&self) -> &[TypeParam] {
         match &self {
             PotentialValue::Unresolved(u) => &u.params,
@@ -64,7 +64,7 @@ impl PotentialValue {
         }
     }
 
-    // Resolve this into a value, using type variables for unknown parameters.
+    /// Resolve this into a value, using type variables for unknown parameters.
     pub fn to_generic_value(self) -> AcornValue {
         match self {
             PotentialValue::Unresolved(u) => u.to_generic_value(),
@@ -72,8 +72,8 @@ impl PotentialValue {
         }
     }
 
-    // Treat this as a constant, and resolve it with the given parameters.
-    // Return an error if there's a mismatch between number of parameters.
+    /// Treat this as a constant, and resolve it with the given parameters.
+    /// Return an error if there's a mismatch between number of parameters.
     pub fn resolve_constant(
         &self,
         params: &[AcornType],
