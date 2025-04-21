@@ -71,4 +71,24 @@ impl PotentialValue {
             PotentialValue::Resolved(v) => v,
         }
     }
+
+    // Treat this as a constant, and resolve it with the given parameters.
+    // Return an error if there's a mismatch between number of parameters.
+    pub fn resolve_constant(
+        &self,
+        params: &[AcornType],
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<AcornValue> {
+        match self {
+            PotentialValue::Unresolved(u) => u.resolve(source, params.to_vec()),
+            PotentialValue::Resolved(v) => {
+                if !params.is_empty() {
+                    return Err(
+                        source.error(&format!("expected unresolved constant, but found {}", v))
+                    );
+                }
+                Ok(v.clone())
+            }
+        }
+    }
 }

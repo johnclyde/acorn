@@ -1005,10 +1005,12 @@ impl Environment {
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let potential_type = self.bindings.add_potential_type(&is.name, typeclasses);
-        let arb_inductive_type = potential_type.resolve(arbitrary_params, &is.name_token)?;
+        let arb_inductive_type =
+            potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
         let gen_inductive_type = arb_inductive_type.genericize(&type_params);
 
         // Parse (member name, list of arg types) for each constructor.
+        // This uses the arbitrary types.
         let mut constructors = vec![];
         let mut has_base = false;
         for (name_token, type_list_expr) in &is.constructors {
@@ -1033,20 +1035,24 @@ impl Environment {
         }
 
         // Define the constructors.
+        // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
         let mut constructor_fns = vec![];
         let total = constructors.len();
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
             let arb_constructor_type =
                 AcornType::functional(type_list.clone(), arb_inductive_type.clone());
             let gen_constructor_type = arb_constructor_type.genericize(&type_params);
-            let potential = self.bindings.add_local_constant(
+            let gen_constructor_fn = self.bindings.add_local_constant(
                 constructor_name.clone(),
                 type_params.clone(),
                 gen_constructor_type,
                 None,
                 Some((gen_inductive_type.clone(), i, total)),
             );
-            constructor_fns.push(potential.force_value());
+            let arb_constructor_fn =
+                gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
+
+            constructor_fns.push(arb_constructor_fn);
         }
 
         // The "no confusion" property. Different constructors give different results.
