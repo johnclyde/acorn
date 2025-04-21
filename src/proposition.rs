@@ -29,8 +29,8 @@ impl fmt::Display for Proposition {
 impl Proposition {
     /// Creates a proposition that may be generic. Params can be empty.
     pub fn new(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
-        // TODO: is it correct to have this check here?
         if source.importable && value.has_arbitrary() {
+            println!("XXX: {}", value);
             panic!("importable propositions should not have arbitrary types");
         }
         Proposition {

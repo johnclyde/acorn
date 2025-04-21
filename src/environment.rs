@@ -1080,7 +1080,7 @@ impl Environment {
                 let inequality = AcornValue::not_equals(i_app.clone(), j_app);
                 let mut quantifiers = i_arg_types.clone();
                 quantifiers.extend(j_arg_types.clone());
-                let claim = AcornValue::forall(quantifiers, inequality);
+                let arb_claim = AcornValue::forall(quantifiers, inequality);
                 let source = Source::type_definition(
                     self.module_id,
                     range,
@@ -1088,7 +1088,8 @@ impl Environment {
                     is.name.clone(),
                     member_name.to_string(),
                 );
-                let prop = Proposition::monomorphic(claim, source);
+                let gen_claim = arb_claim.genericize(&type_params);
+                let prop = Proposition::new(gen_claim, type_params.clone(), source);
                 self.add_node(Node::structural(project, self, prop));
             }
         }
@@ -1112,7 +1113,7 @@ impl Environment {
             disjuncts.push(exists);
         }
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-        let claim = AcornValue::forall(vec![arb_inductive_type.clone()], disjunction);
+        let arb_claim = AcornValue::forall(vec![arb_inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
         let source = Source::type_definition(
             self.module_id,
@@ -1121,7 +1122,8 @@ impl Environment {
             is.name.clone(),
             "new".to_string(),
         );
-        let prop = Proposition::monomorphic(claim, source);
+        let gen_claim = arb_claim.genericize(&type_params);
+        let prop = Proposition::new(gen_claim, type_params.clone(), source);
         self.add_node(Node::structural(project, self, prop));
 
         // The next principle is that each constructor is injective.
@@ -1159,7 +1161,7 @@ impl Environment {
             let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
             let mut forall_types = arg_types.clone();
             forall_types.extend_from_slice(&arg_types);
-            let claim =
+            let arb_claim =
                 AcornValue::forall(forall_types, AcornValue::implies(equality, conjunction));
             let source = Source::type_definition(
                 self.module_id,
@@ -1168,7 +1170,8 @@ impl Environment {
                 is.name.clone(),
                 member_name.to_string(),
             );
-            let prop = Proposition::monomorphic(claim, source);
+            let gen_claim = arb_claim.genericize(&type_params);
+            let prop = Proposition::new(gen_claim, type_params.clone(), source);
             self.add_node(Node::structural(project, self, prop));
         }
 
@@ -1231,19 +1234,20 @@ impl Environment {
 
         // The lambda form is the functional form, which we bind in the environment.
         let name = LocalName::attribute(&is.name, "induction");
-        let lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
+        let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
+        let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
         self.bindings.add_local_constant(
             name.clone(),
-            vec![],
-            lambda_claim.get_type(),
-            Some(lambda_claim),
+            type_params.clone(),
+            gen_lambda_claim.get_type(),
+            Some(gen_lambda_claim),
             None,
         );
         self.bindings.mark_as_theorem(&name);
 
         // The forall form is the anonymous truth of induction.
         // We add that as a proposition.
-        let forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
+        let arb_forall_claim = AcornValue::forall(vec![hyp_type], unbound_claim);
         let source = Source::theorem(
             true,
             self.module_id,
@@ -1252,7 +1256,8 @@ impl Environment {
             self.depth,
             Some(name.to_string()),
         );
-        let prop = Proposition::monomorphic(forall_claim, source);
+        let gen_forall_claim = arb_forall_claim.genericize(&type_params);
+        let prop = Proposition::new(gen_forall_claim, type_params, source);
         self.add_node(Node::structural(project, self, prop));
 
         // Clean up the type parameters
