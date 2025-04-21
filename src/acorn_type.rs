@@ -281,6 +281,25 @@ impl AcornType {
         Ok(())
     }
 
+    pub fn check_instance(&self, source: &dyn ErrorSource, class: &Class) -> Result<()> {
+        match self {
+            AcornType::Data(c, _) => {
+                if c != class {
+                    return Err(source.error(&format!(
+                        "expected type {} to be an instance of {}",
+                        self, class.name
+                    )));
+                }
+                Ok(())
+            }
+
+            _ => Err(source.error(&format!(
+                "expected type {} to be an instance of {}",
+                self, class.name
+            ))),
+        }
+    }
+
     /// Create the type, in non-curried form, for a function with the given arguments and return type.
     /// arg_types can be empty.
     pub fn functional(arg_types: Vec<AcornType>, return_type: AcornType) -> AcornType {

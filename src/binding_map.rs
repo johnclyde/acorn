@@ -141,11 +141,11 @@ struct ConstantInfo {
     theorem: bool,
 
     /// If this constant is a constructor and this is its canonical name, store:
-    ///   the type it constructs
+    ///   the class it constructs
     ///   an index of which constructor it is
     ///   how many total constructors there are
     /// Not included for aliases.
-    constructor: Option<(AcornType, usize, usize)>,
+    constructor: Option<(Class, usize, usize)>,
 }
 
 fn keys_with_prefix<'a, T>(
@@ -502,7 +502,7 @@ impl BindingMap {
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
-        constructor: Option<(AcornType, usize, usize)>,
+        constructor: Option<(Class, usize, usize)>,
     ) -> PotentialValue {
         match defined_name {
             DefinedName::Local(local_name) => {
@@ -531,7 +531,7 @@ impl BindingMap {
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
-        constructor: Option<(AcornType, usize, usize)>,
+        constructor: Option<(Class, usize, usize)>,
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
@@ -1010,18 +1010,18 @@ impl BindingMap {
         value: &AcornValue,
         source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
-        let info = match value.as_simple_constant() {
-            Some(name) => {
-                let bindings = self.get_bindings(project, name.module_id);
-                bindings.constant_info.get(&name.local_name).unwrap()
+        let info = match value {
+            AcornValue::Constant(ci) => {
+                let bindings = self.get_bindings(project, ci.name.module_id);
+                bindings.constant_info.get(&ci.name.local_name).unwrap()
             }
-            None => {
+            _ => {
                 return Err(source.error("invalid pattern"));
             }
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
-                constructor_type.check_eq(source, Some(expected_type))?;
+                expected_type.check_instance(source, constructor_type)?;
                 Ok((*i, *total))
             }
             None => Err(source.error("expected a constructor")),

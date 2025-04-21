@@ -852,6 +852,10 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
+        let class = Class {
+            module_id: self.module_id,
+            name: ss.name.clone(),
+        };
         let new_fn_name = LocalName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let new_fn = self.bindings.add_local_constant(
@@ -859,7 +863,7 @@ impl Environment {
             type_params.clone(),
             new_fn_type.genericize(&type_params),
             None,
-            Some((struct_type.clone(), 0, 1)),
+            Some((class, 0, 1)),
         );
 
         // Each object of this new type has certain properties.
@@ -1008,7 +1012,6 @@ impl Environment {
         let potential_type = self.bindings.add_potential_type(&is.name, typeclasses);
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
-        let gen_inductive_type = arb_inductive_type.genericize(&type_params);
 
         // Parse (member name, list of arg types) for each constructor.
         // This uses the arbitrary types.
@@ -1037,6 +1040,10 @@ impl Environment {
 
         // Define the constructors.
         // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
+        let class = Class {
+            module_id: self.module_id,
+            name: is.name.clone(),
+        };
         let mut constructor_fns = vec![];
         let total = constructors.len();
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
@@ -1048,7 +1055,7 @@ impl Environment {
                 type_params.clone(),
                 gen_constructor_type,
                 None,
-                Some((gen_inductive_type.clone(), i, total)),
+                Some((class.clone(), i, total)),
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
