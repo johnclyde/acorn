@@ -891,7 +891,7 @@ impl BindingMap {
                 }
                 _ => Err(token.error("unexpected binary operator in type expression")),
             },
-            Expression::Apply(left, params) => {
+            Expression::Concatenation(left, params) => {
                 let param_exprs = if let Expression::Grouping(opening, expr, _) = params.as_ref() {
                     if opening.token_type != TokenType::LessThan {
                         return Err(opening.error("expected '<' for type params"));
@@ -1042,7 +1042,7 @@ impl BindingMap {
         pattern: &Expression,
     ) -> compilation::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
         let (fn_exp, args) = match pattern {
-            Expression::Apply(function, args) => (function, args),
+            Expression::Concatenation(function, args) => (function, args),
             _ => {
                 // This could be a no-argument constructor.
                 let constructor = self.evaluate_value(project, pattern, Some(expected_type))?;
@@ -1986,7 +1986,7 @@ impl BindingMap {
                     }
                 },
             },
-            Expression::Apply(function_expr, args_expr) => {
+            Expression::Concatenation(function_expr, args_expr) => {
                 let function =
                     self.evaluate_potential_value(stack, project, function_expr, None)?;
 
@@ -2504,7 +2504,7 @@ impl BindingMap {
             param_exprs.push(self.type_to_expr(&param)?);
         }
         let params_expr = Expression::generate_params(param_exprs);
-        let applied = Expression::Apply(Box::new(base_expr), Box::new(params_expr));
+        let applied = Expression::Concatenation(Box::new(base_expr), Box::new(params_expr));
         Ok(applied)
     }
 
@@ -2705,7 +2705,7 @@ impl BindingMap {
                         return Ok(bound);
                     } else {
                         // Like foo.bar(baz, qux)
-                        let applied = Expression::Apply(
+                        let applied = Expression::Concatenation(
                             Box::new(bound),
                             Box::new(Expression::generate_paren_grouping(args)),
                         );
@@ -2715,7 +2715,10 @@ impl BindingMap {
 
                 let f = self.value_to_expr(&fa.function, var_names, next_x, next_k, true)?;
                 let grouped_args = Expression::generate_paren_grouping(args);
-                Ok(Expression::Apply(Box::new(f), Box::new(grouped_args)))
+                Ok(Expression::Concatenation(
+                    Box::new(f),
+                    Box::new(grouped_args),
+                ))
             }
             AcornValue::Binary(op, left, right) => {
                 let left = self.value_to_expr(left, var_names, next_x, next_k, false)?;

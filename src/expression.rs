@@ -33,9 +33,9 @@ pub enum Expression {
     Binary(Box<Expression>, Token, Box<Expression>),
 
     // Expressions you get by placing two expressions next to each other.
-    // Typically the application of a function.
+    // This can either be the application of a function, or a type instantiation.
     // The second parameter can either be an argument list or a type parameter list.
-    Apply(Box<Expression>, Box<Expression>),
+    Concatenation(Box<Expression>, Box<Expression>),
 
     // A grouping like ( <expr> ) or < <expr> >.
     // The tokens that delimit the grouping are included.
@@ -99,7 +99,7 @@ impl fmt::Display for Expression {
                     left, left_spacer, token, right_spacer, right
                 )
             }
-            Expression::Apply(left, right) => {
+            Expression::Concatenation(left, right) => {
                 write!(f, "{}{}", left, right)
             }
             Expression::Grouping(left, e, right) => {
@@ -303,7 +303,7 @@ impl Expression {
             Expression::Singleton(token) => token,
             Expression::Unary(token, _) => token,
             Expression::Binary(left, _, _) => left.first_token(),
-            Expression::Apply(left, _) => left.first_token(),
+            Expression::Concatenation(left, _) => left.first_token(),
             Expression::Grouping(left_paren, _, _) => left_paren,
             Expression::Binder(token, _, _, _) => token,
             Expression::IfThenElse(token, _, _, _, _) => token,
@@ -316,7 +316,7 @@ impl Expression {
             Expression::Singleton(token) => token,
             Expression::Unary(_, subexpression) => subexpression.last_token(),
             Expression::Binary(_, _, right) => right.last_token(),
-            Expression::Apply(_, right) => right.last_token(),
+            Expression::Concatenation(_, right) => right.last_token(),
             Expression::Grouping(_, _, right_paren) => right_paren,
             Expression::Binder(_, _, _, right_brace) => right_brace,
             Expression::IfThenElse(_, _, _, _, right_brace) => right_brace,
@@ -355,8 +355,8 @@ impl Expression {
                 println!("  left: {}", left);
                 println!("  right: {}", right);
             }
-            Expression::Apply(left, right) => {
-                println!("Apply:");
+            Expression::Concatenation(left, right) => {
+                println!("Concatenation:");
                 println!("  left: {}", left);
                 println!("  right: {}", right);
             }
@@ -532,7 +532,7 @@ impl Expression {
                 }
             }
             Expression::Binary(_, token, _) => token.binary_precedence(),
-            Expression::Apply(..) => TokenType::Dot.binary_precedence(),
+            Expression::Concatenation(..) => TokenType::Dot.binary_precedence(),
         }
     }
 
@@ -636,7 +636,7 @@ impl Expression {
                 TokenType::Dot => right.could_be_part_of_type(),
                 _ => false,
             },
-            Expression::Apply(left, right) => {
+            Expression::Concatenation(left, right) => {
                 left.could_be_part_of_type() && right.could_be_part_of_type()
             }
             _ => false,
@@ -670,7 +670,7 @@ impl Expression {
                 TokenType::Comma | TokenType::RightArrow => left.is_type(),
                 _ => false,
             },
-            Expression::Apply(left, _) => left.is_type(),
+            Expression::Concatenation(left, _) => left.is_type(),
             Expression::Binder(..)
             | Expression::Unary(..)
             | Expression::Match(..)
@@ -694,8 +694,9 @@ enum PartialExpression {
     // Binary includes < and > which might be used for type parameters.
     Binary(Token),
 
-    // An implicit apply, like "f(x)". It's located between the f and the (x).
-    ImplicitApply(Token),
+    // An implicit binary expression, like "f(x)" or "List<Bool>".
+    // It's located between the f and the (x).
+    Implicit(Token),
 }
 
 impl fmt::Display for PartialExpression {
@@ -705,7 +706,7 @@ impl fmt::Display for PartialExpression {
             PartialExpression::Unary(token) | PartialExpression::Binary(token) => {
                 write!(f, "{}", token)
             }
-            PartialExpression::ImplicitApply(_) => write!(f, "<apply>"),
+            PartialExpression::Implicit(_) => write!(f, "<implicit>"),
         }
     }
 }
@@ -716,7 +717,7 @@ impl ErrorSource for PartialExpression {
             PartialExpression::Expression(e) => e.error(message),
             PartialExpression::Unary(t)
             | PartialExpression::Binary(t)
-            | PartialExpression::ImplicitApply(t) => t.error(message),
+            | PartialExpression::Implicit(t) => t.error(message),
         }
     }
 }
@@ -752,7 +753,7 @@ fn parse_partial_expressions(
                 ExpressionType::Type,
                 Terminator::Is(TokenType::GreaterThan),
             )?;
-            partials.push_back(PartialExpression::ImplicitApply(token.clone()));
+            partials.push_back(PartialExpression::Implicit(token.clone()));
             let group = Expression::Grouping(token, Box::new(subexpression), last_token);
             partials.push_back(PartialExpression::Expression(group));
             continue;
@@ -787,7 +788,7 @@ fn parse_partial_expressions(
                         false
                     }
                     Some(PartialExpression::Unary(_))
-                    | Some(PartialExpression::ImplicitApply(_))
+                    | Some(PartialExpression::Implicit(_))
                     | Some(PartialExpression::Binary(_))
                     | None => {
                         // All of these things can be followed by a unary operator.
@@ -816,7 +817,7 @@ fn parse_partial_expressions(
 
                 // A group that has no operator before it gets an implicit apply.
                 if matches!(partials.back(), Some(PartialExpression::Expression(_))) {
-                    partials.push_back(PartialExpression::ImplicitApply(token.clone()));
+                    partials.push_back(PartialExpression::Implicit(token.clone()));
                 }
 
                 let group = Expression::Grouping(token, Box::new(subexpression), last_token);
@@ -935,7 +936,7 @@ fn find_last_operator(partials: &VecDeque<PartialExpression>) -> Result<Option<u
                 }
             }
             PartialExpression::Binary(token) => Some((-token.binary_precedence(), i)),
-            PartialExpression::ImplicitApply(_) => {
+            PartialExpression::Implicit(_) => {
                 // Application has the same precedence as dot, so it goes left to right.
                 // This is intuitive if you look at the cases:
                 // foo.bar.baz is parsed as (foo.bar).baz
@@ -1037,10 +1038,10 @@ fn group_type_parameters(partials: &mut VecDeque<PartialExpression>) -> Result<(
                     Expression::Grouping(opening.clone(), Box::new(params), closing.clone());
 
                 // Reassemble the whole thing
-                partials.push_back(PartialExpression::ImplicitApply(opening));
+                partials.push_back(PartialExpression::Implicit(opening));
                 partials.push_back(PartialExpression::Expression(grouped));
                 if right.front().map_or(false, |p| p.is_grouping()) {
-                    partials.push_back(PartialExpression::ImplicitApply(closing));
+                    partials.push_back(PartialExpression::Implicit(closing));
                 }
                 partials.extend(right);
             }
@@ -1125,10 +1126,10 @@ fn combine_partial_expressions(
                 let right = combine_partial_expressions(right_partials, expected_type, source)?;
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
             }
-            PartialExpression::ImplicitApply(_) => {
+            PartialExpression::Implicit(_) => {
                 let left = combine_partial_expressions(partials, expected_type, source)?;
                 let right = combine_partial_expressions(right_partials, expected_type, source)?;
-                Ok(Expression::Apply(Box::new(left), Box::new(right)))
+                Ok(Expression::Concatenation(Box::new(left), Box::new(right)))
             }
             _ => Err(partial.error("expected binary operator")),
         };
@@ -1143,7 +1144,7 @@ fn combine_partial_expressions(
                 match partial {
                     PartialExpression::Expression(expr) => match expr {
                         Expression::Grouping(_, _, _) => {
-                            answer = Expression::Apply(Box::new(answer), Box::new(expr))
+                            answer = Expression::Concatenation(Box::new(answer), Box::new(expr))
                         }
                         _ => return Err(expr.error("expected a grouping")),
                     },
@@ -1193,10 +1194,10 @@ mod tests {
         }
     }
 
-    // Expects the input to be an application at the top level
-    fn expect_application(input: &str) {
+    // Expects the input to be a concatenation at the top level
+    fn expect_concatenation(input: &str) {
         let exp = Expression::expect_parse(input, ExpressionType::Value);
-        if let Expression::Apply(_, _) = exp {
+        if let Expression::Concatenation(_, _) = exp {
             // That's what we expect
             return;
         }
@@ -1331,13 +1332,13 @@ mod tests {
 
     #[test]
     fn test_dot_parsing_priority() {
-        expect_application("foo.bar(baz)");
+        expect_concatenation("foo.bar(baz)");
         expect_dot("foo(x).bar");
         expect_dot("foo(x).bar.baz");
         expect_dot("(foo).bar");
         expect_dot("(a + b).c");
         expect_dot("Foo.bar(baz).qux");
-        expect_application("foo(bar).baz(qux)");
+        expect_concatenation("foo(bar).baz(qux)");
     }
 
     #[test]
