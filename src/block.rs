@@ -158,10 +158,12 @@ impl Block {
                 let bound_goal = unbound_goal
                     .bind_values(0, 0, &internal_args)
                     .to_arbitrary();
+                // This is the goal we need to prove, therefore, it is not importable.
                 let source = Source::theorem(
                     false,
                     env.module_id,
                     theorem_range,
+                    false,
                     subenv.depth,
                     theorem_name.map(|s| s.to_string()),
                 );

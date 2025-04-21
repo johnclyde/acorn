@@ -582,6 +582,7 @@ impl Environment {
             already_proven,
             self.module_id,
             range,
+            true,
             self.depth,
             ts.name.clone(),
         );
@@ -1247,6 +1248,7 @@ impl Environment {
             true,
             self.module_id,
             range,
+            true,
             self.depth,
             Some(name.to_string()),
         );
@@ -1407,6 +1409,7 @@ impl Environment {
                 true,
                 self.module_id,
                 range,
+                true,
                 self.depth,
                 Some(condition_name.to_string()),
             );

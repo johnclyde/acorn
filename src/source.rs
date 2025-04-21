@@ -78,6 +78,7 @@ impl Source {
         axiomatic: bool,
         module: ModuleId,
         range: Range,
+        importable: bool,
         depth: u32,
         name: Option<String>,
     ) -> Source {
@@ -90,7 +91,7 @@ impl Source {
             module,
             range,
             source_type,
-            importable: true,
+            importable,
             depth,
         }
     }
