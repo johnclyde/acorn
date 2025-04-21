@@ -2129,31 +2129,31 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    // #[test]
-    // fn test_proving_with_parametrized_inductive() {
-    //     let text = r#"
-    //         inductive List<T> {
-    //             nil
-    //             cons(T, List<T>)
-    //         }
+    #[test]
+    fn test_proving_with_parametrized_inductive() {
+        let text = r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
 
-    //         define any(bs: List<Bool>) -> Bool {
-    //             match bs {
-    //                 List.nil {
-    //                     false
-    //                 }
-    //                 List.cons(b, bs) {
-    //                     b or any(bs)
-    //                 }
-    //             }
-    //         }
+            define any(bs: List<Bool>) -> Bool {
+                match bs {
+                    List.nil {
+                        false
+                    }
+                    List.cons(b, bs) {
+                        b or any(bs)
+                    }
+                }
+            }
 
-    //         theorem goal {
-    //             exists(bs: List<Bool>) {
-    //                 any(bs)
-    //             }
-    //         }
-    //     "#;
-    //     verify_succeeds(text);
-    // }
+            theorem goal {
+                exists(bs: List<Bool>) {
+                    any(bs)
+                }
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
