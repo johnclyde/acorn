@@ -1015,7 +1015,9 @@ impl BindingMap {
                 let bindings = self.get_bindings(project, name.module_id);
                 bindings.constant_info.get(&name.local_name).unwrap()
             }
-            None => return Err(source.error("invalid pattern")),
+            None => {
+                return Err(source.error("invalid pattern"));
+            }
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
@@ -1576,6 +1578,27 @@ impl BindingMap {
             .map_or(false, |set| set.contains(typeclass))
     }
 
+    /// If we have an expected type and this is still a potential value, resolve it.
+    fn maybe_resolve_value(
+        &self,
+        source: &dyn ErrorSource,
+        project: &Project,
+        potential: PotentialValue,
+        expected_type: Option<&AcornType>,
+    ) -> compilation::Result<PotentialValue> {
+        let expected_type = match expected_type {
+            Some(t) => t,
+            None => return Ok(potential),
+        };
+        let uc = match potential {
+            PotentialValue::Unresolved(uc) => uc,
+            p => return Ok(p),
+        };
+        let value =
+            self.resolve_with_inference(source, project, uc, vec![], Some(expected_type))?;
+        Ok(PotentialValue::Resolved(value))
+    }
+
     /// Infer the type of an unresolved constant, based on its arguments (if it is a function)
     /// and the expected type.
     /// Returns a value that applies the function to the arguments.
@@ -1611,7 +1634,7 @@ impl BindingMap {
                         &mut mapping,
                     ) {
                         return Err(source.error(&format!(
-                            "for argument {}, expected type {:?}, but got {:?}",
+                            "for argument {}, could not instantiate {:?} to get {:?}",
                             i,
                             arg_type,
                             arg.get_type()
@@ -1636,8 +1659,8 @@ impl BindingMap {
                 &mut mapping,
             ) {
                 return Err(source.error(&format!(
-                    "expected type {:?}, but got {:?}",
-                    target_type, unresolved_return_type
+                    "could not instantiate {:?} to get {:?}",
+                    unresolved_return_type, target_type
                 )));
             }
         }
@@ -1776,7 +1799,13 @@ impl BindingMap {
                             return Err(token.error("expected a value"));
                         }
                         NamedEntity::UnresolvedValue(u) => {
-                            return Ok(PotentialValue::Unresolved(u));
+                            let potential = PotentialValue::Unresolved(u);
+                            return self.maybe_resolve_value(
+                                token,
+                                project,
+                                potential,
+                                expected_type,
+                            );
                         }
                     }
                 }
@@ -1903,7 +1932,8 @@ impl BindingMap {
                 }
                 TokenType::Dot => {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
-                    return entity.expect_potential_value(expected_type, expression);
+                    let potential = entity.expect_potential_value(expected_type, expression)?;
+                    return self.maybe_resolve_value(token, project, potential, expected_type);
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => self.evaluate_infix(
