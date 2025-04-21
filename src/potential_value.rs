@@ -30,9 +30,6 @@ impl PotentialValue {
     pub fn as_value(self, source: &dyn ErrorSource) -> compilation::Result<AcornValue> {
         match self {
             PotentialValue::Unresolved(u) => {
-                // if true {
-                //     panic!("XXX value {} has unresolved type", u.name.local_name);
-                // }
                 Err(source.error(&format!("value {} has unresolved type", u.name.local_name)))
             }
             PotentialValue::Resolved(c) => Ok(c),

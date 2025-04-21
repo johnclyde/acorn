@@ -1051,7 +1051,24 @@ impl BindingMap {
                 return Ok((constructor, vec![], i, total));
             }
         };
-        let constructor = self.evaluate_value(project, fn_exp, None)?;
+        let potential_constructor =
+            self.evaluate_potential_value(&mut Stack::new(), project, fn_exp, None)?;
+        let constructor = match potential_constructor {
+            PotentialValue::Resolved(v) => v,
+            PotentialValue::Unresolved(uc) => {
+                if let AcornType::Data(class, params) = expected_type {
+                    if !uc.name.is_attribute_of(&class) {
+                        return Err(pattern.error(&format!(
+                            "pattern {} is not an attribute of {}",
+                            &uc.name.local_name, class.name
+                        )));
+                    }
+                    uc.resolve(pattern, params.clone())?
+                } else {
+                    return Err(pattern.error("unmatchable datatype?"));
+                }
+            }
+        };
         let (i, total) = self.expect_constructor(project, expected_type, &constructor, pattern)?;
         let arg_types = match constructor.get_type() {
             AcornType::Function(f) => {
@@ -1599,6 +1616,30 @@ impl BindingMap {
         Ok(PotentialValue::Resolved(value))
     }
 
+    /// Tries to match a generic type to a specific type, mapping the type variables.
+    /// If it doesn't work, returns an error.
+    /// If it does work, populates the mapping with the type variables.
+    fn match_instance(
+        &self,
+        project: &Project,
+        source: &dyn ErrorSource,
+        generic: &AcornType,
+        specific: &AcornType,
+        mapping: &mut HashMap<String, AcornType>,
+    ) -> compilation::Result<()> {
+        if !generic.match_instance(
+            &specific,
+            &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
+            mapping,
+        ) {
+            return Err(source.error(&format!(
+                "could not instantiate {:?} to get {:?}",
+                generic, specific
+            )));
+        }
+        Ok(())
+    }
+
     /// Infer the type of an unresolved constant, based on its arguments (if it is a function)
     /// and the expected type.
     /// Returns a value that applies the function to the arguments.
@@ -1638,18 +1679,7 @@ impl BindingMap {
                         )));
                     }
                 };
-                if !arg_type.match_instance(
-                    &arg.get_type(),
-                    &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
-                    &mut mapping,
-                ) {
-                    return Err(source.error(&format!(
-                        "for argument {}, could not instantiate {:?} to get {:?}",
-                        i,
-                        arg_type,
-                        arg.get_type()
-                    )));
-                }
+                self.match_instance(project, source, arg_type, &arg.get_type(), &mut mapping)?;
             }
 
             unresolved_function_type.applied_type(args.len())
@@ -1659,16 +1689,13 @@ impl BindingMap {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            if !unresolved_return_type.match_instance(
+            self.match_instance(
+                project,
+                source,
+                &unresolved_return_type,
                 target_type,
-                &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
                 &mut mapping,
-            ) {
-                return Err(source.error(&format!(
-                    "could not instantiate {:?} to get {:?}",
-                    unresolved_return_type, target_type
-                )));
-            }
+            )?;
         }
 
         // Determine the parameters for the instance

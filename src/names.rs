@@ -58,6 +58,13 @@ impl LocalName {
             LocalName::Attribute(class, attr) => Some(vec![class, attr]),
         }
     }
+
+    pub fn is_attribute_of(&self, receiver: &str) -> bool {
+        match self {
+            LocalName::Unqualified(_) => false,
+            LocalName::Attribute(r, _) => r == receiver,
+        }
+    }
 }
 
 /// An instance name is something like Ring.add<Int>.
@@ -188,5 +195,9 @@ impl GlobalName {
             }
         }
         None
+    }
+
+    pub fn is_attribute_of(&self, class: &Class) -> bool {
+        self.module_id == class.module_id && self.local_name.is_attribute_of(&class.name)
     }
 }
