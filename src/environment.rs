@@ -1005,7 +1005,8 @@ impl Environment {
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let potential_type = self.bindings.add_potential_type(&is.name, typeclasses);
-        let inductive_type = potential_type.resolve(arbitrary_params, &is.name_token)?;
+        let arb_inductive_type = potential_type.resolve(arbitrary_params, &is.name_token)?;
+        let gen_inductive_type = arb_inductive_type.genericize(&type_params);
 
         // Parse (member name, list of arg types) for each constructor.
         let mut constructors = vec![];
@@ -1020,7 +1021,7 @@ impl Environment {
                 }
                 None => vec![],
             };
-            if !type_list.contains(&inductive_type) {
+            if !type_list.contains(&arb_inductive_type) {
                 // This provides a base case
                 has_base = true;
             }
@@ -1035,13 +1036,15 @@ impl Environment {
         let mut constructor_fns = vec![];
         let total = constructors.len();
         for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
-            let constructor_type = AcornType::functional(type_list.clone(), inductive_type.clone());
+            let arb_constructor_type =
+                AcornType::functional(type_list.clone(), arb_inductive_type.clone());
+            let gen_constructor_type = arb_constructor_type.genericize(&type_params);
             let potential = self.bindings.add_local_constant(
                 constructor_name.clone(),
-                vec![],
-                constructor_type,
+                type_params.clone(),
+                gen_constructor_type,
                 None,
-                Some((inductive_type.clone(), i, total)),
+                Some((gen_inductive_type.clone(), i, total)),
             );
             constructor_fns.push(potential.force_value());
         }
@@ -1096,13 +1099,13 @@ impl Environment {
                 .map(|(k, t)| AcornValue::Variable((k + 1) as AtomId, t.clone()))
                 .collect();
             let app = AcornValue::apply(constructor_fn.clone(), args);
-            let var = AcornValue::Variable(0, inductive_type.clone());
+            let var = AcornValue::Variable(0, arb_inductive_type.clone());
             let equality = AcornValue::equals(var, app);
             let exists = AcornValue::exists(arg_types.clone(), equality);
             disjuncts.push(exists);
         }
         let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-        let claim = AcornValue::forall(vec![inductive_type.clone()], disjunction);
+        let claim = AcornValue::forall(vec![arb_inductive_type.clone()], disjunction);
         // There is no "new" for this type, but it's kind of thematically appropriate.
         let source = Source::type_definition(
             self.module_id,
@@ -1164,7 +1167,7 @@ impl Environment {
 
         // Structural induction.
         // The type for the inductive hypothesis.
-        let hyp_type = AcornType::functional(vec![inductive_type.clone()], AcornType::Bool);
+        let hyp_type = AcornType::functional(vec![arb_inductive_type.clone()], AcornType::Bool);
         // x0 represents the inductive hypothesis.
         // Think of the inductive principle as (conjunction) -> (conclusion).
         // The conjunction is a case for each constructor.
@@ -1179,7 +1182,7 @@ impl Environment {
                 // constructor arguments.
                 let id = (j + 1) as AtomId;
                 args.push(AcornValue::Variable(id, arg_type.clone()));
-                if arg_type == &inductive_type {
+                if arg_type == &arb_inductive_type {
                     // The inductive case for this constructor includes a condition
                     // that the inductive hypothesis holds for this argument.
                     conditions.push(AcornValue::apply(
@@ -1211,10 +1214,10 @@ impl Environment {
         }
         let conjunction = AcornValue::reduce(BinaryOp::And, conjuncts);
         let conclusion = AcornValue::forall(
-            vec![inductive_type.clone()],
+            vec![arb_inductive_type.clone()],
             AcornValue::apply(
                 AcornValue::Variable(0, hyp_type.clone()),
-                vec![AcornValue::Variable(1, inductive_type.clone())],
+                vec![AcornValue::Variable(1, arb_inductive_type.clone())],
             ),
         );
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
