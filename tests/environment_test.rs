@@ -3081,4 +3081,19 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }"#,
         );
     }
+
+    #[test]
+    fn test_env_infer_type_of_let_constant() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            let empty: List<Bool> = List.nil
+        "#,
+        );
+    }
 }
