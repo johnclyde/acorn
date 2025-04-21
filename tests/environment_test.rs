@@ -3015,5 +3015,6 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             let one_true: List<Bool> = List.cons(true, List.nil<Bool>)
             "#,
         );
+        env.bad("define foo(x: T) -> Bool { true }");
     }
 }
