@@ -2100,8 +2100,12 @@ impl BindingMap {
                     if total == indices.len() {
                         all_cases = true;
                     }
-                    let pattern =
-                        self.evaluate_value_with_stack(stack, project, pattern_exp, None)?;
+                    let pattern = self.evaluate_value_with_stack(
+                        stack,
+                        project,
+                        pattern_exp,
+                        Some(&scrutinee_type),
+                    )?;
                     let result = self.evaluate_value_with_stack(
                         stack,
                         project,
