@@ -1615,40 +1615,46 @@ impl BindingMap {
         let mut mapping = HashMap::new();
 
         // Use the arguments to infer types
-        let unresolved_return_type = match &unresolved.generic_type {
-            AcornType::Function(unresolved_function_type) => {
-                if unresolved_function_type.has_arbitrary() {
-                    return Err(source.error("unresolved function type has arbitrary"));
-                }
+        let unresolved_return_type = if args.is_empty() {
+            unresolved.generic_type.clone()
+        } else if let AcornType::Function(unresolved_function_type) = &unresolved.generic_type {
+            if unresolved_function_type.has_arbitrary() {
+                return Err(source.error("unresolved function type has arbitrary"));
+            }
 
-                for (i, arg) in args.iter().enumerate() {
-                    if arg.has_generic() {
-                        return Err(
-                            source.error(&format!("argument {} ({}) has unresolved type", i, arg))
-                        );
-                    }
-                    let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
-                    if !arg_type.match_instance(
-                        &arg.get_type(),
-                        &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
-                        &mut mapping,
-                    ) {
+            for (i, arg) in args.iter().enumerate() {
+                if arg.has_generic() {
+                    return Err(
+                        source.error(&format!("argument {} ({}) has unresolved type", i, arg))
+                    );
+                }
+                let arg_type: &AcornType = match &unresolved_function_type.arg_types.get(i) {
+                    Some(t) => t,
+                    None => {
                         return Err(source.error(&format!(
-                            "for argument {}, could not instantiate {:?} to get {:?}",
-                            i,
-                            arg_type,
-                            arg.get_type()
+                            "expected {} arguments but got {}",
+                            unresolved_function_type.arg_types.len(),
+                            args.len()
                         )));
                     }
+                };
+                if !arg_type.match_instance(
+                    &arg.get_type(),
+                    &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
+                    &mut mapping,
+                ) {
+                    return Err(source.error(&format!(
+                        "for argument {}, could not instantiate {:?} to get {:?}",
+                        i,
+                        arg_type,
+                        arg.get_type()
+                    )));
                 }
-                &unresolved_function_type.return_type
             }
-            t => {
-                if !args.is_empty() {
-                    return Err(source.error("expected a function type"));
-                }
-                t
-            }
+
+            unresolved_function_type.applied_type(args.len())
+        } else {
+            return Err(source.error("expected a function type"));
         };
 
         if let Some(target_type) = expected_return_type {

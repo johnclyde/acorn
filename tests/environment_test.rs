@@ -3018,6 +3018,24 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         env.bad("define foo(x: T) -> Bool { true }");
     }
 
+    #[test]
+    fn test_env_compose_type_inference() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            define compose<T, U, V>(f: U -> V, g: T -> U) -> T -> V {
+                function(t: T) {
+                    f(g(t))
+                }
+            }
+
+            type Nat: axiom
+            let f: Nat -> Nat = axiom
+            let g: Nat -> Nat = compose(f, f)
+        "#,
+        );
+    }
+
     // #[test]
     // fn test_env_match_on_parametrized_inductive() {
     //     let mut env = Environment::test();
