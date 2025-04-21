@@ -3059,26 +3059,26 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         );
     }
 
-    // #[test]
-    // fn test_env_match_on_explicit_parametrized_inductive() {
-    //     let mut env = Environment::test();
-    //     env.add(
-    //         r#"
-    //         inductive List<T> {
-    //             nil
-    //             cons(T, List<T>)
-    //         }
+    #[test]
+    fn test_env_match_on_explicit_parametrized_inductive() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
 
-    //         define any(bs: List<Bool>) -> Bool {
-    //             match bs {
-    //                 List.nil<Bool> {
-    //                     false
-    //                 }
-    //                 List.cons<Bool>(b, bs) {
-    //                     b or any(bs)
-    //                 }
-    //             }
-    //         }"#,
-    //     );
-    // }
+            define any(bs: List<Bool>) -> Bool {
+                match bs {
+                    List.nil<Bool> {
+                        false
+                    }
+                    List.cons<Bool>(b, bs) {
+                        b or any(bs)
+                    }
+                }
+            }"#,
+        );
+    }
 }

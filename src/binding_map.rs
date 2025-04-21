@@ -1042,9 +1042,9 @@ impl BindingMap {
         pattern: &Expression,
     ) -> compilation::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
         let (fn_exp, args) = match pattern {
-            Expression::Concatenation(function, args) => (function, args),
+            Expression::Concatenation(function, args) if !args.is_type() => (function, args),
             _ => {
-                // This could be a no-argument constructor.
+                // This can only be a no-argument constructor.
                 let constructor = self.evaluate_value(project, pattern, Some(expected_type))?;
                 let (i, total) =
                     self.expect_constructor(project, expected_type, &constructor, pattern)?;
