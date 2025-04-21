@@ -1563,7 +1563,7 @@ impl BindingMap {
                 value
             }
             PotentialValue::Unresolved(u) => {
-                self.resolve_function(source, project, u, args, expected_type)?
+                self.resolve_with_inference(source, project, u, args, expected_type)?
             }
         };
         Ok(value)
@@ -1576,47 +1576,73 @@ impl BindingMap {
             .map_or(false, |set| set.contains(typeclass))
     }
 
-    /// Determine the type of an unresolved function, based on its resolved arguments.
-    fn resolve_function(
+    /// Infer the type of an unresolved constant, based on its arguments (if it is a function)
+    /// and the expected type.
+    /// Returns a value that applies the function to the arguments.
+    /// If the type cannot be inferred, returns an error.
+    fn resolve_with_inference(
         &self,
         source: &dyn ErrorSource,
         project: &Project,
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
-        expected_type: Option<&AcornType>,
+        expected_return_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
-        let unresolved_function_type = match &unresolved.generic_type {
-            AcornType::Function(f) => f,
-            _ => {
-                return Err(source.error("expected a function"));
-            }
-        };
-        if unresolved_function_type.has_arbitrary() {
-            return Err(source.error("unresolved function type has arbitrary"));
-        }
-
         // Do type inference. Mapping is where the generic types go.
         let mut mapping = HashMap::new();
-        for (i, arg) in args.iter().enumerate() {
-            if arg.has_generic() {
-                return Err(source.error(&format!("argument {} ({}) has unresolved type", i, arg)));
+
+        // Use the arguments to infer types
+        let unresolved_return_type = match &unresolved.generic_type {
+            AcornType::Function(unresolved_function_type) => {
+                if unresolved_function_type.has_arbitrary() {
+                    return Err(source.error("unresolved function type has arbitrary"));
+                }
+
+                for (i, arg) in args.iter().enumerate() {
+                    if arg.has_generic() {
+                        return Err(
+                            source.error(&format!("argument {} ({}) has unresolved type", i, arg))
+                        );
+                    }
+                    let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
+                    if !arg_type.match_instance(
+                        &arg.get_type(),
+                        &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
+                        &mut mapping,
+                    ) {
+                        return Err(source.error(&format!(
+                            "for argument {}, expected type {:?}, but got {:?}",
+                            i,
+                            arg_type,
+                            arg.get_type()
+                        )));
+                    }
+                }
+                &unresolved_function_type.return_type
             }
-            let arg_type: &AcornType = &unresolved_function_type.arg_types[i];
-            if !arg_type.match_instance(
-                &arg.get_type(),
+            t => {
+                if !args.is_empty() {
+                    return Err(source.error("expected a function type"));
+                }
+                t
+            }
+        };
+
+        if let Some(target_type) = expected_return_type {
+            // Use the expected type to infer types
+            if !unresolved_return_type.match_instance(
+                target_type,
                 &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
                 &mut mapping,
             ) {
                 return Err(source.error(&format!(
-                    "for argument {}, expected type {:?}, but got {:?}",
-                    i,
-                    arg_type,
-                    arg.get_type()
+                    "expected type {:?}, but got {:?}",
+                    target_type, unresolved_return_type
                 )));
             }
         }
 
-        // Determine the parameters for the instance function
+        // Determine the parameters for the instance
         let mut named_params = vec![];
         let mut instance_params = vec![];
         for param in &unresolved.params {
@@ -1633,10 +1659,10 @@ impl BindingMap {
             }
         }
 
+        // Resolve
         let instance_fn = unresolved.resolve(source, instance_params)?;
-
         let value = AcornValue::apply(instance_fn, args);
-        value.check_type(source, expected_type)?;
+        value.check_type(source, expected_return_type)?;
         Ok(value)
     }
 
@@ -1657,7 +1683,7 @@ impl BindingMap {
             args.push(arg);
         }
 
-        self.resolve_function(source, project, unresolved, args, expected_type)
+        self.resolve_with_inference(source, project, unresolved, args, expected_type)
     }
 
     /// This creates a version of a typeclass condition that is specialized to a particular
