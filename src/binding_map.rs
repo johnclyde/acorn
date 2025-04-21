@@ -1043,7 +1043,7 @@ impl BindingMap {
             Expression::Apply(function, args) => (function, args),
             _ => {
                 // This could be a no-argument constructor.
-                let constructor = self.evaluate_value(project, pattern, None)?;
+                let constructor = self.evaluate_value(project, pattern, Some(expected_type))?;
                 let (i, total) =
                     self.expect_constructor(project, expected_type, &constructor, pattern)?;
                 return Ok((constructor, vec![], i, total));
