@@ -69,9 +69,18 @@ mod prover_test {
             LoadState::Error(e) => panic!("error: {}", e),
             _ => panic!("no module"),
         };
-        for node in env.iter_goals() {
-            let facts = node.usable_facts(&project);
-            let goal_context = node.goal_context().unwrap();
+        for cursor in env.iter_goals() {
+            let facts = cursor.usable_facts(&project);
+            let goal_context = cursor.goal_context().unwrap();
+            if cursor.node().importable() {
+                if cursor.node().block_name().is_none() {
+                    panic!(
+                        "goal {} (prop: {:?}) has no block name",
+                        goal_context.description,
+                        cursor.node().proposition()
+                    );
+                }
+            }
             println!("proving: {}", goal_context.description);
             let mut prover = Prover::new(&project, false);
             for fact in facts {

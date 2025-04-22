@@ -417,6 +417,14 @@ impl Node {
         }
     }
 
+    pub fn first_line(&self) -> u32 {
+        match self {
+            Node::Structural(f) => f.source().range.start.line,
+            Node::Claim(p) => p.source.range.start.line,
+            Node::Block(block, _) => block.env.first_line,
+        }
+    }
+
     pub fn last_line(&self) -> u32 {
         match self {
             Node::Structural(f) => f.source().range.end.line,
@@ -433,7 +441,7 @@ impl Node {
     }
 
     // The source of this node, if there is one.
-    fn source(&self) -> Option<&Source> {
+    pub fn source(&self) -> Option<&Source> {
         match self {
             Node::Structural(f) => Some(f.source()),
             Node::Claim(p) => Some(&p.source),
@@ -443,7 +451,7 @@ impl Node {
     }
 
     // The proposition at this node, if there is one.
-    fn proposition(&self) -> Option<&Proposition> {
+    pub fn proposition(&self) -> Option<&Proposition> {
         match self {
             Node::Structural(Fact::Proposition(p)) => Some(p),
             Node::Claim(p) => Some(p),
@@ -454,12 +462,16 @@ impl Node {
 
     // The block name is used to describe the block when caching block -> premise dependencies.
     pub fn block_name(&self) -> Option<String> {
-        match &self.proposition()?.source.source_type {
-            SourceType::Theorem(name) => name.clone(),
+        match &self.source()?.source_type {
+            SourceType::Theorem(name) => match name {
+                Some(name) => Some(name.clone()),
+                None => Some(self.first_line().to_string()),
+            },
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::TypeDefinition(type_name, suffix) => {
                 Some(format!("{}.{}", type_name, suffix))
             }
+            SourceType::Instance(c, tc) => Some(format!("{}.{}", c, tc)),
             _ => None,
         }
     }
