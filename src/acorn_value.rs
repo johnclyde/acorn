@@ -136,10 +136,29 @@ impl ConstantInstance {
 
     /// Change the arbitrary types in this list of parameters to generic ones.
     pub fn genericize(&self, params: &[TypeParam]) -> ConstantInstance {
+        let instance_type = self.instance_type.genericize(params);
+        let params = if instance_type.has_generic() && self.params.is_empty() {
+            // This constant is defined in terms of the arbitrary type, but now we are
+            // genericizing it.
+            // The only situation I can think of where this happens is when we define
+            // a generic function recursively. The recursive reference uses arbitrary types,
+            // but the function itself should be generic after genericizing.
+            // Thus, to handle this case correctly, we add on the parameters.
+            // In particular, the parameters need to be in the same order as they were in the
+            // function definition, here. If you run into this comment later while trying to make
+            // the parameters unordered, you've now run into a tricky bit.
+            params
+                .iter()
+                .map(|param| AcornType::Variable(param.clone()))
+                .collect()
+        } else {
+            // Just genericize what we started with, same as usual
+            self.params.iter().map(|t| t.genericize(params)).collect()
+        };
         ConstantInstance {
             name: self.name.clone(),
-            params: self.params.iter().map(|t| t.genericize(params)).collect(),
-            instance_type: self.instance_type.genericize(params),
+            params,
+            instance_type,
         }
     }
 
