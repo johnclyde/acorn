@@ -3096,4 +3096,34 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_recursive_list_contains() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            class List<T> {
+                define contains(self, item: T) -> Bool {
+                    match self {
+                        List.nil {
+                            false
+                        }
+                        List.cons(head, tail) {
+                            if head = item {
+                                true
+                            } else {
+                                tail.contains(item)
+                            }
+                        }
+                    }
+                }
+            }
+        "#,
+        );
+    }
 }
