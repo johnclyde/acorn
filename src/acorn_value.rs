@@ -1206,7 +1206,14 @@ impl AcornValue {
             AcornValue::Lambda(args, value) => {
                 AcornValue::Lambda(args, Box::new(value.replace_if()))
             }
-            _ => self,
+            AcornValue::Variable(_, _) | AcornValue::Constant(_) | AcornValue::Bool(_) => self,
+            AcornValue::Match(scrutinee, cases) => {
+                let new_cases = cases
+                    .into_iter()
+                    .map(|(new_vars, pattern, result)| (new_vars, pattern, result.replace_if()))
+                    .collect();
+                AcornValue::Match(scrutinee, new_cases)
+            }
         }
     }
 

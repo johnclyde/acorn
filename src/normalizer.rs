@@ -155,10 +155,7 @@ impl Normalizer {
             | AcornValue::Constant(_) => value,
 
             _ => {
-                return Err(format!(
-                    "moving negation inwards should have eliminated this node: {}",
-                    value
-                ));
+                return Err(format!("failed to normalize value: {}", value));
             }
         })
     }
