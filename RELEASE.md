@@ -27,7 +27,17 @@ When we create a new release, we release a new language server, and then a new V
 
 All commands are run from `~/acorn`.
 
-1. Bump the version using the `version.py` tool. Or you can set it manually for bigger version changes.
+1. Before you release, consider whether you also want to update the build-in copy of acornlib. If you do:
+
+   ```
+   cd vscode/extension/acornlib
+   git pull
+   cd ../../...
+   ```
+
+   Then check in the updated submodule reference and merge it upstream.
+
+2. Bump the version using the `version.py` tool. Or you can set it manually for bigger version changes.
 
    ```bash
    ./python/version.py bump
@@ -35,13 +45,13 @@ All commands are run from `~/acorn`.
 
    Commit all changes and merge them upstream with `git push upstream master`.
 
-2. Do the cross-platform build.
+3. Do the cross-platform build.
 
    ```bash
    ./crossbuild.sh
    ```
 
-3. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
+4. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
 
    ```bash
    ./python/tag.py
@@ -59,9 +69,9 @@ All commands are run from `~/acorn`.
    Check that the [GitHub Action](https://github.com/acornprover/acorn/actions) succeeds.
    It might take 7-8 minutes. At the end of it, a GitHub release should be created automatically.
 
-4. Edit the release description [here](https://github.com/acornprover/acorn/releases).
+5. Edit the release description [here](https://github.com/acornprover/acorn/releases).
 
-5. Upload the Linux and Mac language server binaries to GitHub
+6. Upload the Linux and Mac language server binaries to GitHub
 
    ```bash
    ./upload.sh
@@ -80,10 +90,11 @@ All commands are run from `~/acorn`.
    code --install-extension acorn-<version>.vsix
    ```
 
-6. Publish the extension to the Visual Studio Marketplace.
+7. Publish the extension to the Visual Studio Marketplace.
 
    From the acorn/vscode/extension directory, after uploading:
 
    ```bash
+   cd vscode/extension
    vsce publish
    ```
