@@ -42,5 +42,5 @@ jobs:
       - name: Run Verify on acornlib
         run: |
           cd vscode/extension/acornlib
-          time ~/acorn/target/release/verify
-          time ~/acorn/target/release/verify --filtered .
+          time ../../../target/release/verify
+          time ../../../target/release/verify --filtered .
