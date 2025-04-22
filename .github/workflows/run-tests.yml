@@ -1,0 +1,45 @@
+name: Run Tests (Linux)
+# This runs Rust unit tests on Linux when a new tag is pushed
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache Cargo Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Run Tests
+        run: cargo test
+
+      - name: Build Verify Binary
+        run: cargo build --release --bin=verify
+
+      - name: Run Verify on acornlib
+        run: |
+          cd vscode/extension/acornlib
+          time ~/acorn/target/release/verify
+          time ~/acorn/target/release/verify --filtered .
