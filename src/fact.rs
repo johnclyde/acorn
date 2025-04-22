@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::names::GlobalName;
@@ -18,6 +20,18 @@ pub enum Fact {
     /// The tuple is the name of the constant, the definition, and the source.
     /// Can be generic or not, depending on the potential value.
     Definition(PotentialValue, AcornValue, Source),
+}
+
+impl fmt::Display for Fact {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Fact::Proposition(p) => write!(f, "prop: {}", p),
+            Fact::Instance(class, typeclass, _) => {
+                write!(f, "{} is an instance of {}", class.name, typeclass.name)
+            }
+            Fact::Definition(name, _, _) => write!(f, "definition: {:?}", name),
+        }
+    }
 }
 
 impl Fact {

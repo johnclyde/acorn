@@ -367,6 +367,17 @@ pub enum Node {
     Block(Block, Option<Fact>),
 }
 
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Node::Structural(fact) => write!(f, "structural: {}", fact),
+            Node::Claim(prop) => write!(f, "claim: {}", prop),
+            Node::Block(_, Some(fact)) => write!(f, "block: {}", fact),
+            Node::Block(_, None) => write!(f, "block: None"),
+        }
+    }
+}
+
 impl Node {
     pub fn structural(project: &Project, env: &Environment, prop: Proposition) -> Node {
         let prop = env.bindings.expand_theorems(project, prop);
