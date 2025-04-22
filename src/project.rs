@@ -377,9 +377,9 @@ impl Project {
     fn load_premises(
         &self,
         module_cache: &Option<ModuleCache>,
-        theorem: &Option<String>,
+        block_name: &str,
     ) -> Option<HashMap<ModuleId, HashSet<String>>> {
-        let normalized = module_cache.as_ref()?.blocks.get(theorem.as_ref()?)?;
+        let normalized = module_cache.as_ref()?.blocks.get(block_name)?;
         let mut answer = HashMap::new();
         for (module_name, premises) in normalized.iter() {
             // A module could have been renamed, in which case the whole cache is borked.
@@ -482,12 +482,14 @@ impl Project {
                 {
                     // We don't need to verify this, we can just treat it as verified due to the hash.
                     builder.log_proving_cache_hit(&mut cursor);
-                    if let (Some(bn), Some(old_mc)) = (block_name, &old_module_cache) {
+                    if let Some(old_mc) = &old_module_cache {
                         // We skipped the proof of this theorem.
                         // But we still might want its premises cached.
                         // So we copy them over from the old module cache.
-                        if let Some(old_block_cache) = old_mc.blocks.get(&bn) {
-                            new_module_cache.blocks.insert(bn, old_block_cache.clone());
+                        if let Some(old_block_cache) = old_mc.blocks.get(&block_name) {
+                            new_module_cache
+                                .blocks
+                                .insert(block_name, old_block_cache.clone());
                         }
                     }
                 } else {
@@ -514,12 +516,10 @@ impl Project {
                         return;
                     }
 
-                    if let Some(block_name) = block_name {
-                        new_module_cache.blocks.insert(
-                            block_name.clone(),
-                            self.normalize_premises(env.module_id, &block_name, &new_premises),
-                        );
-                    }
+                    new_module_cache.blocks.insert(
+                        block_name.clone(),
+                        self.normalize_premises(env.module_id, &block_name, &new_premises),
+                    );
                 }
             }
             if !cursor.has_next() {

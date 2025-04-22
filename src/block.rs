@@ -472,11 +472,12 @@ impl Node {
     }
 
     // The block name is used to describe the block when caching block -> premise dependencies.
-    pub fn block_name(&self) -> Option<String> {
+    // good_block_name finds whether we have a comprehensible name.
+    fn good_block_name(&self) -> Option<String> {
         match &self.source()?.source_type {
             SourceType::Theorem(name) => match name {
                 Some(name) => Some(name.clone()),
-                None => Some(self.first_line().to_string()),
+                None => None,
             },
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
             SourceType::TypeDefinition(type_name, suffix) => {
@@ -484,6 +485,14 @@ impl Node {
             }
             SourceType::Instance(c, tc) => Some(format!("{}.{}", c, tc)),
             _ => None,
+        }
+    }
+
+    // block_name falls back to the line number if there is no good block name.
+    pub fn block_name(&self) -> String {
+        match self.good_block_name() {
+            Some(s) => s,
+            None => self.first_line().to_string(),
         }
     }
 
