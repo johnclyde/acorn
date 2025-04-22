@@ -94,4 +94,9 @@ async fn main() {
     if let Some(dataset) = builder.dataset {
         dataset.save();
     }
+
+    if args.filtered && builder.searches_full > 0 {
+        println!("\nWarning: the filtered prover was not able to handle all goals.");
+        std::process::exit(1);
+    }
 }
