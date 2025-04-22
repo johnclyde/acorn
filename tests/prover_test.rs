@@ -2156,4 +2156,36 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_using_list_contains() {
+        let text = r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            class List<T> {
+                define contains(self, item: T) -> Bool {
+                    match self {
+                        List.nil {
+                            false
+                        }
+                        List.cons(head, tail) {
+                            if head = item {
+                                true
+                            } else {
+                                tail.contains(item)
+                            }
+                        }
+                    }
+                }
+            }
+
+            theorem tail_contains_imp_contains<T>(head: T, tail: List<T>, item: T) {
+                tail.contains(item) implies List.cons(head, tail).contains(item)
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }

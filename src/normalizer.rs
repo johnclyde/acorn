@@ -156,7 +156,7 @@ impl Normalizer {
 
             _ => {
                 return Err(format!(
-                    "moving negation inwards should have eliminated this node: {:?}",
+                    "moving negation inwards should have eliminated this node: {}",
                     value
                 ));
             }
