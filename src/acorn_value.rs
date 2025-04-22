@@ -1645,16 +1645,16 @@ impl AcornValue {
             ),
             AcornValue::Match(scrutinee, cases) => {
                 let new_scrutinee = scrutinee.genericize(params);
-                let new_cases = cases
-                    .iter()
-                    .map(|(new_vars, pattern, result)| {
-                        (
-                            new_vars.clone(),
-                            pattern.genericize(params),
-                            result.genericize(params),
-                        )
-                    })
-                    .collect();
+                let mut new_cases = vec![];
+                for (vars, pattern, result) in cases {
+                    let new_vars = vars
+                        .iter()
+                        .map(|t| t.genericize(params))
+                        .collect::<Vec<_>>();
+                    let new_pattern = pattern.genericize(params);
+                    let new_result = result.genericize(params);
+                    new_cases.push((new_vars, new_pattern, new_result));
+                }
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
             AcornValue::Not(x) => AcornValue::Not(Box::new(x.genericize(params))),
