@@ -2203,16 +2203,15 @@ mod prover_test {
     }
 
     #[test]
-    fn test_proving_with_list_singleton() {
+    fn test_proving_with_generic_let_attribute() {
         let text = r#"
-            inductive List<T> {
-                nil
-                cons(T, List<T>)
+            structure Box<T> {
+                item: T
             }
 
-            class List<T> {
-                let singleton: T -> List<T> = function(x: T) {
-                    List.cons(x, List.nil<T>)
+            class Box<T> {
+                let const_false: T -> Bool = function(x: T) {
+                    false
                 }
             }
 
