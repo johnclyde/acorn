@@ -3137,7 +3137,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             }
 
             structure Foo<T> {
-                unused: Bool
+                unused: T
             } constraint {
                 exists(box: Box<T>, x: T) {
                     box.item = x
