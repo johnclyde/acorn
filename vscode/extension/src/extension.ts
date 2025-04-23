@@ -11,6 +11,7 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
+  State,
 } from "vscode-languageclient/node";
 
 import { Assistant } from "./assistant";
@@ -380,6 +381,19 @@ export async function activate(context: vscode.ExtensionContext) {
       },
       closed: () => {
         console.warn("Language server process closed.");
+
+        // Show error message with option to view logs
+        vscode.window
+          .showErrorMessage(
+            "The Acorn language server crashed. Please report this bug to the developer!",
+            "View Logs"
+          )
+          .then((selection) => {
+            if (selection === "View Logs") {
+              client.outputChannel.show(true);
+            }
+          });
+
         // Do not restart on process close
         return { action: CloseAction.DoNotRestart, handled: initFailed };
       },

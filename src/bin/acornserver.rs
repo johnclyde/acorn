@@ -9,6 +9,7 @@ use acorn::builder::BuildEvent;
 use acorn::live_document::LiveDocument;
 use chrono;
 use clap::Parser;
+use color_backtrace::BacktracePrinter;
 use dashmap::DashMap;
 use tokio::sync::{mpsc, RwLock, RwLockWriteGuard};
 use tower_lsp::jsonrpc;
@@ -894,6 +895,22 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
+    // By default the stack traces contain a bunch of incomprehensible framework stuff.
+    // This tries to clean it up.
+    BacktracePrinter::new()
+        .add_frame_filter(Box::new(|frames| {
+            frames.retain(|frame| {
+                let name = frame.name.as_deref().unwrap_or("");
+                for retain in &["acorn::", "acornserver::"] {
+                    if name.contains(retain) {
+                        return true;
+                    }
+                }
+                false
+            });
+        }))
+        .install(color_backtrace::default_output_stream());
+
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
