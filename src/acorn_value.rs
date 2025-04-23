@@ -551,7 +551,7 @@ impl AcornValue {
         match self {
             AcornValue::Not(x) => Some((true, *x.clone())),
             AcornValue::Binary(..) | AcornValue::ForAll(..) | AcornValue::Exists(..) => None,
-            AcornValue::Bool(b) => Some((*b, AcornValue::Bool(true))),
+            AcornValue::Bool(b) => Some((!b, AcornValue::Bool(true))),
             _ => Some((false, self.clone())),
         }
     }
