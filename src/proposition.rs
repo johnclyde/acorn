@@ -30,7 +30,10 @@ impl Proposition {
     /// Creates a proposition that may be generic. Params can be empty.
     pub fn new(value: AcornValue, params: Vec<TypeParam>, source: Source) -> Proposition {
         if source.importable && value.has_arbitrary() {
-            panic!("importable propositions should not have arbitrary types");
+            panic!(
+                "importable propositions should not have arbitrary types, at {:?}",
+                source
+            );
         }
         Proposition {
             value,
