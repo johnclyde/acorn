@@ -3132,35 +3132,15 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         let mut env = Environment::test();
         env.add(
             r#"
-            inductive List<T> {
-                nil
-                cons(T, List<T>)
+            structure Box<T> {
+                item: T
             }
 
-            class List<T> {
-                define contains(self, item: T) -> Bool {
-                    match self {
-                        List.nil {
-                            false
-                        }
-                        List.cons(head, tail) {
-                            if head = item {
-                                true
-                            } else {
-                                tail.contains(item)
-                            }
-                        }
-                    }
-                }
-            }
-
-            structure Finset<T> {
-                contains: T -> Bool
+            structure Foo<T> {
+                unused: Bool
             } constraint {
-                exists(super: List<T>) {
-                    forall(x: T) {
-                        contains(x) implies super.contains(x)
-                    }
+                exists(box: Box<T>, x: T) {
+                    box.item = x
                 }
             }
         "#,
