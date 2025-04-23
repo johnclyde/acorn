@@ -800,6 +800,7 @@ impl Environment {
         }
 
         // If there's a constraint, add a block to prove it can be satisfied.
+        // The stack for the unbound constraint is the fields of the structure.
         // This happens before adding any names of methods, so that the block
         // can't use them.
         let unbound_constraint = if let Some(constraint) = &ss.constraint {
@@ -867,6 +868,8 @@ impl Environment {
         );
 
         // Each object of this new type has certain properties.
+        // member_args are expressions for each of these properties, with x0
+        // assigned to a variable of our new type.
         let object_var = AcornValue::Variable(0, struct_type.clone());
         let mut member_args = vec![];
         for (i, member_fn) in member_fns.iter().enumerate() {
@@ -888,9 +891,14 @@ impl Environment {
         // constraint(Pair.first(p), Pair.second(p))
         // This is the "constraint equation".
         if let Some(unbound_constraint) = &unbound_constraint {
-            let bound_constraint = unbound_constraint.clone().bind_values(0, 0, &member_args);
+            // As we start, the stack is all the members of p.
+            // First, add a stack spot for p.
+            let c = unbound_constraint.clone().insert_stack(0, 1);
+            // Then, bind the members of p.
+            let partially_bound = c.bind_values(1, 1, &member_args);
+            // Then, bind a variable for p.
             let constraint_claim =
-                AcornValue::ForAll(vec![struct_type.clone()], Box::new(bound_constraint))
+                AcornValue::ForAll(vec![struct_type.clone()], Box::new(partially_bound))
                     .genericize(&type_params);
             let source = Source::type_definition(
                 self.module_id,

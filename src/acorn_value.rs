@@ -1853,4 +1853,13 @@ impl AcornValue {
             Ok(())
         }
     }
+
+    /// A display version for when this value is a subvalue.
+    pub fn display_as_subvalue(&self, stack_size: usize) -> String {
+        let subvalue = Subvalue {
+            value: &self,
+            stack_size,
+        };
+        subvalue.to_string()
+    }
 }
