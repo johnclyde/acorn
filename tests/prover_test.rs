@@ -2188,4 +2188,17 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_const_false() {
+        let text = r#"
+            define const_false<T>(x: T) -> Bool {
+                false
+            }
+            theorem goal<T>(x: T) {
+                not const_false(x)
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
