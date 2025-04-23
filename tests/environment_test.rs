@@ -3128,19 +3128,17 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_constraint_on_parametrized_structure() {
+    fn test_constraint_with_quantifier() {
         let mut env = Environment::test();
         env.add(
             r#"
-            structure Box<T> {
-                item: T
-            }
+            type Bar: axiom
 
-            structure Foo<T> {
-                unused: T
+            structure Foo {
+                bar: Bar
             } constraint {
-                exists(box: Box<T>, x: T) {
-                    box.item = x
+                exists(x: Bar) {
+                    bar = x
                 }
             }
         "#,
