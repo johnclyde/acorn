@@ -3128,7 +3128,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_constraint_with_quantifier() {
+    fn test_env_constraint_with_quantifier() {
         let mut env = Environment::test();
         env.add(
             r#"

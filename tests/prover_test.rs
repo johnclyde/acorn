@@ -2201,4 +2201,25 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_list_singleton() {
+        let text = r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            class List<T> {
+                let singleton: T -> List<T> = function(x: T) {
+                    List.cons(x, List.nil<T>)
+                }
+            }
+
+            theorem goal {
+                true
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
