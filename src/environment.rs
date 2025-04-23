@@ -303,12 +303,14 @@ impl Environment {
 
     /// Adds a "let" statement to the environment.
     /// This can also be in a class, typeclass, or instance block.
+    /// If this is in a class block, the class parameters are provided.
     fn add_let_statement(
         &mut self,
         project: &Project,
         constant_name: DefinedName,
         ls: &LetStatement,
         range: Range,
+        class_params: Option<&Vec<TypeParam>>,
     ) -> compilation::Result<()> {
         if ls.name == "self" || ls.name == "new" {
             return Err(ls.name_token.error(&format!(
@@ -330,10 +332,10 @@ impl Environment {
                 .error("parametrized constants may only be defined at the top level"));
         }
 
-        let type_params = self
+        let local_type_params = self
             .bindings
             .evaluate_type_params(project, &ls.type_params)?;
-        for param in &type_params {
+        for param in &local_type_params {
             self.bindings.add_arbitrary_type(param.clone());
         }
 
@@ -366,13 +368,25 @@ impl Environment {
             Some(v)
         };
 
-        let acorn_type = acorn_type.genericize(&type_params);
-        let value = value.map(|v| v.genericize(&type_params));
-
         // Reset the bindings
-        for param in type_params.iter().rev() {
+        for param in local_type_params.iter().rev() {
             self.bindings.remove_type(&param.name);
         }
+
+        // Genericize the value being defined
+        let type_params = match class_params {
+            Some(p) => {
+                if !local_type_params.is_empty() {
+                    return Err(ls
+                        .name_token
+                        .error("class parameters and let parameters cannot be used together"));
+                }
+                p.clone()
+            }
+            None => local_type_params,
+        };
+        let acorn_type = acorn_type.genericize(&type_params);
+        let value = value.map(|v| v.genericize(&type_params));
 
         // Check for aliasing
         if let Some(value) = &value {
@@ -1315,6 +1329,7 @@ impl Environment {
                         DefinedName::attribute(&cs.name, &ls.name),
                         ls,
                         substatement.range(),
+                        Some(&type_params),
                     )?;
                 }
                 StatementInfo::Define(ds) => {
@@ -1481,6 +1496,7 @@ impl Environment {
                         DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
                         ls,
                         substatement.range(),
+                        None,
                     )?;
 
                     pairs.push(self.bindings.check_instance_attribute(
@@ -1627,6 +1643,7 @@ impl Environment {
                     DefinedName::unqualified(&ls.name),
                     ls,
                     statement.range(),
+                    None,
                 )
             }
 
