@@ -2407,7 +2407,7 @@ impl BindingMap {
         proposition
             .value
             .validate()
-            .unwrap_or_else(|e| panic!("invalid claim: {:#?} ({})", proposition.value, e));
+            .unwrap_or_else(|e| panic!("invalid claim: {} ({})", proposition.value, e));
 
         let value = proposition.value.replace_constants(0, &|c| {
             let bindings = self.get_bindings(project, c.name.module_id);
