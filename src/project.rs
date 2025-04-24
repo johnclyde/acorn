@@ -1333,7 +1333,14 @@ mod tests {
     #[test]
     fn test_build_catches_unsolved_solve_blocks() {
         let mut p = Project::new_mock();
-        p.mock("/mock/main.ac", "solve false by {\n}");
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            let b: Bool = axiom
+            solve b by {
+            }
+        "#,
+        );
         p.expect_ok("main");
         p.expect_build_fails();
     }

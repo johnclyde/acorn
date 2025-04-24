@@ -335,8 +335,8 @@ impl Normalizer {
         // println!("\nnormalizing: {}", value);
         let value = value.replace_function_equality(0);
         let value = value.expand_lambdas(0);
-        let value = value.replace_if();
         let value = value.replace_match();
+        let value = value.replace_if();
         let value = value.move_negation_inwards(true, false);
         // println!("negin'd: {}", value);
         let value = self.skolemize(&vec![], value)?;
