@@ -2221,4 +2221,36 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_if_inside_match() {
+        let text = r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            class List<T> {
+                define remove_all(self, item: T) -> List<T> {
+                    match self {
+                        List.nil {
+                            List.nil<T>
+                        }
+                        List.cons(head, tail) {
+                            if head = item {
+                                tail
+                            } else {
+                                List.cons(head, tail.remove_all(item))
+                            }
+                        }
+                    }
+                }
+            }
+
+            theorem nil_remove_all<T>(item: T) {
+                List.nil<T>.remove_all(item) = List.nil<T>
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
