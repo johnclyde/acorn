@@ -32,7 +32,7 @@ All commands are run from `~/acorn`.
    ```
    cd vscode/extension/acornlib
    git pull
-   cd ../../...
+   cd ../../..
    ```
 
    Then check in the updated submodule reference and merge it upstream.
