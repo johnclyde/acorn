@@ -1833,4 +1833,48 @@ mod tests {
         );
         p.check_code("main", "Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
     }
+
+    #[test]
+    fn test_module_name_forbidden_as_function_arg() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            let foobool: Bool = true
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import foo
+
+            let bar: Bool -> Bool = function(foo: Bool) {
+                true
+            }
+            "#,
+        );
+        p.expect_module_err("main");
+    }
+
+    #[test]
+    fn test_module_name_forbidden_as_define_arg() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            let foobool: Bool = true
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import foo
+
+            define bar(foo: Bool) -> Bool {
+                true
+            }
+            "#,
+        );
+        p.expect_module_err("main");
+    }
 }
