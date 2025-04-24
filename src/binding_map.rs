@@ -188,7 +188,7 @@ impl BindingMap {
             return true;
         }
         if let LocalName::Unqualified(word) = local_name {
-            self.unqualified.contains_key(word)
+            self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
         } else {
             false
         }
