@@ -17,9 +17,10 @@ use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::statement::{
-    Body, ClassStatement, ClaimStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
-    InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,
-    TheoremStatement, TypeclassStatement, VariableSatisfyStatement,
+    Body, ClassStatement, ClaimStatement, DefineStatement, ForAllStatement, FunctionSatisfyStatement, 
+    IfStatement, ImportStatement, InductiveStatement, InstanceStatement, LetStatement, MatchStatement, 
+    NumeralsStatement, SolveStatement, Statement, StatementInfo, StructureStatement, TheoremStatement, 
+    TypeStatement, TypeclassStatement, VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -1608,6 +1609,28 @@ impl Environment {
         Ok(())
     }
 
+    /// Adds a type statement to the environment.
+    fn add_type_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ts: &TypeStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+        self.bindings
+            .check_typename_available(statement, &ts.name)?;
+        if ts.type_expr.is_axiom() {
+            self.bindings.add_potential_type(&ts.name, vec![]);
+        } else {
+            let potential = self
+                .bindings
+                .evaluate_potential_type(project, &ts.type_expr)?;
+            self.bindings.add_type_alias(&ts.name, potential);
+        };
+        Ok(())
+    }
+
+
     /// Adds a claim statement to the environment.
     fn add_claim_statement(
         &mut self,
@@ -1637,6 +1660,265 @@ impl Environment {
         Ok(())
     }
 
+    /// Adds a forall statement to the environment.
+    fn add_forall_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        fas: &ForAllStatement,
+    ) -> compilation::Result<()> {
+        if fas.body.statements.is_empty() {
+            // ForAll statements with an empty body can just be ignored
+            return Ok(());
+        }
+        let mut args = vec![];
+        for quantifier in &fas.quantifiers {
+            let (arg_name, arg_type) =
+                self.bindings.evaluate_declaration(project, quantifier)?;
+            args.push((arg_name, arg_type));
+        }
+
+        let block = Block::new(
+            project,
+            &self,
+            vec![],
+            args,
+            BlockParams::ForAll,
+            statement.first_line(),
+            statement.last_line(),
+            Some(&fas.body),
+        )?;
+
+        let (outer_claim, range) =
+            block.externalize_last_claim(self, &fas.body.right_brace)?;
+        let source = Source::anonymous(self.module_id, range, self.depth);
+        let prop = Proposition::monomorphic(outer_claim, source);
+        let index = self.add_node(Node::block(project, self, block, Some(prop)));
+        self.add_node_lines(index, &statement.range());
+        Ok(())
+    }
+
+    /// Adds an if statement to the environment.
+    fn add_if_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        is: &IfStatement,
+    ) -> compilation::Result<()> {
+        let condition =
+            self.bindings
+                .evaluate_value(project, &is.condition, Some(&AcornType::Bool))?;
+        let range = is.condition.range();
+        let if_claim = self.add_conditional(
+            project,
+            condition.clone(),
+            range,
+            statement.first_line(),
+            statement.last_line(),
+            &is.body,
+            None,
+        )?;
+        if let Some(else_body) = &is.else_body {
+            self.add_conditional(
+                project,
+                condition.negate(),
+                range,
+                else_body.left_brace.line_number as u32,
+                else_body.right_brace.line_number as u32,
+                else_body,
+                if_claim,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Adds an import statement to the environment.
+    fn add_import_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        is: &ImportStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+
+        // Give a local name to the imported module
+        let local_name = is.components.last().unwrap();
+        self.bindings
+            .check_unqualified_name_available(statement, local_name)?;
+        let full_name = is.components.join(".");
+        let module_id = match project.load_module_by_name(&full_name) {
+            Ok(module_id) => module_id,
+            Err(LoadError(s)) => {
+                // The error is with the import statement itself, like a circular import.
+                return Err(statement.error(&format!("import error: {}", s)));
+            }
+        };
+        if project.get_bindings(module_id).is_none() {
+            // The fundamental error is in the other module, not this one.
+            return Err(Error::secondary(
+                &statement.first_token,
+                &statement.last_token,
+                &format!("error in '{}' module", full_name),
+            ));
+        }
+        self.bindings.import_module(local_name, module_id);
+
+        // Bring the imported names into this environment
+        for name in &is.names {
+            self.bindings.import_name(project, module_id, name)?;
+        }
+
+        Ok(())
+    }
+
+    /// Adds a numerals statement to the environment.
+    fn add_numerals_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ds: &NumeralsStatement,
+    ) -> compilation::Result<()> {
+        self.add_other_lines(statement);
+        let acorn_type = self.bindings.evaluate_type(project, &ds.type_expr)?;
+        if let AcornType::Data(class, params) = acorn_type {
+            if !params.is_empty() {
+                return Err(ds
+                    .type_expr
+                    .error("numerals type cannot have type parameters"));
+            }
+            self.bindings.set_numerals(class);
+            Ok(())
+        } else {
+            Err(ds.type_expr.error("numerals type must be a data type"))
+        }
+    }
+
+    /// Adds a solve statement to the environment.
+    fn add_solve_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ss: &SolveStatement,
+    ) -> compilation::Result<()> {
+        let target = self.bindings.evaluate_value(project, &ss.target, None)?;
+        let solve_range = Range {
+            start: statement.first_token.start_pos(),
+            end: ss.target.last_token().end_pos(),
+        };
+
+        let mut block = Block::new(
+            project,
+            &self,
+            vec![],
+            vec![],
+            BlockParams::Solve(target.clone(), solve_range),
+            statement.first_line(),
+            statement.last_line(),
+            Some(&ss.body),
+        )?;
+
+        let prop = match block.solves(self, &target) {
+            Some((outer_claim, claim_range)) => {
+                block.goal = None;
+                let source = Source::anonymous(self.module_id, claim_range, self.depth);
+                Some(Proposition::monomorphic(outer_claim, source))
+            }
+            None => None,
+        };
+
+        let index = self.add_node(Node::block(project, self, block, prop));
+        self.add_node_lines(index, &statement.range());
+        Ok(())
+    }
+
+    /// Adds a problem statement to the environment.
+    fn add_problem_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        body: &Body,
+    ) -> compilation::Result<()> {
+        let block = Block::new(
+            project,
+            &self,
+            vec![],
+            vec![],
+            BlockParams::Problem,
+            statement.first_line(),
+            statement.last_line(),
+            Some(body),
+        )?;
+
+        let index = self.add_node(Node::block(project, self, block, None));
+        self.add_node_lines(index, &statement.range());
+        Ok(())
+    }
+
+    /// Adds a match statement to the environment.
+    fn add_match_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ms: &MatchStatement,
+    ) -> compilation::Result<()> {
+        let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+        let scrutinee_type = scrutinee.get_type();
+        let mut indices = vec![];
+        let mut disjuncts = vec![];
+        for (pattern, body) in &ms.cases {
+            let (constructor, args, i, total) =
+                self.bindings
+                    .evaluate_pattern(project, &scrutinee_type, pattern)?;
+            if indices.contains(&i) {
+                return Err(pattern.error("duplicate pattern in match statement"));
+            }
+            indices.push(i);
+
+            let params = BlockParams::MatchCase(
+                scrutinee.clone(),
+                constructor,
+                args,
+                pattern.range(),
+            );
+
+            let block = Block::new(
+                project,
+                &self,
+                vec![],
+                vec![],
+                params,
+                body.left_brace.line_number,
+                body.right_brace.line_number,
+                Some(body),
+            )?;
+
+            let (disjunct, _) = block.externalize_last_claim(self, &body.right_brace)?;
+            disjuncts.push(disjunct);
+
+            if total == indices.len() {
+                if ms.cases.len() > total {
+                    // The next iteration will report an error
+                    continue;
+                }
+
+                let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
+                let source =
+                    Source::anonymous(self.module_id, statement.range(), self.depth);
+                let prop = Proposition::monomorphic(disjunction, source);
+                let index = self.add_node(Node::block(project, self, block, Some(prop)));
+                self.add_node_lines(index, &body.range());
+                return Ok(());
+            }
+
+            // No proposition here. We only put an externalized proposition on the last block.
+            let index = self.add_node(Node::block(project, self, block, None));
+            self.add_node_lines(index, &body.range());
+        }
+        Err(ms
+            .scrutinee
+            .error("not all cases are covered in match statement"))
+    }
+
     /// Adds a statement to the environment.
     /// If the statement has a body, this call creates a sub-environment and adds the body
     /// to that sub-environment.
@@ -1651,20 +1933,7 @@ impl Environment {
             );
         }
         match &statement.statement {
-            StatementInfo::Type(ts) => {
-                self.add_other_lines(statement);
-                self.bindings
-                    .check_typename_available(statement, &ts.name)?;
-                if ts.type_expr.is_axiom() {
-                    self.bindings.add_potential_type(&ts.name, vec![]);
-                } else {
-                    let potential = self
-                        .bindings
-                        .evaluate_potential_type(project, &ts.type_expr)?;
-                    self.bindings.add_type_alias(&ts.name, potential);
-                };
-                Ok(())
-            }
+            StatementInfo::Type(ts) => self.add_type_statement(project, statement, ts),
 
             StatementInfo::Let(ls) => {
                 self.add_other_lines(statement);
@@ -1675,7 +1944,7 @@ impl Environment {
                     statement.range(),
                     None,
                 )
-            }
+            },
 
             StatementInfo::Define(ds) => {
                 self.add_other_lines(statement);
@@ -1687,242 +1956,37 @@ impl Environment {
                     ds,
                     statement.range(),
                 )
-            }
+            },
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
 
             StatementInfo::Claim(cs) => self.add_claim_statement(project, statement, cs),
 
-            StatementInfo::ForAll(fas) => {
-                if fas.body.statements.is_empty() {
-                    // ForAll statements with an empty body can just be ignored
-                    return Ok(());
-                }
-                let mut args = vec![];
-                for quantifier in &fas.quantifiers {
-                    let (arg_name, arg_type) =
-                        self.bindings.evaluate_declaration(project, quantifier)?;
-                    args.push((arg_name, arg_type));
-                }
+            StatementInfo::ForAll(fas) => self.add_forall_statement(project, statement, fas),
 
-                let block = Block::new(
-                    project,
-                    &self,
-                    vec![],
-                    args,
-                    BlockParams::ForAll,
-                    statement.first_line(),
-                    statement.last_line(),
-                    Some(&fas.body),
-                )?;
+            StatementInfo::If(is) => self.add_if_statement(project, statement, is),
 
-                let (outer_claim, range) =
-                    block.externalize_last_claim(self, &fas.body.right_brace)?;
-                let source = Source::anonymous(self.module_id, range, self.depth);
-                let prop = Proposition::monomorphic(outer_claim, source);
-                let index = self.add_node(Node::block(project, self, block, Some(prop)));
-                self.add_node_lines(index, &statement.range());
-                Ok(())
-            }
+            StatementInfo::VariableSatisfy(vss) => 
+                self.add_variable_satisfy_statement(project, statement, vss),
 
-            StatementInfo::If(is) => {
-                let condition =
-                    self.bindings
-                        .evaluate_value(project, &is.condition, Some(&AcornType::Bool))?;
-                let range = is.condition.range();
-                let if_claim = self.add_conditional(
-                    project,
-                    condition.clone(),
-                    range,
-                    statement.first_line(),
-                    statement.last_line(),
-                    &is.body,
-                    None,
-                )?;
-                if let Some(else_body) = &is.else_body {
-                    self.add_conditional(
-                        project,
-                        condition.negate(),
-                        range,
-                        else_body.left_brace.line_number as u32,
-                        else_body.right_brace.line_number as u32,
-                        else_body,
-                        if_claim,
-                    )?;
-                }
-                Ok(())
-            }
-
-            StatementInfo::VariableSatisfy(vss) => {
-                self.add_variable_satisfy_statement(project, statement, vss)
-            }
-
-            StatementInfo::FunctionSatisfy(fss) => {
-                self.add_function_satisfy_statement(project, statement, fss)
-            }
+            StatementInfo::FunctionSatisfy(fss) => 
+                self.add_function_satisfy_statement(project, statement, fss),
 
             StatementInfo::Structure(ss) => self.add_structure_statement(project, statement, ss),
 
             StatementInfo::Inductive(is) => self.add_inductive_statement(project, statement, is),
 
-            StatementInfo::Import(is) => {
-                self.add_other_lines(statement);
-
-                // Give a local name to the imported module
-                let local_name = is.components.last().unwrap();
-                self.bindings
-                    .check_unqualified_name_available(statement, local_name)?;
-                let full_name = is.components.join(".");
-                let module_id = match project.load_module_by_name(&full_name) {
-                    Ok(module_id) => module_id,
-                    Err(LoadError(s)) => {
-                        // The error is with the import statement itself, like a circular import.
-                        return Err(statement.error(&format!("import error: {}", s)));
-                    }
-                };
-                if project.get_bindings(module_id).is_none() {
-                    // The fundamental error is in the other module, not this one.
-                    return Err(Error::secondary(
-                        &statement.first_token,
-                        &statement.last_token,
-                        &format!("error in '{}' module", full_name),
-                    ));
-                }
-                self.bindings.import_module(local_name, module_id);
-
-                // Bring the imported names into this environment
-                for name in &is.names {
-                    self.bindings.import_name(project, module_id, name)?;
-                }
-
-                Ok(())
-            }
+            StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
 
             StatementInfo::Class(cs) => self.add_class_statement(project, statement, cs),
 
-            StatementInfo::Numerals(ds) => {
-                self.add_other_lines(statement);
-                let acorn_type = self.bindings.evaluate_type(project, &ds.type_expr)?;
-                if let AcornType::Data(class, params) = acorn_type {
-                    if !params.is_empty() {
-                        return Err(ds
-                            .type_expr
-                            .error("numerals type cannot have type parameters"));
-                    }
-                    self.bindings.set_numerals(class);
-                    Ok(())
-                } else {
-                    Err(ds.type_expr.error("numerals type must be a data type"))
-                }
-            }
+            StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
 
-            StatementInfo::Solve(ss) => {
-                let target = self.bindings.evaluate_value(project, &ss.target, None)?;
-                let solve_range = Range {
-                    start: statement.first_token.start_pos(),
-                    end: ss.target.last_token().end_pos(),
-                };
+            StatementInfo::Solve(ss) => self.add_solve_statement(project, statement, ss),
 
-                let mut block = Block::new(
-                    project,
-                    &self,
-                    vec![],
-                    vec![],
-                    BlockParams::Solve(target.clone(), solve_range),
-                    statement.first_line(),
-                    statement.last_line(),
-                    Some(&ss.body),
-                )?;
+            StatementInfo::Problem(body) => self.add_problem_statement(project, statement, body),
 
-                let prop = match block.solves(self, &target) {
-                    Some((outer_claim, claim_range)) => {
-                        block.goal = None;
-                        let source = Source::anonymous(self.module_id, claim_range, self.depth);
-                        Some(Proposition::monomorphic(outer_claim, source))
-                    }
-                    None => None,
-                };
-
-                let index = self.add_node(Node::block(project, self, block, prop));
-                self.add_node_lines(index, &statement.range());
-                Ok(())
-            }
-
-            StatementInfo::Problem(body) => {
-                let block = Block::new(
-                    project,
-                    &self,
-                    vec![],
-                    vec![],
-                    BlockParams::Problem,
-                    statement.first_line(),
-                    statement.last_line(),
-                    Some(body),
-                )?;
-
-                let index = self.add_node(Node::block(project, self, block, None));
-                self.add_node_lines(index, &statement.range());
-                Ok(())
-            }
-
-            StatementInfo::Match(ms) => {
-                let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
-                let scrutinee_type = scrutinee.get_type();
-                let mut indices = vec![];
-                let mut disjuncts = vec![];
-                for (pattern, body) in &ms.cases {
-                    let (constructor, args, i, total) =
-                        self.bindings
-                            .evaluate_pattern(project, &scrutinee_type, pattern)?;
-                    if indices.contains(&i) {
-                        return Err(pattern.error("duplicate pattern in match statement"));
-                    }
-                    indices.push(i);
-
-                    let params = BlockParams::MatchCase(
-                        scrutinee.clone(),
-                        constructor,
-                        args,
-                        pattern.range(),
-                    );
-
-                    let block = Block::new(
-                        project,
-                        &self,
-                        vec![],
-                        vec![],
-                        params,
-                        body.left_brace.line_number,
-                        body.right_brace.line_number,
-                        Some(body),
-                    )?;
-
-                    let (disjunct, _) = block.externalize_last_claim(self, &body.right_brace)?;
-                    disjuncts.push(disjunct);
-
-                    if total == indices.len() {
-                        if ms.cases.len() > total {
-                            // The next iteration will report an error
-                            continue;
-                        }
-
-                        let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                        let source =
-                            Source::anonymous(self.module_id, statement.range(), self.depth);
-                        let prop = Proposition::monomorphic(disjunction, source);
-                        let index = self.add_node(Node::block(project, self, block, Some(prop)));
-                        self.add_node_lines(index, &body.range());
-                        return Ok(());
-                    }
-
-                    // No proposition here. We only put an externalized proposition on the last block.
-                    let index = self.add_node(Node::block(project, self, block, None));
-                    self.add_node_lines(index, &body.range());
-                }
-                Err(ms
-                    .scrutinee
-                    .error("not all cases are covered in match statement"))
-            }
+            StatementInfo::Match(ms) => self.add_match_statement(project, statement, ms),
 
             StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
 
