@@ -17,7 +17,7 @@ use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::statement::{
-    Body, ClassStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
+    Body, ClassStatement, ClaimStatement, DefineStatement, FunctionSatisfyStatement, InductiveStatement,
     InstanceStatement, LetStatement, Statement, StatementInfo, StructureStatement,
     TheoremStatement, TypeclassStatement, VariableSatisfyStatement,
 };
@@ -1608,6 +1608,35 @@ impl Environment {
         Ok(())
     }
 
+    /// Adds a claim statement to the environment.
+    fn add_claim_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        cs: &ClaimStatement,
+    ) -> compilation::Result<()> {
+        let claim =
+            self.bindings
+                .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
+        if claim == AcornValue::Bool(false) {
+            self.includes_explicit_false = true;
+        }
+
+        if self.bindings.is_citation(project, &claim) {
+            // We already know this is true, so we don't need to prove it
+            let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+            let prop = Proposition::monomorphic(claim, source);
+            self.add_node(Node::structural(project, self, prop));
+            self.add_other_lines(statement);
+        } else {
+            let source = Source::anonymous(self.module_id, statement.range(), self.depth);
+            let prop = Proposition::monomorphic(claim, source);
+            let index = self.add_node(Node::claim(project, self, prop));
+            self.add_node_lines(index, &statement.range());
+        }
+        Ok(())
+    }
+
     /// Adds a statement to the environment.
     /// If the statement has a body, this call creates a sub-environment and adds the body
     /// to that sub-environment.
@@ -1662,28 +1691,7 @@ impl Environment {
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
 
-            StatementInfo::Claim(cs) => {
-                let claim =
-                    self.bindings
-                        .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
-                if claim == AcornValue::Bool(false) {
-                    self.includes_explicit_false = true;
-                }
-
-                if self.bindings.is_citation(project, &claim) {
-                    // We already know this is true, so we don't need to prove it
-                    let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-                    let prop = Proposition::monomorphic(claim, source);
-                    self.add_node(Node::structural(project, self, prop));
-                    self.add_other_lines(statement);
-                } else {
-                    let source = Source::anonymous(self.module_id, statement.range(), self.depth);
-                    let prop = Proposition::monomorphic(claim, source);
-                    let index = self.add_node(Node::claim(project, self, prop));
-                    self.add_node_lines(index, &statement.range());
-                }
-                Ok(())
-            }
+            StatementInfo::Claim(cs) => self.add_claim_statement(project, statement, cs),
 
             StatementInfo::ForAll(fas) => {
                 if fas.body.statements.is_empty() {
