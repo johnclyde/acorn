@@ -391,25 +391,31 @@ impl Project {
     }
 
     // Turns a hash set of qualified premises into its serializable form.
+    // If any premise is from an unimportable module, we return None.
+    // This can happen when Acorn is running in "detached library" mode, where the current
+    // file doesn't have any module name that can be used to refer to it.
     fn normalize_premises(
         &self,
         theorem_module_id: ModuleId,
         theorem_name: &str,
         premises: &HashSet<(ModuleId, String)>,
-    ) -> BTreeMap<String, BTreeSet<String>> {
+    ) -> Option<BTreeMap<String, BTreeSet<String>>> {
         let mut answer = BTreeMap::new();
         for (premise_module_id, premise_name) in premises {
             if *premise_module_id == theorem_module_id && premise_name == theorem_name {
                 // We don't need to include the theorem itself as a premise.
                 continue;
             }
-            let module_name = self.get_module_name_by_id(*premise_module_id).unwrap();
+            let module_name = match self.get_module_name_by_id(*premise_module_id) {
+                Some(name) => name,
+                None => return None,
+            };
             answer
                 .entry(module_name.to_string())
                 .or_insert_with(BTreeSet::new)
                 .insert(premise_name.clone());
         }
-        answer
+        Some(answer)
     }
 
     // Construct a prover with only the facts that are included in premises.
@@ -516,11 +522,22 @@ impl Project {
                     if builder.status.is_error() {
                         return;
                     }
-
-                    new_module_cache.blocks.insert(
-                        block_name.clone(),
-                        self.normalize_premises(env.module_id, &block_name, &new_premises),
-                    );
+                    match self.normalize_premises(env.module_id, &block_name, &new_premises) {
+                        Some(normalized) => {
+                            // We verified this block, so we can cache it.
+                            new_module_cache
+                                .blocks
+                                .insert(block_name.clone(), normalized);
+                        }
+                        None => {
+                            // We couldn't normalize the premises, so we can't cache them.
+                            // This can happen if the module is unimportable.
+                            builder.log_info(format!(
+                                "could not normalize premises for {}",
+                                block_name
+                            ));
+                        }
+                    }
                 }
             }
             if !cursor.has_next() {
