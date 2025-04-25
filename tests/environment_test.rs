@@ -3165,25 +3165,25 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         );
     }
 
-    // #[test]
-    // fn test_env_handles_bad_type_in_proposition() {
-    //     let mut env = Environment::test();
-    //     env.add(
-    //         r#"
-    //         theorem self_equal<T>(x: T) {
-    //             x = x
-    //         }
-    //     "#,
-    //     );
-    //     // This should fail cleanly because self_equal<Bool> is a function, not a boolean.
-    //     env.bad(
-    //         r#"
-    //         theorem goal {
-    //             true
-    //         } by {
-    //             self_equal<Bool>
-    //         }
-    //     "#,
-    //     );
-    // }
+    #[test]
+    fn test_env_handles_bad_type_in_proposition() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            theorem self_equal<T>(x: T) {
+                x = x
+            }
+        "#,
+        );
+        // This should fail cleanly because self_equal<Bool> is a function, not a boolean.
+        env.bad(
+            r#"
+            theorem goal {
+                true
+            } by {
+                self_equal<Bool>
+            }
+        "#,
+        );
+    }
 }

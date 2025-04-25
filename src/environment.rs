@@ -17,10 +17,11 @@ use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::statement::{
-    Body, ClassStatement, ClaimStatement, DefineStatement, ForAllStatement, FunctionSatisfyStatement, 
-    IfStatement, ImportStatement, InductiveStatement, InstanceStatement, LetStatement, MatchStatement, 
-    NumeralsStatement, SolveStatement, Statement, StatementInfo, StructureStatement, TheoremStatement, 
-    TypeStatement, TypeclassStatement, VariableSatisfyStatement,
+    Body, ClaimStatement, ClassStatement, DefineStatement, ForAllStatement,
+    FunctionSatisfyStatement, IfStatement, ImportStatement, InductiveStatement, InstanceStatement,
+    LetStatement, MatchStatement, NumeralsStatement, SolveStatement, Statement, StatementInfo,
+    StructureStatement, TheoremStatement, TypeStatement, TypeclassStatement,
+    VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
 
@@ -1630,7 +1631,6 @@ impl Environment {
         Ok(())
     }
 
-
     /// Adds a claim statement to the environment.
     fn add_claim_statement(
         &mut self,
@@ -1638,9 +1638,9 @@ impl Environment {
         statement: &Statement,
         cs: &ClaimStatement,
     ) -> compilation::Result<()> {
-        let claim =
-            self.bindings
-                .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
+        let claim = self
+            .bindings
+            .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
         if claim == AcornValue::Bool(false) {
             self.includes_explicit_false = true;
         }
@@ -1673,8 +1673,7 @@ impl Environment {
         }
         let mut args = vec![];
         for quantifier in &fas.quantifiers {
-            let (arg_name, arg_type) =
-                self.bindings.evaluate_declaration(project, quantifier)?;
+            let (arg_name, arg_type) = self.bindings.evaluate_declaration(project, quantifier)?;
             args.push((arg_name, arg_type));
         }
 
@@ -1689,8 +1688,7 @@ impl Environment {
             Some(&fas.body),
         )?;
 
-        let (outer_claim, range) =
-            block.externalize_last_claim(self, &fas.body.right_brace)?;
+        let (outer_claim, range) = block.externalize_last_claim(self, &fas.body.right_brace)?;
         let source = Source::anonymous(self.module_id, range, self.depth);
         let prop = Proposition::monomorphic(outer_claim, source);
         let index = self.add_node(Node::block(project, self, block, Some(prop)));
@@ -1874,12 +1872,8 @@ impl Environment {
             }
             indices.push(i);
 
-            let params = BlockParams::MatchCase(
-                scrutinee.clone(),
-                constructor,
-                args,
-                pattern.range(),
-            );
+            let params =
+                BlockParams::MatchCase(scrutinee.clone(), constructor, args, pattern.range());
 
             let block = Block::new(
                 project,
@@ -1902,8 +1896,7 @@ impl Environment {
                 }
 
                 let disjunction = AcornValue::reduce(BinaryOp::Or, disjuncts);
-                let source =
-                    Source::anonymous(self.module_id, statement.range(), self.depth);
+                let source = Source::anonymous(self.module_id, statement.range(), self.depth);
                 let prop = Proposition::monomorphic(disjunction, source);
                 let index = self.add_node(Node::block(project, self, block, Some(prop)));
                 self.add_node_lines(index, &body.range());
@@ -1944,7 +1937,7 @@ impl Environment {
                     statement.range(),
                     None,
                 )
-            },
+            }
 
             StatementInfo::Define(ds) => {
                 self.add_other_lines(statement);
@@ -1956,7 +1949,7 @@ impl Environment {
                     ds,
                     statement.range(),
                 )
-            },
+            }
 
             StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
 
@@ -1966,11 +1959,13 @@ impl Environment {
 
             StatementInfo::If(is) => self.add_if_statement(project, statement, is),
 
-            StatementInfo::VariableSatisfy(vss) => 
-                self.add_variable_satisfy_statement(project, statement, vss),
+            StatementInfo::VariableSatisfy(vss) => {
+                self.add_variable_satisfy_statement(project, statement, vss)
+            }
 
-            StatementInfo::FunctionSatisfy(fss) => 
-                self.add_function_satisfy_statement(project, statement, fss),
+            StatementInfo::FunctionSatisfy(fss) => {
+                self.add_function_satisfy_statement(project, statement, fss)
+            }
 
             StatementInfo::Structure(ss) => self.add_structure_statement(project, statement, ss),
 

@@ -2002,6 +2002,7 @@ impl BindingMap {
                                     type_params.push(self.evaluate_type(project, expr)?);
                                 }
                                 let resolved = unresolved.resolve(left_delimiter, type_params)?;
+                                resolved.check_type(expression, expected_type)?;
                                 return Ok(PotentialValue::Resolved(resolved));
                             }
                             return Err(left_delimiter.error("unexpected type parameter list"));
