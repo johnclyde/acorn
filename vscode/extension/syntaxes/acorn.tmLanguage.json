@@ -8,7 +8,7 @@
       "name": "comment.line.double-slash"
     },
     {
-      "match": "\\b(if|else|forall|exists|by|function|satisfy|and|or|not|implies|constraint)\\b",
+      "match": "\\b(if|else|forall|exists|by|function|and|or|not|implies)\\b",
       "name": "keyword.control"
     },
     {
@@ -16,7 +16,7 @@
       "name": "keyword.operator"
     },
     {
-      "match": "\\b(let|axiom|define|theorem|type|structure|inductive|class|numerals|typeclass|instance)\\b",
+      "match": "\\b(let|axiom|define|theorem|type|structure|constraint|satisfy|inductive|class|numerals|typeclass|instance)\\b",
       "name": "keyword.declaration"
     },
     {
