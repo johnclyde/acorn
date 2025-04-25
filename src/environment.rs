@@ -137,6 +137,7 @@ impl Environment {
         }
     }
 
+    /// Add all the lines covered by the statement as the "Other" type.
     fn add_other_lines(&mut self, statement: &Statement) {
         self.add_line_types(
             LineType::Other,
@@ -145,7 +146,7 @@ impl Environment {
         );
     }
 
-    /// Associate the provided node and range.
+    /// Associate the node with the given index with all lines in the range.
     fn add_node_lines(&mut self, index: usize, range: &Range) {
         self.add_line_types(LineType::Node(index), range.start.line, range.end.line);
     }
@@ -1466,11 +1467,6 @@ impl Environment {
         statement: &Statement,
         is: &InstanceStatement,
     ) -> compilation::Result<()> {
-        self.add_line_types(
-            LineType::Other,
-            statement.first_line(),
-            is.definitions.right_brace.line_number,
-        );
         let instance_name = is.type_name.text();
         let instance_class = Class {
             module_id: self.module_id,
