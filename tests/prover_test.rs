@@ -2281,7 +2281,7 @@ mod prover_test {
                 let op: (Color, Color) -> Bool = equals
             } by {
                 // TODO: figure out how to let this line be deleted.
-                equals<Color> = equals<Color>
+                // equals<Color> = equals<Color>
             }
         "#;
         verify_succeeds(text);

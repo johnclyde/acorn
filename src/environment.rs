@@ -1546,12 +1546,24 @@ impl Environment {
             if self.bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.
-                let condition = self.bindings.unsafe_instantiate_condition(
+                // First, we create a condition that is "unsafe" in the sense that it contains
+                // typeclass attribute functions applied to the instance type, which is not
+                // yet proven to be an instance of the typeclass.
+                let unsafe_condition = self.bindings.unsafe_instantiate_condition(
                     statement,
                     &typeclass,
                     &attr_name,
                     &instance_type,
                 )?;
+                // Now we make the condition safe by replacing the unsafe constants with their
+                // definitions.
+                let condition = unsafe_condition.replace_constants(0, &|ci| {
+                    let name = match ci.to_defined_instance_name(&typeclass, &instance_class) {
+                        Some(name) => name,
+                        None => return None,
+                    };
+                    self.bindings.get_definition(&name).cloned()
+                });
                 conditions.push(condition);
                 continue;
             }

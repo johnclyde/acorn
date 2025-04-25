@@ -148,6 +148,13 @@ impl DefinedName {
         }
     }
 
+    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Class) -> bool {
+        match self {
+            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
+            DefinedName::Local(_) => false,
+        }
+    }
+
     pub fn as_local(&self) -> Option<&LocalName> {
         match self {
             DefinedName::Local(name) => Some(name),

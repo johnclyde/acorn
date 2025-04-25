@@ -1,9 +1,9 @@
 use std::fmt;
 
-use crate::acorn_type::{AcornType, TypeParam};
+use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
-use crate::names::{GlobalName, InstanceName, LocalName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -196,6 +196,32 @@ impl ConstantInstance {
             }
             _ => {}
         };
+        None
+    }
+
+    /// If this value is a typeclass attribute with the specific typeclass and class, convert
+    /// it to the name used in its definition.
+    pub fn to_defined_instance_name(
+        &self,
+        typeclass: &Typeclass,
+        class: &Class,
+    ) -> Option<DefinedName> {
+        if self.name.module_id != typeclass.module_id {
+            return None;
+        }
+        if let LocalName::Attribute(receiver, attribute) = &self.name.local_name {
+            if receiver == &typeclass.name && self.params.len() == 1 {
+                if let AcornType::Data(param_class, _) = &self.params[0] {
+                    if param_class == class {
+                        return Some(DefinedName::Instance(InstanceName {
+                            typeclass: typeclass.clone(),
+                            attribute: attribute.clone(),
+                            class: class.clone(),
+                        }));
+                    }
+                }
+            }
+        }
         None
     }
 }
