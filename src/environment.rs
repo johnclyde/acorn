@@ -541,6 +541,7 @@ impl Environment {
         )?;
 
         let unbound_claim = value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
+        unbound_claim.check_type(&ts.claim, Some(&AcornType::Bool))?;
 
         let is_citation = self.bindings.is_citation(project, &unbound_claim);
         if is_citation && ts.body.is_some() {
