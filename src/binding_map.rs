@@ -2186,7 +2186,7 @@ impl BindingMap {
                 return Err(expr.name.error("duplicate type parameter"));
             }
             let typeclass = match expr.typeclass.as_ref() {
-                Some(e) => Some(self.evaluate_typeclass(project, e).unwrap()),
+                Some(e) => Some(self.evaluate_typeclass(project, e)?),
                 None => None,
             };
             answer.push(TypeParam {

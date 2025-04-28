@@ -3186,4 +3186,36 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_handles_bad_typeclass_name_in_theorem() {
+        let mut env = Environment::test();
+        env.bad(
+            r#"
+            theorem goal<F: Foo> {
+                true
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_env_handles_bad_typeclass_name_in_class_param() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+            "#,
+        );
+        env.bad(
+            r#"
+            class List<F: Foo> {
+                let b: Bool = true
+            }
+        "#,
+        );
+    }
 }
