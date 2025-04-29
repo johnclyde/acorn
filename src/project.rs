@@ -1902,4 +1902,45 @@ mod tests {
         );
         p.expect_module_err("main");
     }
+
+    #[test]
+    fn test_instance_of_imported_typeclass() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/semigroup.ac",
+            r#"
+            typeclass S: Semigroup {
+                // Semigroups have a binary operation
+                mul: (S, S) -> S
+
+                // The operation must be associative
+                associative(x: S, y: S, z: S) {
+                    (x * y) * z = x * (y * z)
+                }
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from semigroup import Semigroup
+
+            inductive Foo {
+                foo
+            }
+
+            class Foo {
+                define mul(self, f: Foo) -> Foo {
+                    Foo.foo
+                }
+            }
+
+            instance Foo: Semigroup {
+                let mul: (Foo, Foo) -> Foo = Foo.mul
+            }
+            "#,
+        );
+        p.expect_ok("semigroup");
+        p.expect_ok("main");
+    }
 }
