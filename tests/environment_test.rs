@@ -3220,7 +3220,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_gently_failing_on_misuse_of_attribute_notation() {
+    fn test_env_handling_mistyped_value_attribute() {
         let mut env = Environment::test();
         env.add(
             r#"
@@ -3238,6 +3238,9 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             let x: List<Bool> = List.nil
             "#,
         );
+
+        // x.range is syntactic sugar for something that doesn't typecheck.
+        // List.range expects a Nat as its argument, but x.range is giving it a List<Bool>.
         env.bad(
             r#"
             let b: List<Nat> = x.range

@@ -399,6 +399,7 @@ impl AcornValue {
     }
 
     /// Construct an application if we have arguments, but omit it otherwise.
+    /// Be careful - if we apply to the wrong type, this just creates an internally invalid value.
     pub fn apply(function: AcornValue, args: Vec<AcornValue>) -> AcornValue {
         if args.is_empty() {
             function
@@ -1868,6 +1869,7 @@ impl AcornValue {
         }
     }
 
+    /// Returns an error if this value is not of the expected type.
     pub fn check_type(
         &self,
         source: &dyn ErrorSource,
@@ -1878,6 +1880,41 @@ impl AcornValue {
         } else {
             Ok(())
         }
+    }
+
+    /// Applies the value as a function to the arguments if the types all check.
+    /// If there are no arguments, returns the value itself.
+    /// Returns an error on a type mismatch.
+    pub fn check_apply(
+        self,
+        args: Vec<AcornValue>,
+        expected_type: Option<&AcornType>,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<AcornValue> {
+        // Typecheck the arguments
+        let function_type = self.get_type();
+        let function_type = match function_type {
+            AcornType::Function(f) => f,
+            _ => {
+                return Err(source.error("cannot apply a non-function"));
+            }
+        };
+        if function_type.arg_types.len() < args.len() {
+            return Err(source.error(&format!(
+                "expected <= {} arguments, but got {}",
+                function_type.arg_types.len(),
+                args.len()
+            )));
+        }
+
+        // Simple, no-type-inference-necessary construction
+        for (i, arg) in args.iter().enumerate() {
+            let arg_type: &AcornType = &function_type.arg_types[i];
+            arg.check_type(source, Some(arg_type))?;
+        }
+        let value = AcornValue::apply(self, args);
+        value.check_type(source, expected_type)?;
+        Ok(value)
     }
 
     /// A display version for when this value is a subvalue.

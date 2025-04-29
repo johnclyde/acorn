@@ -1196,16 +1196,16 @@ impl BindingMap {
         self.evaluate_value_with_stack(&mut Stack::new(), project, expression, expected_type)
     }
 
-    /// Evaluates an attribute of an instance, like foo.bar.
+    /// Evaluates an attribute of a value, like foo.bar.
     /// token is used for reporting errors but may not correspond to anything in particular.
-    fn evaluate_instance_attribute(
+    fn evaluate_value_attribute(
         &self,
         source: &dyn ErrorSource,
         project: &Project,
-        instance: AcornValue,
+        receiver: AcornValue,
         attr_name: &str,
     ) -> compilation::Result<AcornValue> {
-        let base_type = instance.get_type();
+        let base_type = receiver.get_type();
 
         let (module, type_name) = match &base_type {
             AcornType::Data(class, _) => (class.module_id, &class.name),
@@ -1232,7 +1232,7 @@ impl BindingMap {
         let function = self
             .get_bindings(&project, module)
             .get_constant_value(source, &constant_name)?;
-        self.apply_potential(source, project, function, vec![instance], None)
+        self.apply_potential(source, project, function, vec![receiver], None)
     }
 
     /// Evaluates a single name, which may be namespaced to another named entity.
@@ -1248,8 +1248,7 @@ impl BindingMap {
         let name = name_token.text();
         match namespace {
             Some(NamedEntity::Value(instance)) => {
-                let value =
-                    self.evaluate_instance_attribute(name_token, project, instance, name)?;
+                let value = self.evaluate_value_attribute(name_token, project, instance, name)?;
                 Ok(NamedEntity::Value(value))
             }
             Some(NamedEntity::Type(t)) => {
@@ -1484,7 +1483,7 @@ impl BindingMap {
         let right_value = self.evaluate_value_with_stack(stack, project, right, None)?;
 
         // Get the partial application to the left
-        let partial = self.evaluate_instance_attribute(expression, project, left_value, name)?;
+        let partial = self.evaluate_value_attribute(expression, project, left_value, name)?;
         let mut fa = match partial {
             AcornValue::Application(fa) => fa,
             _ => {
@@ -1576,11 +1575,7 @@ impl BindingMap {
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
         let value = match potential {
-            PotentialValue::Resolved(f) => {
-                let value = AcornValue::apply(f, args);
-                value.check_type(source, expected_type)?;
-                value
-            }
+            PotentialValue::Resolved(f) => f.check_apply(args, expected_type, source)?,
             PotentialValue::Unresolved(u) => {
                 self.resolve_with_inference(source, project, u, args, expected_type)?
             }
@@ -1865,7 +1860,7 @@ impl BindingMap {
                         let subvalue =
                             self.evaluate_value_with_stack(stack, project, expr, None)?;
                         let value =
-                            self.evaluate_instance_attribute(token, project, subvalue, name)?;
+                            self.evaluate_value_attribute(token, project, subvalue, name)?;
                         value.check_type(token, expected_type)?;
                         value
                     }
