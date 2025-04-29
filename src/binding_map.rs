@@ -346,7 +346,7 @@ impl BindingMap {
     }
 
     /// A helper to get the bindings from the project if needed bindings.
-    fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
+    pub fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
         if module_id == self.module {
             self
         } else {
@@ -1739,7 +1739,7 @@ impl BindingMap {
 
     /// This creates a version of a typeclass condition that is specialized to a particular
     /// class that isn't an instance of the typeclass.
-    /// The class must be defined in this module.
+    /// The *class* must be defined in this module. The typeclass may not be.
     ///
     /// We use this when we haven't proven that a type is an instance of a typeclass yet.
     /// So for example we can resolve:
@@ -1749,13 +1749,15 @@ impl BindingMap {
     /// TODO: does this work right for typeclasses outside this module?
     pub fn unsafe_instantiate_condition(
         &self,
-        source: &dyn ErrorSource,
         typeclass: &Typeclass,
         condition_name: &str,
         instance_type: &AcornType,
+        project: &Project,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         let tc_condition_name = LocalName::attribute(&typeclass.name, condition_name);
-        let (def, params) = match self.get_definition_and_params(&tc_condition_name) {
+        let tc_bindings = self.get_bindings(project, typeclass.module_id);
+        let (def, params) = match tc_bindings.get_definition_and_params(&tc_condition_name) {
             Some((def, params)) => (def, params),
             None => {
                 return Err(source.error(&format!(

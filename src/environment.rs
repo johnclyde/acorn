@@ -1485,6 +1485,7 @@ impl Environment {
         };
         self.check_canonical_classname(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
+
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
         for substatement in &is.definitions.statements {
@@ -1543,17 +1544,19 @@ impl Environment {
         let mut conditions = vec![];
         for attr_name in attributes.keys() {
             let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);
-            if self.bindings.is_theorem(&tc_attr_name) {
+            let tc_bindings = self.bindings.get_bindings(project, typeclass.module_id);
+            if tc_bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.
                 // First, we create a condition that is "unsafe" in the sense that it contains
                 // typeclass attribute functions applied to the instance type, which is not
                 // yet proven to be an instance of the typeclass.
                 let unsafe_condition = self.bindings.unsafe_instantiate_condition(
-                    statement,
                     &typeclass,
                     &attr_name,
                     &instance_type,
+                    project,
+                    statement,
                 )?;
                 // Now we make the condition safe by replacing the unsafe constants with their
                 // definitions.
