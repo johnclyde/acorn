@@ -271,6 +271,41 @@ pub enum AcornType {
 }
 
 impl AcornType {
+    /// Collects all type variables used in this type into the provided HashMap.
+    /// The HashMap keys are the variable names.
+    /// Returns an error if a type variable name is used with different typeclasses.
+    pub fn find_type_vars(&self, vars: &mut HashMap<String, TypeParam>, source: &dyn ErrorSource) -> Result<()> {
+        match self {
+            AcornType::Variable(param) => {
+                if let Some(existing) = vars.get(&param.name) {
+                    // Check if the typeclasses match
+                    if existing.typeclass != param.typeclass {
+                        return Err(source.error(&format!(
+                            "Type variable '{}' used with two different typeclasses: {:?} and {:?}",
+                            param.name, existing.typeclass, param.typeclass
+                        )));
+                    }
+                } else {
+                    vars.insert(param.name.clone(), param.clone());
+                }
+            }
+            AcornType::Function(function_type) => {
+                for arg_type in &function_type.arg_types {
+                    arg_type.find_type_vars(vars, source)?;
+                }
+                function_type.return_type.find_type_vars(vars, source)?;
+            }
+            AcornType::Data(_, params) => {
+                for param in params {
+                    param.find_type_vars(vars, source)?;
+                }
+            }
+            // Empty, Bool, and Arbitrary types don't contain type variables
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// This just checks exact equality, without any generic stuff.
     pub fn check_eq(&self, expected: Option<&AcornType>, source: &dyn ErrorSource) -> Result<()> {
         if let Some(e) = expected {
