@@ -65,7 +65,12 @@ impl Proposition {
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> MonomorphicProposition {
         let value = self.value.instantiate(params);
         if value.has_generic() {
-            panic!("tried to instantiate but {} is still generic", value);
+            let joined = params
+                .iter()
+                .map(|(p, _)| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            panic!("instantiated {} but {} is still generic", joined, value);
         }
         let source = match &self.source.source_type {
             SourceType::ConstantDefinition(v, name) => {
@@ -92,6 +97,11 @@ impl Proposition {
         } else {
             None
         }
+    }
+
+    /// Panics if the params and the generics in the value don't match.
+    pub fn validate_params(&self) {
+        todo!("implement");
     }
 }
 

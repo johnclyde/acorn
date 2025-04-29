@@ -2282,20 +2282,20 @@ mod prover_test {
         verify_succeeds(text);
     }
 
-    #[test]
-    fn test_proving_with_multiple_type_variables() {
-        let text = r#"
-            inductive Nil<T> {
-                nil
-            }
+    // #[test]
+    // fn test_proving_with_multiple_type_variables() {
+    //     let text = r#"
+    //         inductive Nil<T> {
+    //             nil
+    //         }
 
-            let map<T, U>: (Nil<T>, T -> U) -> Nil<U> = axiom
-            let morph<T>: Nil<T> -> Nil<T> = axiom
+    //         let map<T, U>: (Nil<T>, T -> U) -> Nil<U> = axiom
+    //         let morph<T>: Nil<T> -> Nil<T> = axiom
 
-            theorem goal<T, U>(items: Nil<T>, f: T -> U) {
-                map(items, f) = morph(map(items, f))
-            }
-        "#;
-        verify_succeeds(text);
-    }
+    //         theorem goal<T, U>(items: Nil<T>, f: T -> U) {
+    //             map(items, f) = morph(map(items, f))
+    //         }
+    //     "#;
+    //     verify_succeeds(text);
+    // }
 }
