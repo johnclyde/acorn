@@ -1499,14 +1499,14 @@ impl BindingMap {
                     return Err(expression
                         .error(&format!("expected a binary function for '{}' method", name)));
                 }
-                right_value.check_type(expression, Some(&f.arg_types[1]))?;
+                right_value.check_type(Some(&f.arg_types[1]), expression)?;
             }
             _ => return Err(expression.error(&format!("unexpected type for '{}' method", name))),
         };
 
         fa.args.push(right_value);
         let value = AcornValue::apply(*fa.function, fa.args);
-        value.check_type(expression, expected_type)?;
+        value.check_type(expected_type, expression)?;
         Ok(value)
     }
 
@@ -1713,7 +1713,7 @@ impl BindingMap {
         // Resolve
         let instance_fn = unresolved.resolve(source, instance_params)?;
         let value = AcornValue::apply(instance_fn, args);
-        value.check_type(source, expected_return_type)?;
+        value.check_type(expected_return_type, source)?;
         Ok(value)
     }
 
@@ -1817,7 +1817,7 @@ impl BindingMap {
                     let entity = self.evaluate_name(token, project, stack, None)?;
                     match entity {
                         NamedEntity::Value(value) => {
-                            value.check_type(expression, expected_type)?;
+                            value.check_type(expected_type, expression)?;
                             value
                         }
                         NamedEntity::Type(_)
@@ -1861,7 +1861,7 @@ impl BindingMap {
                             self.evaluate_value_with_stack(stack, project, expr, None)?;
                         let value =
                             self.evaluate_value_attribute(token, project, subvalue, name)?;
-                        value.check_type(token, expected_type)?;
+                        value.check_type(expected_type, token)?;
                         value
                     }
                     None => {
@@ -1997,7 +1997,7 @@ impl BindingMap {
                                     type_params.push(self.evaluate_type(project, expr)?);
                                 }
                                 let resolved = unresolved.resolve(left_delimiter, type_params)?;
-                                resolved.check_type(expression, expected_type)?;
+                                resolved.check_type(expected_type, expression)?;
                                 return Ok(PotentialValue::Resolved(resolved));
                             }
                             return Err(left_delimiter.error("unexpected type parameter list"));
@@ -2050,7 +2050,7 @@ impl BindingMap {
                             args.push(arg);
                         }
                         let value = AcornValue::apply(function, args);
-                        value.check_type(expression, expected_type)?;
+                        value.check_type(expected_type, expression)?;
                         value
                     }
                 }
@@ -2080,7 +2080,7 @@ impl BindingMap {
                 };
                 stack.remove_all(&arg_names);
                 if ret_val.is_ok() && token.token_type == TokenType::Function {
-                    ret_val.as_ref().unwrap().check_type(token, expected_type)?;
+                    ret_val.as_ref().unwrap().check_type(expected_type, token)?;
                 }
                 ret_val?
             }

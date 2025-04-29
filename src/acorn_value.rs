@@ -1872,8 +1872,8 @@ impl AcornValue {
     /// Returns an error if this value is not of the expected type.
     pub fn check_type(
         &self,
-        source: &dyn ErrorSource,
         expected_type: Option<&AcornType>,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if let Some(t) = expected_type {
             self.get_type().check_eq(source, Some(t))
@@ -1910,10 +1910,10 @@ impl AcornValue {
         // Simple, no-type-inference-necessary construction
         for (i, arg) in args.iter().enumerate() {
             let arg_type: &AcornType = &function_type.arg_types[i];
-            arg.check_type(source, Some(arg_type))?;
+            arg.check_type(Some(arg_type), source)?;
         }
         let value = AcornValue::apply(self, args);
-        value.check_type(source, expected_type)?;
+        value.check_type(expected_type, source)?;
         Ok(value)
     }
 
