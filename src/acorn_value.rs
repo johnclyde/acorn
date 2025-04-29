@@ -1876,7 +1876,7 @@ impl AcornValue {
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if let Some(t) = expected_type {
-            self.get_type().check_eq(source, Some(t))
+            self.get_type().check_eq(Some(t), source)
         } else {
             Ok(())
         }

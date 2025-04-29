@@ -37,7 +37,7 @@ impl NamedEntity {
     ) -> compilation::Result<PotentialValue> {
         match self {
             NamedEntity::Value(value) => {
-                value.get_type().check_eq(source, expected_type)?;
+                value.get_type().check_eq(expected_type, source)?;
                 Ok(PotentialValue::Resolved(value))
             }
             NamedEntity::Type(_) | NamedEntity::UnresolvedType(_) => {

@@ -272,7 +272,7 @@ pub enum AcornType {
 
 impl AcornType {
     /// This just checks exact equality, without any generic stuff.
-    pub fn check_eq(&self, source: &dyn ErrorSource, expected: Option<&AcornType>) -> Result<()> {
+    pub fn check_eq(&self, expected: Option<&AcornType>, source: &dyn ErrorSource) -> Result<()> {
         if let Some(e) = expected {
             if e != self {
                 return Err(source.error(&format!("expected type {}, but this is {}", e, self)));
@@ -281,7 +281,7 @@ impl AcornType {
         Ok(())
     }
 
-    pub fn check_instance(&self, source: &dyn ErrorSource, class: &Class) -> Result<()> {
+    pub fn check_instance(&self, class: &Class, source: &dyn ErrorSource) -> Result<()> {
         match self {
             AcornType::Data(c, _) => {
                 if c != class {

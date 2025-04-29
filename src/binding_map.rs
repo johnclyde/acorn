@@ -1021,7 +1021,7 @@ impl BindingMap {
         };
         match &info.constructor {
             Some((constructor_type, i, total)) => {
-                expected_type.check_instance(source, constructor_type)?;
+                expected_type.check_instance(constructor_type, source)?;
                 Ok((*i, *total))
             }
             None => Err(source.error("expected a constructor")),
@@ -1810,7 +1810,7 @@ impl BindingMap {
                     return Err(token.error("binder keywords cannot be used as values"));
                 }
                 TokenType::True | TokenType::False => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     AcornValue::Bool(token.token_type == TokenType::True)
                 }
                 TokenType::Identifier | TokenType::Numeral | TokenType::SelfToken => {
@@ -1846,7 +1846,7 @@ impl BindingMap {
             },
             Expression::Unary(token, expr) => match token.token_type {
                 TokenType::Not => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let value = self.evaluate_value_with_stack(
                         stack,
                         project,
@@ -1876,7 +1876,7 @@ impl BindingMap {
                     // if token.token_type == TokenType::RightArrow {
                     //     return Err(token.error("RightArrow in values is deprecated"));
                     // }
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let left_value = self.evaluate_value_with_stack(
                         stack,
                         project,
@@ -1897,7 +1897,7 @@ impl BindingMap {
                     )
                 }
                 TokenType::Equals => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let left_value = self.evaluate_value_with_stack(stack, project, left, None)?;
                     let right_value = self.evaluate_value_with_stack(
                         stack,
@@ -1912,7 +1912,7 @@ impl BindingMap {
                     )
                 }
                 TokenType::NotEquals => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let left_value = self.evaluate_value_with_stack(stack, project, left, None)?;
                     let right_value = self.evaluate_value_with_stack(
                         stack,
@@ -1927,7 +1927,7 @@ impl BindingMap {
                     )
                 }
                 TokenType::And => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let left_value = self.evaluate_value_with_stack(
                         stack,
                         project,
@@ -1943,7 +1943,7 @@ impl BindingMap {
                     AcornValue::Binary(BinaryOp::And, Box::new(left_value), Box::new(right_value))
                 }
                 TokenType::Or => {
-                    AcornType::Bool.check_eq(token, expected_type)?;
+                    AcornType::Bool.check_eq(expected_type, token)?;
                     let left_value = self.evaluate_value_with_stack(
                         stack,
                         project,
