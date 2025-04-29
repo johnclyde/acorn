@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::HashMap;
 
 use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
@@ -1924,5 +1925,62 @@ impl AcornValue {
             stack_size,
         };
         subvalue.to_string()
+    }
+
+    /// Collects all type variables used in this value into the provided HashMap.
+    /// The HashMap keys are the variable names.
+    /// Returns an error if a type variable name is used with different typeclasses.
+    pub fn find_type_vars(&self, vars: &mut HashMap<String, TypeParam>, source: &dyn ErrorSource) -> compilation::Result<()> {
+        match self {
+            AcornValue::Variable(_, var_type) => {
+                var_type.find_type_vars(vars, source)?;
+            },
+            AcornValue::Application(app) => {
+                app.function.find_type_vars(vars, source)?;
+                for arg in &app.args {
+                    arg.find_type_vars(vars, source)?;
+                }
+            },
+            AcornValue::Lambda(args, value) | 
+            AcornValue::ForAll(args, value) | 
+            AcornValue::Exists(args, value) => {
+                for arg_type in args {
+                    arg_type.find_type_vars(vars, source)?;
+                }
+                value.find_type_vars(vars, source)?;
+            },
+            AcornValue::Binary(_, left, right) => {
+                left.find_type_vars(vars, source)?;
+                right.find_type_vars(vars, source)?;
+            },
+            AcornValue::Not(x) => {
+                x.find_type_vars(vars, source)?;
+            },
+            AcornValue::Constant(c) => {
+                for param in &c.params {
+                    param.find_type_vars(vars, source)?;
+                }
+                c.instance_type.find_type_vars(vars, source)?;
+            },
+            AcornValue::IfThenElse(cond, if_value, else_value) => {
+                cond.find_type_vars(vars, source)?;
+                if_value.find_type_vars(vars, source)?;
+                else_value.find_type_vars(vars, source)?;
+            },
+            AcornValue::Match(scrutinee, cases) => {
+                scrutinee.find_type_vars(vars, source)?;
+                for (new_vars, pattern, result) in cases {
+                    for var_type in new_vars {
+                        var_type.find_type_vars(vars, source)?;
+                    }
+                    pattern.find_type_vars(vars, source)?;
+                    result.find_type_vars(vars, source)?;
+                }
+            },
+            AcornValue::Bool(_) => {
+                // Bool values don't contain type variables
+            },
+        }
+        Ok(())
     }
 }
