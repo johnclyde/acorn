@@ -2257,8 +2257,6 @@ mod prover_test {
     #[test]
     fn test_proving_with_typeclass_attribute_assigned_as_generic() {
         // This requires us to monomorphize to match equals<Color>.
-        // We do this as long as equals<Color> is mentioned explicitly.
-        // This feels awkward, though.
         let text = r#"
             typeclass F: Foo {
                 op: (F, F) -> Bool
@@ -2279,9 +2277,6 @@ mod prover_test {
 
             instance Color: Foo {
                 let op: (Color, Color) -> Bool = equals
-            } by {
-                // TODO: figure out how to let this line be deleted.
-                // equals<Color> = equals<Color>
             }
         "#;
         verify_succeeds(text);
