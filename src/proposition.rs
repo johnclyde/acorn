@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::fmt;
 
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
+use crate::compilation::{ErrorSource, Result};
 use crate::source::{Source, SourceType};
 
 /// A value along with information on where to find it in the source.
@@ -99,9 +101,52 @@ impl Proposition {
         }
     }
 
-    /// Panics if the params and the generics in the value don't match.
-    pub fn validate_params(&self) {
-        todo!("implement");
+    /// Validates that the params exactly match the type variables used in the value.
+    /// Returns an error if there's a mismatch.
+    pub fn validate_params(&self, source: &dyn ErrorSource) -> Result<()> {
+        // Collect all type variables from the value
+        let mut value_vars = HashMap::new();
+        self.value.find_type_vars(&mut value_vars, source)?;
+
+        // Check that every param is used in the value
+        for param in &self.params {
+            if !value_vars.contains_key(&param.name) {
+                return Err(source.error(&format!(
+                    "Type parameter '{}' is declared but not used in the value",
+                    param.name
+                )));
+            }
+        }
+
+        // Check that every type variable in the value is declared in params
+        for (var_name, var_param) in &value_vars {
+            if !self.params.iter().any(|p| &p.name == var_name) {
+                return Err(source.error(&format!(
+                    "Type variable '{}' is used in the value but not declared in parameters",
+                    var_name
+                )));
+            }
+
+            // Check that the typeclasses match for declared parameters
+            if let Some(param) = self.params.iter().find(|p| &p.name == var_name) {
+                if param.typeclass != var_param.typeclass {
+                    return Err(source.error(&format!(
+                        "Type variable '{}' has different typeclass constraints in declaration ({:?}) and usage ({:?})",
+                        var_name, param.typeclass, var_param.typeclass
+                    )));
+                }
+            }
+        }
+
+        // Check that the number of params matches the number of unique type variables
+        if self.params.len() != value_vars.len() {
+            return Err(source.error(&format!(
+                "Mismatch between number of declared type parameters ({}) and used type variables ({})",
+                self.params.len(), value_vars.len()
+            )));
+        }
+
+        Ok(())
     }
 }
 

@@ -188,8 +188,6 @@ impl Monomorphizer {
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
             Fact::Proposition(proposition) => {
-                println!("XXX Adding proposition: {}", proposition.value);
-                println!("XXX params: {:?}", proposition.params);
                 self.add_proposition(proposition);
             }
             Fact::Instance(class, typeclass, _) => {
