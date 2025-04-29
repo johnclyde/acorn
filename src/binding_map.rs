@@ -196,8 +196,8 @@ impl BindingMap {
 
     pub fn check_local_name_available(
         &self,
-        source: &dyn ErrorSource,
         local_name: &LocalName,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if self.local_name_in_use(local_name) {
             return Err(source.error(&format!("local name {} is already in use", local_name)));
@@ -217,8 +217,8 @@ impl BindingMap {
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
         &self,
-        source: &dyn ErrorSource,
         name: &str,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if self.typename_to_type.contains_key(name) || self.name_to_typeclass.contains_key(name) {
             return Err(source.error(&format!("typename {} is already in use", name)));
@@ -229,10 +229,10 @@ impl BindingMap {
     /// Returns an error if this name is already in use.
     pub fn check_unqualified_name_available(
         &self,
-        source: &dyn ErrorSource,
         name: &str,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        self.check_local_name_available(source, &LocalName::unqualified(name))
+        self.check_local_name_available(&LocalName::unqualified(name), source)
     }
 
     /// Adds both directions for a name <-> type correspondence.
@@ -986,7 +986,7 @@ impl BindingMap {
                 }
             }
             let (name, acorn_type) = self.evaluate_declaration(project, declaration)?;
-            self.check_unqualified_name_available(declaration.token(), &name)?;
+            self.check_unqualified_name_available(&name, declaration.token())?;
             if names.contains(&name) {
                 return Err(declaration
                     .token()
@@ -1096,7 +1096,7 @@ impl BindingMap {
                 Expression::Singleton(token) => token.text().to_string(),
                 _ => return Err(name_exp.error("expected a simple name in pattern")),
             };
-            self.check_unqualified_name_available(name_exp, &name)?;
+            self.check_unqualified_name_available(&name, name_exp)?;
             // Check if we already saw this name
             if args.iter().any(|(n, _)| n == &name) {
                 return Err(name_exp.error(&format!(
@@ -1519,7 +1519,7 @@ impl BindingMap {
         name_token: &Token,
     ) -> compilation::Result<()> {
         let local_name = LocalName::unqualified(name_token.text());
-        self.check_local_name_available(name_token, &local_name)?;
+        self.check_local_name_available(&local_name, name_token)?;
         let bindings = match project.get_bindings(module) {
             Some(b) => b,
             None => {
@@ -2176,7 +2176,7 @@ impl BindingMap {
         let mut answer: Vec<TypeParam> = vec![];
         for expr in exprs {
             let name = expr.name.text().to_string();
-            self.check_typename_available(&expr.name, &name)?;
+            self.check_typename_available(&name, &expr.name)?;
             if answer.iter().any(|tp| tp.name == name) {
                 return Err(expr.name.error("duplicate type parameter"));
             }

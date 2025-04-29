@@ -528,7 +528,7 @@ impl Environment {
 
         if let Some(name) = &ts.name {
             self.bindings
-                .check_unqualified_name_available(&statement.first_token, &name)?;
+                .check_unqualified_name_available(&name, &statement.first_token)?;
             let name = DefinedName::unqualified(name);
             self.definition_ranges.insert(name, range.clone());
         }
@@ -686,7 +686,7 @@ impl Environment {
             )));
         }
         self.bindings
-            .check_unqualified_name_available(statement, &fss.name)?;
+            .check_unqualified_name_available(&fss.name, statement)?;
 
         // Figure out the range for this function definition.
         // It's smaller than the whole function statement because it doesn't
@@ -788,7 +788,7 @@ impl Environment {
             ss.first_right_brace.line_number,
         );
         self.bindings
-            .check_typename_available(statement, &ss.name)?;
+            .check_typename_available(&ss.name, statement)?;
 
         let mut arbitrary_params = vec![];
         let type_params = self
@@ -1018,7 +1018,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(statement, &is.name)?;
+            .check_typename_available(&is.name, statement)?;
         let range = Range {
             start: statement.first_token.start_pos(),
             end: is.name_token.end_pos(),
@@ -1367,10 +1367,10 @@ impl Environment {
         self.add_other_lines(statement);
         let instance_name = ts.instance_name.text();
         self.bindings
-            .check_typename_available(statement, instance_name)?;
+            .check_typename_available(instance_name, statement)?;
         let typeclass_name = ts.typeclass_name.text();
         self.bindings
-            .check_typename_available(statement, typeclass_name)?;
+            .check_typename_available(typeclass_name, statement)?;
         let typeclass = Typeclass {
             module_id: self.module_id,
             name: typeclass_name.to_string(),
@@ -1389,7 +1389,7 @@ impl Environment {
             let var_type = arb_type.genericize(&type_params);
             let local_name = LocalName::attribute(typeclass_name, attr_name.text());
             self.bindings
-                .check_local_name_available(attr_name, &local_name)?;
+                .check_local_name_available(&local_name, attr_name)?;
             self.bindings.add_local_constant(
                 local_name,
                 vec![type_param.clone()],
@@ -1409,7 +1409,7 @@ impl Environment {
             };
             let local_name = LocalName::attribute(&typeclass_name, &condition.name.text());
             self.bindings
-                .check_local_name_available(&condition.name, &local_name)?;
+                .check_local_name_available(&local_name, &condition.name)?;
             let condition_name = local_name.clone().to_defined();
             self.definition_ranges.insert(condition_name.clone(), range);
 
@@ -1627,7 +1627,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(statement, &ts.name)?;
+            .check_typename_available(&ts.name, statement)?;
         if ts.type_expr.is_axiom() {
             self.bindings.add_potential_type(&ts.name, vec![]);
         } else {
@@ -1750,7 +1750,7 @@ impl Environment {
         // Give a local name to the imported module
         let local_name = is.components.last().unwrap();
         self.bindings
-            .check_unqualified_name_available(statement, local_name)?;
+            .check_unqualified_name_available(local_name, statement)?;
         let full_name = is.components.join(".");
         let module_id = match project.load_module_by_name(&full_name) {
             Ok(module_id) => module_id,
