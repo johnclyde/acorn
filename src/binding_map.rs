@@ -206,10 +206,14 @@ impl BindingMap {
         if self.constant_info.contains_key(local_name) {
             return true;
         }
-        if let LocalName::Unqualified(word) = local_name {
-            self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
-        } else {
-            false
+        match local_name {
+            LocalName::Unqualified(word) => {
+                self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
+            }
+            LocalName::Attribute(_receiver, _attr) => {
+                // XXX
+                false
+            }
         }
     }
 
@@ -1163,7 +1167,7 @@ impl BindingMap {
         class: &Class,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if self.has_type_attribute(project, class.module_id, &class.name, s) {
+        if self.has_type_attribute(&class, s, project) {
             return self
                 .evaluate_type_attribute(&class, s, project, token)?
                 .as_value(token);
@@ -1190,19 +1194,10 @@ impl BindingMap {
         Ok(value)
     }
 
-    fn has_type_attribute(
-        &self,
-        project: &Project,
-        module: ModuleId,
-        type_name: &str,
-        var_name: &str,
-    ) -> bool {
-        let bindings = if module == self.module {
-            &self
-        } else {
-            project.get_bindings(module).unwrap()
-        };
-        let constant_name = LocalName::attribute(type_name, var_name);
+    /// Whether this type has this attribute in the current context.
+    fn has_type_attribute(&self, class: &Class, var_name: &str, project: &Project) -> bool {
+        let bindings = self.get_bindings(project, class.module_id);
+        let constant_name = LocalName::attribute(&class.name, var_name);
         bindings.constant_info.contains_key(&constant_name)
     }
 

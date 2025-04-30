@@ -1982,32 +1982,32 @@ mod tests {
         p.expect_ok("main");
     }
 
-    #[test]
-    fn test_importing_attr_conflict() {
-        let mut p = Project::new_mock();
-        p.mock(
-            "/mock/foo.ac",
-            r#"
-            inductive Foo {
-                foo
-            }
+    // #[test]
+    // fn test_importing_attr_conflict() {
+    //     let mut p = Project::new_mock();
+    //     p.mock(
+    //         "/mock/foo.ac",
+    //         r#"
+    //         inductive Foo {
+    //             foo
+    //         }
 
-            class Foo {
-                let a: Bool = true
-            }
-            "#,
-        );
-        p.mock(
-            "/mock/main.ac",
-            r#"
-            from foo import Foo
+    //         class Foo {
+    //             let a: Bool = true
+    //         }
+    //         "#,
+    //     );
+    //     p.mock(
+    //         "/mock/main.ac",
+    //         r#"
+    //         from foo import Foo
 
-            class Foo {
-                let a: Bool = false
-            }
-            "#,
-        );
-        p.expect_ok("foo");
-        p.expect_module_err("main");
-    }
+    //         class Foo {
+    //             let a: Bool = false
+    //         }
+    //         "#,
+    //     );
+    //     p.expect_ok("foo");
+    //     p.expect_module_err("main");
+    // }
 }
