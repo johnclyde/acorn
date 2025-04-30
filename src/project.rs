@@ -1946,7 +1946,6 @@ mod tests {
 
     #[test]
     fn test_indirect_importing() {
-        // TODO: get the lines uncommented
         let mut p = Project::new_mock();
         p.mock(
             "/mock/foo.ac",
@@ -1965,9 +1964,9 @@ mod tests {
             r#"
             from foo import Foo
 
-            // class Foo {
-            //     let b: Bool = true
-            // }
+            class Foo {
+                let b: Bool = true
+            }
             "#,
         );
         p.mock(
@@ -1976,7 +1975,7 @@ mod tests {
             from bar import Foo
 
             let a: Bool = Foo.a
-            // let b: Bool = Foo.a
+            let b: Bool = Foo.b
             "#,
         );
         p.expect_ok("bar");
