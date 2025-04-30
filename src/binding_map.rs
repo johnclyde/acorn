@@ -98,16 +98,26 @@ impl ClassInfo {
         }
     }
 
-    fn import(&mut self, info: &ClassInfo) {
-        // XXX handle conflicts
+    fn import(&mut self, info: &ClassInfo, source: &dyn ErrorSource) -> compilation::Result<()> {
         for (attr, other_module_id) in info.attributes.iter() {
-            if !self.attributes.contains_key(attr) {
-                self.attributes.insert(attr.clone(), *other_module_id);
+            match self.attributes.get(attr) {
+                None => {
+                    self.attributes.insert(attr.clone(), *other_module_id);
+                }
+                Some(module_id) => {
+                    if *module_id != *other_module_id {
+                        return Err(source.error(&format!(
+                            "attribute {} is defined in two different modules",
+                            attr
+                        )));
+                    }
+                }
             }
         }
         for typeclass in info.typeclasses.iter() {
             self.typeclasses.insert(typeclass.clone());
         }
+        Ok(())
     }
 }
 
@@ -715,12 +725,19 @@ impl BindingMap {
     /// Adds this name to the environment as a module.
     /// Copies over some information from the module's bindings.
     /// This enables "mixins".
-    pub fn import_module(&mut self, name: &str, bindings: &BindingMap) {
-        self.name_to_module
+    pub fn import_module(
+        &mut self,
+        name: &str,
+        bindings: &BindingMap,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
+        if self
+            .name_to_module
             .insert(name.to_string(), bindings.module)
-            .map(|_| {
-                panic!("module name {} already bound", name);
-            });
+            .is_some()
+        {
+            return Err(source.error(&format!("name {} is already bound", name)));
+        }
         self.module_to_name
             .insert(bindings.module, name.to_string());
         for (class, imported_info) in bindings.class_info.iter() {
@@ -728,8 +745,9 @@ impl BindingMap {
                 .class_info
                 .entry(class.clone())
                 .or_insert_with(ClassInfo::new);
-            entry.import(imported_info);
+            entry.import(imported_info, source)?;
         }
+        Ok(())
     }
 
     pub fn is_module(&self, name: &str) -> bool {

@@ -1755,17 +1755,17 @@ impl Environment {
             }
         };
         match project.get_bindings(module_id) {
-            None =>
-            // The fundamental error is in the other module, not this one.
-            {
+            None => {
+                // The fundamental error is in the other module, not this one.
                 return Err(Error::secondary(
                     &statement.first_token,
                     &statement.last_token,
                     &format!("error in '{}' module", full_name),
-                ))
+                ));
             }
             Some(bindings) => {
-                self.bindings.import_module(local_name, &bindings);
+                self.bindings
+                    .import_module(local_name, &bindings, &statement.first_token)?;
             }
         }
 
