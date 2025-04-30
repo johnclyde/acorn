@@ -1212,7 +1212,7 @@ impl BindingMap {
         bindings.constant_info.contains_key(&constant_name)
     }
 
-    /// Evaluates a name scoped by a class or typeclass name, like MyClass.foo
+    /// Evaluates a name scoped by a type name, like Nat.range
     fn evaluate_type_attribute(
         &self,
         source: &dyn ErrorSource,
@@ -1227,6 +1227,19 @@ impl BindingMap {
             project.get_bindings(module).unwrap()
         };
         let constant_name = DefinedName::attribute(type_name, var_name);
+        bindings.get_constant_value(source, &constant_name)
+    }
+
+    /// Evalutes a name scoped by a typeclass name, like Group.foo
+    fn evaluate_typeclass_attribute(
+        &self,
+        typeclass: &Typeclass,
+        var_name: &str,
+        project: &Project,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<PotentialValue> {
+        let bindings = self.get_bindings(project, typeclass.module_id);
+        let constant_name = DefinedName::attribute(&typeclass.name, var_name);
         bindings.get_constant_value(source, &constant_name)
     }
 
@@ -1336,13 +1349,9 @@ impl BindingMap {
                     }
                     AcornType::Arbitrary(param) if param.typeclass.is_some() => {
                         let typeclass = param.typeclass.as_ref().unwrap();
-                        match self.evaluate_type_attribute(
-                            name_token,
-                            project,
-                            typeclass.module_id,
-                            &typeclass.name,
-                            name,
-                        )? {
+                        match self
+                            .evaluate_typeclass_attribute(&typeclass, name, project, name_token)?
+                        {
                             PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
                             PotentialValue::Unresolved(u) => {
                                 // Resolve it with the arbitrary type itself
