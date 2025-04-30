@@ -97,6 +97,18 @@ impl ClassInfo {
             typeclasses: HashSet::new(),
         }
     }
+
+    fn import(&mut self, info: &ClassInfo) {
+        // XXX handle conflicts
+        for (attr, other_module_id) in info.attributes.iter() {
+            if !self.attributes.contains_key(attr) {
+                self.attributes.insert(attr.clone(), *other_module_id);
+            }
+        }
+        for typeclass in info.typeclasses.iter() {
+            self.typeclasses.insert(typeclass.clone());
+        }
+    }
 }
 
 /// A representation of the variables on the stack.
@@ -194,7 +206,7 @@ impl BindingMap {
             instance_definitions: HashMap::new(),
             class_info: HashMap::new(),
         };
-        answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool), None);
+        answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
     }
 
@@ -211,7 +223,7 @@ impl BindingMap {
                 self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
             }
             LocalName::Attribute(_receiver, _attr) => {
-                // XXX
+                // XXX check imported/mixin stuff
                 false
             }
         }
@@ -324,19 +336,7 @@ impl BindingMap {
     /// Bindings are the bindings that we are importing the type from.
     /// If the alias is a local one, bindings is None.
     /// Panics if the alias is already bound.
-    pub fn add_type_alias(
-        &mut self,
-        alias: &str,
-        potential: PotentialType,
-        bindings: Option<&BindingMap>,
-    ) {
-        if let (Some(class), Some(bindings)) = (potential.as_base_class(), bindings) {
-            if let Some(class_info) = bindings.class_info.get(&class) {
-                // Copy the class information from the bindings we are importing from.
-                self.class_info.insert(class.clone(), class_info.clone());
-            }
-        }
-
+    pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
@@ -707,13 +707,23 @@ impl BindingMap {
     }
 
     /// Adds this name to the environment as a module.
-    pub fn import_module(&mut self, name: &str, module: ModuleId) {
+    /// Copies over some information from the module's bindings.
+    /// This enables "mixins".
+    pub fn import_module(&mut self, name: &str, bindings: &BindingMap) {
         self.name_to_module
-            .insert(name.to_string(), module)
+            .insert(name.to_string(), bindings.module)
             .map(|_| {
                 panic!("module name {} already bound", name);
             });
-        self.module_to_name.insert(module, name.to_string());
+        self.module_to_name
+            .insert(bindings.module, name.to_string());
+        for (class, imported_info) in bindings.class_info.iter() {
+            let entry = self
+                .class_info
+                .entry(class.clone())
+                .or_insert_with(ClassInfo::new);
+            entry.import(imported_info);
+        }
     }
 
     pub fn is_module(&self, name: &str) -> bool {
@@ -1213,7 +1223,7 @@ impl BindingMap {
             .class_info
             .get(class)
             .and_then(|info| info.attributes.get(attr_name))
-            .unwrap_or(&class.module_id);
+            .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(project, *module_id);
         let constant_name = DefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
@@ -1569,11 +1579,7 @@ impl BindingMap {
                 }
             }
             NamedEntity::Type(acorn_type) => {
-                self.add_type_alias(
-                    &name_token.text(),
-                    PotentialType::Resolved(acorn_type),
-                    Some(&bindings),
-                );
+                self.add_type_alias(&name_token.text(), PotentialType::Resolved(acorn_type));
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
@@ -1588,11 +1594,7 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedType(u) => {
-                self.add_type_alias(
-                    &name_token.text(),
-                    PotentialType::Unresolved(u),
-                    Some(&bindings),
-                );
+                self.add_type_alias(&name_token.text(), PotentialType::Unresolved(u));
                 Ok(())
             }
         }

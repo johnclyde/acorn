@@ -1983,7 +1983,7 @@ mod tests {
     }
 
     // #[test]
-    // fn test_importing_attr_conflict() {
+    // fn test_importing_let_attr_conflict() {
     //     let mut p = Project::new_mock();
     //     p.mock(
     //         "/mock/foo.ac",
@@ -2004,6 +2004,35 @@ mod tests {
 
     //         class Foo {
     //             let a: Bool = false
+    //         }
+    //         "#,
+    //     );
+    //     p.expect_ok("foo");
+    //     p.expect_module_err("main");
+    // }
+
+    // #[test]
+    // fn test_importing_define_attr_conflict() {
+    //     let mut p = Project::new_mock();
+    //     p.mock(
+    //         "/mock/foo.ac",
+    //         r#"
+    //         inductive Foo {
+    //             foo
+    //         }
+
+    //         class Foo {
+    //             define a(self) -> Bool { true }
+    //         }
+    //         "#,
+    //     );
+    //     p.mock(
+    //         "/mock/main.ac",
+    //         r#"
+    //         from foo import Foo
+
+    //         class Foo {
+    //             define a(self) -> Bool { true }
     //         }
     //         "#,
     //     );

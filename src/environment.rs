@@ -1631,7 +1631,7 @@ impl Environment {
             let potential = self
                 .bindings
                 .evaluate_potential_type(project, &ts.type_expr)?;
-            self.bindings.add_type_alias(&ts.name, potential, None);
+            self.bindings.add_type_alias(&ts.name, potential);
         };
         Ok(())
     }
@@ -1756,15 +1756,20 @@ impl Environment {
                 return Err(statement.error(&format!("import error: {}", s)));
             }
         };
-        if project.get_bindings(module_id).is_none() {
+        match project.get_bindings(module_id) {
+            None =>
             // The fundamental error is in the other module, not this one.
-            return Err(Error::secondary(
-                &statement.first_token,
-                &statement.last_token,
-                &format!("error in '{}' module", full_name),
-            ));
+            {
+                return Err(Error::secondary(
+                    &statement.first_token,
+                    &statement.last_token,
+                    &format!("error in '{}' module", full_name),
+                ))
+            }
+            Some(bindings) => {
+                self.bindings.import_module(local_name, &bindings);
+            }
         }
-        self.bindings.import_module(local_name, module_id);
 
         // Bring the imported names into this environment
         for name in &is.names {
