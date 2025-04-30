@@ -113,6 +113,23 @@ impl PotentialType {
             }
         }
     }
+
+    /// If this potential type represents a base class, ie with no type parameters,
+    /// return a reference to the class.
+    /// Thus, Nat is a base class, and List<T> is a base class, but List<Bool> is not.
+    pub fn as_base_class(&self) -> Option<&Class> {
+        match self {
+            PotentialType::Resolved(AcornType::Data(class, params)) => {
+                if params.is_empty() {
+                    Some(class)
+                } else {
+                    None
+                }
+            }
+            PotentialType::Unresolved(ut) => Some(&ut.class),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -274,7 +291,11 @@ impl AcornType {
     /// Collects all type variables used in this type into the provided HashMap.
     /// The HashMap keys are the variable names.
     /// Returns an error if a type variable name is used with different typeclasses.
-    pub fn find_type_vars(&self, vars: &mut HashMap<String, TypeParam>, source: &dyn ErrorSource) -> Result<()> {
+    pub fn find_type_vars(
+        &self,
+        vars: &mut HashMap<String, TypeParam>,
+        source: &dyn ErrorSource,
+    ) -> Result<()> {
         match self {
             AcornType::Variable(param) => {
                 if let Some(existing) = vars.get(&param.name) {

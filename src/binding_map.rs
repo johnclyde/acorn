@@ -83,6 +83,9 @@ pub struct BindingMap {
 /// Information about a class that is referenced in this module.
 #[derive(Clone)]
 struct ClassInfo {
+    /// What module defines each of the attributes of this class.
+    attributes: BTreeMap<String, ModuleId>,
+
     /// Every typeclass that this class is an instance of, based on the knowledge of this module.
     typeclasses: HashSet<Typeclass>,
 }
@@ -90,6 +93,7 @@ struct ClassInfo {
 impl ClassInfo {
     fn new() -> Self {
         ClassInfo {
+            attributes: BTreeMap::new(),
             typeclasses: HashSet::new(),
         }
     }
@@ -190,7 +194,7 @@ impl BindingMap {
             instance_definitions: HashMap::new(),
             class_info: HashMap::new(),
         };
-        answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
+        answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool), None);
         answer
     }
 
@@ -313,8 +317,22 @@ impl BindingMap {
     }
 
     /// Adds a new type name that's an alias for an existing type.
+    /// Bindings are the bindings that we are importing the type from.
+    /// If the alias is a local one, bindings is None.
     /// Panics if the alias is already bound.
-    pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
+    pub fn add_type_alias(
+        &mut self,
+        alias: &str,
+        potential: PotentialType,
+        bindings: Option<&BindingMap>,
+    ) {
+        if let (Some(class), Some(bindings)) = (potential.as_base_class(), bindings) {
+            if let Some(class_info) = bindings.class_info.get(&class) {
+                // Copy the class information from the bindings we are importing from.
+                self.class_info.insert(class.clone(), class_info.clone());
+            }
+        }
+
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
@@ -591,6 +609,16 @@ impl BindingMap {
 
         match local_name {
             LocalName::Attribute(entity_name, attribute) => {
+                if let Some(t) = self.typename_to_type.get(&entity_name) {
+                    if let Some(class) = t.as_base_class() {
+                        // We are defining a new class attribute.
+                        self.class_info
+                            .entry(class.clone())
+                            .or_insert_with(ClassInfo::new)
+                            .attributes
+                            .insert(attribute.clone(), self.module);
+                    }
+                }
                 self.attributes
                     .entry(entity_name)
                     .or_insert_with(BTreeMap::new)
@@ -1561,7 +1589,11 @@ impl BindingMap {
                 }
             }
             NamedEntity::Type(acorn_type) => {
-                self.add_type_alias(&name_token.text(), PotentialType::Resolved(acorn_type));
+                self.add_type_alias(
+                    &name_token.text(),
+                    PotentialType::Resolved(acorn_type),
+                    Some(&bindings),
+                );
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
@@ -1576,7 +1608,11 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedType(u) => {
-                self.add_type_alias(&name_token.text(), PotentialType::Unresolved(u));
+                self.add_type_alias(
+                    &name_token.text(),
+                    PotentialType::Unresolved(u),
+                    Some(&bindings),
+                );
                 Ok(())
             }
         }

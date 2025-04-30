@@ -1637,7 +1637,7 @@ impl Environment {
             let potential = self
                 .bindings
                 .evaluate_potential_type(project, &ts.type_expr)?;
-            self.bindings.add_type_alias(&ts.name, potential);
+            self.bindings.add_type_alias(&ts.name, potential, None);
         };
         Ok(())
     }
