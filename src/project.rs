@@ -1954,6 +1954,10 @@ mod tests {
             inductive Foo {
                 foo
             }
+
+            class Foo {
+                let a: Bool = true
+            }
             "#,
         );
         p.mock(
@@ -1962,7 +1966,7 @@ mod tests {
             from foo import Foo
 
             // class Foo {
-            //     let a: Bool = true
+            //     let b: Bool = true
             // }
             "#,
         );
@@ -1971,6 +1975,7 @@ mod tests {
             r#"
             from bar import Foo
 
+            let a: Bool = Foo.a
             // let b: Bool = Foo.a
             "#,
         );
