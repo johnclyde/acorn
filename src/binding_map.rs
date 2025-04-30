@@ -76,8 +76,23 @@ pub struct BindingMap {
     /// is going to need to see them in their parametrized form.
     instance_definitions: HashMap<InstanceName, AcornValue>,
 
-    /// Stores the instance-of relationships for classes that were defined in this module.
-    instance_of: HashMap<Class, HashSet<Typeclass>>,
+    /// Stores information about every class referenced in this module.
+    class_info: HashMap<Class, ClassInfo>,
+}
+
+/// Information about a class that is referenced in this module.
+#[derive(Clone)]
+struct ClassInfo {
+    /// Every typeclass that this class is an instance of, based on the knowledge of this module.
+    typeclasses: HashSet<Typeclass>,
+}
+
+impl ClassInfo {
+    fn new() -> Self {
+        ClassInfo {
+            typeclasses: HashSet::new(),
+        }
+    }
 }
 
 /// A representation of the variables on the stack.
@@ -173,7 +188,7 @@ impl BindingMap {
             module_to_name: HashMap::new(),
             numerals: None,
             instance_definitions: HashMap::new(),
-            instance_of: HashMap::new(),
+            class_info: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -407,9 +422,10 @@ impl BindingMap {
     }
 
     pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
-        self.instance_of
+        self.class_info
             .entry(class)
-            .or_insert_with(HashSet::new)
+            .or_insert_with(ClassInfo::new)
+            .typeclasses
             .insert(typeclass);
     }
 
@@ -1585,9 +1601,9 @@ impl BindingMap {
 
     fn is_instance_of(&self, project: &Project, class: &Class, typeclass: &Typeclass) -> bool {
         self.get_bindings(project, class.module_id)
-            .instance_of
+            .class_info
             .get(&class)
-            .map_or(false, |set| set.contains(typeclass))
+            .map_or(false, |info| info.typeclasses.contains(typeclass))
     }
 
     /// If we have an expected type and this is still a potential value, resolve it.
