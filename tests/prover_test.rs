@@ -2294,6 +2294,9 @@ mod prover_test {
 
             theorem goal<T, U>(items: Nil<T>, f: T -> U) {
                 map(items, f) = morph(map(items, f))
+            } by {
+                map(items, f) = Nil.nil<U>
+                morph(map(items, f)) = Nil.nil<U>
             }
         "#;
         verify_succeeds(text);

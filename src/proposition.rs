@@ -65,6 +65,13 @@ impl Proposition {
 
     /// Instantiates a generic proposition to have a particular type.
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> MonomorphicProposition {
+        if self.params.len() != params.len() {
+            panic!(
+                "proposition has {} params, but we tried to instantiate with {}",
+                self.params.len(),
+                params.len()
+            );
+        }
         let value = self.value.instantiate(params);
         if value.has_generic() {
             let joined = params

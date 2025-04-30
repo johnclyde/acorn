@@ -311,6 +311,13 @@ impl Monomorphizer {
         generic_params: &ConstantParams,
         monomorph_params: &ConstantParams,
     ) {
+        if generic_params.params.len() != self.prop_info[prop_id].proposition.params.len() {
+            // We don't have enough parameters, based on this constant, to
+            // monomorphize the whole proposition.
+            // Just give up. In theory, maybe we could do something here.
+            return;
+        }
+
         // Our goal is to find the "prop params", a way in which we can instantiate
         // the whole proposition so that the instance params become the monomorph params.
         assert_eq!(generic_params.params.len(), monomorph_params.params.len());
