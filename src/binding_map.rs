@@ -1165,7 +1165,7 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         if self.has_type_attribute(project, class.module_id, &class.name, s) {
             return self
-                .evaluate_type_attribute(token, project, class.module_id, &class.name, s)?
+                .evaluate_type_attribute(&class, s, project, token)?
                 .as_value(token);
         }
 
@@ -1177,13 +1177,7 @@ impl BindingMap {
         let last_num = self.evaluate_number_with_class(token, project, class, last_str)?;
         let initial_str = &s[..s.len() - 1];
         let initial_num = self.evaluate_number_with_class(token, project, class, initial_str)?;
-        let read_fn = match self.evaluate_type_attribute(
-            token,
-            project,
-            class.module_id,
-            &class.name,
-            "read",
-        )? {
+        let read_fn = match self.evaluate_type_attribute(&class, "read", project, token)? {
             PotentialValue::Resolved(f) => f,
             PotentialValue::Unresolved(_) => {
                 return Err(token.error(&format!(
@@ -1215,18 +1209,13 @@ impl BindingMap {
     /// Evaluates a name scoped by a type name, like Nat.range
     fn evaluate_type_attribute(
         &self,
-        source: &dyn ErrorSource,
+        class: &Class,
+        attr_name: &str,
         project: &Project,
-        module: ModuleId,
-        type_name: &str,
-        var_name: &str,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let bindings = if module == self.module {
-            &self
-        } else {
-            project.get_bindings(module).unwrap()
-        };
-        let constant_name = DefinedName::attribute(type_name, var_name);
+        let bindings = self.get_bindings(project, class.module_id);
+        let constant_name = DefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
     }
 
@@ -1234,12 +1223,12 @@ impl BindingMap {
     fn evaluate_typeclass_attribute(
         &self,
         typeclass: &Typeclass,
-        var_name: &str,
+        attr_name: &str,
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         let bindings = self.get_bindings(project, typeclass.module_id);
-        let constant_name = DefinedName::attribute(&typeclass.name, var_name);
+        let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
     }
 
@@ -1320,13 +1309,7 @@ impl BindingMap {
                             )?;
                             return Ok(NamedEntity::Value(value));
                         }
-                        match self.evaluate_type_attribute(
-                            name_token,
-                            project,
-                            class.module_id,
-                            &class.name,
-                            name,
-                        )? {
+                        match self.evaluate_type_attribute(class, name, project, name_token)? {
                             PotentialValue::Resolved(value) => {
                                 if !params.is_empty() {
                                     return Err(
@@ -1371,13 +1354,7 @@ impl BindingMap {
                 }
             }
             Some(NamedEntity::Typeclass(tc)) => {
-                match self.evaluate_type_attribute(
-                    name_token,
-                    project,
-                    tc.module_id,
-                    &tc.name,
-                    name,
-                )? {
+                match self.evaluate_typeclass_attribute(&tc, name, project, name_token)? {
                     PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
                     PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
                 }
@@ -1386,13 +1363,7 @@ impl BindingMap {
                 Err(name_token.error("cannot access members of unresolved types"))
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_type_attribute(
-                    name_token,
-                    project,
-                    ut.class.module_id,
-                    &ut.class.name,
-                    name,
-                )? {
+                match self.evaluate_type_attribute(&ut.class, name, project, name_token)? {
                     PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
                     PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
                 }
