@@ -1177,7 +1177,7 @@ impl BindingMap {
         class: &Class,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if self.has_type_attribute(&class, s, project) {
+        if self.has_type_attribute(&class, s) {
             return self
                 .evaluate_type_attribute(&class, s, project, token)?
                 .as_value(token);
@@ -1205,10 +1205,10 @@ impl BindingMap {
     }
 
     /// Whether this type has this attribute in the current context.
-    fn has_type_attribute(&self, class: &Class, var_name: &str, project: &Project) -> bool {
-        let bindings = self.get_bindings(project, class.module_id);
-        let constant_name = LocalName::attribute(&class.name, var_name);
-        bindings.constant_info.contains_key(&constant_name)
+    fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
+        self.class_info
+            .get(class)
+            .map_or(false, |info| info.attributes.contains_key(var_name))
     }
 
     /// Evaluates a name scoped by a type name, like Nat.range
