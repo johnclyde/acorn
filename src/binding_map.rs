@@ -1214,7 +1214,12 @@ impl BindingMap {
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let bindings = self.get_bindings(project, class.module_id);
+        let module_id = self
+            .class_info
+            .get(class)
+            .and_then(|info| info.attributes.get(attr_name))
+            .unwrap_or(&class.module_id);
+        let bindings = self.get_bindings(project, *module_id);
         let constant_name = DefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
     }
