@@ -1532,9 +1532,7 @@ impl Environment {
         }
 
         // Check that we have all implementations.
-        let attributes =
-            self.bindings
-                .get_attributes(&project, typeclass.module_id, &typeclass.name);
+        let attributes = self.bindings.get_typeclass_attributes(&typeclass, &project);
         let mut conditions = vec![];
         for attr_name in attributes.keys() {
             let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);

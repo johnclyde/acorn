@@ -46,9 +46,9 @@ pub struct BindingMap {
     /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
-    /// Attribute names of both classes and typeclasses defined in this module.
+    /// Attribute names for typeclasses defined in this module.
     /// We use a map-to-nothing so that we can share autocomplete code.
-    attributes: HashMap<String, BTreeMap<String, ()>>,
+    typeclass_info: HashMap<String, BTreeMap<String, ()>>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -197,7 +197,7 @@ impl BindingMap {
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
-            attributes: HashMap::new(),
+            typeclass_info: HashMap::new(),
             unqualified: BTreeMap::new(),
             canonical_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
@@ -222,8 +222,12 @@ impl BindingMap {
             LocalName::Unqualified(word) => {
                 self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
             }
-            LocalName::Attribute(_receiver, _attr) => {
-                // XXX check imported/mixin stuff
+            LocalName::Attribute(receiver, attr) => {
+                if let Some(t) = self.typename_to_type.get(receiver) {
+                    if let Some(class) = t.as_base_class() {
+                        return self.has_type_attribute(class, attr);
+                    }
+                }
                 false
             }
         }
@@ -391,15 +395,14 @@ impl BindingMap {
         }
     }
 
-    pub fn get_attributes<'a>(
+    pub fn get_typeclass_attributes<'a>(
         &'a self,
+        typeclass: &Typeclass,
         project: &'a Project,
-        module_id: ModuleId,
-        name: &str,
     ) -> &'a BTreeMap<String, ()> {
-        self.get_bindings(project, module_id)
-            .attributes
-            .get(name)
+        self.get_bindings(project, typeclass.module_id)
+            .typeclass_info
+            .get(&typeclass.name)
             .unwrap()
     }
 
@@ -621,12 +624,15 @@ impl BindingMap {
                             .or_insert_with(ClassInfo::new)
                             .attributes
                             .insert(attribute.clone(), self.module);
+                    } else {
+                        panic!("cannot figure out receiver: {:?}", t);
                     }
+                } else {
+                    self.typeclass_info
+                        .entry(entity_name)
+                        .or_insert_with(BTreeMap::new)
+                        .insert(attribute, ());
                 }
-                self.attributes
-                    .entry(entity_name)
-                    .or_insert_with(BTreeMap::new)
-                    .insert(attribute, ());
             }
             LocalName::Unqualified(name) => {
                 self.unqualified.insert(name, ());
@@ -741,7 +747,7 @@ impl BindingMap {
         }
     }
 
-    fn get_attribute_completions(
+    fn get_typeclass_attribute_completions(
         &self,
         project: &Project,
         module: ModuleId,
@@ -749,7 +755,11 @@ impl BindingMap {
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
-        if let Some(map) = self.get_bindings(project, module).attributes.get(base_name) {
+        if let Some(map) = self
+            .get_bindings(project, module)
+            .typeclass_info
+            .get(base_name)
+        {
             for key in keys_with_prefix(&map, &prefix) {
                 let completion = CompletionItem {
                     label: key.clone(),
@@ -765,12 +775,21 @@ impl BindingMap {
     /// Gets completions when we are typing a member name.
     fn get_type_attribute_completions(
         &self,
-        project: &Project,
         t: &AcornType,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
         if let AcornType::Data(class, _) = t {
-            self.get_attribute_completions(project, class.module_id, &class.name, prefix)
+            let info = self.class_info.get(class)?;
+            let mut answer = vec![];
+            for key in keys_with_prefix(&info.attributes, prefix) {
+                let completion = CompletionItem {
+                    label: key.clone(),
+                    kind: Some(CompletionItemKind::FIELD),
+                    ..Default::default()
+                };
+                answer.push(completion);
+            }
+            Some(answer)
         } else {
             None
         }
@@ -800,14 +819,14 @@ impl BindingMap {
                     return bindings.get_completions(project, partial, true);
                 }
                 NamedEntity::Type(t) => {
-                    return self.get_type_attribute_completions(project, &t, partial);
+                    return self.get_type_attribute_completions(&t, partial);
                 }
                 NamedEntity::Value(v) => {
                     let t = v.get_type();
-                    return self.get_type_attribute_completions(project, &t, partial);
+                    return self.get_type_attribute_completions(&t, partial);
                 }
                 NamedEntity::Typeclass(tc) => {
-                    return self.get_attribute_completions(
+                    return self.get_typeclass_attribute_completions(
                         project,
                         tc.module_id,
                         &tc.name,
@@ -815,11 +834,11 @@ impl BindingMap {
                     );
                 }
                 NamedEntity::UnresolvedValue(u) => {
-                    return self.get_type_attribute_completions(project, &u.generic_type, partial);
+                    return self.get_type_attribute_completions(&u.generic_type, partial);
                 }
                 NamedEntity::UnresolvedType(ut) => {
                     let display_type = ut.to_display_type();
-                    return self.get_type_attribute_completions(project, &display_type, partial);
+                    return self.get_type_attribute_completions(&display_type, partial);
                 }
             }
         }
