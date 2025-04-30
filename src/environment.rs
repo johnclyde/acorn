@@ -216,28 +216,22 @@ impl Environment {
         self.bindings.get_definition(name)
     }
 
-    /// Returns an error if this isn't the canonical name (and module) for the class.
-    fn check_canonical_classname(
+    /// Returns an error if you are not allowed to add attributes to this type.
+    fn check_can_add_attributes(
         &self,
         name_token: &Token,
         class_type: &AcornType,
     ) -> compilation::Result<()> {
         match &class_type {
             AcornType::Data(class, _) => {
-                if class.module_id != self.module_id {
-                    return Err(
-                        name_token.error("we can only bind members to types in the current module")
-                    );
-                }
                 if &class.name != &name_token.text() {
-                    return Err(name_token.error("we cannot bind members to type aliases"));
+                    Err(name_token.error("you cannot add attributes to aliases"))
+                } else {
+                    Ok(())
                 }
             }
-            _ => {
-                return Err(name_token.error(&format!("we can only bind members to data types")));
-            }
+            _ => Err(name_token.error("only data types can have attributes")),
         }
-        Ok(())
     }
 
     /// Adds a conditional block to the environment.
@@ -1323,7 +1317,7 @@ impl Environment {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
         let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
-        self.check_canonical_classname(&cs.name_token, &instance_type)?;
+        self.check_can_add_attributes(&cs.name_token, &instance_type)?;
 
         for substatement in &cs.body.statements {
             match &substatement.statement {
@@ -1483,7 +1477,7 @@ impl Environment {
                     .error(&format!("undefined type name '{}'", instance_name)));
             }
         };
-        self.check_canonical_classname(&is.type_name, &instance_type)?;
+        self.check_can_add_attributes(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
