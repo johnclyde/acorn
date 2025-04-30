@@ -2039,4 +2039,48 @@ mod tests {
         p.expect_ok("foo");
         p.expect_module_err("main");
     }
+
+    #[test]
+    fn test_diamond_attribute_conflict() {
+        // bar and baz are both all right on their own, but they conflict with each other.
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/bar.ac",
+            r#"
+            from foo import Foo
+
+            class Foo {
+                let a: Bool = false
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/baz.ac",
+            r#"
+            from foo import Foo
+
+            class Foo {
+                let a: Bool = true
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import bar
+            import baz
+            "#,
+        );
+        p.expect_ok("bar");
+        p.expect_ok("baz");
+        p.expect_module_err("main");
+    }
 }
