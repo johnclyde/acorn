@@ -1943,4 +1943,38 @@ mod tests {
         p.expect_ok("semigroup");
         p.expect_ok("main");
     }
+
+    #[test]
+    fn test_indirect_importing() {
+        // TODO: get the lines uncommented
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/bar.ac",
+            r#"
+            from foo import Foo
+
+            // class Foo {
+            //     let a: Bool = true
+            // }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from bar import Foo
+
+            // let b: Bool = Foo.a
+            "#,
+        );
+        p.expect_ok("bar");
+        p.expect_ok("main");
+    }
 }
