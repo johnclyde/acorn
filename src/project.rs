@@ -2131,4 +2131,53 @@ mod tests {
         p.expect_ok("relate");
         p.expect_ok("main");
     }
+
+    #[test]
+    fn test_diamond_instance_conflict() {
+        // bar and baz are both all right on their own, but they conflict with each other.
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            typeclass P: Pointed {
+                origin: P
+            }
+
+            inductive Foo {
+                foo1
+                foo2
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/bar.ac",
+            r#"
+            from foo import Foo, Pointed
+
+            instance Foo: Pointed {
+                let origin: Foo = Foo.foo1
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/baz.ac",
+            r#"
+            from foo import Foo, Pointed
+
+            instance Foo: Pointed {
+                let origin: Foo = Foo.foo2
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import bar
+            import baz
+            "#,
+        );
+        p.expect_ok("bar");
+        p.expect_ok("baz");
+        p.expect_module_err("main");
+    }
 }
