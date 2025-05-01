@@ -755,7 +755,7 @@ impl BindingMap {
     }
 
     /// Whether this value is calling a theorem on some arguments.
-    pub fn is_citation(&self, project: &Project, claim: &AcornValue) -> bool {
+    pub fn is_citation(&self, claim: &AcornValue, project: &Project) -> bool {
         match claim.is_named_function_call() {
             Some(global_name) => {
                 let bindings = self.get_bindings(global_name.module_id, project);

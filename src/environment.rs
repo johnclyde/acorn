@@ -540,7 +540,7 @@ impl Environment {
         let unbound_claim = value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
         unbound_claim.check_type(Some(&AcornType::Bool), &ts.claim)?;
 
-        let is_citation = self.bindings.is_citation(project, &unbound_claim);
+        let is_citation = self.bindings.is_citation(&unbound_claim, project);
         if is_citation && ts.body.is_some() {
             return Err(statement.error("citations do not need proof blocks"));
         }
@@ -1648,7 +1648,7 @@ impl Environment {
             self.includes_explicit_false = true;
         }
 
-        if self.bindings.is_citation(project, &claim) {
+        if self.bindings.is_citation(&claim, project) {
             // We already know this is true, so we don't need to prove it
             let source = Source::anonymous(self.module_id, statement.range(), self.depth);
             let prop = Proposition::monomorphic(claim, source);
