@@ -380,12 +380,12 @@ impl fmt::Display for Node {
 
 impl Node {
     pub fn structural(project: &Project, env: &Environment, prop: Proposition) -> Node {
-        let prop = env.bindings.expand_theorems(project, prop);
+        let prop = env.bindings.expand_theorems(prop, project);
         Node::Structural(Fact::Proposition(prop))
     }
 
     pub fn claim(project: &Project, env: &Environment, prop: Proposition) -> Node {
-        let prop = env.bindings.expand_theorems(project, prop);
+        let prop = env.bindings.expand_theorems(prop, project);
         Node::Claim(prop)
     }
 
@@ -405,7 +405,7 @@ impl Node {
     ) -> Node {
         let fact = match prop {
             Some(prop) => Some(Fact::Proposition(
-                env.bindings.expand_theorems(project, prop),
+                env.bindings.expand_theorems(prop, project),
             )),
             None => None,
         };

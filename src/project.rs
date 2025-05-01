@@ -1043,7 +1043,7 @@ impl Project {
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
         let env = self.get_env_by_id(module_id).expect("no env");
-        let value = match env.bindings.evaluate_value(self, &expression, None) {
+        let value = match env.bindings.evaluate_value(&expression, None, self) {
             Ok(value) => value,
             Err(e) => panic!("evaluation error: {}", e),
         };

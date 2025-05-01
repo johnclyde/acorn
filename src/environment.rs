@@ -361,7 +361,7 @@ impl Environment {
         } else {
             let v = self
                 .bindings
-                .evaluate_value(project, &ls.value, Some(&acorn_type))?;
+                .evaluate_value(&ls.value, Some(&acorn_type), project)?;
             Some(v)
         };
 
@@ -639,9 +639,9 @@ impl Environment {
                 .bind_args(&mut stack, project, &vss.declarations, None)?;
         let general_claim_value = self.bindings.evaluate_value_with_stack(
             &mut stack,
-            project,
             &vss.condition,
             Some(&AcornType::Bool),
+            project,
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
@@ -659,7 +659,7 @@ impl Environment {
         // We can then assume the specific existence claim with the named constants
         let specific_claim =
             self.bindings
-                .evaluate_value(project, &vss.condition, Some(&AcornType::Bool))?;
+                .evaluate_value(&vss.condition, Some(&AcornType::Bool), project)?;
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
         let specific_prop = Proposition::monomorphic(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
@@ -822,9 +822,9 @@ impl Environment {
             }
             let unbound = self.bindings.evaluate_value_with_stack(
                 &mut stack,
-                project,
                 &constraint,
                 Some(&AcornType::Bool),
+                project,
             )?;
             let inhabited = AcornValue::Exists(field_types.clone(), Box::new(unbound.clone()));
             let block_params = BlockParams::TypeRequirement(inhabited, constraint.range());
@@ -886,11 +886,11 @@ impl Environment {
         let mut member_args = vec![];
         for (i, member_fn) in member_fns.iter().enumerate() {
             let member_arg = self.bindings.apply_potential(
-                &ss.fields[i].0,
-                project,
                 member_fn.clone(),
                 vec![object_var.clone()],
                 None,
+                project,
+                &ss.fields[i].0,
             )?;
             member_args.push(member_arg);
         }
@@ -927,11 +927,11 @@ impl Environment {
         // Pair.new(Pair.first(p), Pair.second(p)) = p.
         // This is the "new equation" for a struct type.
         let recreated = self.bindings.apply_potential(
-            &ss.name_token,
-            project,
             new_fn.clone(),
             member_args,
             None,
+            project,
+            &ss.name_token,
         )?;
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
@@ -958,16 +958,16 @@ impl Environment {
             .collect::<Vec<_>>();
         let new_application =
             self.bindings
-                .apply_potential(&ss.name_token, project, new_fn, var_args, None)?;
+                .apply_potential(new_fn, var_args, None, project, &ss.name_token)?;
         for i in 0..ss.fields.len() {
             let (field_name_token, field_type_expr) = &ss.fields[i];
             let member_fn = &member_fns[i];
             let applied = self.bindings.apply_potential(
-                field_name_token,
-                project,
                 member_fn.clone(),
                 vec![new_application.clone()],
                 None,
+                project,
+                field_name_token,
             )?;
             let member_eq = AcornValue::Binary(
                 BinaryOp::Equals,
@@ -1643,7 +1643,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         let claim = self
             .bindings
-            .evaluate_value(project, &cs.claim, Some(&AcornType::Bool))?;
+            .evaluate_value(&cs.claim, Some(&AcornType::Bool), project)?;
         if claim == AcornValue::Bool(false) {
             self.includes_explicit_false = true;
         }
@@ -1708,7 +1708,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         let condition =
             self.bindings
-                .evaluate_value(project, &is.condition, Some(&AcornType::Bool))?;
+                .evaluate_value(&is.condition, Some(&AcornType::Bool), project)?;
         let range = is.condition.range();
         let if_claim = self.add_conditional(
             project,
@@ -1806,7 +1806,7 @@ impl Environment {
         statement: &Statement,
         ss: &SolveStatement,
     ) -> compilation::Result<()> {
-        let target = self.bindings.evaluate_value(project, &ss.target, None)?;
+        let target = self.bindings.evaluate_value(&ss.target, None, project)?;
         let solve_range = Range {
             start: statement.first_token.start_pos(),
             end: ss.target.last_token().end_pos(),
@@ -1867,7 +1867,7 @@ impl Environment {
         statement: &Statement,
         ms: &MatchStatement,
     ) -> compilation::Result<()> {
-        let scrutinee = self.bindings.evaluate_value(project, &ms.scrutinee, None)?;
+        let scrutinee = self.bindings.evaluate_value(&ms.scrutinee, None, project)?;
         let scrutinee_type = scrutinee.get_type();
         let mut indices = vec![];
         let mut disjuncts = vec![];
