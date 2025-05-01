@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt};
 
-use crate::compilation::{ErrorSource, Result};
+use crate::compilation::{self, ErrorSource, Result};
 use crate::module::ModuleId;
 
 /// Classes are represented by the module they were defined in, and their name.
@@ -608,6 +608,14 @@ impl AcornType {
         match &self {
             AcornType::Variable(param) | AcornType::Arbitrary(param) => param.typeclass.as_ref(),
             _ => None,
+        }
+    }
+
+    /// Extracts the class from this type, or errors if it is not a data type.
+    pub fn get_class(&self, source: &dyn ErrorSource) -> compilation::Result<&Class> {
+        match self {
+            AcornType::Data(class, _) => Ok(class),
+            _ => Err(source.error("not an attributable class")),
         }
     }
 }

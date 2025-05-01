@@ -1490,7 +1490,6 @@ impl Environment {
                     )?;
 
                     pairs.push(self.bindings.check_instance_attribute(
-                        instance_name,
                         &instance_type,
                         &typeclass,
                         &ls.name,
@@ -1512,7 +1511,6 @@ impl Environment {
                     )?;
 
                     pairs.push(self.bindings.check_instance_attribute(
-                        instance_name,
                         &instance_type,
                         &typeclass,
                         &ds.name,

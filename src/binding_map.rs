@@ -436,13 +436,13 @@ impl BindingMap {
     /// proving that Int was actually a Ring.
     pub fn check_instance_attribute(
         &self,
-        instance_name: &str,
         instance_type: &AcornType,
         typeclass: &Typeclass,
         attr_name: &str,
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
+        // Get the relevant properties of the typeclass.
         let typeclass_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = self
             .get_bindings(typeclass.module_id, &project)
@@ -450,12 +450,11 @@ impl BindingMap {
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
-        let instance_class = Class {
-            module_id: self.module,
-            name: instance_name.to_string(),
-        };
+
+        // Get the relevant properties of the instance class.
+        let instance_class = instance_type.get_class(source)?;
         let instance_attr_name =
-            DefinedName::instance(typeclass.clone(), attr_name, instance_class);
+            DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
         let instance_attr = self.get_constant_value(&instance_attr_name, source)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
