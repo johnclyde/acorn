@@ -5,3 +5,5 @@ profile.json*
 .xwin-cache
 .intentionally-empty-file.o
 *vsix
+
+**/.claude/settings.local.json

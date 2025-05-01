@@ -1336,7 +1336,7 @@ impl BindingMap {
         let function = self
             .get_bindings(module, &project)
             .get_constant_value(&constant_name, source)?;
-        self.apply_potential(function, vec![receiver], None, project, source)
+        self.apply_potential(function, vec![receiver], None, source)
     }
 
     /// Evaluates a single name, which may be namespaced to another named entity.
@@ -1653,7 +1653,6 @@ impl BindingMap {
         potential: PotentialValue,
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
-        _project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         let value = match potential {
@@ -1674,10 +1673,9 @@ impl BindingMap {
     /// If we have an expected type and this is still a potential value, resolve it.
     fn maybe_resolve_value(
         &self,
-        source: &dyn ErrorSource,
-        _project: &Project,
         potential: PotentialValue,
         expected_type: Option<&AcornType>,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         let expected_type = match expected_type {
             Some(t) => t,
@@ -1903,10 +1901,9 @@ impl BindingMap {
                         NamedEntity::UnresolvedValue(u) => {
                             let potential = PotentialValue::Unresolved(u);
                             return self.maybe_resolve_value(
-                                token,
-                                project,
                                 potential,
                                 expected_type,
+                                token,
                             );
                         }
                     }
@@ -2035,7 +2032,7 @@ impl BindingMap {
                 TokenType::Dot => {
                     let entity = self.evaluate_dot_expression(stack, project, left, right)?;
                     let potential = entity.expect_potential_value(expected_type, expression)?;
-                    return self.maybe_resolve_value(token, project, potential, expected_type);
+                    return self.maybe_resolve_value(potential, expected_type, token);
                 }
                 token_type => match token_type.to_infix_magic_method_name() {
                     Some(name) => self.evaluate_infix(

@@ -889,7 +889,6 @@ impl Environment {
                 member_fn.clone(),
                 vec![object_var.clone()],
                 None,
-                project,
                 &ss.fields[i].0,
             )?;
             member_args.push(member_arg);
@@ -930,7 +929,6 @@ impl Environment {
             new_fn.clone(),
             member_args,
             None,
-            project,
             &ss.name_token,
         )?;
         let new_eq =
@@ -958,7 +956,7 @@ impl Environment {
             .collect::<Vec<_>>();
         let new_application =
             self.bindings
-                .apply_potential(new_fn, var_args, None, project, &ss.name_token)?;
+                .apply_potential(new_fn, var_args, None, &ss.name_token)?;
         for i in 0..ss.fields.len() {
             let (field_name_token, field_type_expr) = &ss.fields[i];
             let member_fn = &member_fns[i];
@@ -966,7 +964,6 @@ impl Environment {
                 member_fn.clone(),
                 vec![new_application.clone()],
                 None,
-                project,
                 field_name_token,
             )?;
             let member_eq = AcornValue::Binary(
