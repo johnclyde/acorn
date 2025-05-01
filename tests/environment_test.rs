@@ -3247,4 +3247,31 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
             "#,
         );
     }
+
+    #[test]
+    fn test_env_using_alternately_typed_attribute() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            inductive Nat {
+                zero
+            }
+
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            let range: Nat -> List<Nat> = axiom
+
+            class List<T> {
+                let range: Nat -> List<Nat> = range
+            }
+
+            theorem goal {
+                List.range(Nat.zero) = List.range(Nat.zero)
+            }
+        "#,
+        );
+    }
 }
