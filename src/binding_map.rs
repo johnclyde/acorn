@@ -434,7 +434,7 @@ impl BindingMap {
         let typeclass_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = self
             .get_bindings(typeclass.module_id, &project)
-            .get_constant_value(source, &typeclass_attr_name)?;
+            .get_constant_value(&typeclass_attr_name, source)?;
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
@@ -444,7 +444,7 @@ impl BindingMap {
         };
         let instance_attr_name =
             DefinedName::instance(typeclass.clone(), attr_name, instance_class);
-        let instance_attr = self.get_constant_value(source, &instance_attr_name)?;
+        let instance_attr = self.get_constant_value(&instance_attr_name, source)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
         if instance_attr_type != resolved_attr_type {
@@ -468,8 +468,8 @@ impl BindingMap {
     /// This can be either a resolved or unresolved value.
     pub fn get_constant_value(
         &self,
-        source: &dyn ErrorSource,
         name: &DefinedName,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         match name {
             DefinedName::Local(local_name) => match self.constant_info.get(local_name) {
@@ -1263,7 +1263,7 @@ impl BindingMap {
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(*module_id, project);
         let constant_name = DefinedName::attribute(&class.name, attr_name);
-        bindings.get_constant_value(source, &constant_name)
+        bindings.get_constant_value(&constant_name, source)
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
@@ -1276,7 +1276,7 @@ impl BindingMap {
     ) -> compilation::Result<PotentialValue> {
         let bindings = self.get_bindings(typeclass.module_id, project);
         let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
-        bindings.get_constant_value(source, &constant_name)
+        bindings.get_constant_value(&constant_name, source)
     }
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.
@@ -1324,7 +1324,7 @@ impl BindingMap {
         let constant_name = DefinedName::attribute(type_name, attr_name);
         let function = self
             .get_bindings(module, &project)
-            .get_constant_value(source, &constant_name)?;
+            .get_constant_value(&constant_name, source)?;
         self.apply_potential(source, project, function, vec![receiver], None)
     }
 
@@ -1442,7 +1442,7 @@ impl BindingMap {
                         } else {
                             let constant_name = DefinedName::unqualified(name);
                             Ok(NamedEntity::new(
-                                self.get_constant_value(name_token, &constant_name)?,
+                                self.get_constant_value(&constant_name, name_token)?,
                             ))
                         }
                     }
@@ -2919,7 +2919,7 @@ impl BindingMap {
     pub fn expect_type(&self, name: &str, type_string: &str) {
         let name = DefinedName::guess(name);
         let value = self
-            .get_constant_value(&PanicOnError, &name)
+            .get_constant_value(&name, &PanicOnError)
             .expect("no such constant");
         let env_type = value.get_type();
         assert_eq!(env_type.to_string(), type_string);

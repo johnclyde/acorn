@@ -182,7 +182,7 @@ impl Environment {
         // This constant can be generic, with type variables in it.
         let potential = self
             .bindings
-            .get_constant_value(&PanicOnError, constant_name)
+            .get_constant_value(constant_name, &PanicOnError)
             .expect("bad add_definition call");
         let range = self.definition_ranges.get(&constant_name).unwrap().clone();
         let name = constant_name.to_string();
