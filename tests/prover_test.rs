@@ -2301,4 +2301,43 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_mixin_instance() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+            let predicate<T>: T -> Bool = axiom
+
+            typeclass S: Stuff {
+                condition(s: S) {
+                    predicate(s)
+                }
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/bar.ac",
+            r#"
+            from foo import Foo, Stuff
+            instance Foo: Stuff {}
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from foo import predicate
+            from bar import Foo
+            theorem goal {
+                predicate(Foo.foo)
+            }
+        "#,
+        );
+        let (_, outcome, _) = prove(&mut p, "main", "goal");
+        assert_eq!(outcome, Outcome::Success);
+    }
 }
