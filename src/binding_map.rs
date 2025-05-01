@@ -26,7 +26,7 @@ use crate::unresolved_constant::UnresolvedConstant;
 #[derive(Clone)]
 pub struct BindingMap {
     /// The module all these names are in.
-    module: ModuleId,
+    module_id: ModuleId,
 
     /// Maps the name of a constant defined in this scope to information about it.
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
@@ -214,7 +214,7 @@ impl BindingMap {
     pub fn new(module: ModuleId) -> Self {
         assert!(module >= Module::FIRST_NORMAL);
         let mut answer = BindingMap {
-            module,
+            module_id: module,
             constant_info: HashMap::new(),
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
@@ -320,7 +320,7 @@ impl BindingMap {
     /// Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str) -> AcornType {
         let class = Class {
-            module_id: self.module,
+            module_id: self.module_id,
             name: name.to_string(),
         };
         let t = AcornType::Data(class, vec![]);
@@ -338,7 +338,7 @@ impl BindingMap {
             return PotentialType::Resolved(self.add_data_type(name));
         }
         let class = Class {
-            module_id: self.module,
+            module_id: self.module_id,
             name: name.to_string(),
         };
         let ut = UnresolvedType { class, params };
@@ -410,7 +410,7 @@ impl BindingMap {
 
     /// A helper to get the bindings from the project if needed bindings.
     pub fn get_bindings<'a>(&'a self, module_id: ModuleId, project: &'a Project) -> &'a BindingMap {
-        if module_id == self.module {
+        if module_id == self.module_id {
             self
         } else {
             project.get_bindings(module_id).unwrap()
@@ -472,7 +472,7 @@ impl BindingMap {
             .entry(class)
             .or_insert_with(ClassInfo::new)
             .typeclasses
-            .insert(typeclass, self.module);
+            .insert(typeclass, self.module_id);
     }
 
     /// Returns a PotentialValue representing this name, if there is one.
@@ -606,7 +606,7 @@ impl BindingMap {
                 panic!("there should not be arbitrary types in parametrized definitions");
             }
         }
-        let global_name = GlobalName::new(self.module, local_name.clone());
+        let global_name = GlobalName::new(self.module_id, local_name.clone());
 
         let value = if params.is_empty() {
             if constant_type.has_generic() {
@@ -617,7 +617,7 @@ impl BindingMap {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
             }
-            let global_name = GlobalName::new(self.module, local_name.clone());
+            let global_name = GlobalName::new(self.module_id, local_name.clone());
             PotentialValue::Unresolved(UnresolvedConstant {
                 name: global_name,
                 params,
@@ -644,7 +644,7 @@ impl BindingMap {
                             .entry(class.clone())
                             .or_insert_with(ClassInfo::new)
                             .attributes
-                            .insert(attribute.clone(), self.module);
+                            .insert(attribute.clone(), self.module_id);
                     } else {
                         panic!("cannot figure out receiver: {:?}", t);
                     }
@@ -682,7 +682,7 @@ impl BindingMap {
         global_name: GlobalName,
         value: PotentialValue,
     ) {
-        if global_name.module_id != self.module {
+        if global_name.module_id != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
             self.canonical_to_alias
                 .entry(global_name.clone())
@@ -744,13 +744,13 @@ impl BindingMap {
     ) -> compilation::Result<()> {
         if self
             .name_to_module
-            .insert(name.to_string(), bindings.module)
+            .insert(name.to_string(), bindings.module_id)
             .is_some()
         {
             return Err(source.error(&format!("name {} is already bound", name)));
         }
         self.module_to_name
-            .insert(bindings.module, name.to_string());
+            .insert(bindings.module_id, name.to_string());
         for (class, imported_info) in bindings.class_info.iter() {
             let entry = self
                 .class_info
@@ -920,7 +920,7 @@ impl BindingMap {
                     let data_type = self.typename_to_type.get(key)?;
                     match data_type {
                         PotentialType::Resolved(AcornType::Data(class, _)) => {
-                            if class.module_id != self.module || &class.name != key {
+                            if class.module_id != self.module_id || &class.name != key {
                                 continue;
                             }
                         }
@@ -1900,11 +1900,7 @@ impl BindingMap {
                         }
                         NamedEntity::UnresolvedValue(u) => {
                             let potential = PotentialValue::Unresolved(u);
-                            return self.maybe_resolve_value(
-                                potential,
-                                expected_type,
-                                token,
-                            );
+                            return self.maybe_resolve_value(potential, expected_type, token);
                         }
                     }
                 }
@@ -2344,7 +2340,7 @@ impl BindingMap {
             )?;
 
             if let Some(function_name) = function_name {
-                let global_name = GlobalName::new(self.module, function_name.clone());
+                let global_name = GlobalName::new(self.module_id, function_name.clone());
                 let mut checker = TerminationChecker::new(global_name, internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
@@ -2383,7 +2379,7 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
-                    let global_name = GlobalName::new(self.module, function_name.clone());
+                    let global_name = GlobalName::new(self.module_id, function_name.clone());
                     let generic_params = type_params
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
@@ -2425,7 +2421,7 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.name.module_id == self.module
+                if c.name.module_id == self.module_id
                     && !self.constant_info.contains_key(&c.name.local_name)
                 {
                     assert!(c.params.is_empty());
@@ -2632,7 +2628,7 @@ impl BindingMap {
         }
 
         // Handle local constants
-        if name.module_id == self.module {
+        if name.module_id == self.module_id {
             return Ok(match &name.local_name {
                 LocalName::Unqualified(word) => Expression::generate_identifier(word),
                 LocalName::Attribute(left, right) => Expression::generate_dot(
