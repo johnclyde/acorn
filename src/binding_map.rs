@@ -81,7 +81,7 @@ pub struct BindingMap {
 }
 
 /// Information about a class that is referenced in this module.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ClassInfo {
     /// What module defines each of the attributes of this class.
     attributes: BTreeMap<String, ModuleId>,

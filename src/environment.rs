@@ -217,17 +217,17 @@ impl Environment {
     }
 
     /// Returns an error if you are not allowed to add attributes to this type.
-    fn check_can_add_attributes(
+    fn check_can_add_attributes<'a>(
         &self,
         name_token: &Token,
-        class_type: &AcornType,
-    ) -> compilation::Result<()> {
+        class_type: &'a AcornType,
+    ) -> compilation::Result<&'a Class> {
         match &class_type {
             AcornType::Data(class, _) => {
                 if &class.name != &name_token.text() {
                     Err(name_token.error("you cannot add attributes to aliases"))
                 } else {
-                    Ok(())
+                    Ok(&class)
                 }
             }
             _ => Err(name_token.error("only data types can have attributes")),
@@ -1462,10 +1462,6 @@ impl Environment {
         is: &InstanceStatement,
     ) -> compilation::Result<()> {
         let instance_name = is.type_name.text();
-        let instance_class = Class {
-            module_id: self.module_id,
-            name: instance_name.to_string(),
-        };
         let instance_type = match self.bindings.get_type_for_typename(&instance_name) {
             Some(PotentialType::Resolved(t)) => t.clone(),
             Some(_) => {
@@ -1477,7 +1473,7 @@ impl Environment {
                     .error(&format!("undefined type name '{}'", instance_name)));
             }
         };
-        self.check_can_add_attributes(&is.type_name, &instance_type)?;
+        let instance_class = self.check_can_add_attributes(&is.type_name, &instance_type)?;
         let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
@@ -1609,7 +1605,8 @@ impl Environment {
 
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
-        self.bindings.add_instance_of(instance_class, typeclass);
+        self.bindings
+            .add_instance_of(instance_class.clone(), typeclass);
         Ok(())
     }
 
