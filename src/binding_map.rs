@@ -1658,7 +1658,7 @@ impl BindingMap {
         let value = match potential {
             PotentialValue::Resolved(f) => f.check_apply(args, expected_type, source)?,
             PotentialValue::Unresolved(u) => {
-                self.resolve_with_inference(source, u, args, expected_type)?
+                self.resolve_with_inference(u, args, expected_type, source)?
             }
         };
         Ok(value)
@@ -1685,7 +1685,7 @@ impl BindingMap {
             PotentialValue::Unresolved(uc) => uc,
             p => return Ok(p),
         };
-        let value = self.resolve_with_inference(source, uc, vec![], Some(expected_type))?;
+        let value = self.resolve_with_inference(uc, vec![], Some(expected_type), source)?;
         Ok(PotentialValue::Resolved(value))
     }
 
@@ -1694,10 +1694,10 @@ impl BindingMap {
     /// If it does work, populates the mapping with the type variables.
     fn match_instance(
         &self,
-        source: &dyn ErrorSource,
         generic: &AcornType,
         specific: &AcornType,
         mapping: &mut HashMap<String, AcornType>,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if !generic.match_instance(
             &specific,
@@ -1718,10 +1718,10 @@ impl BindingMap {
     /// If the type cannot be inferred, returns an error.
     fn resolve_with_inference(
         &self,
-        source: &dyn ErrorSource,
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
         expected_return_type: Option<&AcornType>,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         // Do type inference. Mapping is where the generic types go.
         let mut mapping = HashMap::new();
@@ -1750,7 +1750,7 @@ impl BindingMap {
                         )));
                     }
                 };
-                self.match_instance(source, arg_type, &arg.get_type(), &mut mapping)?;
+                self.match_instance(arg_type, &arg.get_type(), &mut mapping, source)?;
             }
 
             unresolved_function_type.applied_type(args.len())
@@ -1760,7 +1760,7 @@ impl BindingMap {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            self.match_instance(source, &unresolved_return_type, target_type, &mut mapping)?;
+            self.match_instance(&unresolved_return_type, target_type, &mut mapping, source)?;
         }
 
         // Determine the parameters for the instance
@@ -1791,11 +1791,11 @@ impl BindingMap {
     fn infer_and_apply(
         &self,
         stack: &mut Stack,
-        project: &Project,
-        source: &dyn ErrorSource,
         unresolved: UnresolvedConstant,
         arg_exprs: Vec<&Expression>,
         expected_type: Option<&AcornType>,
+        project: &Project,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         // Evaluate the arguments
         let mut args = vec![];
@@ -1804,7 +1804,7 @@ impl BindingMap {
             args.push(arg);
         }
 
-        self.resolve_with_inference(source, unresolved, args, expected_type)
+        self.resolve_with_inference(unresolved, args, expected_type, source)
     }
 
     /// This creates a version of a typeclass condition that is specialized to a particular
@@ -2101,11 +2101,11 @@ impl BindingMap {
                 match function {
                     PotentialValue::Unresolved(unresolved) => self.infer_and_apply(
                         stack,
-                        project,
-                        expression,
                         unresolved,
                         arg_exprs,
                         expected_type,
+                        project,
+                        expression,
                     )?,
                     PotentialValue::Resolved(function) => {
                         // Simple, no-type-inference-necessary construction
@@ -2241,8 +2241,8 @@ impl BindingMap {
     /// This does not bind them into the environment.
     pub fn evaluate_type_params(
         &self,
-        project: &Project,
         exprs: &[TypeParamExpr],
+        project: &Project,
     ) -> compilation::Result<Vec<TypeParam>> {
         let mut answer: Vec<TypeParam> = vec![];
         for expr in exprs {
@@ -2295,13 +2295,13 @@ impl BindingMap {
     /// recursive function that is not yet defined.
     pub fn evaluate_scoped_value(
         &mut self,
-        project: &Project,
         type_param_exprs: &[TypeParamExpr],
         args: &[Declaration],
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_type: Option<&AcornType>,
         function_name: Option<&LocalName>,
+        project: &Project,
     ) -> compilation::Result<(
         Vec<TypeParam>,
         Vec<String>,
@@ -2310,7 +2310,7 @@ impl BindingMap {
         AcornType,
     )> {
         // Bind all the type parameters and arguments
-        let type_params = self.evaluate_type_params(project, &type_param_exprs)?;
+        let type_params = self.evaluate_type_params(&type_param_exprs, project)?;
         for param in &type_params {
             self.add_arbitrary_type(param.clone());
         }

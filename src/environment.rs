@@ -331,7 +331,7 @@ impl Environment {
 
         let local_type_params = self
             .bindings
-            .evaluate_type_params(project, &ls.type_params)?;
+            .evaluate_type_params(&ls.type_params, project)?;
         for param in &local_type_params {
             self.bindings.add_arbitrary_type(param.clone());
         }
@@ -451,13 +451,13 @@ impl Environment {
         // Calculate the function value
         let (fn_param_names, _, arg_types, unbound_value, value_type) =
             self.bindings.evaluate_scoped_value(
-                project,
                 &ds.type_params,
                 &ds.args,
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
                 constant_name.as_local(),
+                project,
             )?;
 
         if let Some(class_type) = self_type {
@@ -528,13 +528,13 @@ impl Environment {
         }
 
         let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
-            project,
             &ts.type_params,
             &ts.args,
             None,
             &ts.claim,
             None,
             None,
+            project,
         )?;
 
         let unbound_claim = value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
@@ -693,13 +693,13 @@ impl Environment {
         self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
-            project,
             &[],
             &fss.declarations,
             None,
             &fss.condition,
             None,
             None,
+            project,
         )?;
 
         let unbound_condition = condition.ok_or_else(|| statement.error("missing condition"))?;
@@ -787,7 +787,7 @@ impl Environment {
         let mut arbitrary_params = vec![];
         let type_params = self
             .bindings
-            .evaluate_type_params(project, &ss.type_params)?;
+            .evaluate_type_params(&ss.type_params, project)?;
         for type_param in &type_params {
             // Internally to the structure definition, the type parameters are
             // treated as arbitrary types.
@@ -1019,7 +1019,7 @@ impl Environment {
         let mut arbitrary_params = vec![];
         let type_params = self
             .bindings
-            .evaluate_type_params(project, &is.type_params)?;
+            .evaluate_type_params(&is.type_params, project)?;
         for type_param in &type_params {
             // Internally to the structure definition, the type parameters are
             // treated as arbitrary types.
@@ -1308,7 +1308,7 @@ impl Environment {
         };
         let type_params = self
             .bindings
-            .evaluate_type_params(project, &cs.type_params)?;
+            .evaluate_type_params(&cs.type_params, project)?;
         let mut params = vec![];
         for param in &type_params {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
@@ -1406,13 +1406,13 @@ impl Environment {
 
             let (bad_params, _, arg_types, unbound_claim, _) =
                 self.bindings.evaluate_scoped_value(
-                    project,
                     &[],
                     &condition.args,
                     None,
                     &condition.claim,
                     None,
                     None,
+                    project,
                 )?;
             if !bad_params.is_empty() {
                 return Err(condition.name.error("type parameters are not allowed here"));
