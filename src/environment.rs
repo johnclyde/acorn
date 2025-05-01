@@ -1536,7 +1536,7 @@ impl Environment {
         let mut conditions = vec![];
         for attr_name in attributes.keys() {
             let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);
-            let tc_bindings = self.bindings.get_bindings(project, typeclass.module_id);
+            let tc_bindings = self.bindings.get_bindings(typeclass.module_id, project);
             if tc_bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.
                 // We do gather them for verification.

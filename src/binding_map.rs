@@ -397,7 +397,7 @@ impl BindingMap {
     }
 
     /// A helper to get the bindings from the project if needed bindings.
-    pub fn get_bindings<'a>(&'a self, project: &'a Project, module_id: ModuleId) -> &'a BindingMap {
+    pub fn get_bindings<'a>(&'a self, module_id: ModuleId, project: &'a Project) -> &'a BindingMap {
         if module_id == self.module {
             self
         } else {
@@ -410,7 +410,7 @@ impl BindingMap {
         typeclass: &Typeclass,
         project: &'a Project,
     ) -> &'a BTreeMap<String, ()> {
-        self.get_bindings(project, typeclass.module_id)
+        self.get_bindings(typeclass.module_id, project)
             .typeclass_info
             .get(&typeclass.name)
             .unwrap()
@@ -433,7 +433,7 @@ impl BindingMap {
     ) -> compilation::Result<(AcornValue, AcornValue)> {
         let typeclass_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = self
-            .get_bindings(&project, typeclass.module_id)
+            .get_bindings(typeclass.module_id, &project)
             .get_constant_value(source, &typeclass_attr_name)?;
         let uc = typeclass_attr.as_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
@@ -758,7 +758,7 @@ impl BindingMap {
     pub fn is_citation(&self, project: &Project, claim: &AcornValue) -> bool {
         match claim.is_named_function_call() {
             Some(global_name) => {
-                let bindings = self.get_bindings(project, global_name.module_id);
+                let bindings = self.get_bindings(global_name.module_id, project);
                 bindings.is_theorem(&global_name.local_name)
             }
             None => false,
@@ -774,7 +774,7 @@ impl BindingMap {
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
         if let Some(map) = self
-            .get_bindings(project, module)
+            .get_bindings(module, project)
             .typeclass_info
             .get(base_name)
         {
@@ -1107,7 +1107,7 @@ impl BindingMap {
     ) -> compilation::Result<(usize, usize)> {
         let info = match value {
             AcornValue::Constant(ci) => {
-                let bindings = self.get_bindings(project, ci.name.module_id);
+                let bindings = self.get_bindings(ci.name.module_id, project);
                 bindings.constant_info.get(&ci.name.local_name).unwrap()
             }
             _ => {
@@ -1261,7 +1261,7 @@ impl BindingMap {
             .get(class)
             .and_then(|info| info.attributes.get(attr_name))
             .ok_or_else(|| source.error("attribute not found"))?;
-        let bindings = self.get_bindings(project, *module_id);
+        let bindings = self.get_bindings(*module_id, project);
         let constant_name = DefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
     }
@@ -1274,7 +1274,7 @@ impl BindingMap {
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let bindings = self.get_bindings(project, typeclass.module_id);
+        let bindings = self.get_bindings(typeclass.module_id, project);
         let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
         bindings.get_constant_value(source, &constant_name)
     }
@@ -1323,7 +1323,7 @@ impl BindingMap {
         };
         let constant_name = DefinedName::attribute(type_name, attr_name);
         let function = self
-            .get_bindings(&project, module)
+            .get_bindings(module, &project)
             .get_constant_value(source, &constant_name)?;
         self.apply_potential(source, project, function, vec![receiver], None)
     }
@@ -1655,7 +1655,7 @@ impl BindingMap {
     }
 
     fn is_instance_of(&self, project: &Project, class: &Class, typeclass: &Typeclass) -> bool {
-        self.get_bindings(project, class.module_id)
+        self.get_bindings(class.module_id, project)
             .class_info
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains(typeclass))
@@ -1827,7 +1827,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         let tc_condition_name = LocalName::attribute(&typeclass.name, condition_name);
-        let tc_bindings = self.get_bindings(project, typeclass.module_id);
+        let tc_bindings = self.get_bindings(typeclass.module_id, project);
         let (def, params) = match tc_bindings.get_definition_and_params(&tc_condition_name) {
             Some((def, params)) => (def, params),
             None => {
@@ -2479,7 +2479,7 @@ impl BindingMap {
             .unwrap_or_else(|e| panic!("invalid claim: {} ({})", proposition.value, e));
 
         let value = proposition.value.replace_constants(0, &|c| {
-            let bindings = self.get_bindings(project, c.name.module_id);
+            let bindings = self.get_bindings(c.name.module_id, project);
             if bindings.is_theorem(&c.name.local_name) {
                 match bindings.get_definition_and_params(&c.name.local_name) {
                     Some((def, params)) => {
