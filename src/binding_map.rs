@@ -424,12 +424,12 @@ impl BindingMap {
     /// proving that Int was actually a Ring.
     pub fn check_instance_attribute(
         &self,
-        source: &dyn ErrorSource,
-        project: &Project,
         instance_name: &str,
         instance_type: &AcornType,
         typeclass: &Typeclass,
         attr_name: &str,
+        project: &Project,
+        source: &dyn ErrorSource,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
         let typeclass_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = self

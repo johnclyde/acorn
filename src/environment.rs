@@ -1494,12 +1494,12 @@ impl Environment {
                     )?;
 
                     pairs.push(self.bindings.check_instance_attribute(
-                        substatement,
-                        &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ls.name,
+                        &project,
+                        substatement,
                     )?);
                 }
                 StatementInfo::Define(ds) => {
@@ -1516,12 +1516,12 @@ impl Environment {
                     )?;
 
                     pairs.push(self.bindings.check_instance_attribute(
-                        substatement,
-                        &project,
                         instance_name,
                         &instance_type,
                         &typeclass,
                         &ds.name,
+                        &project,
+                        substatement,
                     )?);
                 }
                 _ => {
