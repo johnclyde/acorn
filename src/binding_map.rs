@@ -767,10 +767,10 @@ impl BindingMap {
 
     fn get_typeclass_attribute_completions(
         &self,
-        project: &Project,
         module: ModuleId,
         base_name: &str,
         prefix: &str,
+        project: &Project,
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
         if let Some(map) = self
@@ -819,9 +819,9 @@ impl BindingMap {
     /// want to suggest theorems.
     pub fn get_completions(
         &self,
-        project: &Project,
         prefix: &str,
         importing: bool,
+        project: &Project,
     ) -> Option<Vec<CompletionItem>> {
         if prefix.contains('.') {
             if importing {
@@ -834,7 +834,7 @@ impl BindingMap {
             match namespace {
                 NamedEntity::Module(module) => {
                     let bindings = project.get_bindings(module)?;
-                    return bindings.get_completions(project, partial, true);
+                    return bindings.get_completions(partial, true, project);
                 }
                 NamedEntity::Type(t) => {
                     return self.get_type_attribute_completions(&t, partial);
@@ -845,10 +845,10 @@ impl BindingMap {
                 }
                 NamedEntity::Typeclass(tc) => {
                     return self.get_typeclass_attribute_completions(
-                        project,
                         tc.module_id,
                         &tc.name,
                         partial,
+                        project,
                     );
                 }
                 NamedEntity::UnresolvedValue(u) => {

@@ -972,7 +972,7 @@ impl Project {
                     return None;
                 }
             };
-            return env.bindings.get_completions(&self, partial, true);
+            return env.bindings.get_completions(partial, true, &self);
         }
 
         // If we don't have a path, we can only complete imports.
@@ -996,7 +996,7 @@ impl Project {
         };
         let env = env.env_for_line(env_line);
 
-        env.bindings.get_completions(&self, word, false)
+        env.bindings.get_completions(word, false, &self)
     }
 
     // Yields (url, version) for all open files.
