@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
@@ -86,15 +86,15 @@ struct ClassInfo {
     /// What module defines each of the attributes of this class.
     attributes: BTreeMap<String, ModuleId>,
 
-    /// Every typeclass that this class is an instance of, based on the knowledge of this module.
-    typeclasses: HashSet<Typeclass>,
+    /// Maps typeclasses this class is an instance of to the module with the instance statement.
+    typeclasses: HashMap<Typeclass, ModuleId>,
 }
 
 impl ClassInfo {
     fn new() -> Self {
         ClassInfo {
             attributes: BTreeMap::new(),
-            typeclasses: HashSet::new(),
+            typeclasses: HashMap::new(),
         }
     }
 
@@ -114,8 +114,15 @@ impl ClassInfo {
                 }
             }
         }
-        for typeclass in info.typeclasses.iter() {
-            self.typeclasses.insert(typeclass.clone());
+        for (typeclass, other_module_id) in info.typeclasses.iter() {
+            if let Some(module_id) = self.typeclasses.insert(typeclass.clone(), *other_module_id) {
+                if module_id != *other_module_id {
+                    return Err(source.error(&format!(
+                        "instance relation {} is defined in two different modules",
+                        typeclass.name
+                    )));
+                }
+            }
         }
         Ok(())
     }
@@ -461,7 +468,7 @@ impl BindingMap {
             .entry(class)
             .or_insert_with(ClassInfo::new)
             .typeclasses
-            .insert(typeclass);
+            .insert(typeclass, self.module);
     }
 
     /// Returns a PotentialValue representing this name, if there is one.
@@ -1642,30 +1649,29 @@ impl BindingMap {
         potential: PotentialValue,
         args: Vec<AcornValue>,
         expected_type: Option<&AcornType>,
-        project: &Project,
+        _project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         let value = match potential {
             PotentialValue::Resolved(f) => f.check_apply(args, expected_type, source)?,
             PotentialValue::Unresolved(u) => {
-                self.resolve_with_inference(source, project, u, args, expected_type)?
+                self.resolve_with_inference(source, u, args, expected_type)?
             }
         };
         Ok(value)
     }
 
-    fn is_instance_of(&self, project: &Project, class: &Class, typeclass: &Typeclass) -> bool {
-        self.get_bindings(class.module_id, project)
-            .class_info
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+        self.class_info
             .get(&class)
-            .map_or(false, |info| info.typeclasses.contains(typeclass))
+            .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }
 
     /// If we have an expected type and this is still a potential value, resolve it.
     fn maybe_resolve_value(
         &self,
         source: &dyn ErrorSource,
-        project: &Project,
+        _project: &Project,
         potential: PotentialValue,
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<PotentialValue> {
@@ -1677,8 +1683,7 @@ impl BindingMap {
             PotentialValue::Unresolved(uc) => uc,
             p => return Ok(p),
         };
-        let value =
-            self.resolve_with_inference(source, project, uc, vec![], Some(expected_type))?;
+        let value = self.resolve_with_inference(source, uc, vec![], Some(expected_type))?;
         Ok(PotentialValue::Resolved(value))
     }
 
@@ -1687,7 +1692,6 @@ impl BindingMap {
     /// If it does work, populates the mapping with the type variables.
     fn match_instance(
         &self,
-        project: &Project,
         source: &dyn ErrorSource,
         generic: &AcornType,
         specific: &AcornType,
@@ -1695,7 +1699,7 @@ impl BindingMap {
     ) -> compilation::Result<()> {
         if !generic.match_instance(
             &specific,
-            &mut |class, typeclass| self.is_instance_of(&project, class, typeclass),
+            &mut |class, typeclass| self.is_instance_of(class, typeclass),
             mapping,
         ) {
             return Err(source.error(&format!(
@@ -1713,7 +1717,6 @@ impl BindingMap {
     fn resolve_with_inference(
         &self,
         source: &dyn ErrorSource,
-        project: &Project,
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
         expected_return_type: Option<&AcornType>,
@@ -1745,7 +1748,7 @@ impl BindingMap {
                         )));
                     }
                 };
-                self.match_instance(project, source, arg_type, &arg.get_type(), &mut mapping)?;
+                self.match_instance(source, arg_type, &arg.get_type(), &mut mapping)?;
             }
 
             unresolved_function_type.applied_type(args.len())
@@ -1755,13 +1758,7 @@ impl BindingMap {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            self.match_instance(
-                project,
-                source,
-                &unresolved_return_type,
-                target_type,
-                &mut mapping,
-            )?;
+            self.match_instance(source, &unresolved_return_type, target_type, &mut mapping)?;
         }
 
         // Determine the parameters for the instance
@@ -1805,7 +1802,7 @@ impl BindingMap {
             args.push(arg);
         }
 
-        self.resolve_with_inference(source, project, unresolved, args, expected_type)
+        self.resolve_with_inference(source, unresolved, args, expected_type)
     }
 
     /// This creates a version of a typeclass condition that is specialized to a particular
