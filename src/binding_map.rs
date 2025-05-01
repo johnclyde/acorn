@@ -1699,7 +1699,7 @@ impl BindingMap {
             mapping,
         ) {
             return Err(source.error(&format!(
-                "could not instantiate {:?} to get {:?}",
+                "could not instantiate {} to get {}",
                 generic, specific
             )));
         }
@@ -2168,7 +2168,7 @@ impl BindingMap {
                     self.evaluate_value_with_stack(stack, if_exp, expected_type, project)?;
                 let else_value = self.evaluate_value_with_stack(
                     stack,
-                    else_exp, 
+                    else_exp,
                     Some(&if_value.get_type()),
                     project,
                 )?;

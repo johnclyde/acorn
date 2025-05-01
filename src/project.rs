@@ -2083,4 +2083,52 @@ mod tests {
         p.expect_ok("baz");
         p.expect_module_err("main");
     }
+
+    #[test]
+    fn test_indirect_instance() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/pointed.ac",
+            r#"
+            typeclass P: Pointed {
+                origin: P
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/relate.ac",
+            r#"
+            from foo import Foo
+            from pointed import Pointed
+
+            instance Foo: Pointed {
+                let origin: Foo = Foo.foo
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from foo import Foo
+            from pointed import Pointed
+            import relate
+
+            define get_point<P: Pointed>(p: P) -> P {
+                P.origin
+            }
+
+            let p: Foo = get_point(Foo.foo)
+            "#,
+        );
+        p.expect_ok("relate");
+        p.expect_ok("main");
+    }
 }
