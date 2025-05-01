@@ -98,7 +98,12 @@ impl ClassInfo {
         }
     }
 
-    fn import(&mut self, info: &ClassInfo, source: &dyn ErrorSource) -> compilation::Result<()> {
+    fn import(
+        &mut self,
+        info: &ClassInfo,
+        typename: &str,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
         for (attr, other_module_id) in info.attributes.iter() {
             match self.attributes.get(attr) {
                 None => {
@@ -107,8 +112,8 @@ impl ClassInfo {
                 Some(module_id) => {
                     if *module_id != *other_module_id {
                         return Err(source.error(&format!(
-                            "attribute {} is defined in two different modules",
-                            attr
+                            "attribute {}.{} is defined in two different modules",
+                            typename, attr
                         )));
                     }
                 }
@@ -118,8 +123,8 @@ impl ClassInfo {
             if let Some(module_id) = self.typeclasses.insert(typeclass.clone(), *other_module_id) {
                 if module_id != *other_module_id {
                     return Err(source.error(&format!(
-                        "instance relation {} is defined in two different modules",
-                        typeclass.name
+                        "instance relation {}: {} is defined in two different modules",
+                        typename, typeclass.name
                     )));
                 }
             }
@@ -752,7 +757,7 @@ impl BindingMap {
                 .class_info
                 .entry(class.clone())
                 .or_insert_with(ClassInfo::new);
-            entry.import(imported_info, source)?;
+            entry.import(imported_info, &class.name, source)?;
         }
         Ok(())
     }
