@@ -633,11 +633,16 @@ impl BindingMap {
             theorem: false,
             constructor,
         };
-        self.constant_info.insert(local_name.clone(), info);
 
-        match local_name {
+        self.add_constant_info(local_name, info);
+        value
+    }
+
+    /// Adds information for either a newly defined constant, or an alias.
+    fn add_constant_info(&mut self, local_name: LocalName, info: ConstantInfo) {
+        match &local_name {
             LocalName::Attribute(entity_name, attribute) => {
-                if let Some(t) = self.typename_to_type.get(&entity_name) {
+                if let Some(t) = self.typename_to_type.get(entity_name) {
                     if let Some(class) = t.as_base_class() {
                         // We are defining a new class attribute.
                         self.class_info
@@ -650,17 +655,17 @@ impl BindingMap {
                     }
                 } else {
                     self.typeclass_info
-                        .entry(entity_name)
+                        .entry(entity_name.clone())
                         .or_insert_with(BTreeMap::new)
-                        .insert(attribute, ());
+                        .insert(attribute.clone(), ());
                 }
             }
             LocalName::Unqualified(name) => {
-                self.unqualified.insert(name, ());
+                self.unqualified.insert(name.clone(), ());
             }
         }
 
-        value
+        self.constant_info.insert(local_name, info);
     }
 
     /// Be really careful about this, it seems likely to break things.
@@ -688,16 +693,14 @@ impl BindingMap {
                 .entry(global_name.clone())
                 .or_insert(local_name.to_string());
         }
-        self.constant_info.insert(
-            local_name,
-            ConstantInfo {
-                value,
-                canonical: false,
-                theorem: false,
-                definition: None,
-                constructor: None,
-            },
-        );
+        let info = ConstantInfo {
+            value,
+            canonical: false,
+            theorem: false,
+            definition: None,
+            constructor: None,
+        };
+        self.add_constant_info(local_name, info);
     }
 
     pub fn mark_as_theorem(&mut self, name: &LocalName) {

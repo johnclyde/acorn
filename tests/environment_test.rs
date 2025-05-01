@@ -3249,7 +3249,7 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
     }
 
     #[test]
-    fn test_env_using_alternately_typed_attribute() {
+    fn test_env_using_alias_attributes() {
         let mut env = Environment::test();
         env.add(
             r#"
@@ -3262,14 +3262,14 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 cons(T, List<T>)
             }
 
-            let range: Nat -> List<Nat> = axiom
+            let range1: Nat -> List<Nat> = axiom
 
             class List<T> {
-                let range: Nat -> List<Nat> = range
+                let range2: Nat -> List<Nat> = range1
             }
 
             theorem goal {
-                List.range(Nat.zero) = List.range(Nat.zero)
+                List.range2(Nat.zero) = List.range2(Nat.zero)
             }
         "#,
         );

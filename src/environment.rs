@@ -405,7 +405,6 @@ impl Environment {
                 }
             }
         }
-
         self.define_constant(constant_name, type_params, acorn_type, value, range);
         Ok(())
     }
@@ -925,12 +924,9 @@ impl Environment {
         // An object can be recreated by new'ing from its members. Ie:
         // Pair.new(Pair.first(p), Pair.second(p)) = p.
         // This is the "new equation" for a struct type.
-        let recreated = self.bindings.apply_potential(
-            new_fn.clone(),
-            member_args,
-            None,
-            &ss.name_token,
-        )?;
+        let recreated =
+            self.bindings
+                .apply_potential(new_fn.clone(), member_args, None, &ss.name_token)?;
         let new_eq =
             AcornValue::Binary(BinaryOp::Equals, Box::new(recreated), Box::new(object_var));
         let new_claim =
