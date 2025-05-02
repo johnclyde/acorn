@@ -24,13 +24,12 @@ struct Args {
     #[clap(long)]
     dataset: bool,
 
-    // Use the cache normally if --cache is set.
-    // By default, the cache is not used.
+    // If --full is set, ignore the cache and do a full reverify.
     #[clap(long)]
-    cache: bool,
+    full: bool,
 
     // Use the cache, but only for the filtered prover, not for hash checking.
-    // Incompatible with --cache.
+    // Incompatible with --full.
     #[clap(long)]
     filtered: bool,
 }
@@ -39,11 +38,11 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
-    let use_cache = args.cache || args.filtered;
-    if args.cache && args.filtered {
-        println!("--cache and --filtered are incompatible.");
+    if args.full && args.filtered {
+        println!("--full and --filtered are incompatible.");
         return;
     }
+    let use_cache = !args.full;
 
     let mut project = Project::new_local(use_cache).unwrap();
     if args.filtered {
