@@ -1776,9 +1776,10 @@ impl BindingMap {
                     instance_params.push(t.clone());
                 }
                 None => {
-                    return Err(
-                        source.error(&format!("parameter {} could not be inferred", &param.name))
-                    );
+                    return Err(source.error(
+                        "The arguments are insufficient to infer the type of this function. \
+                        Try making its parameters explicit",
+                    ));
                 }
             }
         }
