@@ -541,11 +541,16 @@ impl ProofStep {
         self.clause.is_impossible()
     }
 
-    // We have to strictly limit deduction that happens between two library facts, because
-    // the plan is for the library to grow very large.
     pub fn automatic_reject(&self) -> bool {
+        // We have to strictly limit deduction that happens between two library facts, because
+        // the plan is for the library to grow very large.
         if self.truthiness == Truthiness::Factual && self.proof_size > 2 {
             // Only do one step of deduction with global facts.
+            return true;
+        }
+
+        // In some degenerate cases going very deep can crash the prover.
+        if self.depth >= 30 {
             return true;
         }
 
