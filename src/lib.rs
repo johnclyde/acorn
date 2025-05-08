@@ -49,3 +49,4 @@ pub mod termination_checker;
 pub mod token;
 pub mod unifier;
 pub mod unresolved_constant;
+pub mod verifier;
