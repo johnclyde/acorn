@@ -53,7 +53,7 @@ If you'd like to add something new to the language, the best way to start might 
 
 Other interesting parts of the code:
 
-- The [language server](./src/bin/acornserver.rs) is the entry point to Rust logic within VS Code.
+- The [Acorn binary](./src/bin/acorn.rs) is the entry point to Rust logic within VS Code.
 
 - The [VS Code extension](./vscode/extension) runs within VS Code, and handles communication between the user and the language server.
 

@@ -31,7 +31,7 @@ name = "verify"
 test = false
 
 [[bin]]
-name = "acornserver"
+name = "acorn"
 test = false
 
 [[bin]]

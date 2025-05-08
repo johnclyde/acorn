@@ -12,7 +12,7 @@
       "outFiles": ["${workspaceFolder}/vscode/extension/build/**/*.js"],
       "preLaunchTask": "build all",
       "env": {
-        "SERVER_PATH": "${workspaceFolder}/target/fastdev/acornserver"
+        "SERVER_PATH": "${workspaceFolder}/target/fastdev/acorn"
       }
     }
   ]

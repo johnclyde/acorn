@@ -22,13 +22,13 @@ if not exist "%ORT_LIB_LOCATION%\" (
 )
 
 echo Building...
-cargo build --release --bin acornserver --target x86_64-pc-windows-msvc || exit /b
+cargo build --release --bin acorn --target x86_64-pc-windows-msvc || exit /b
 
 rem Set the path to the built binary
-set "buildBin=.\target\x86_64-pc-windows-msvc\release\acornserver.exe"
+set "buildBin=.\target\x86_64-pc-windows-msvc\release\acorn.exe"
 
 rem Commented out due to trouble using dumpbin in GitHub Actions.
-rem echo DLLs used by the acornserver binary:
+rem echo DLLs used by the acorn binary:
 rem dumpbin /imports "%buildBin%" | findstr /i ".dll"
 
 if not exist "files\release" mkdir "files\release"
@@ -42,7 +42,7 @@ if "%tag%" neq "%TAG%" (
 )
 
 rem Set the destination path with the versioned name
-set "releaseBin=files\release\acornserver-%version%-win32-x64.exe"
+set "releaseBin=files\release\acorn-%version%-win32-x64.exe"
 
 copy "%buildBin%" "%releaseBin%"
 

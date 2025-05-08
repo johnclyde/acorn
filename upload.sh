@@ -43,9 +43,9 @@ for key in "${!MAP[@]}"; do
         suffix=".exe"
     fi
     node=$key
-    remote_name="acornserver-$VERSION-$node$suffix"
+    remote_name="acorn-$VERSION-$node$suffix"
     rust=${MAP[$node]}
-    local_name="target/$rust/release/acornserver$suffix"
+    local_name="target/$rust/release/acorn$suffix"
     [[ -f $local_name ]] || { echo "missing $local_name"; exit 1; }
     cp $local_name files/release/$remote_name
     gh release upload $TAG files/release/$remote_name $CLOBBER

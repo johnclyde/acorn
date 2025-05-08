@@ -901,10 +901,8 @@ async fn main() {
         .add_frame_filter(Box::new(|frames| {
             frames.retain(|frame| {
                 let name = frame.name.as_deref().unwrap_or("");
-                for retain in &["acorn::", "acornserver::"] {
-                    if name.contains(retain) {
-                        return true;
-                    }
+                if name.contains("acorn::") {
+                    return true;
                 }
                 false
             });

@@ -225,7 +225,7 @@ async function getServerPath(
   let extension = vscode.extensions.getExtension(context.extension.id);
   let timestamp = new Date().toLocaleTimeString();
   let version = extension.packageJSON.version;
-  let binName = `acornserver-${version}-${os.platform()}-${os.arch()}`;
+  let binName = `acorn-${version}-${os.platform()}-${os.arch()}`;
   if (os.platform() === "win32") {
     binName += ".exe";
   }
