@@ -26,10 +26,10 @@ use crate::prover::{Outcome, Prover};
 
 pub struct ServerArgs {
     // The root folder the user has open
-    workspace_root: Option<String>,
+    pub workspace_root: Option<String>,
 
     // The root folder of the extension
-    extension_root: String,
+    pub extension_root: String,
 }
 
 // These messages will show up in the "Acorn Language Server" channel in the output tab.
