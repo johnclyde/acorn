@@ -36,11 +36,11 @@ jobs:
       - name: Run Tests
         run: cargo test
 
-      - name: Build Verify Binary
-        run: cargo build --release --bin=verify
+      - name: Build CLI Binary
+        run: cargo build --release --bin=acorn
 
-      - name: Run Verify on acornlib
+      - name: Verify acornlib
         run: |
           cd vscode/extension/acornlib
-          time ../../../target/release/verify
-          time ../../../target/release/verify --filtered .
+          time ../../../target/release/acorn
+          time ../../../target/release/acorn --filtered .
