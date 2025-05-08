@@ -5,8 +5,14 @@ use acorn::server::{run_server, ServerArgs};
 use acorn::verifier::{Verifier, VerifierMode};
 use clap::Parser;
 
+const VERSION: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/VERSION"));
+
 #[derive(Parser)]
 struct Args {
+    // When set, print the version and exit.
+    #[clap(long, short)]
+    version: bool,
+
     // The root folder the user has open.
     // Only relevant in language server mode.
     #[clap(long)]
@@ -41,6 +47,12 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+
+    // Print the version and exit.
+    if args.version {
+        println!("{}", VERSION);
+        return;
+    }
 
     // Check for language server mode.
     if let Some(extension_root) = args.extension_root {
