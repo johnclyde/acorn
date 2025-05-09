@@ -24,10 +24,17 @@ impl Verifier {
         }
     }
 
+    /// Exits if there is a setup error.
     pub fn run(&self) {
         let use_cache = self.mode != VerifierMode::Full;
 
-        let mut project = Project::new_local(use_cache).unwrap();
+        let mut project = match Project::new_local(use_cache) {
+            Ok(p) => p,
+            Err(e) => {
+                println!("Error: {}", e);
+                std::process::exit(1);
+            }
+        };
         if self.mode == VerifierMode::Filtered {
             project.check_hashes = false;
         }
