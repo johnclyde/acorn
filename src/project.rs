@@ -2186,4 +2186,33 @@ mod tests {
         p.expect_ok("baz");
         p.expect_module_err("main");
     }
+
+    #[test]
+    fn test_mixed_in_attribute() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from foo import Foo
+
+            class Foo {
+                define a(self) -> Bool { true }
+            }
+
+            theorem goal {
+                Foo.foo.a
+            }
+            "#,
+        );
+        p.expect_ok("foo");
+        p.expect_ok("main");
+    }
 }
