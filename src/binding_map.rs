@@ -477,6 +477,7 @@ impl BindingMap {
 
     /// Returns a PotentialValue representing this name, if there is one.
     /// This can be either a resolved or unresolved value.
+    /// This function assumes that you are calling the correct binding map.
     pub fn get_constant_value(
         &self,
         name: &DefinedName,
@@ -485,13 +486,15 @@ impl BindingMap {
         match name {
             DefinedName::Local(local_name) => match self.constant_info.get(local_name) {
                 Some(info) => Ok(info.value.clone()),
-                None => Err(source.error(&format!("constant {} not found", name))),
+                None => Err(source.error(&format!("local constant {} not found", name))),
             },
             DefinedName::Instance(instance_name) => {
                 let definition = self
                     .instance_definitions
                     .get(instance_name)
-                    .ok_or_else(|| source.error(&format!("constant {} not found", name)))?;
+                    .ok_or_else(|| {
+                        source.error(&format!("instance constant {} not found", name))
+                    })?;
                 let value =
                     AcornValue::instance_constant(instance_name.clone(), definition.get_type());
                 Ok(PotentialValue::Resolved(value))
@@ -1314,8 +1317,10 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         let base_type = receiver.get_type();
 
-        let (module, type_name) = match &base_type {
-            AcornType::Data(class, _) => (class.module_id, &class.name),
+        let function = match &base_type {
+            AcornType::Data(class, _) => {
+                self.evaluate_type_attribute(class, attr_name, project, source)?
+            }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {
                     Some(t) => t,
@@ -1326,7 +1331,9 @@ impl BindingMap {
                         )));
                     }
                 };
-                (typeclass.module_id, &typeclass.name)
+                let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
+                self.get_bindings(typeclass.module_id, &project)
+                    .get_constant_value(&constant_name, source)?
             }
             _ => {
                 return Err(source.error(&format!(
@@ -1335,10 +1342,6 @@ impl BindingMap {
                 )));
             }
         };
-        let constant_name = DefinedName::attribute(type_name, attr_name);
-        let function = self
-            .get_bindings(module, &project)
-            .get_constant_value(&constant_name, source)?;
         self.apply_potential(function, vec![receiver], None, source)
     }
 
