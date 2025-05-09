@@ -84,7 +84,7 @@ impl Verifier {
             dataset.save();
         }
 
-        if self.mode == VerifierMode::Filtered && builder.searches_full > 0 {
+        if self.mode == VerifierMode::Filtered && builder.searches_fallback > 0 {
             println!("\nWarning: the filtered prover was not able to handle all goals.");
             std::process::exit(1);
         }
