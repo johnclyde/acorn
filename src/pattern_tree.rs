@@ -415,10 +415,13 @@ fn key_from_pair(term1: &Term, term2: &Term) -> Vec<u8> {
 //
 // If the search stops early, key and replacements are left in their final state.
 // If the search does fully complete, we reset key and replacements to their initial state.
+//
+// On rare occasion this has blown the stack, so we add a limit.
 fn find_matches_while<'a, F>(
     subtrie: &SubTrie<Vec<u8>, usize>,
     key: &mut Vec<u8>,
     components: &'a [TermComponent],
+    stack_limit: usize,
     replacements: &mut Vec<&'a [TermComponent]>,
     callback: &mut F,
 ) -> bool
@@ -427,6 +430,10 @@ where
 {
     if subtrie.is_empty() {
         return true;
+    }
+
+    if stack_limit == 0 {
+        return false;
     }
 
     if components.is_empty() {
@@ -460,7 +467,14 @@ where
             // This term could match x_i as a backreference.
             Edge::Atom(Atom::Variable(i as u16)).append_to(key);
             let new_subtrie = subtrie.subtrie(key as &[u8]);
-            if !find_matches_while(&new_subtrie, key, rest, replacements, callback) {
+            if !find_matches_while(
+                &new_subtrie,
+                key,
+                rest,
+                stack_limit - 1,
+                replacements,
+                callback,
+            ) {
                 return false;
             }
             key.truncate(initial_key_len);
@@ -472,7 +486,14 @@ where
     let new_subtrie = subtrie.subtrie(key as &[u8]);
     if !new_subtrie.is_empty() {
         replacements.push(first);
-        if !find_matches_while(&new_subtrie, key, rest, replacements, callback) {
+        if !find_matches_while(
+            &new_subtrie,
+            key,
+            rest,
+            stack_limit - 1,
+            replacements,
+            callback,
+        ) {
             return false;
         }
         replacements.pop();
@@ -498,7 +519,14 @@ where
     };
     edge.append_to(key);
     let new_subtrie = subtrie.subtrie(key as &[u8]);
-    if !find_matches_while(&new_subtrie, key, &components[1..], replacements, callback) {
+    if !find_matches_while(
+        &new_subtrie,
+        key,
+        &components[1..],
+        stack_limit - 1,
+        replacements,
+        callback,
+    ) {
         return false;
     }
     key.truncate(initial_key_len);
@@ -548,7 +576,7 @@ impl<T> PatternTree<T> {
         F: FnMut(usize, &Vec<&[TermComponent]>) -> bool,
     {
         let subtrie = self.trie.subtrie(key);
-        find_matches_while(&subtrie, key, components, replacements, callback)
+        find_matches_while(&subtrie, key, components, 100, replacements, callback)
     }
 
     // Finds a single match, if possible.
