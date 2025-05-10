@@ -44,7 +44,7 @@ impl fmt::Display for Error {
             // The error is at the end of the line.
             write!(f, "^")?;
         }
-        write!(f, "\n")
+        Ok(())
     }
 }
 

@@ -81,6 +81,9 @@ impl Verifier {
         if self.create_dataset {
             builder.create_dataset();
         }
+        if self.target.is_none() {
+            builder.log_secondary_errors = false;
+        }
 
         // Build
         project.build(&mut builder);
