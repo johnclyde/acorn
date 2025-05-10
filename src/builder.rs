@@ -107,6 +107,10 @@ pub struct Builder<'a> {
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
 
+    // When this flag is set, we emit build events for secondary errors.
+    // I.e., errors that happen when you try to import a module that itself has an error.
+    pub log_secondary_errors: bool,
+
     // The current module we are proving.
     current_module: Option<ModuleDescriptor>,
 
@@ -161,6 +165,7 @@ impl<'a> Builder<'a> {
             goals_done: 0,
             goals_success: 0,
             log_when_slow: false,
+            log_secondary_errors: true,
             current_module: None,
             current_module_good: true,
             dataset: None,

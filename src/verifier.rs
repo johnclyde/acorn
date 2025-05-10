@@ -11,7 +11,12 @@ pub enum VerifierMode {
 
 pub struct Verifier {
     mode: VerifierMode,
+
+    /// The target module to verify.
+    /// If None, all modules are verified.
     target: Option<String>,
+
+    /// If true, a dataset is created, for training.
     create_dataset: bool,
 }
 
