@@ -230,6 +230,9 @@ pub struct TypeclassStatement {
     /// The name of the typeclass being defined.
     pub typeclass_name: Token,
 
+    /// The name of the typeclasses that this typeclass extends.
+    pub extends: Vec<Token>,
+
     /// Each instance type in the typeclass has a list of constants that must be defined.
     /// This is a list of (name, type) pairs.
     /// The type may refer to the instance type itself.
@@ -930,6 +933,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     statement: StatementInfo::Typeclass(TypeclassStatement {
                         instance_name: instance_type,
                         typeclass_name,
+                        extends: vec![],
                         constants,
                         conditions,
                     }),
