@@ -65,6 +65,7 @@ pub enum TokenType {
     Implies,
     Typeclass,
     Instance,
+    Extends,
 }
 
 // Add a new token here if there's an alphabetical name for it.
@@ -104,6 +105,7 @@ pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
             ("implies", TokenType::Implies),
             ("typeclass", TokenType::Typeclass),
             ("instance", TokenType::Instance),
+            ("extends", TokenType::Extends),
         ])
     })
 }
@@ -367,6 +369,7 @@ impl TokenType {
             TokenType::Implies => "implies",
             TokenType::Typeclass => "typeclass",
             TokenType::Instance => "instance",
+            TokenType::Extends => "extends",
         }
     }
 
@@ -516,7 +519,8 @@ impl Token {
             | TokenType::Constraint
             | TokenType::Implies
             | TokenType::Typeclass
-            | TokenType::Instance => Some(SemanticTokenType::KEYWORD),
+            | TokenType::Instance
+            | TokenType::Extends => Some(SemanticTokenType::KEYWORD),
 
             TokenType::NewLine => {
                 // Comments are encoded as newlines because syntactically they act like newlines.
