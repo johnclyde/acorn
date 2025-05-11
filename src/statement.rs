@@ -2022,4 +2022,20 @@ mod tests {
             cons(T, List<T>)
         }"});
     }
+
+    #[test]
+    fn test_parsing_typeclass_statement_with_extends() {
+        ok(indoc! {"
+        typeclass F: Foo extends Bar {
+            b: Bool
+        }"});
+    }
+
+    #[test]
+    fn test_parsing_typeclass_statement_with_multiple_extends() {
+        ok(indoc! {"
+        typeclass F: Foo extends Bar, Baz {
+            b: Bool
+        }"});
+    }
 }
