@@ -914,6 +914,34 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     let instance_type = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
     let typeclass_name = tokens.expect_type_name()?;
+
+    // Check for "extends" keyword and parse the extended typeclasses
+    let extends = if let Some(token) = tokens.peek() {
+        if token.token_type == TokenType::Extends {
+            tokens.next(); // Consume "extends" token
+
+            let mut extended_typeclasses = Vec::new();
+            loop {
+                let typeclass = tokens.expect_type_name()?;
+                extended_typeclasses.push(typeclass);
+
+                // Check if there's a comma for more typeclasses
+                if let Some(token) = tokens.peek() {
+                    if token.token_type == TokenType::Comma {
+                        tokens.next(); // Consume comma
+                        continue;
+                    }
+                }
+                break;
+            }
+            extended_typeclasses
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
     let mut constants = vec![];
     let mut conditions = vec![];
     tokens.expect_type(TokenType::LeftBrace)?;
@@ -933,7 +961,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     statement: StatementInfo::Typeclass(TypeclassStatement {
                         instance_name: instance_type,
                         typeclass_name,
-                        extends: vec![],
+                        extends,
                         constants,
                         conditions,
                     }),
@@ -1246,9 +1274,22 @@ impl Statement {
                 let new_indentation = add_indent(indentation);
                 write!(
                     f,
-                    "typeclass {}: {} {{\n",
+                    "typeclass {}: {}",
                     ts.instance_name, ts.typeclass_name
                 )?;
+
+                // Write the extends part if there are any
+                if !ts.extends.is_empty() {
+                    write!(f, " extends ")?;
+                    for (i, typeclass) in ts.extends.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", typeclass)?;
+                    }
+                }
+
+                write!(f, " {{\n")?;
                 for (name, type_expr) in &ts.constants {
                     write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
                 }
