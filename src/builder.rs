@@ -315,13 +315,16 @@ impl<'a> Builder<'a> {
                     }
                 }
             },
-            Outcome::Exhausted => self.log_proving_warning(&goal_context, "could not be verified"),
+            Outcome::Exhausted => {
+                self.log_proving_warning(&goal_context, "could not be verified (exhaustion)")
+            }
             Outcome::Inconsistent => {
                 self.log_proving_warning(&goal_context, "- prover found an inconsistency")
             }
-            Outcome::Timeout => {
-                self.log_proving_warning(&goal_context, &format!("timed out after {}", elapsed_str))
-            }
+            Outcome::Timeout => self.log_proving_warning(
+                &goal_context,
+                &format!("could not be verified (timeout after {})", elapsed_str),
+            ),
             Outcome::Interrupted => {
                 self.log_proving_error(&goal_context, "was interrupted");
             }
@@ -329,7 +332,7 @@ impl<'a> Builder<'a> {
                 self.log_proving_error(&goal_context, &format!("hit an error: {}", s));
             }
             Outcome::Constrained => {
-                self.log_proving_warning(&goal_context, "stopped after hitting constraints")
+                self.log_proving_warning(&goal_context, "could not be verified (constraints)")
             }
         }
     }
@@ -418,14 +421,14 @@ impl<'a> Builder<'a> {
         println!();
         match self.status {
             BuildStatus::Error => {
-                println!("Build failed.");
+                println!("Compilation failed.");
                 return;
             }
             BuildStatus::Warning => {
-                println!("Build completed with warnings.");
+                println!("Verification failed.");
             }
             BuildStatus::Good => {
-                println!("Build completed successfully.");
+                println!("Verification succeeded.");
             }
         }
         println!("{}/{} OK", self.goals_success, self.goals_total);

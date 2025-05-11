@@ -77,7 +77,9 @@ impl Verifier {
                 }
             }
         });
-        builder.log_when_slow = true;
+        if self.mode == VerifierMode::Filtered {
+            builder.log_when_slow = true;
+        }
         if self.create_dataset {
             builder.create_dataset();
         }

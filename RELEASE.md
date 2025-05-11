@@ -27,7 +27,7 @@ When we create a new release, we release a new language server, and then a new V
 
 All commands are run from `~/acorn`.
 
-1. Before you release, consider whether you also want to update the build-in copy of acornlib. If you do:
+1. Before you release, consider whether you also want to update the built-in copy of acornlib. If you do:
 
    ```
    cd vscode/extension/acornlib
