@@ -1363,7 +1363,7 @@ impl Environment {
             name: typeclass_name.to_string(),
         };
         self.bindings
-            .add_typeclass(typeclass_name, typeclass.clone());
+            .add_typeclass(typeclass_name, vec![], &project);
         let type_param = TypeParam {
             name: instance_name.to_string(),
             typeclass: Some(typeclass.clone()),

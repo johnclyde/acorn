@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::{BTreeMap, HashMap};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
@@ -146,6 +147,10 @@ impl TypeclassInfo {
         TypeclassInfo {
             attributes: BTreeMap::new(),
         }
+    }
+
+    fn extend(&mut self, _base: Typeclass, _project: &Project) {
+        // TODO: implement
     }
 }
 
@@ -403,9 +408,31 @@ impl BindingMap {
         self.insert_type_name(alias.to_string(), potential);
     }
 
-    /// Adds a name for this typeclass.
-    /// Panics if the name is already bound.
-    pub fn add_typeclass(&mut self, name: &str, typeclass: Typeclass) {
+    /// Adds a newly-defined typeclass to this environment.
+    /// Panics if the typeclass is already defined - that should be checked before calling this.
+    pub fn add_typeclass(&mut self, name: &str, extends: Vec<Typeclass>, project: &Project) {
+        let mut info = TypeclassInfo::new();
+        for base in extends {
+            info.extend(base, project);
+        }
+        let typeclass = Typeclass {
+            module_id: self.module_id,
+            name: name.to_string(),
+        };
+        match self.typeclass_info.entry(name.to_string()) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(info);
+            }
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                panic!("typeclass {} is already bound", entry.key());
+            }
+        }
+        self.add_typeclass_name(&name, typeclass);
+    }
+
+    /// Adds a local name for this typeclass.
+    /// Panics if the name is already bound - that should be checked before calling this.
+    fn add_typeclass_name(&mut self, name: &str, typeclass: Typeclass) {
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
         let canonical_name =
@@ -1664,7 +1691,7 @@ impl BindingMap {
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
             NamedEntity::Typeclass(tc) => {
-                self.add_typeclass(&name_token.text(), tc);
+                self.add_typeclass_name(&name_token.text(), tc);
                 Ok(())
             }
 
