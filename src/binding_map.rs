@@ -1794,9 +1794,12 @@ impl BindingMap {
         what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if !unifier.match_instance(generic, specific, &mut |class, typeclass| {
-            self.is_instance_of(class, typeclass)
-        }) {
+        if !unifier
+            .match_instance(generic, specific, &mut |class, typeclass| {
+                self.is_instance_of(class, typeclass)
+            })
+            .is_ok()
+        {
             return Err(source.error(&format!(
                 "{} has type {} but we expected some sort of {}",
                 what, specific, generic

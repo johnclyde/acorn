@@ -10,6 +10,30 @@ pub struct TypeUnifier {
     pub mapping: HashMap<String, AcornType>,
 }
 
+/// The different errors we can get from unification.
+pub enum Error {
+    /// Unification failed, because this class is not an instance of this typeclass.
+    Class(Class, Typeclass),
+
+    /// Unification failed becaue the first typeclass is not an extension of the second.
+    /// TypeclassFailure(A, B) indicates that A does not extend B.
+    /// This is directional. Field extends Ring, but not vice versa.
+    Typeclass(Typeclass, Typeclass),
+
+    /// Unification failed for some other reason.
+    Other,
+}
+
+pub type Result = std::result::Result<(), Error>;
+
+fn require_eq(t1: &AcornType, t2: &AcornType) -> Result {
+    if t1 == t2 {
+        Ok(())
+    } else {
+        Err(Error::Other)
+    }
+}
+
 impl TypeUnifier {
     pub fn new() -> Self {
         TypeUnifier {
@@ -28,62 +52,57 @@ impl TypeUnifier {
         generic_type: &AcornType,
         instance: &AcornType,
         validator: &mut dyn FnMut(&Class, &Typeclass) -> bool,
-    ) -> bool {
+    ) -> Result {
         match (generic_type, instance) {
             (AcornType::Variable(param), _) => {
                 if let Some(t) = self.mapping.get(&param.name) {
                     // This type variable is already mapped
-                    return t == instance;
+                    return require_eq(t, instance);
                 }
                 if let Some(typeclass) = param.typeclass.as_ref() {
                     match instance {
                         AcornType::Data(class, _) => {
                             if !validator(&class, typeclass) {
-                                return false;
+                                return Err(Error::Class(class.clone(), typeclass.clone()));
                             }
                         }
                         AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                             match &param.typeclass {
                                 Some(tc) => {
                                     if tc != typeclass {
-                                        return false;
+                                        return Err(Error::Typeclass(
+                                            tc.clone(),
+                                            typeclass.clone(),
+                                        ));
                                     }
                                 }
-                                None => return false,
+                                None => return Err(Error::Other),
                             }
                         }
-                        _ => return false,
+                        _ => return Err(Error::Other),
                     }
                 }
                 self.mapping.insert(param.name.clone(), instance.clone());
-                true
             }
             (AcornType::Function(f), AcornType::Function(g)) => {
                 if f.arg_types.len() != g.arg_types.len() {
-                    return false;
+                    return Err(Error::Other);
                 }
-                if !self.match_instance(&f.return_type, &g.return_type, validator) {
-                    return false;
-                }
+                self.match_instance(&f.return_type, &g.return_type, validator)?;
                 for (f_arg_type, g_arg_type) in f.arg_types.iter().zip(&g.arg_types) {
-                    if !self.match_instance(f_arg_type, g_arg_type, validator) {
-                        return false;
-                    }
+                    self.match_instance(f_arg_type, g_arg_type, validator)?;
                 }
-                true
             }
             (AcornType::Data(g_class, g_params), AcornType::Data(i_class, i_params)) => {
                 if g_class != i_class || g_params.len() != i_params.len() {
-                    return false;
+                    return Err(Error::Other);
                 }
                 for (g_param, i_param) in g_params.iter().zip(i_params) {
-                    if !self.match_instance(g_param, i_param, validator) {
-                        return false;
-                    }
+                    self.match_instance(g_param, i_param, validator)?;
                 }
-                true
             }
-            _ => generic_type == instance,
+            _ => return require_eq(generic_type, instance),
         }
+        Ok(())
     }
 }
