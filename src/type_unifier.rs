@@ -60,29 +60,31 @@ impl TypeUnifier {
     pub fn match_instance(
         &mut self,
         generic_type: &AcornType,
-        instance: &AcornType,
+        instance_type: &AcornType,
         registry: &dyn TypeclassRegistry,
     ) -> Result {
-        match (generic_type, instance) {
+        match (generic_type, instance_type) {
             (AcornType::Variable(param), _) => {
                 if let Some(t) = self.mapping.get(&param.name) {
                     // This type variable is already mapped
-                    return require_eq(t, instance);
+                    return require_eq(t, instance_type);
                 }
-                if let Some(typeclass) = param.typeclass.as_ref() {
-                    match instance {
+                if let Some(generic_typeclass) = param.typeclass.as_ref() {
+                    match instance_type {
                         AcornType::Data(class, _) => {
-                            if !registry.is_instance_of(&class, typeclass) {
-                                return Err(Error::Class(class.clone(), typeclass.clone()));
+                            if !registry.is_instance_of(&class, generic_typeclass) {
+                                return Err(Error::Class(class.clone(), generic_typeclass.clone()));
                             }
                         }
                         AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                             match &param.typeclass {
-                                Some(tc) => {
-                                    if tc != typeclass {
+                                Some(instance_typeclass) => {
+                                    if instance_typeclass != generic_typeclass
+                                        && !registry.extends(instance_typeclass, generic_typeclass)
+                                    {
                                         return Err(Error::Typeclass(
-                                            tc.clone(),
-                                            typeclass.clone(),
+                                            instance_typeclass.clone(),
+                                            generic_typeclass.clone(),
                                         ));
                                     }
                                 }
@@ -92,7 +94,8 @@ impl TypeUnifier {
                         _ => return Err(Error::Other),
                     }
                 }
-                self.mapping.insert(param.name.clone(), instance.clone());
+                self.mapping
+                    .insert(param.name.clone(), instance_type.clone());
             }
             (AcornType::Function(f), AcornType::Function(g)) => {
                 if f.arg_types.len() != g.arg_types.len() {
@@ -111,7 +114,7 @@ impl TypeUnifier {
                     self.match_instance(g_param, i_param, registry)?;
                 }
             }
-            _ => return require_eq(generic_type, instance),
+            _ => return require_eq(generic_type, instance_type),
         }
         Ok(())
     }
