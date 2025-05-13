@@ -1,5 +1,5 @@
 use core::panic;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
@@ -140,12 +140,16 @@ struct TypeclassInfo {
     /// The value stores the typeclass on which this attribute was originally defined.
     /// (This can be the typeclass itself.)
     attributes: BTreeMap<String, Typeclass>,
+
+    /// The typeclasses that this typeclass extends.
+    extends: HashSet<Typeclass>,
 }
 
 impl TypeclassInfo {
     pub fn new() -> Self {
         TypeclassInfo {
             attributes: BTreeMap::new(),
+            extends: HashSet::new(),
         }
     }
 }
@@ -415,8 +419,14 @@ impl BindingMap {
     ) -> compilation::Result<()> {
         let mut info = TypeclassInfo::new();
         for base in extends {
+            info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
             let base_info = bindings.typeclass_info.get(&base.name).unwrap();
+            for base_base in &base_info.extends {
+                if !info.extends.contains(base_base) {
+                    info.extends.insert(base_base.clone());
+                }
+            }
             for (attr, original) in base_info.attributes.iter() {
                 if let Some(current) = info.attributes.get(attr) {
                     if current != original {
