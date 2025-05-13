@@ -322,25 +322,20 @@ impl Monomorphizer {
         // Our goal is to find the "prop params", a way in which we can instantiate
         // the whole proposition so that the instance params become the monomorph params.
         assert_eq!(generic_params.params.len(), monomorph_params.params.len());
-        let mut prop_params = HashMap::new();
+        let mut unifier = TypeUnifier::new();
         let mut failure_key = None;
         for (generic_type, monomorph_type) in generic_params
             .params
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            if !TypeUnifier::match_instance(
-                generic_type,
-                monomorph_type,
-                &mut |class, typeclass| {
-                    if failure_key.is_none() && !self.is_instance_of(class, typeclass) {
-                        // This is a failure, but maybe it won't be a failure later.
-                        failure_key = Some((class.clone(), typeclass.clone()));
-                    }
-                    true
-                },
-                &mut prop_params,
-            ) {
+            if !unifier.match_instance(generic_type, monomorph_type, &mut |class, typeclass| {
+                if failure_key.is_none() && !self.is_instance_of(class, typeclass) {
+                    // This is a failure, but maybe it won't be a failure later.
+                    failure_key = Some((class.clone(), typeclass.clone()));
+                }
+                true
+            }) {
                 // We can't match up the types.
                 return;
             }
@@ -359,7 +354,7 @@ impl Monomorphizer {
             return;
         }
 
-        let prop_params = PropParams::new(prop_params);
+        let prop_params = PropParams::new(unifier.mapping);
         let info = &mut self.prop_info[prop_id];
         if info.instantiations.contains(&prop_params) {
             // We already have this monomorph

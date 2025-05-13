@@ -1788,18 +1788,15 @@ impl BindingMap {
     /// "what" is used for error reporting.
     fn match_instance(
         &self,
+        unifier: &mut TypeUnifier,
         generic: &AcornType,
         specific: &AcornType,
-        mapping: &mut HashMap<String, AcornType>,
         what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if !TypeUnifier::match_instance(
-            generic,
-            specific,
-            &mut |class, typeclass| self.is_instance_of(class, typeclass),
-            mapping,
-        ) {
+        if !unifier.match_instance(generic, specific, &mut |class, typeclass| {
+            self.is_instance_of(class, typeclass)
+        }) {
             return Err(source.error(&format!(
                 "{} has type {} but we expected some sort of {}",
                 what, specific, generic
@@ -1820,7 +1817,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         // Do type inference. Mapping is where the generic types go.
-        let mut mapping = HashMap::new();
+        let mut unifier = TypeUnifier::new();
 
         // Use the arguments to infer types
         let unresolved_return_type = if args.is_empty() {
@@ -1847,9 +1844,9 @@ impl BindingMap {
                     }
                 };
                 self.match_instance(
+                    &mut unifier,
                     arg_type,
                     &arg.get_type(),
-                    &mut mapping,
                     &format!("argument {}", i),
                     source,
                 )?;
@@ -1863,9 +1860,9 @@ impl BindingMap {
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
             self.match_instance(
+                &mut unifier,
                 &unresolved_return_type,
                 target_type,
-                &mut mapping,
                 "return value",
                 source,
             )?;
@@ -1875,7 +1872,7 @@ impl BindingMap {
         let mut named_params = vec![];
         let mut instance_params = vec![];
         for param in &unresolved.params {
-            match mapping.get(&param.name) {
+            match unifier.mapping.get(&param.name) {
                 Some(t) => {
                     named_params.push((param.name.clone(), t.clone()));
                     instance_params.push(t.clone());
