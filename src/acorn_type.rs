@@ -633,7 +633,20 @@ impl fmt::Display for AcornType {
             }
             AcornType::Function(function_type) => write!(f, "{}", function_type),
             AcornType::Empty => write!(f, "empty"),
-            AcornType::Variable(param) | AcornType::Arbitrary(param) => {
+            AcornType::Variable(param) => {
+                // A type variable has a name that is generally hidden from the user.
+                // You can't use these in explicit code, so this won't be used for codegen.
+                // So just print out the typeclass name.
+                let nice_tc = match &param.typeclass {
+                    Some(tc) => &tc.name,
+                    None => "*",
+                };
+                write!(f, "{}", nice_tc)?;
+                Ok(())
+            }
+            AcornType::Arbitrary(param) => {
+                // An arbitrary type will look to the user just like an opaque type.
+                // So it's okay to print out only its name.
                 write!(f, "{}", param.name)?;
                 Ok(())
             }

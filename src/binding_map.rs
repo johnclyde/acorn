@@ -1774,11 +1774,13 @@ impl BindingMap {
     /// Tries to match a generic type to a specific type, mapping the type variables.
     /// If it doesn't work, returns an error.
     /// If it does work, populates the mapping with the type variables.
+    /// "what" is used for error reporting.
     fn match_instance(
         &self,
         generic: &AcornType,
         specific: &AcornType,
         mapping: &mut HashMap<String, AcornType>,
+        what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if !generic.match_instance(
@@ -1787,8 +1789,8 @@ impl BindingMap {
             mapping,
         ) {
             return Err(source.error(&format!(
-                "could not instantiate {} to get {}",
-                generic, specific
+                "{} has type {} but we expected some sort of {}",
+                what, specific, generic
             )));
         }
         Ok(())
@@ -1832,7 +1834,13 @@ impl BindingMap {
                         )));
                     }
                 };
-                self.match_instance(arg_type, &arg.get_type(), &mut mapping, source)?;
+                self.match_instance(
+                    arg_type,
+                    &arg.get_type(),
+                    &mut mapping,
+                    &format!("argument {}", i),
+                    source,
+                )?;
             }
 
             unresolved_function_type.applied_type(args.len())
@@ -1842,7 +1850,13 @@ impl BindingMap {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            self.match_instance(&unresolved_return_type, target_type, &mut mapping, source)?;
+            self.match_instance(
+                &unresolved_return_type,
+                target_type,
+                &mut mapping,
+                "return value",
+                source,
+            )?;
         }
 
         // Determine the parameters for the instance
