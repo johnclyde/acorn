@@ -8,6 +8,7 @@ use crate::names::GlobalName;
 use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
+use crate::type_unifier::TypeUnifier;
 
 /// The type variables used in a generic proposition, along with the types they map to.
 /// Can be a partial instantiation.
@@ -328,7 +329,8 @@ impl Monomorphizer {
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            if !generic_type.match_instance(
+            if !TypeUnifier::match_instance(
+                generic_type,
                 monomorph_type,
                 &mut |class, typeclass| {
                     if failure_key.is_none() && !self.is_instance_of(class, typeclass) {

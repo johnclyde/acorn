@@ -17,6 +17,7 @@ use crate::project::Project;
 use crate::proposition::Proposition;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
+use crate::type_unifier::TypeUnifier;
 use crate::unresolved_constant::UnresolvedConstant;
 
 /// In order to convert an Expression to an AcornValue, we need to convert the string representation
@@ -1793,8 +1794,9 @@ impl BindingMap {
         what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if !generic.match_instance(
-            &specific,
+        if !TypeUnifier::match_instance(
+            generic,
+            specific,
             &mut |class, typeclass| self.is_instance_of(class, typeclass),
             mapping,
         ) {
