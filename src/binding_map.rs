@@ -1311,6 +1311,15 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         let bindings = self.get_bindings(typeclass.module_id, project);
+
+        // Check if this attribute is an inherited one.
+        // Note that if we are in the definition of typeclass conditions, there is no info yet.
+        if let Some(info) = self.typeclass_info.get(&typeclass.name) {
+            if let Some(Some(base_tc)) = info.attributes.get(attr_name) {
+                return self.evaluate_typeclass_attribute(&base_tc, attr_name, project, source);
+            }
+        }
+
         let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
         bindings.get_constant_value(&constant_name, source)
     }
