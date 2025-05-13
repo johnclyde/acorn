@@ -372,4 +372,9 @@ impl TypeclassRegistry for Monomorphizer {
             false
         }
     }
+
+    fn extends(&self, _typeclass: &Typeclass, _base: &Typeclass) -> bool {
+        // TODO: fix this
+        false
+    }
 }

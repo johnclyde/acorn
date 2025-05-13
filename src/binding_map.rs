@@ -3040,6 +3040,14 @@ impl TypeclassRegistry for BindingMap {
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }
+
+    fn extends(&self, typeclass: &Typeclass, base: &Typeclass) -> bool {
+        if let Some(info) = self.typeclass_info.get(typeclass) {
+            info.extends.contains(base)
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]

@@ -29,6 +29,9 @@ pub enum Error {
 pub trait TypeclassRegistry {
     /// Returns true if the class is an instance of the typeclass.
     fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool;
+
+    /// Returns true if typeclass extends base.
+    fn extends(&self, typeclass: &Typeclass, base: &Typeclass) -> bool;
 }
 
 pub type Result = std::result::Result<(), Error>;
