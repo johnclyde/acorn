@@ -17,7 +17,7 @@ use crate::project::Project;
 use crate::proposition::Proposition;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
-use crate::type_unifier::TypeUnifier;
+use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
 /// In order to convert an Expression to an AcornValue, we need to convert the string representation
@@ -1757,12 +1757,6 @@ impl BindingMap {
         Ok(value)
     }
 
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
-        self.class_info
-            .get(&class)
-            .map_or(false, |info| info.typeclasses.contains_key(typeclass))
-    }
-
     /// If we have an expected type and this is still a potential value, resolve it.
     fn maybe_resolve_value(
         &self,
@@ -1794,12 +1788,7 @@ impl BindingMap {
         what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if !unifier
-            .match_instance(generic, specific, &mut |class, typeclass| {
-                self.is_instance_of(class, typeclass)
-            })
-            .is_ok()
-        {
+        if !unifier.match_instance(generic, specific, self).is_ok() {
             return Err(source.error(&format!(
                 "{} has type {} but we expected some sort of {}",
                 what, specific, generic
@@ -3037,6 +3026,14 @@ impl BindingMap {
             .expect("evaluate_value failed");
         let output_code = self.value_to_code(&value).expect("value_to_code failed");
         assert_eq!(input_code, output_code);
+    }
+}
+
+impl TypeclassRegistry for BindingMap {
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+        self.class_info
+            .get(&class)
+            .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }
 }
 

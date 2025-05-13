@@ -58,7 +58,7 @@ impl TypeUnifier {
         &mut self,
         generic_type: &AcornType,
         instance: &AcornType,
-        validator: &dyn Fn(&Class, &Typeclass) -> bool,
+        registry: &dyn TypeclassRegistry,
     ) -> Result {
         match (generic_type, instance) {
             (AcornType::Variable(param), _) => {
@@ -69,7 +69,7 @@ impl TypeUnifier {
                 if let Some(typeclass) = param.typeclass.as_ref() {
                     match instance {
                         AcornType::Data(class, _) => {
-                            if !validator(&class, typeclass) {
+                            if !registry.is_instance_of(&class, typeclass) {
                                 return Err(Error::Class(class.clone(), typeclass.clone()));
                             }
                         }
@@ -95,9 +95,9 @@ impl TypeUnifier {
                 if f.arg_types.len() != g.arg_types.len() {
                     return Err(Error::Other);
                 }
-                self.match_instance(&f.return_type, &g.return_type, validator)?;
+                self.match_instance(&f.return_type, &g.return_type, registry)?;
                 for (f_arg_type, g_arg_type) in f.arg_types.iter().zip(&g.arg_types) {
-                    self.match_instance(f_arg_type, g_arg_type, validator)?;
+                    self.match_instance(f_arg_type, g_arg_type, registry)?;
                 }
             }
             (AcornType::Data(g_class, g_params), AcornType::Data(i_class, i_params)) => {
@@ -105,7 +105,7 @@ impl TypeUnifier {
                     return Err(Error::Other);
                 }
                 for (g_param, i_param) in g_params.iter().zip(i_params) {
-                    self.match_instance(g_param, i_param, validator)?;
+                    self.match_instance(g_param, i_param, registry)?;
                 }
             }
             _ => return require_eq(generic_type, instance),

@@ -8,7 +8,7 @@ use crate::names::GlobalName;
 use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
-use crate::type_unifier::{self, TypeUnifier};
+use crate::type_unifier::{self, TypeUnifier, TypeclassRegistry};
 
 /// The type variables used in a generic proposition, along with the types they map to.
 /// Can be a partial instantiation.
@@ -177,14 +177,6 @@ impl Monomorphizer {
         }
     }
 
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
-        if let Some(set) = self.instances.get(typeclass) {
-            set.contains(class)
-        } else {
-            false
-        }
-    }
-
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
@@ -328,9 +320,7 @@ impl Monomorphizer {
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            match unifier.match_instance(generic_type, monomorph_type, &mut |class, typeclass| {
-                self.is_instance_of(class, typeclass)
-            }) {
+            match unifier.match_instance(generic_type, monomorph_type, self) {
                 Ok(()) => {}
                 Err(type_unifier::Error::Class(class, typeclass)) => {
                     // This is a failure based on a typeclass relation.
@@ -371,5 +361,15 @@ impl Monomorphizer {
 
         self.add_monomorphs(&monomorphic_prop.value);
         self.output.push(monomorphic_prop);
+    }
+}
+
+impl TypeclassRegistry for Monomorphizer {
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+        if let Some(set) = self.instances.get(typeclass) {
+            set.contains(class)
+        } else {
+            false
+        }
     }
 }
