@@ -1784,7 +1784,7 @@ impl BindingMap {
 
     /// Tries to match a generic type to a specific type, mapping the type variables.
     /// If it doesn't work, returns an error.
-    /// If it does work, populates the mapping with the type variables.
+    /// If it does work, populates the unifier with the type variables.
     /// "what" is used for error reporting.
     fn match_instance(
         &self,

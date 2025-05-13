@@ -24,6 +24,13 @@ pub enum Error {
     Other,
 }
 
+/// The unifier itself does not know which typeclasses correspond to what.
+/// The registry is responsible for that.
+pub trait TypeclassRegistry {
+    /// Returns true if the class is an instance of the typeclass.
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool;
+}
+
 pub type Result = std::result::Result<(), Error>;
 
 fn require_eq(t1: &AcornType, t2: &AcornType) -> Result {
