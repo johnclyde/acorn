@@ -8,7 +8,7 @@ use crate::names::GlobalName;
 use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
-use crate::type_unifier::TypeUnifier;
+use crate::type_unifier::{self, TypeUnifier};
 
 /// The type variables used in a generic proposition, along with the types they map to.
 /// Can be a partial instantiation.
@@ -329,18 +329,19 @@ impl Monomorphizer {
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            if !unifier
-                .match_instance(generic_type, monomorph_type, &mut |class, typeclass| {
-                    if failure_key.is_none() && !self.is_instance_of(class, typeclass) {
-                        // This is a failure, but maybe it won't be a failure later.
-                        failure_key = Some((class.clone(), typeclass.clone()));
-                    }
-                    true
-                })
-                .is_ok()
-            {
-                // We can't match up the types.
-                return;
+            match unifier.match_instance(generic_type, monomorph_type, &mut |class, typeclass| {
+                self.is_instance_of(class, typeclass)
+            }) {
+                Ok(()) => {}
+                Err(type_unifier::Error::Class(class, typeclass)) => {
+                    // This is a failure based on a typeclass relation.
+                    // We can try again later if we find out that the typeclass is valid.
+                    failure_key = Some((class, typeclass));
+                }
+                Err(_) => {
+                    // We can't do anything about this.
+                    return;
+                }
             }
         }
 
