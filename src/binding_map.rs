@@ -44,12 +44,15 @@ pub struct BindingMap {
     /// Maps the type object to its name in this environment.
     type_to_typename: HashMap<PotentialType, String>,
 
+    /// Stores information about every class accessible from this module.
+    class_info: HashMap<Class, ClassInfo>,
+
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
-    /// Attribute names for typeclasses defined in this module.
-    typeclass_info: HashMap<String, TypeclassInfo>,
+    /// Stores information about every typeclass accessible from this module.
+    typeclass_info: HashMap<Typeclass, TypeclassInfo>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -76,12 +79,9 @@ pub struct BindingMap {
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
     /// is going to need to see them in their parametrized form.
     instance_definitions: HashMap<InstanceName, AcornValue>,
-
-    /// Stores information about every class referenced in this module.
-    class_info: HashMap<Class, ClassInfo>,
 }
 
-/// Information about a class that is referenced in this module.
+/// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
 struct ClassInfo {
     /// What module defines each of the attributes of this class.
@@ -422,7 +422,7 @@ impl BindingMap {
         for base in extends {
             info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
-            let base_info = bindings.typeclass_info.get(&base.name).unwrap();
+            let base_info = bindings.typeclass_info.get(&base).unwrap();
             for base_base in &base_info.extends {
                 if !info.extends.contains(base_base) {
                     info.extends.insert(base_base.clone());
@@ -446,12 +446,12 @@ impl BindingMap {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        match self.typeclass_info.entry(name.to_string()) {
+        match self.typeclass_info.entry(typeclass.clone()) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(info);
             }
             std::collections::hash_map::Entry::Occupied(entry) => {
-                panic!("typeclass {} is already bound", entry.key());
+                panic!("typeclass {} is already bound", entry.key().name);
             }
         }
         self.add_typeclass_name(&name, typeclass);
@@ -496,7 +496,7 @@ impl BindingMap {
         &self
             .get_bindings(typeclass.module_id, project)
             .typeclass_info
-            .get(&typeclass.name)
+            .get(&typeclass)
             .unwrap()
             .attributes
     }
@@ -735,7 +735,7 @@ impl BindingMap {
                         name: entity_name.clone(),
                     };
                     self.typeclass_info
-                        .entry(entity_name.clone())
+                        .entry(typeclass.clone())
                         .or_insert_with(TypeclassInfo::new)
                         .attributes
                         .insert(attribute.clone(), typeclass);
@@ -818,8 +818,9 @@ impl BindingMap {
     }
 
     /// Adds this name to the environment as a module.
-    /// Copies over some information from the module's bindings.
+    /// Copies over all the class_info from the module's bindings.
     /// This enables "mixins".
+    /// Also copy over all the typeclass_info from the module's bindings.
     pub fn import_module(
         &mut self,
         name: &str,
@@ -835,12 +836,22 @@ impl BindingMap {
         }
         self.module_to_name
             .insert(bindings.module_id, name.to_string());
+
+        // Copy over the class info.
         for (class, imported_info) in bindings.class_info.iter() {
             let entry = self
                 .class_info
                 .entry(class.clone())
                 .or_insert_with(ClassInfo::new);
             entry.import(imported_info, &class.name, source)?;
+        }
+
+        // Copy over the typeclass info.
+        for (typeclass, imported_info) in bindings.typeclass_info.iter() {
+            if !self.typeclass_info.contains_key(typeclass) {
+                self.typeclass_info
+                    .insert(typeclass.clone(), imported_info.clone());
+            }
         }
         Ok(())
     }
@@ -862,16 +873,15 @@ impl BindingMap {
 
     fn get_typeclass_attribute_completions(
         &self,
-        module: ModuleId,
-        base_name: &str,
+        typeclass: &Typeclass,
         prefix: &str,
         project: &Project,
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
         if let Some(info) = self
-            .get_bindings(module, project)
+            .get_bindings(typeclass.module_id, project)
             .typeclass_info
-            .get(base_name)
+            .get(typeclass)
         {
             for key in keys_with_prefix(&info.attributes, &prefix) {
                 let completion = CompletionItem {
@@ -939,12 +949,7 @@ impl BindingMap {
                     return self.get_type_attribute_completions(&t, partial);
                 }
                 NamedEntity::Typeclass(tc) => {
-                    return self.get_typeclass_attribute_completions(
-                        tc.module_id,
-                        &tc.name,
-                        partial,
-                        project,
-                    );
+                    return self.get_typeclass_attribute_completions(&tc, partial, project);
                 }
                 NamedEntity::UnresolvedValue(u) => {
                     return self.get_type_attribute_completions(&u.generic_type, partial);
@@ -1373,7 +1378,7 @@ impl BindingMap {
 
         // Check if this attribute is an inherited one.
         // Note that if we are in the definition of typeclass conditions, there is no info yet.
-        if let Some(info) = self.typeclass_info.get(&typeclass.name) {
+        if let Some(info) = self.typeclass_info.get(&typeclass) {
             if let Some(base_tc) = info.attributes.get(attr_name) {
                 if base_tc != typeclass {
                     return self.evaluate_typeclass_attribute(&base_tc, attr_name, project, source);
