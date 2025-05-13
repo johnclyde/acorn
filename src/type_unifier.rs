@@ -51,7 +51,7 @@ impl TypeUnifier {
         &mut self,
         generic_type: &AcornType,
         instance: &AcornType,
-        validator: &mut dyn FnMut(&Class, &Typeclass) -> bool,
+        validator: &dyn Fn(&Class, &Typeclass) -> bool,
     ) -> Result {
         match (generic_type, instance) {
             (AcornType::Variable(param), _) => {
