@@ -1331,9 +1331,7 @@ impl BindingMap {
                         )));
                     }
                 };
-                let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
-                self.get_bindings(typeclass.module_id, &project)
-                    .get_constant_value(&constant_name, source)?
+                self.evaluate_typeclass_attribute(typeclass, attr_name, project, source)?
             }
             _ => {
                 return Err(source.error(&format!(

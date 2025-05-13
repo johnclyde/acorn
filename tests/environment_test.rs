@@ -3274,4 +3274,22 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    // #[test]
+    // fn test_env_basic_typeclass_extension() {
+    //     let mut env = Environment::test();
+    //     env.add(
+    //         r#"
+    //         typeclass F: Foo {
+    //             property: F -> Bool
+    //         }
+
+    //         typeclass B: Bar extends Foo {
+    //             property_true(b: B) {
+    //                 b.property
+    //             }
+    //         }
+    //         "#,
+    //     );
+    // }
 }

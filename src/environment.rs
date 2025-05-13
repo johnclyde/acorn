@@ -1371,6 +1371,7 @@ impl Environment {
         self.bindings.add_arbitrary_type(type_param.clone());
         let type_params = vec![type_param.clone()];
 
+        // Define all the constants that are in the typeclass.
         for (attr_name, type_expr) in &ts.constants {
             let arb_type = self.bindings.evaluate_type(project, type_expr)?;
             let var_type = arb_type.genericize(&type_params);
@@ -1386,10 +1387,12 @@ impl Environment {
             );
         }
 
+        // Add a node for each typeclass condition.
+        // The node says, "this condition is true for all instances of the typeclass".
+        // Conditions are similar to theorems, but they don't get proven at the typeclass level.
+        // So they don't have blocks.
+        // They do get proven, but in the instance statement, not in the typeclass statement.
         for condition in &ts.conditions {
-            // Conditions are similar to theorems, but they don't get proven at the typeclass level.
-            // So they don't have blocks.
-            // They do get proven, but in the instance statement, not in the typeclass statement.
             let range = Range {
                 start: condition.name.start_pos(),
                 end: condition.claim.last_token().end_pos(),
