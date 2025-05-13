@@ -47,8 +47,7 @@ pub struct BindingMap {
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
     /// Attribute names for typeclasses defined in this module.
-    /// We use a map-to-nothing so that we can share autocomplete code.
-    typeclass_info: HashMap<String, BTreeMap<String, ()>>,
+    typeclass_info: HashMap<String, TypeclassInfo>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -130,6 +129,23 @@ impl ClassInfo {
             }
         }
         Ok(())
+    }
+}
+
+/// Information about a typeclass that is defined in this module.
+#[derive(Clone, Debug)]
+struct TypeclassInfo {
+    /// The attributes available to this typeclass.
+    /// If the attribute is available because we are extending another typeclass, the typeclass
+    /// where the attribute was initially defined is stored here.
+    attributes: BTreeMap<String, Option<Typeclass>>,
+}
+
+impl TypeclassInfo {
+    pub fn new() -> Self {
+        TypeclassInfo {
+            attributes: BTreeMap::new(),
+        }
     }
 }
 
@@ -421,11 +437,13 @@ impl BindingMap {
         &'a self,
         typeclass: &Typeclass,
         project: &'a Project,
-    ) -> &'a BTreeMap<String, ()> {
-        self.get_bindings(typeclass.module_id, project)
+    ) -> &'a BTreeMap<String, Option<Typeclass>> {
+        &self
+            .get_bindings(typeclass.module_id, project)
             .typeclass_info
             .get(&typeclass.name)
             .unwrap()
+            .attributes
     }
 
     /// Call this after an instance attribute has been defined to typecheck it.
@@ -659,8 +677,9 @@ impl BindingMap {
                 } else {
                     self.typeclass_info
                         .entry(entity_name.clone())
-                        .or_insert_with(BTreeMap::new)
-                        .insert(attribute.clone(), ());
+                        .or_insert_with(TypeclassInfo::new)
+                        .attributes
+                        .insert(attribute.clone(), None);
                 }
             }
             LocalName::Unqualified(name) => {
@@ -790,12 +809,12 @@ impl BindingMap {
         project: &Project,
     ) -> Option<Vec<CompletionItem>> {
         let mut answer = vec![];
-        if let Some(map) = self
+        if let Some(info) = self
             .get_bindings(module, project)
             .typeclass_info
             .get(base_name)
         {
-            for key in keys_with_prefix(&map, &prefix) {
+            for key in keys_with_prefix(&info.attributes, &prefix) {
                 let completion = CompletionItem {
                     label: key.clone(),
                     kind: Some(CompletionItemKind::FIELD),
