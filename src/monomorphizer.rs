@@ -323,7 +323,6 @@ impl Monomorphizer {
         // the whole proposition so that the instance params become the monomorph params.
         assert_eq!(generic_params.params.len(), monomorph_params.params.len());
         let mut unifier = TypeUnifier::new();
-        let mut failure_key = None;
         for (generic_type, monomorph_type) in generic_params
             .params
             .iter()
@@ -336,26 +335,22 @@ impl Monomorphizer {
                 Err(type_unifier::Error::Class(class, typeclass)) => {
                     // This is a failure based on a typeclass relation.
                     // We can try again later if we find out that the typeclass is valid.
-                    failure_key = Some((class, typeclass));
+                    let failure_key = (class, typeclass);
+                    self.instantiation_failures
+                        .entry(failure_key)
+                        .or_insert_with(Vec::new)
+                        .push(InstantiationFailure {
+                            prop_id,
+                            generic_params: generic_params.clone(),
+                            monomorph_params: monomorph_params.clone(),
+                        });
+                    return;
                 }
                 Err(_) => {
-                    // We can't do anything about this.
+                    // For this sort of error, there's no point in ever trying again.
                     return;
                 }
             }
-        }
-
-        if let Some(failure_key) = failure_key {
-            // We have a failure based on a bad typeclass relation, so we can try again later.
-            self.instantiation_failures
-                .entry(failure_key)
-                .or_insert_with(Vec::new)
-                .push(InstantiationFailure {
-                    prop_id,
-                    generic_params: generic_params.clone(),
-                    monomorph_params: monomorph_params.clone(),
-                });
-            return;
         }
 
         let prop_params = PropParams::new(unifier.mapping);
