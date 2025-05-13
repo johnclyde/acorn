@@ -230,8 +230,8 @@ pub struct TypeclassStatement {
     /// The name of the typeclass being defined.
     pub typeclass_name: Token,
 
-    /// The name of the typeclasses that this typeclass extends.
-    pub extends: Vec<Token>,
+    /// The typeclasses that this typeclass extends.
+    pub extends: Vec<Expression>,
 
     /// Each instance type in the typeclass has a list of constants that must be defined.
     /// This is a list of (name, type) pairs.
@@ -916,35 +916,32 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     let typeclass_name = tokens.expect_type_name()?;
 
     // Check for "extends" keyword and parse the extended typeclasses
-    let extends = if let Some(token) = tokens.peek() {
-        if token.token_type == TokenType::Extends {
-            tokens.next(); // Consume "extends" token
-
-            let mut extended_typeclasses = Vec::new();
-            loop {
-                let typeclass = tokens.expect_type_name()?;
-                extended_typeclasses.push(typeclass);
-
-                // Check if there's a comma for more typeclasses
-                if let Some(token) = tokens.peek() {
-                    if token.token_type == TokenType::Comma {
-                        tokens.next(); // Consume comma
-                        continue;
-                    }
-                }
-                break;
-            }
-            extended_typeclasses
-        } else {
-            vec![]
+    let mut extends = vec![];
+    match tokens.peek_type() {
+        Some(TokenType::LeftBrace) => {
+            // No extends
+            tokens.next();
         }
-    } else {
-        vec![]
-    };
+        Some(TokenType::Extends) => {
+            tokens.next();
+            loop {
+                let (type_expr, token) = Expression::parse_type(
+                    tokens,
+                    Terminator::Or(TokenType::Comma, TokenType::LeftBrace),
+                )?;
+                extends.push(type_expr);
+                if token.token_type == TokenType::LeftBrace {
+                    break;
+                }
+            }
+        }
+        _ => {
+            return Err(keyword.error("expected 'extends' or '{' after typeclass name"));
+        }
+    }
 
     let mut constants = vec![];
     let mut conditions = vec![];
-    tokens.expect_type(TokenType::LeftBrace)?;
     while let Some(token) = tokens.next() {
         match token.token_type {
             TokenType::NewLine => {
@@ -1272,11 +1269,7 @@ impl Statement {
 
             StatementInfo::Typeclass(ts) => {
                 let new_indentation = add_indent(indentation);
-                write!(
-                    f,
-                    "typeclass {}: {}",
-                    ts.instance_name, ts.typeclass_name
-                )?;
+                write!(f, "typeclass {}: {}", ts.instance_name, ts.typeclass_name)?;
 
                 // Write the extends part if there are any
                 if !ts.extends.is_empty() {
