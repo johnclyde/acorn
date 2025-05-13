@@ -137,9 +137,9 @@ impl ClassInfo {
 #[derive(Clone, Debug)]
 struct TypeclassInfo {
     /// The attributes available to this typeclass.
-    /// If the attribute is available because we are extending another typeclass, the typeclass
-    /// where the attribute was initially defined is stored here.
-    attributes: BTreeMap<String, Option<Typeclass>>,
+    /// The value stores the typeclass on which this attribute was originally defined.
+    /// (This can be the typeclass itself.)
+    attributes: BTreeMap<String, Typeclass>,
 }
 
 impl TypeclassInfo {
@@ -147,10 +147,6 @@ impl TypeclassInfo {
         TypeclassInfo {
             attributes: BTreeMap::new(),
         }
-    }
-
-    fn extend(&mut self, _base: Typeclass, _project: &Project) {
-        // TODO: implement
     }
 }
 
@@ -410,11 +406,31 @@ impl BindingMap {
 
     /// Adds a newly-defined typeclass to this environment.
     /// Panics if the typeclass is already defined - that should be checked before calling this.
-    pub fn add_typeclass(&mut self, name: &str, extends: Vec<Typeclass>, project: &Project) {
+    pub fn add_typeclass(
+        &mut self,
+        name: &str,
+        extends: Vec<Typeclass>,
+        project: &Project,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
         let mut info = TypeclassInfo::new();
         for base in extends {
-            info.extend(base, project);
+            let bindings = self.get_bindings(base.module_id, project);
+            let base_info = bindings.typeclass_info.get(&base.name).unwrap();
+            for (attr, original) in base_info.attributes.iter() {
+                if let Some(current) = info.attributes.get(attr) {
+                    if current != original {
+                        return Err(source.error(&format!(
+                            "attribute {} is defined in both {} and {}",
+                            attr, &current.name, &original.name
+                        )));
+                    }
+                } else {
+                    info.attributes.insert(attr.clone(), original.clone());
+                }
+            }
         }
+
         let typeclass = Typeclass {
             module_id: self.module_id,
             name: name.to_string(),
@@ -428,6 +444,7 @@ impl BindingMap {
             }
         }
         self.add_typeclass_name(&name, typeclass);
+        Ok(())
     }
 
     /// Adds a local name for this typeclass.
@@ -464,7 +481,7 @@ impl BindingMap {
         &'a self,
         typeclass: &Typeclass,
         project: &'a Project,
-    ) -> &'a BTreeMap<String, Option<Typeclass>> {
+    ) -> &'a BTreeMap<String, Typeclass> {
         &self
             .get_bindings(typeclass.module_id, project)
             .typeclass_info
@@ -702,11 +719,15 @@ impl BindingMap {
                         panic!("cannot figure out receiver: {:?}", t);
                     }
                 } else {
+                    let typeclass = Typeclass {
+                        module_id: self.module_id,
+                        name: entity_name.clone(),
+                    };
                     self.typeclass_info
                         .entry(entity_name.clone())
                         .or_insert_with(TypeclassInfo::new)
                         .attributes
-                        .insert(attribute.clone(), None);
+                        .insert(attribute.clone(), typeclass);
                 }
             }
             LocalName::Unqualified(name) => {
@@ -1342,8 +1363,10 @@ impl BindingMap {
         // Check if this attribute is an inherited one.
         // Note that if we are in the definition of typeclass conditions, there is no info yet.
         if let Some(info) = self.typeclass_info.get(&typeclass.name) {
-            if let Some(Some(base_tc)) = info.attributes.get(attr_name) {
-                return self.evaluate_typeclass_attribute(&base_tc, attr_name, project, source);
+            if let Some(base_tc) = info.attributes.get(attr_name) {
+                if base_tc != typeclass {
+                    return self.evaluate_typeclass_attribute(&base_tc, attr_name, project, source);
+                }
             }
         }
 

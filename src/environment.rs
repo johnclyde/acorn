@@ -1352,6 +1352,15 @@ impl Environment {
         ts: &TypeclassStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
+
+        // Figure out what, if anything, this extends.
+        let mut extends = vec![];
+        for extend in &ts.extends {
+            let typeclass = self.bindings.evaluate_typeclass(project, extend)?;
+            extends.push(typeclass);
+        }
+
+        // Check names are available and bind the typeclass.
         let instance_name = ts.instance_name.text();
         self.bindings
             .check_typename_available(instance_name, statement)?;
@@ -1363,7 +1372,7 @@ impl Environment {
             name: typeclass_name.to_string(),
         };
         self.bindings
-            .add_typeclass(typeclass_name, vec![], &project);
+            .add_typeclass(typeclass_name, extends, &project, &ts.typeclass_name)?;
         let type_param = TypeParam {
             name: instance_name.to_string(),
             typeclass: Some(typeclass.clone()),
