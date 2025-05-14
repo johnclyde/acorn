@@ -3289,6 +3289,23 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                     b.property
                 }
             }
+
+            inductive Qux {
+                qux
+            }
+
+            class Qux {
+                define q(self) -> Bool {
+                    true
+                }
+            }
+
+            instance Qux: Foo {
+                let property: Qux -> Bool = Qux.q
+            }
+
+            // instance Qux: Bar {
+            // }
             "#,
         );
     }
