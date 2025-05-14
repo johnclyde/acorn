@@ -1533,7 +1533,11 @@ impl Environment {
         // Check that we have all implementations.
         let attributes = self.bindings.get_typeclass_attributes(&typeclass, &project);
         let mut conditions = vec![];
-        for attr_name in attributes.keys() {
+        for (attr_name, root_tc) in attributes.iter() {
+            if root_tc != &typeclass {
+                // This attribute is inherited, so we don't need to check it.
+                continue;
+            }
             let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);
             let tc_bindings = self.bindings.get_bindings(typeclass.module_id, project);
             if tc_bindings.is_theorem(&tc_attr_name) {

@@ -3304,8 +3304,8 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
                 let property: Qux -> Bool = Qux.q
             }
 
-            // instance Qux: Bar {
-            // }
+            instance Qux: Bar {
+            }
             "#,
         );
     }
