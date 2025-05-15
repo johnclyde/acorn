@@ -640,8 +640,8 @@ impl Environment {
         // We need to prove the general existence claim
         let mut stack = Stack::new();
         let (quant_names, quant_types) =
-            self.bindings
-                .bind_args(&mut stack, project, &vss.declarations, None)?;
+            self.evaluator(project)
+                .bind_args(&mut stack, &vss.declarations, None)?;
         let general_claim_value = self.evaluator(project).evaluate_value_with_stack(
             &mut stack,
             &vss.condition,
@@ -1635,8 +1635,8 @@ impl Environment {
             self.bindings.add_potential_type(&ts.name, vec![]);
         } else {
             let potential = self
-                .bindings
-                .evaluate_potential_type(project, &ts.type_expr)?;
+                .evaluator(project)
+                .evaluate_potential_type(&ts.type_expr)?;
             self.bindings.add_type_alias(&ts.name, potential);
         };
         Ok(())
@@ -1714,9 +1714,9 @@ impl Environment {
         statement: &Statement,
         is: &IfStatement,
     ) -> compilation::Result<()> {
-        let condition =
-            self.evaluator(project)
-                .evaluate_value(&is.condition, Some(&AcornType::Bool))?;
+        let condition = self
+            .evaluator(project)
+            .evaluate_value(&is.condition, Some(&AcornType::Bool))?;
         let range = is.condition.range();
         let if_claim = self.add_conditional(
             project,
@@ -1875,14 +1875,16 @@ impl Environment {
         statement: &Statement,
         ms: &MatchStatement,
     ) -> compilation::Result<()> {
-        let scrutinee = self.evaluator(project).evaluate_value(&ms.scrutinee, None)?;
+        let scrutinee = self
+            .evaluator(project)
+            .evaluate_value(&ms.scrutinee, None)?;
         let scrutinee_type = scrutinee.get_type();
         let mut indices = vec![];
         let mut disjuncts = vec![];
         for (pattern, body) in &ms.cases {
-            let (constructor, args, i, total) =
-                self.evaluator(project)
-                    .evaluate_pattern(&scrutinee_type, pattern)?;
+            let (constructor, args, i, total) = self
+                .evaluator(project)
+                .evaluate_pattern(&scrutinee_type, pattern)?;
             if indices.contains(&i) {
                 return Err(pattern.error("duplicate pattern in match statement"));
             }
