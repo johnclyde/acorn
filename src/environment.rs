@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::binding_map::{BindingMap, Stack};
+use crate::binding_map::BindingMap;
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
@@ -17,6 +17,7 @@ use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
+use crate::stack::Stack;
 use crate::statement::{
     Body, ClaimStatement, ClassStatement, DefineStatement, ForAllStatement,
     FunctionSatisfyStatement, IfStatement, ImportStatement, InductiveStatement, InstanceStatement,

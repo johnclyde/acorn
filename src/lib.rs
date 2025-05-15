@@ -44,6 +44,7 @@ pub mod scorer;
 pub mod server;
 pub mod source;
 pub mod specializer;
+pub mod stack;
 pub mod statement;
 pub mod term;
 pub mod term_graph;

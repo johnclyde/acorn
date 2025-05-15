@@ -5,7 +5,6 @@ use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
 use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass, UnresolvedType};
 use crate::acorn_value::{AcornValue, BinaryOp};
-use crate::atom::AtomId;
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
@@ -15,6 +14,7 @@ use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
+use crate::stack::Stack;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token, TokenIter, TokenType};
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
@@ -28,31 +28,31 @@ use crate::unresolved_constant::UnresolvedConstant;
 #[derive(Clone)]
 pub struct BindingMap {
     /// The module all these names are in.
-    module_id: ModuleId,
+    pub module_id: ModuleId,
 
     /// Maps the name of a constant defined in this scope to information about it.
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
     /// entirety of this environment.
     /// This also includes aliases.
-    constant_info: HashMap<LocalName, ConstantInfo>,
+    pub constant_info: HashMap<LocalName, ConstantInfo>,
 
     /// Maps the name of a type to the type object.
     /// Includes unresolved names like List that don't have enough information
     /// to get a specific type.
-    typename_to_type: BTreeMap<String, PotentialType>,
+    pub typename_to_type: BTreeMap<String, PotentialType>,
 
     /// Maps the type object to its name in this environment.
-    type_to_typename: HashMap<PotentialType, String>,
+    pub type_to_typename: HashMap<PotentialType, String>,
 
     /// Stores information about every class accessible from this module.
-    class_info: HashMap<Class, ClassInfo>,
+    pub class_info: HashMap<Class, ClassInfo>,
 
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
     /// Stores information about every typeclass accessible from this module.
-    typeclass_info: HashMap<Typeclass, TypeclassInfo>,
+    pub typeclass_info: HashMap<Typeclass, TypeclassInfo>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -62,18 +62,18 @@ pub struct BindingMap {
     /// if we're generating code, we prefer to use the local name.
     /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
-    canonical_to_alias: HashMap<GlobalName, String>,
+    pub canonical_to_alias: HashMap<GlobalName, String>,
 
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
     /// It's important that these are in alphabetical order, so that dependency hashes are consistent.
-    name_to_module: BTreeMap<String, ModuleId>,
+    pub name_to_module: BTreeMap<String, ModuleId>,
 
     /// The local name for imported modules.
-    module_to_name: HashMap<ModuleId, String>,
+    pub module_to_name: HashMap<ModuleId, String>,
 
     /// The default data type to use for numeric literals.
-    numerals: Option<Class>,
+    pub numerals: Option<Class>,
 
     /// The definitions of the instance attributes defined in this module.
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
@@ -83,9 +83,9 @@ pub struct BindingMap {
 
 /// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
-struct ClassInfo {
+pub struct ClassInfo {
     /// What module defines each of the attributes of this class.
-    attributes: BTreeMap<String, ModuleId>,
+    pub attributes: BTreeMap<String, ModuleId>,
 
     /// Maps typeclasses this class is an instance of to the module with the instance statement.
     typeclasses: HashMap<Typeclass, ModuleId>,
@@ -136,11 +136,11 @@ impl ClassInfo {
 
 /// Information about a typeclass that is defined in this module.
 #[derive(Clone, Debug)]
-struct TypeclassInfo {
+pub struct TypeclassInfo {
     /// The attributes available to this typeclass.
     /// The value stores the typeclass on which this attribute was originally defined.
     /// (This can be the typeclass itself.)
-    attributes: BTreeMap<String, Typeclass>,
+    pub attributes: BTreeMap<String, Typeclass>,
 
     /// The typeclasses that this typeclass extends.
     extends: HashSet<Typeclass>,
@@ -155,52 +155,9 @@ impl TypeclassInfo {
     }
 }
 
-/// A representation of the variables on the stack.
-pub struct Stack {
-    /// Maps the name of the variable to their depth and their type.
-    vars: HashMap<String, (AtomId, AcornType)>,
-}
-
-impl Stack {
-    pub fn new() -> Self {
-        Stack {
-            vars: HashMap::new(),
-        }
-    }
-
-    pub fn names(&self) -> Vec<&str> {
-        let mut answer: Vec<&str> = vec![""; self.vars.len()];
-        for (name, (i, _)) in &self.vars {
-            answer[*i as usize] = name;
-        }
-        answer
-    }
-
-    pub fn insert(&mut self, name: String, acorn_type: AcornType) -> AtomId {
-        let i = self.vars.len() as AtomId;
-        self.vars.insert(name, (i, acorn_type));
-        i
-    }
-
-    fn remove(&mut self, name: &str) {
-        self.vars.remove(name);
-    }
-
-    pub fn remove_all(&mut self, names: &[String]) {
-        for name in names {
-            self.remove(name);
-        }
-    }
-
-    /// Returns the depth and type of the variable with this name.
-    fn get(&self, name: &str) -> Option<&(AtomId, AcornType)> {
-        self.vars.get(name)
-    }
-}
-
 /// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
-struct ConstantInfo {
+pub struct ConstantInfo {
     /// The value for this constant. Not the definition, but the constant itself.
     /// If this is a generic constant, this value is unresolved.
     value: PotentialValue,
@@ -220,7 +177,7 @@ struct ConstantInfo {
     ///   an index of which constructor it is
     ///   how many total constructors there are
     /// Not included for aliases.
-    constructor: Option<(Class, usize, usize)>,
+    pub constructor: Option<(Class, usize, usize)>,
 }
 
 fn keys_with_prefix<'a, T>(
@@ -1223,7 +1180,7 @@ impl BindingMap {
         }
     }
 
-    /// Evalutes a pattern match. Infers their types from the pattern.
+    /// Evaluates a pattern match. Infers their types from the pattern.
     /// Returns an error if the pattern is not a constructor of the expected type.
     /// Returns:
     ///   a value for the constructor function
@@ -1342,7 +1299,7 @@ impl BindingMap {
     }
 
     /// Whether this type has this attribute in the current context.
-    fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
+    pub fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
         self.class_info
             .get(class)
             .map_or(false, |info| info.attributes.contains_key(var_name))
@@ -1763,7 +1720,7 @@ impl BindingMap {
     }
 
     /// If we have an expected type and this is still a potential value, resolve it.
-    fn maybe_resolve_value(
+    pub fn maybe_resolve_value(
         &self,
         potential: PotentialValue,
         expected_type: Option<&AcornType>,
@@ -1891,7 +1848,7 @@ impl BindingMap {
     }
 
     /// Apply an unresolved name to arguments, inferring the types.
-    fn infer_and_apply(
+    pub fn infer_and_apply(
         &self,
         stack: &mut Stack,
         unresolved: UnresolvedConstant,
