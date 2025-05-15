@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::{
     acorn_type::{AcornType, Class, Typeclass},
+    acorn_value::AcornValue,
     compilation::{self, ErrorSource},
+    unresolved_constant::UnresolvedConstant,
 };
 
 /// Utility for matching types during unification.
@@ -138,5 +140,91 @@ impl TypeUnifier {
             )));
         }
         Ok(())
+    }
+
+    /// Infer the type of an unresolved constant, based on its arguments (if it is a function)
+    /// and the expected type.
+    /// Returns a value that applies the function to the arguments.
+    /// If the type cannot be inferred, returns an error.
+    pub fn resolve_with_inference(
+        &mut self,
+        unresolved: UnresolvedConstant,
+        args: Vec<AcornValue>,
+        expected_return_type: Option<&AcornType>,
+        registry: &dyn TypeclassRegistry,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<AcornValue> {
+        // Use the arguments to infer types
+        let unresolved_return_type = if args.is_empty() {
+            unresolved.generic_type.clone()
+        } else if let AcornType::Function(unresolved_function_type) = &unresolved.generic_type {
+            if unresolved_function_type.has_arbitrary() {
+                return Err(source.error("unresolved function type has arbitrary"));
+            }
+
+            for (i, arg) in args.iter().enumerate() {
+                if arg.has_generic() {
+                    return Err(
+                        source.error(&format!("argument {} ({}) has unresolved type", i, arg))
+                    );
+                }
+                let arg_type: &AcornType = match &unresolved_function_type.arg_types.get(i) {
+                    Some(t) => t,
+                    None => {
+                        return Err(source.error(&format!(
+                            "expected {} arguments but got {}",
+                            unresolved_function_type.arg_types.len(),
+                            args.len()
+                        )));
+                    }
+                };
+                self.user_match_instance(
+                    arg_type,
+                    &arg.get_type(),
+                    registry,
+                    &format!("argument {}", i),
+                    source,
+                )?;
+            }
+
+            unresolved_function_type.applied_type(args.len())
+        } else {
+            return Err(source.error("expected a function type"));
+        };
+
+        if let Some(target_type) = expected_return_type {
+            // Use the expected type to infer types
+            self.user_match_instance(
+                &unresolved_return_type,
+                target_type,
+                registry,
+                "return value",
+                source,
+            )?;
+        }
+
+        // Determine the parameters for the instance
+        let mut named_params = vec![];
+        let mut instance_params = vec![];
+        for param in &unresolved.params {
+            match self.mapping.get(&param.name) {
+                Some(t) => {
+                    named_params.push((param.name.clone(), t.clone()));
+                    instance_params.push(t.clone());
+                }
+                None => {
+                    return Err(source.error(
+                        "The arguments are insufficient to infer the type of this function. \
+                        Try making its parameters explicit",
+                    ));
+                }
+            }
+        }
+
+        // Resolve
+        let instance_fn = unresolved.resolve(source, instance_params)?;
+        let value = AcornValue::apply(instance_fn, args);
+        value.check_type(expected_return_type, source)?;
+        Ok(value)
     }
 }
