@@ -222,7 +222,7 @@ impl BindingMap {
             .map_or(false, |info| info.attributes.contains_key(var_name))
     }
 
-    fn unifier(&self) -> TypeUnifier {
+    pub fn unifier(&self) -> TypeUnifier {
         TypeUnifier::new(self)
     }
 
@@ -1068,27 +1068,6 @@ impl BindingMap {
             }
         };
         Ok(value)
-    }
-
-    /// If we have an expected type and this is still a potential value, resolve it.
-    pub fn maybe_resolve_value(
-        &self,
-        potential: PotentialValue,
-        expected_type: Option<&AcornType>,
-        source: &dyn ErrorSource,
-    ) -> compilation::Result<PotentialValue> {
-        let expected_type = match expected_type {
-            Some(t) => t,
-            None => return Ok(potential),
-        };
-        let uc = match potential {
-            PotentialValue::Unresolved(uc) => uc,
-            p => return Ok(p),
-        };
-        let value =
-            self.unifier()
-                .resolve_with_inference(uc, vec![], Some(expected_type), source)?;
-        Ok(PotentialValue::Resolved(value))
     }
 
     /// Apply an unresolved name to arguments, inferring the types.

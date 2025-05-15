@@ -11,6 +11,7 @@ use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
 use crate::token::{Token, TokenIter, TokenType};
+use crate::type_unifier::TypeUnifier;
 
 /// The Evaluator turns expressions into types and values, and other things of that nature.
 pub struct Evaluator<'a> {
@@ -33,6 +34,10 @@ impl<'a> Evaluator<'a> {
         } else {
             self.project.get_bindings(module_id).unwrap()
         }
+    }
+
+    fn unifier(&self) -> TypeUnifier {
+        self.bindings.unifier()
     }
 
     /// Evaluates an expression that represents a type.
@@ -704,7 +709,7 @@ impl<'a> Evaluator<'a> {
                         }
                         NamedEntity::UnresolvedValue(u) => {
                             let potential = PotentialValue::Unresolved(u);
-                            return self.bindings.maybe_resolve_value(
+                            return self.unifier().maybe_resolve_value(
                                 potential,
                                 expected_type,
                                 token,
@@ -799,7 +804,7 @@ impl<'a> Evaluator<'a> {
                     let entity = self.evaluate_dot_expression(stack, left, right)?;
                     let potential = entity.expect_potential_value(expected_type, expression)?;
                     return self
-                        .bindings
+                        .unifier()
                         .maybe_resolve_value(potential, expected_type, token);
                 }
                 token_type => match token_type.to_infix_magic_method_name() {

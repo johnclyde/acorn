@@ -4,6 +4,7 @@ use crate::{
     acorn_type::{AcornType, Class, Typeclass},
     acorn_value::AcornValue,
     compilation::{self, ErrorSource},
+    potential_value::PotentialValue,
     unresolved_constant::UnresolvedConstant,
 };
 
@@ -223,5 +224,24 @@ impl<'a> TypeUnifier<'a> {
         let value = AcornValue::apply(instance_fn, args);
         value.check_type(expected_return_type, source)?;
         Ok(value)
+    }
+
+    /// If we have an expected type and this is still a potential value, resolve it.
+    pub fn maybe_resolve_value(
+        &mut self,
+        potential: PotentialValue,
+        expected_type: Option<&AcornType>,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<PotentialValue> {
+        let expected_type = match expected_type {
+            Some(t) => t,
+            None => return Ok(potential),
+        };
+        let uc = match potential {
+            PotentialValue::Unresolved(uc) => uc,
+            p => return Ok(p),
+        };
+        let value = self.resolve_with_inference(uc, vec![], Some(expected_type), source)?;
+        Ok(PotentialValue::Resolved(value))
     }
 }
