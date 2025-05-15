@@ -662,9 +662,9 @@ impl Environment {
         }
 
         // We can then assume the specific existence claim with the named constants
-        let specific_claim =
-            self.bindings
-                .evaluate_value(&vss.condition, Some(&AcornType::Bool), project)?;
+        let specific_claim = self
+            .evaluator(project)
+            .evaluate_value(&vss.condition, Some(&AcornType::Bool))?;
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
         let specific_prop = Proposition::monomorphic(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
@@ -791,8 +791,8 @@ impl Environment {
 
         let mut arbitrary_params = vec![];
         let type_params = self
-            .bindings
-            .evaluate_type_params(&ss.type_params, project)?;
+            .evaluator(project)
+            .evaluate_type_params(&ss.type_params)?;
         for type_param in &type_params {
             // Internally to the structure definition, the type parameters are
             // treated as arbitrary types.
@@ -804,7 +804,7 @@ impl Environment {
         let mut member_fn_names = vec![];
         let mut field_types = vec![];
         for (field_name_token, field_type_expr) in &ss.fields {
-            let field_type = self.bindings.evaluate_type(project, &field_type_expr)?;
+            let field_type = self.evaluator(project).evaluate_type(&field_type_expr)?;
             field_types.push(field_type.clone());
             if TokenType::is_magic_method_name(&field_name_token.text()) {
                 return Err(field_name_token.error(&format!(
@@ -825,11 +825,10 @@ impl Environment {
             for ((name_token, _), t) in ss.fields.iter().zip(&field_types) {
                 stack.insert(name_token.to_string(), t.clone());
             }
-            let unbound = self.bindings.evaluate_value_with_stack(
+            let unbound = self.evaluator(project).evaluate_value_with_stack(
                 &mut stack,
                 &constraint,
                 Some(&AcornType::Bool),
-                project,
             )?;
             let inhabited = AcornValue::Exists(field_types.clone(), Box::new(unbound.clone()));
             let block_params = BlockParams::TypeRequirement(inhabited, constraint.range());
@@ -1020,8 +1019,8 @@ impl Environment {
         // Add the new type first, because we can have self-reference in the inductive type.
         let mut arbitrary_params = vec![];
         let type_params = self
-            .bindings
-            .evaluate_type_params(&is.type_params, project)?;
+            .evaluator(project)
+            .evaluate_type_params(&is.type_params)?;
         for type_param in &type_params {
             // Internally to the structure definition, the type parameters are
             // treated as arbitrary types.
@@ -1040,8 +1039,8 @@ impl Environment {
             let type_list = match type_list_expr {
                 Some(expr) => {
                     let mut type_list = vec![];
-                    self.bindings
-                        .evaluate_type_list(project, expr, &mut type_list)?;
+                    self.evaluator(project)
+                        .evaluate_type_list(expr, &mut type_list)?;
                     type_list
                 }
                 None => vec![],
@@ -1309,8 +1308,8 @@ impl Environment {
             }
         };
         let type_params = self
-            .bindings
-            .evaluate_type_params(&cs.type_params, project)?;
+            .evaluator(project)
+            .evaluate_type_params(&cs.type_params)?;
         let mut params = vec![];
         for param in &type_params {
             params.push(self.bindings.add_arbitrary_type(param.clone()));

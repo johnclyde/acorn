@@ -7,6 +7,7 @@ use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass, U
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::code_gen_error::CodeGenError;
 use crate::compilation::{self, ErrorSource, PanicOnError};
+use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, Terminator, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
@@ -892,7 +893,7 @@ impl BindingMap {
             }
             let mut name_chain = prefix.split('.').collect::<Vec<&str>>();
             let partial = name_chain.pop()?;
-            let namespace = self.evaluate_name_chain(project, &name_chain)?;
+            let namespace = Evaluator::new(self, project).evaluate_name_chain(&name_chain)?;
             match namespace {
                 NamedEntity::Module(module) => {
                     let bindings = project.get_bindings(module)?;
@@ -1556,21 +1557,6 @@ impl BindingMap {
         };
         let left_entity = self.evaluate_entity(stack, project, left)?;
         self.evaluate_name(right_token, project, stack, Some(left_entity))
-    }
-
-    /// Evaluate a string of names separated by dots.
-    /// Creates fake tokens to be used for error reporting.
-    /// Chain must not be empty.
-    fn evaluate_name_chain(&self, project: &Project, chain: &[&str]) -> Option<NamedEntity> {
-        let mut answer: Option<NamedEntity> = None;
-        for name in chain {
-            let token = TokenType::Identifier.new_token(name);
-            answer = Some(
-                self.evaluate_name(&token, project, &Stack::new(), answer)
-                    .ok()?,
-            );
-        }
-        answer
     }
 
     /// Evaluates an expression that could represent any sort of named entity.
