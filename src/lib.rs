@@ -13,6 +13,7 @@ pub mod compilation;
 pub mod dataset;
 pub mod display;
 pub mod environment;
+pub mod evaluator;
 pub mod expression;
 pub mod fact;
 pub mod features;

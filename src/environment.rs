@@ -9,6 +9,7 @@ use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, Stack};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
+use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::names::{DefinedName, GlobalName, LocalName};
@@ -168,6 +169,10 @@ impl Environment {
     pub fn add_node(&mut self, node: Node) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
+    }
+
+    fn evaluator<'a>(&'a self, project: &'a Project) -> Evaluator<'a> {
+        Evaluator::new(&self.bindings, project)
     }
 
     /// Adds a node to represent the definition of the provided
@@ -336,7 +341,7 @@ impl Environment {
             self.bindings.add_arbitrary_type(param.clone());
         }
 
-        let acorn_type = self.bindings.evaluate_type(project, &ls.type_expr)?;
+        let acorn_type = self.evaluator(project).evaluate_type(&ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
             let class_name = match constant_name.as_attribute() {
                 Some((class_name, _)) => class_name.to_string(),
