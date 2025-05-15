@@ -21,11 +21,10 @@ use crate::token::{self, Token, TokenType};
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
-/// In order to convert an Expression to an AcornValue, we need to convert the string representation
-/// of types, variable names, and constant names into numeric identifiers, detect name collisions,
-/// and typecheck everything.
-/// The BindingMap handles this. It does not handle Statements, just Expressions.
-/// It does not have to be efficient enough to run in the inner loop of the prover.
+/// The BindingMap contains all of the mappings needed to figure out what a string refers to
+/// in a particular environment.
+/// Variables, constants, types, typeclasses, modules, numeric literals.
+/// This representation does not have to be efficient enough to run in the inner loop of the prover.
 #[derive(Clone)]
 pub struct BindingMap {
     /// The module all these names are in.
