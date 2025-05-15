@@ -422,7 +422,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates a single name, which may be namespaced to another named entity.
     /// In this situation, we don't know what sort of thing we expect the name to represent.
     /// We have the entity described by a chain of names, and we're adding one more name to the chain.
-    fn evaluate_name(
+    pub fn evaluate_name(
         &self,
         name_token: &Token,
         stack: &Stack,
@@ -1384,7 +1384,7 @@ impl<'a> Evaluator<'a> {
     // Tools for testing.
     ////////////////////////////////////////////////////////////////////////////////
 
-    fn str_to_type(&mut self, input: &str) -> AcornType {
+    fn str_to_type(&self, input: &str) -> AcornType {
         let tokens = Token::scan(input);
         let mut tokens = TokenIter::new(tokens);
         let (expression, _) =
@@ -1395,7 +1395,7 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    pub fn assert_type_ok(&mut self, input_code: &str) {
+    pub fn assert_type_ok(&self, input_code: &str) {
         let acorn_type = self.str_to_type(input_code);
         let type_expr = self.type_to_expr(&acorn_type).unwrap();
         let reconstructed_code = type_expr.to_string();
@@ -1445,13 +1445,15 @@ mod tests {
 
     #[test]
     fn test_evaluator_types() {
-        let mut b = BindingMap::new(Module::FIRST_NORMAL);
-        b.assert_type_ok("Bool");
-        b.assert_type_ok("Bool -> Bool");
-        b.assert_type_ok("Bool -> (Bool -> Bool)");
-        b.assert_type_ok("(Bool -> Bool) -> (Bool -> Bool)");
-        b.assert_type_ok("(Bool, Bool) -> Bool");
-        b.assert_type_bad("Bool, Bool -> Bool");
-        b.assert_type_bad("(Bool, Bool)");
+        let p = Project::new_mock();
+        let bindings = BindingMap::new(Module::FIRST_NORMAL);
+        let mut e = Evaluator::new(&bindings, &p);
+        e.assert_type_ok("Bool");
+        e.assert_type_ok("Bool -> Bool");
+        e.assert_type_ok("Bool -> (Bool -> Bool)");
+        e.assert_type_ok("(Bool -> Bool) -> (Bool -> Bool)");
+        e.assert_type_ok("(Bool, Bool) -> Bool");
+        e.assert_type_bad("Bool, Bool -> Bool");
+        e.assert_type_bad("(Bool, Bool)");
     }
 }
