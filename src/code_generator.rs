@@ -8,7 +8,7 @@ use crate::module::{Module, ModuleId};
 use crate::names::{GlobalName, LocalName};
 use crate::token::TokenType;
 
-pub type Result<T> = std::result::Result<T, CodeGenError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct CodeGenerator<'a> {
     /// Bindings for the module we are generating code in.
@@ -91,7 +91,7 @@ impl CodeGenerator<'_> {
             _ => {}
         }
 
-        Err(CodeGenError::unnamed_type(acorn_type))
+        Err(Error::unnamed_type(acorn_type))
     }
 
     /// Adds parameters, if there are any, to an expression representing a type.
@@ -124,7 +124,7 @@ impl CodeGenerator<'_> {
     fn name_to_expr(&self, name: &GlobalName) -> Result<Expression> {
         // We can't do skolems
         if name.module_id == Module::SKOLEM {
-            return Err(CodeGenError::skolem(&name.local_name.to_string()));
+            return Err(Error::skolem(&name.local_name.to_string()));
         }
 
         // Handle numeric literals
@@ -183,7 +183,7 @@ impl CodeGenerator<'_> {
                 parts.extend(name.local_name.name_chain().unwrap().into_iter());
                 Ok(Expression::generate_identifier_chain(&parts))
             }
-            None => Err(CodeGenError::UnimportedModule(
+            None => Err(Error::UnimportedModule(
                 name.module_id,
                 name.local_name.to_string(),
             )),
@@ -365,7 +365,7 @@ impl CodeGenerator<'_> {
 }
 
 #[derive(Debug)]
-pub enum CodeGenError {
+pub enum Error {
     // Trouble expressing a skolem function created during normalization.
     Skolem(String),
 
@@ -388,56 +388,56 @@ pub enum CodeGenError {
     InternalError(String),
 }
 
-impl CodeGenError {
-    pub fn skolem(s: &str) -> CodeGenError {
-        CodeGenError::Skolem(s.to_string())
+impl Error {
+    pub fn skolem(s: &str) -> Error {
+        Error::Skolem(s.to_string())
     }
 
-    pub fn unnamed_type(acorn_type: &AcornType) -> CodeGenError {
-        CodeGenError::UnnamedType(format!("{:?}", acorn_type))
+    pub fn unnamed_type(acorn_type: &AcornType) -> Error {
+        Error::UnnamedType(format!("{:?}", acorn_type))
     }
 
-    pub fn unhandled_value(s: &str) -> CodeGenError {
-        CodeGenError::UnhandledValue(s.to_string())
+    pub fn unhandled_value(s: &str) -> Error {
+        Error::UnhandledValue(s.to_string())
     }
 
     pub fn error_type(&self) -> &'static str {
         match self {
-            CodeGenError::Skolem(_) => "Skolem",
-            CodeGenError::UnimportedModule(..) => "UnimportedModule",
-            CodeGenError::UnnamedType(_) => "UnnamedType",
-            CodeGenError::UnhandledValue(_) => "UnhandledValue",
-            CodeGenError::ExplicitGoal => "ExplicitGoal",
-            CodeGenError::NoProof => "NoProof",
-            CodeGenError::InternalError(_) => "InternalError",
+            Error::Skolem(_) => "Skolem",
+            Error::UnimportedModule(..) => "UnimportedModule",
+            Error::UnnamedType(_) => "UnnamedType",
+            Error::UnhandledValue(_) => "UnhandledValue",
+            Error::ExplicitGoal => "ExplicitGoal",
+            Error::NoProof => "NoProof",
+            Error::InternalError(_) => "InternalError",
         }
     }
 }
 
-impl fmt::Display for CodeGenError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CodeGenError::Skolem(s) => {
+            Error::Skolem(s) => {
                 write!(f, "could not find a name for the skolem constant: {}", s)
             }
-            CodeGenError::UnimportedModule(_, name) => {
+            Error::UnimportedModule(_, name) => {
                 write!(
                     f,
                     "could not generate code using '{}' because it is not imported",
                     name
                 )
             }
-            CodeGenError::UnnamedType(s) => {
+            Error::UnnamedType(s) => {
                 write!(f, "could not figure out a name for the type: {}", s)
             }
-            CodeGenError::UnhandledValue(s) => {
+            Error::UnhandledValue(s) => {
                 write!(f, "codegen for '{}' values is not yet implemented", s)
             }
-            CodeGenError::ExplicitGoal => {
+            Error::ExplicitGoal => {
                 write!(f, "could not isolate the goal at the end of the proof")
             }
-            CodeGenError::NoProof => write!(f, "no proof"),
-            CodeGenError::InternalError(s) => {
+            Error::NoProof => write!(f, "no proof"),
+            Error::InternalError(s) => {
                 write!(f, "internal error: {}", s)
             }
         }

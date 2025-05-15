@@ -3,7 +3,7 @@ mod prover_test {
     use core::panic;
     use std::collections::HashSet;
 
-    use acorn::code_generator::CodeGenError;
+    use acorn::code_generator::Error;
     use acorn::module::LoadState;
     use acorn::project::Project;
     use acorn::prover::{Outcome, Prover};
@@ -14,7 +14,7 @@ mod prover_test {
         project: &mut Project,
         module_name: &str,
         goal_name: &str,
-    ) -> (Prover, Outcome, Result<Vec<String>, CodeGenError>) {
+    ) -> (Prover, Outcome, Result<Vec<String>, Error>) {
         let module_id = project
             .load_module_by_name(module_name)
             .expect("load failed");
@@ -40,7 +40,7 @@ mod prover_test {
         }
         let code = match prover.get_and_print_proof(project, &env.bindings) {
             Some(proof) => proof.to_code(&env.bindings),
-            None => Err(CodeGenError::NoProof),
+            None => Err(Error::NoProof),
         };
         (prover, outcome, code)
     }
@@ -48,7 +48,7 @@ mod prover_test {
     fn prove_as_main(
         text: &str,
         goal_name: &str,
-    ) -> (Prover, Outcome, Result<Vec<String>, CodeGenError>) {
+    ) -> (Prover, Outcome, Result<Vec<String>, Error>) {
         let mut project = Project::new_mock();
         project.mock("/mock/main.ac", text);
         prove(&mut project, "main", goal_name)

@@ -4,7 +4,7 @@ use std::fmt;
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
-use crate::code_generator::{CodeGenError, CodeGenerator};
+use crate::code_generator::{CodeGenerator, Error};
 use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
@@ -107,11 +107,7 @@ impl<'a> ProofNode<'a> {
         self.premises.is_empty() && self.consequences.is_empty()
     }
 
-    fn to_code(
-        &self,
-        normalizer: &Normalizer,
-        bindings: &BindingMap,
-    ) -> Result<String, CodeGenError> {
+    fn to_code(&self, normalizer: &Normalizer, bindings: &BindingMap) -> Result<String, Error> {
         match &self.value {
             NodeValue::Clause(clause) => {
                 let mut value = normalizer.denormalize(clause);
@@ -123,7 +119,7 @@ impl<'a> ProofNode<'a> {
             NodeValue::Contradiction => Ok("false".to_string()),
             NodeValue::NegatedGoal(v) => {
                 if self.negated {
-                    Err(CodeGenError::ExplicitGoal)
+                    Err(Error::ExplicitGoal)
                 } else {
                     CodeGenerator::new(&bindings).value_to_code(v)
                 }
@@ -532,7 +528,7 @@ impl<'a> Proof<'a> {
     //
     // Code is generated with *tabs* even though I hate tabs. The consuming logic should
     // appropriately turn tabs into spaces.
-    pub fn to_code(&self, bindings: &BindingMap) -> Result<Vec<String>, CodeGenError> {
+    pub fn to_code(&self, bindings: &BindingMap) -> Result<Vec<String>, Error> {
         let goal_id = 0;
         let mut next_k = 0;
         let mut output = vec![];
@@ -560,7 +556,7 @@ impl<'a> Proof<'a> {
         next_k: &mut u32,
         proven: &mut HashSet<NodeId>,
         output: &mut Vec<String>,
-    ) -> Result<(), CodeGenError> {
+    ) -> Result<(), Error> {
         if proven.contains(&node_id) {
             return Ok(());
         }
@@ -575,7 +571,7 @@ impl<'a> Proof<'a> {
             let contradiction = match self.find_contradiction(node_id) {
                 Some(id) => id,
                 None => {
-                    return Err(CodeGenError::InternalError(
+                    return Err(Error::InternalError(
                         "lost the conclusion of the proof".to_string(),
                     ))
                 }
