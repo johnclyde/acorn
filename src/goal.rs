@@ -1,6 +1,7 @@
 use tower_lsp::lsp_types::Range;
 
 use crate::acorn_value::AcornValue;
+use crate::code_generator::CodeGenerator;
 use crate::environment::Environment;
 use crate::module::ModuleId;
 use crate::proposition::Proposition;
@@ -72,15 +73,13 @@ impl GoalContext {
 
                 match proposition.theorem_name() {
                     Some(name) => name.to_string(),
-                    None => env
-                        .bindings
+                    None => CodeGenerator::new(&env.bindings)
                         .value_to_code(&proposition.value)
                         .unwrap_or("<goal>".to_string()),
                 }
             }
             Goal::Solve(value, _) => {
-                let value_str = env
-                    .bindings
+                let value_str = CodeGenerator::new(&env.bindings)
                     .value_to_code(value)
                     .unwrap_or("<goal>".to_string());
                 format!("solve {}", value_str)

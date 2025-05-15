@@ -9,7 +9,7 @@ use crate::acorn_value::AcornValue;
 use crate::active_set::ActiveSet;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
-use crate::code_gen_error::CodeGenError;
+use crate::code_generator::{CodeGenError, CodeGenerator};
 use crate::display::DisplayClause;
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -733,7 +733,7 @@ impl Prover {
     /// Attempts to convert this clause to code, but shows the clause form if that's all we can.
     fn clause_to_code(&self, bindings: &BindingMap, clause: &Clause) -> String {
         let denormalized = self.normalizer.denormalize(clause);
-        match bindings.value_to_code(&denormalized) {
+        match CodeGenerator::new(bindings).value_to_code(&denormalized) {
             Ok(code) => return code,
             Err(CodeGenError::Skolem(_)) => {
                 // This is a known problem - our code generator doesn't handle skolems.

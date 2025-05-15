@@ -7,7 +7,7 @@ pub mod block;
 pub mod build_cache;
 pub mod builder;
 pub mod clause;
-pub mod code_gen_error;
+pub mod code_generator;
 pub mod common;
 pub mod compilation;
 pub mod dataset;

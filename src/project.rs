@@ -1047,7 +1047,7 @@ impl Project {
     // Checks that the given expression can be parsed and turned back into code.
     #[cfg(test)]
     fn check_code_into(&mut self, module_name: &str, input: &str, expected: &str) {
-        use crate::{evaluator::Evaluator, expression::Expression};
+        use crate::{code_generator::CodeGenerator, evaluator::Evaluator, expression::Expression};
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
         let env = self.get_env_by_id(module_id).expect("no env");
@@ -1055,7 +1055,7 @@ impl Project {
             Ok(value) => value,
             Err(e) => panic!("evaluation error: {}", e),
         };
-        let output = match env.bindings.value_to_code(&value) {
+        let output = match CodeGenerator::new(&env.bindings).value_to_code(&value) {
             Ok(output) => output,
             Err(e) => panic!("code generation error: {}", e),
         };

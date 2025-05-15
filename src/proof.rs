@@ -4,7 +4,7 @@ use std::fmt;
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
-use crate::code_gen_error::CodeGenError;
+use crate::code_generator::{CodeGenError, CodeGenerator};
 use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
@@ -118,14 +118,14 @@ impl<'a> ProofNode<'a> {
                 if self.negated {
                     value = value.pretty_negate();
                 }
-                bindings.value_to_code(&value)
+                CodeGenerator::new(&bindings).value_to_code(&value)
             }
             NodeValue::Contradiction => Ok("false".to_string()),
             NodeValue::NegatedGoal(v) => {
                 if self.negated {
                     Err(CodeGenError::ExplicitGoal)
                 } else {
-                    bindings.value_to_code(v)
+                    CodeGenerator::new(&bindings).value_to_code(v)
                 }
             }
         }

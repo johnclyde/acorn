@@ -3,7 +3,7 @@ mod prover_test {
     use core::panic;
     use std::collections::HashSet;
 
-    use acorn::code_gen_error::CodeGenError;
+    use acorn::code_generator::CodeGenError;
     use acorn::module::LoadState;
     use acorn::project::Project;
     use acorn::prover::{Outcome, Prover};
