@@ -1053,6 +1053,7 @@ impl BindingMap {
         }
     }
 
+    /// Apply a potential value to arguments, inferring the types.
     pub fn apply_potential(
         &self,
         potential: PotentialValue,
