@@ -5,7 +5,7 @@ use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
 use crate::module::{Module, ModuleId};
-use crate::names::{DefinedName, GlobalName, LocalName};
+use crate::names::{GlobalName, LocalName};
 use crate::token::TokenType;
 
 pub type Result<T> = std::result::Result<T, CodeGenError>;
@@ -108,25 +108,10 @@ impl CodeGenerator<'_> {
         Ok(applied)
     }
 
-    /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
-    /// Find the next one that's available.
-    fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
-        loop {
-            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
-            *next_index += 1;
-            if !self.bindings.constant_name_in_use(&name) {
-                return name.to_string();
-            }
-        }
-    }
-
     /// If this value cannot be expressed in a single chunk of code, returns an error.
     /// For example, it might refer to a constant that is not in scope.
-    pub fn value_to_code(&self, value: &AcornValue) -> Result<String> {
-        let mut var_names = vec![];
-        let mut next_x = 0;
-        let mut next_k = 0;
-        let expr = self.value_to_expr(value, &mut var_names, &mut next_x, &mut next_k, false)?;
+    pub fn value_to_code(&mut self, value: &AcornValue) -> Result<String> {
+        let expr = self.value_to_expr(value, false)?;
         Ok(expr.to_string())
     }
 
@@ -207,32 +192,29 @@ impl CodeGenerator<'_> {
 
     /// If use_x is true we use x-variables; otherwise we use k-variables.
     fn generate_quantifier_expr(
-        &self,
+        &mut self,
         token_type: TokenType,
         quants: &Vec<AcornType>,
         value: &AcornValue,
-        var_names: &mut Vec<String>,
         use_x: bool,
-        next_x: &mut u32,
-        next_k: &mut u32,
     ) -> Result<Expression> {
-        let initial_var_names_len = var_names.len();
+        let initial_var_names_len = self.var_names.len();
         let mut decls = vec![];
         for arg_type in quants {
             let var_name = if use_x {
-                self.next_indexed_var('x', next_x)
+                self.bindings.next_indexed_var('x', &mut self.next_x)
             } else {
-                self.next_indexed_var('k', next_k)
+                self.bindings.next_indexed_var('k', &mut self.next_k)
             };
             let name_token = TokenType::Identifier.new_token(&var_name);
-            var_names.push(var_name);
+            self.var_names.push(var_name);
             let type_expr = self.type_to_expr(arg_type)?;
             let var_name = Declaration::Typed(name_token, type_expr);
             let decl = var_name;
             decls.push(decl);
         }
-        let subresult = self.value_to_expr(value, var_names, next_x, next_k, false)?;
-        var_names.truncate(initial_var_names_len);
+        let subresult = self.value_to_expr(value, false)?;
+        self.var_names.truncate(initial_var_names_len);
         Ok(Expression::Binder(
             token_type.generate(),
             decls,
@@ -246,25 +228,18 @@ impl CodeGenerator<'_> {
     /// We automatically generate variable names sometimes, using next_x and next_k.
     /// "inferrable" is true if the type of this value can be inferred, which means
     /// we don't need top level parameters.
-    fn value_to_expr(
-        &self,
-        value: &AcornValue,
-        var_names: &mut Vec<String>,
-        next_x: &mut u32,
-        next_k: &mut u32,
-        inferrable: bool,
-    ) -> Result<Expression> {
+    fn value_to_expr(&mut self, value: &AcornValue, inferrable: bool) -> Result<Expression> {
         match value {
-            AcornValue::Variable(i, _) => {
-                Ok(Expression::generate_identifier(&var_names[*i as usize]))
-            }
+            AcornValue::Variable(i, _) => Ok(Expression::generate_identifier(
+                &self.var_names[*i as usize],
+            )),
             AcornValue::Application(fa) => {
                 let mut args = vec![];
                 for arg in &fa.args {
                     // We currently never infer the type of arguments from the type of the function.
                     // Inference only goes the other way.
                     // We could improve this at some point.
-                    args.push(self.value_to_expr(arg, var_names, next_x, next_k, false)?);
+                    args.push(self.value_to_expr(arg, false)?);
                 }
 
                 // Check if we could replace this with receiver+attribute syntax
@@ -313,7 +288,7 @@ impl CodeGenerator<'_> {
                     }
                 }
 
-                let f = self.value_to_expr(&fa.function, var_names, next_x, next_k, true)?;
+                let f = self.value_to_expr(&fa.function, true)?;
                 let grouped_args = Expression::generate_paren_grouping(args);
                 Ok(Expression::Concatenation(
                     Box::new(f),
@@ -321,42 +296,24 @@ impl CodeGenerator<'_> {
                 ))
             }
             AcornValue::Binary(op, left, right) => {
-                let left = self.value_to_expr(left, var_names, next_x, next_k, false)?;
-                let right = self.value_to_expr(right, var_names, next_x, next_k, false)?;
+                let left = self.value_to_expr(left, false)?;
+                let right = self.value_to_expr(right, false)?;
                 let token = op.token_type().generate();
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
             }
             AcornValue::Not(x) => {
-                let x = self.value_to_expr(x, var_names, next_x, next_k, false)?;
+                let x = self.value_to_expr(x, false)?;
                 Ok(Expression::generate_unary(TokenType::Not, x))
             }
-            AcornValue::ForAll(quants, value) => self.generate_quantifier_expr(
-                TokenType::ForAll,
-                quants,
-                value,
-                var_names,
-                true,
-                next_x,
-                next_k,
-            ),
-            AcornValue::Exists(quants, value) => self.generate_quantifier_expr(
-                TokenType::Exists,
-                quants,
-                value,
-                var_names,
-                false,
-                next_x,
-                next_k,
-            ),
-            AcornValue::Lambda(quants, value) => self.generate_quantifier_expr(
-                TokenType::Function,
-                quants,
-                value,
-                var_names,
-                true,
-                next_x,
-                next_k,
-            ),
+            AcornValue::ForAll(quants, value) => {
+                self.generate_quantifier_expr(TokenType::ForAll, quants, value, true)
+            }
+            AcornValue::Exists(quants, value) => {
+                self.generate_quantifier_expr(TokenType::Exists, quants, value, false)
+            }
+            AcornValue::Lambda(quants, value) => {
+                self.generate_quantifier_expr(TokenType::Function, quants, value, true)
+            }
             AcornValue::Bool(b) => {
                 let token = if *b {
                     TokenType::True.generate()
@@ -389,10 +346,9 @@ impl CodeGenerator<'_> {
                 }
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
-                let condition = self.value_to_expr(condition, var_names, next_x, next_k, false)?;
-                let if_value = self.value_to_expr(if_value, var_names, next_x, next_k, false)?;
-                let else_value =
-                    self.value_to_expr(else_value, var_names, next_x, next_k, false)?;
+                let condition = self.value_to_expr(condition, false)?;
+                let if_value = self.value_to_expr(if_value, false)?;
+                let else_value = self.value_to_expr(else_value, false)?;
                 Ok(Expression::IfThenElse(
                     TokenType::If.generate(),
                     Box::new(condition),

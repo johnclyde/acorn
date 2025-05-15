@@ -265,6 +265,19 @@ impl BindingMap {
         }
     }
 
+    /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
+    /// Find the next one that's available.
+    /// 'x' is the prefix here.
+    pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
+        loop {
+            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
+            *next_index += 1;
+            if !self.constant_name_in_use(&name) {
+                return name.to_string();
+            }
+        }
+    }
+
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
         &self,
