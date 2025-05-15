@@ -336,8 +336,8 @@ impl Environment {
         }
 
         let local_type_params = self
-            .bindings
-            .evaluate_type_params(&ls.type_params, project)?;
+            .evaluator(project)
+            .evaluate_type_params(&ls.type_params)?;
         for param in &local_type_params {
             self.bindings.add_arbitrary_type(param.clone());
         }
@@ -366,8 +366,8 @@ impl Environment {
             None
         } else {
             let v = self
-                .bindings
-                .evaluate_value(&ls.value, Some(&acorn_type), project)?;
+                .evaluator(project)
+                .evaluate_value(&ls.value, Some(&acorn_type))?;
             Some(v)
         };
 
@@ -642,11 +642,10 @@ impl Environment {
         let (quant_names, quant_types) =
             self.bindings
                 .bind_args(&mut stack, project, &vss.declarations, None)?;
-        let general_claim_value = self.bindings.evaluate_value_with_stack(
+        let general_claim_value = self.evaluator(project).evaluate_value_with_stack(
             &mut stack,
             &vss.condition,
             Some(&AcornType::Bool),
-            project,
         )?;
         let general_claim = AcornValue::Exists(quant_types.clone(), Box::new(general_claim_value));
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
@@ -1361,7 +1360,7 @@ impl Environment {
         // Figure out what, if anything, this extends.
         let mut extends = vec![];
         for extend in &ts.extends {
-            let typeclass = self.bindings.evaluate_typeclass(project, extend)?;
+            let typeclass = self.evaluator(project).evaluate_typeclass(extend)?;
             extends.push(typeclass);
         }
 
@@ -1387,7 +1386,7 @@ impl Environment {
 
         // Define all the constants that are in the typeclass.
         for (attr_name, type_expr) in &ts.constants {
-            let arb_type = self.bindings.evaluate_type(project, type_expr)?;
+            let arb_type = self.evaluator(project).evaluate_type(type_expr)?;
             let var_type = arb_type.genericize(&type_params);
             let local_name = LocalName::attribute(typeclass_name, attr_name.text());
             self.bindings
@@ -1484,7 +1483,7 @@ impl Environment {
             }
         };
         let instance_class = self.check_can_add_attributes(&is.type_name, &instance_type)?;
-        let typeclass = self.bindings.evaluate_typeclass(project, &is.typeclass)?;
+        let typeclass = self.evaluator(project).evaluate_typeclass(&is.typeclass)?;
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
@@ -1651,8 +1650,8 @@ impl Environment {
         cs: &ClaimStatement,
     ) -> compilation::Result<()> {
         let claim = self
-            .bindings
-            .evaluate_value(&cs.claim, Some(&AcornType::Bool), project)?;
+            .evaluator(project)
+            .evaluate_value(&cs.claim, Some(&AcornType::Bool))?;
         if claim == AcornValue::Bool(false) {
             self.includes_explicit_false = true;
         }
@@ -1685,7 +1684,7 @@ impl Environment {
         }
         let mut args = vec![];
         for quantifier in &fas.quantifiers {
-            let (arg_name, arg_type) = self.bindings.evaluate_declaration(project, quantifier)?;
+            let (arg_name, arg_type) = self.evaluator(project).evaluate_declaration(quantifier)?;
             args.push((arg_name, arg_type));
         }
 
@@ -1716,8 +1715,8 @@ impl Environment {
         is: &IfStatement,
     ) -> compilation::Result<()> {
         let condition =
-            self.bindings
-                .evaluate_value(&is.condition, Some(&AcornType::Bool), project)?;
+            self.evaluator(project)
+                .evaluate_value(&is.condition, Some(&AcornType::Bool))?;
         let range = is.condition.range();
         let if_claim = self.add_conditional(
             project,
@@ -1794,7 +1793,7 @@ impl Environment {
         ds: &NumeralsStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        let acorn_type = self.bindings.evaluate_type(project, &ds.type_expr)?;
+        let acorn_type = self.evaluator(project).evaluate_type(&ds.type_expr)?;
         if let AcornType::Data(class, params) = acorn_type {
             if !params.is_empty() {
                 return Err(ds
@@ -1815,7 +1814,7 @@ impl Environment {
         statement: &Statement,
         ss: &SolveStatement,
     ) -> compilation::Result<()> {
-        let target = self.bindings.evaluate_value(&ss.target, None, project)?;
+        let target = self.evaluator(project).evaluate_value(&ss.target, None)?;
         let solve_range = Range {
             start: statement.first_token.start_pos(),
             end: ss.target.last_token().end_pos(),
@@ -1876,14 +1875,14 @@ impl Environment {
         statement: &Statement,
         ms: &MatchStatement,
     ) -> compilation::Result<()> {
-        let scrutinee = self.bindings.evaluate_value(&ms.scrutinee, None, project)?;
+        let scrutinee = self.evaluator(project).evaluate_value(&ms.scrutinee, None)?;
         let scrutinee_type = scrutinee.get_type();
         let mut indices = vec![];
         let mut disjuncts = vec![];
         for (pattern, body) in &ms.cases {
             let (constructor, args, i, total) =
-                self.bindings
-                    .evaluate_pattern(project, &scrutinee_type, pattern)?;
+                self.evaluator(project)
+                    .evaluate_pattern(&scrutinee_type, pattern)?;
             if indices.contains(&i) {
                 return Err(pattern.error("duplicate pattern in match statement"));
             }
