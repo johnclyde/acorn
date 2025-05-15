@@ -1084,27 +1084,6 @@ impl BindingMap {
         Ok(PotentialValue::Resolved(value))
     }
 
-    /// Tries to match a generic type to a specific type, mapping the type variables.
-    /// If it doesn't work, returns an error.
-    /// If it does work, populates the unifier with the type variables.
-    /// "what" is used for error reporting.
-    fn match_instance(
-        &self,
-        unifier: &mut TypeUnifier,
-        generic: &AcornType,
-        specific: &AcornType,
-        what: &str,
-        source: &dyn ErrorSource,
-    ) -> compilation::Result<()> {
-        if !unifier.match_instance(generic, specific, self).is_ok() {
-            return Err(source.error(&format!(
-                "{} has type {} but we expected some sort of {}",
-                what, specific, generic
-            )));
-        }
-        Ok(())
-    }
-
     /// Infer the type of an unresolved constant, based on its arguments (if it is a function)
     /// and the expected type.
     /// Returns a value that applies the function to the arguments.
@@ -1143,10 +1122,10 @@ impl BindingMap {
                         )));
                     }
                 };
-                self.match_instance(
-                    &mut unifier,
+                unifier.user_match_instance(
                     arg_type,
                     &arg.get_type(),
+                    self,
                     &format!("argument {}", i),
                     source,
                 )?;
@@ -1159,10 +1138,10 @@ impl BindingMap {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            self.match_instance(
-                &mut unifier,
+            unifier.user_match_instance(
                 &unresolved_return_type,
                 target_type,
+                self,
                 "return value",
                 source,
             )?;

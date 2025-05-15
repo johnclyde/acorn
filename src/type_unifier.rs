@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::acorn_type::{AcornType, Class, Typeclass};
+use crate::{
+    acorn_type::{AcornType, Class, Typeclass},
+    compilation::{self, ErrorSource},
+};
 
 /// Utility for matching types during unification.
 pub struct TypeUnifier {
@@ -115,6 +118,24 @@ impl TypeUnifier {
                 }
             }
             _ => return require_eq(generic_type, instance_type),
+        }
+        Ok(())
+    }
+
+    /// Runs match_instance but wraps it with a human-readable error message when it fails.
+    pub fn user_match_instance(
+        &mut self,
+        generic: &AcornType,
+        instance: &AcornType,
+        registry: &dyn TypeclassRegistry,
+        what: &str,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
+        if !self.match_instance(generic, instance, registry).is_ok() {
+            return Err(source.error(&format!(
+                "{} has type {} but we expected some sort of {}",
+                what, instance, generic
+            )));
         }
         Ok(())
     }
