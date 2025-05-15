@@ -222,6 +222,10 @@ impl BindingMap {
             .map_or(false, |info| info.attributes.contains_key(var_name))
     }
 
+    fn unifier(&self) -> TypeUnifier {
+        TypeUnifier::new(self)
+    }
+
     pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
         if self.constant_info.contains_key(local_name) {
             return true;
@@ -1059,8 +1063,8 @@ impl BindingMap {
         let value = match potential {
             PotentialValue::Resolved(f) => f.check_apply(args, expected_type, source)?,
             PotentialValue::Unresolved(u) => {
-                let mut unifier = TypeUnifier::new();
-                unifier.resolve_with_inference(u, args, expected_type, self, source)?
+                self.unifier()
+                    .resolve_with_inference(u, args, expected_type, source)?
             }
         };
         Ok(value)
@@ -1081,9 +1085,9 @@ impl BindingMap {
             PotentialValue::Unresolved(uc) => uc,
             p => return Ok(p),
         };
-        let mut unifier = TypeUnifier::new();
         let value =
-            unifier.resolve_with_inference(uc, vec![], Some(expected_type), self, source)?;
+            self.unifier()
+                .resolve_with_inference(uc, vec![], Some(expected_type), source)?;
         Ok(PotentialValue::Resolved(value))
     }
 
@@ -1105,8 +1109,8 @@ impl BindingMap {
             args.push(arg);
         }
 
-        let mut unifier = TypeUnifier::new();
-        unifier.resolve_with_inference(unresolved, args, expected_type, self, source)
+        self.unifier()
+            .resolve_with_inference(unresolved, args, expected_type, source)
     }
 
     /// This creates a version of a typeclass condition that is specialized to a particular

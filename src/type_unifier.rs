@@ -8,7 +8,11 @@ use crate::{
 };
 
 /// Utility for matching types during unification.
-pub struct TypeUnifier {
+pub struct TypeUnifier<'a> {
+    /// The registry tells us which classes are instances of which typeclasses,
+    /// and which typeclasses have an extension relationship.
+    registry: &'a dyn TypeclassRegistry,
+
     /// Type unification fills in a mapping for any parametric types that need to be specified,
     /// in order to make it match.
     /// Every parameter used in self will get a mapping entry.
@@ -49,9 +53,10 @@ fn require_eq(t1: &AcornType, t2: &AcornType) -> Result {
     }
 }
 
-impl TypeUnifier {
-    pub fn new() -> Self {
+impl<'a> TypeUnifier<'a> {
+    pub fn new(registry: &'a dyn TypeclassRegistry) -> Self {
         TypeUnifier {
+            registry,
             mapping: HashMap::new(),
         }
     }
@@ -66,7 +71,6 @@ impl TypeUnifier {
         &mut self,
         generic_type: &AcornType,
         instance_type: &AcornType,
-        registry: &dyn TypeclassRegistry,
     ) -> Result {
         match (generic_type, instance_type) {
             (AcornType::Variable(param), _) => {
@@ -77,7 +81,7 @@ impl TypeUnifier {
                 if let Some(generic_typeclass) = param.typeclass.as_ref() {
                     match instance_type {
                         AcornType::Data(class, _) => {
-                            if !registry.is_instance_of(&class, generic_typeclass) {
+                            if !self.registry.is_instance_of(&class, generic_typeclass) {
                                 return Err(Error::Class(class.clone(), generic_typeclass.clone()));
                             }
                         }
@@ -85,7 +89,9 @@ impl TypeUnifier {
                             match &param.typeclass {
                                 Some(instance_typeclass) => {
                                     if instance_typeclass != generic_typeclass
-                                        && !registry.extends(instance_typeclass, generic_typeclass)
+                                        && !self
+                                            .registry
+                                            .extends(instance_typeclass, generic_typeclass)
                                     {
                                         return Err(Error::Typeclass(
                                             instance_typeclass.clone(),
@@ -106,9 +112,9 @@ impl TypeUnifier {
                 if f.arg_types.len() != g.arg_types.len() {
                     return Err(Error::Other);
                 }
-                self.match_instance(&f.return_type, &g.return_type, registry)?;
+                self.match_instance(&f.return_type, &g.return_type)?;
                 for (f_arg_type, g_arg_type) in f.arg_types.iter().zip(&g.arg_types) {
-                    self.match_instance(f_arg_type, g_arg_type, registry)?;
+                    self.match_instance(f_arg_type, g_arg_type)?;
                 }
             }
             (AcornType::Data(g_class, g_params), AcornType::Data(i_class, i_params)) => {
@@ -116,7 +122,7 @@ impl TypeUnifier {
                     return Err(Error::Other);
                 }
                 for (g_param, i_param) in g_params.iter().zip(i_params) {
-                    self.match_instance(g_param, i_param, registry)?;
+                    self.match_instance(g_param, i_param)?;
                 }
             }
             _ => return require_eq(generic_type, instance_type),
@@ -129,11 +135,10 @@ impl TypeUnifier {
         &mut self,
         generic: &AcornType,
         instance: &AcornType,
-        registry: &dyn TypeclassRegistry,
         what: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if !self.match_instance(generic, instance, registry).is_ok() {
+        if !self.match_instance(generic, instance).is_ok() {
             return Err(source.error(&format!(
                 "{} has type {} but we expected some sort of {}",
                 what, instance, generic
@@ -151,7 +156,6 @@ impl TypeUnifier {
         unresolved: UnresolvedConstant,
         args: Vec<AcornValue>,
         expected_return_type: Option<&AcornType>,
-        registry: &dyn TypeclassRegistry,
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
         // Use the arguments to infer types
@@ -181,7 +185,6 @@ impl TypeUnifier {
                 self.user_match_instance(
                     arg_type,
                     &arg.get_type(),
-                    registry,
                     &format!("argument {}", i),
                     source,
                 )?;
@@ -194,13 +197,7 @@ impl TypeUnifier {
 
         if let Some(target_type) = expected_return_type {
             // Use the expected type to infer types
-            self.user_match_instance(
-                &unresolved_return_type,
-                target_type,
-                registry,
-                "return value",
-                source,
-            )?;
+            self.user_match_instance(&unresolved_return_type, target_type, "return value", source)?;
         }
 
         // Determine the parameters for the instance

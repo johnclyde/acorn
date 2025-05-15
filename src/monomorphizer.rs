@@ -155,6 +155,10 @@ impl Monomorphizer {
         }
     }
 
+    fn unifier(&self) -> TypeUnifier {
+        TypeUnifier::new(self)
+    }
+
     fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
         let key = (class, typeclass);
         let failures = self.instantiation_failures.remove(&key);
@@ -314,13 +318,13 @@ impl Monomorphizer {
         // Our goal is to find the "prop params", a way in which we can instantiate
         // the whole proposition so that the instance params become the monomorph params.
         assert_eq!(generic_params.params.len(), monomorph_params.params.len());
-        let mut unifier = TypeUnifier::new();
+        let mut unifier = self.unifier();
         for (generic_type, monomorph_type) in generic_params
             .params
             .iter()
             .zip(monomorph_params.params.iter())
         {
-            match unifier.match_instance(generic_type, monomorph_type, self) {
+            match unifier.match_instance(generic_type, monomorph_type) {
                 Ok(()) => {}
                 Err(type_unifier::Error::Class(class, typeclass)) => {
                     // This is a failure based on a typeclass relation.
