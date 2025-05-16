@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::Range;
 use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
-use crate::binding_map::BindingMap;
+use crate::binding_map::{BindingMap, ConstructorInfo};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
@@ -851,12 +851,17 @@ impl Environment {
         };
         let new_fn_name = LocalName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
+        let constructor_info = ConstructorInfo {
+            class,
+            index: 0,
+            total: 1,
+        };
         let new_fn = self.bindings.add_local_constant(
             new_fn_name,
             type_params.clone(),
             new_fn_type.genericize(&type_params),
             None,
-            Some((class, 0, 1)),
+            Some(constructor_info),
         );
 
         // Each object of this new type has certain properties.
@@ -1044,12 +1049,17 @@ impl Environment {
             let arb_constructor_type =
                 AcornType::functional(type_list.clone(), arb_inductive_type.clone());
             let gen_constructor_type = arb_constructor_type.genericize(&type_params);
+            let constructor_info = ConstructorInfo {
+                class: class.clone(),
+                index: i,
+                total,
+            };
             let gen_constructor_fn = self.bindings.add_local_constant(
                 constructor_name.clone(),
                 type_params.clone(),
                 gen_constructor_type,
                 None,
-                Some((class.clone(), i, total)),
+                Some(constructor_info),
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;

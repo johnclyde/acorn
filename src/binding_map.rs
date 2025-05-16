@@ -106,7 +106,7 @@ impl BindingMap {
     pub fn module_id(&self) -> ModuleId {
         self.module_id
     }
-    
+
     /// Returns the default data type for numeric literals, if set.
     pub fn numerals(&self) -> Option<&Class> {
         self.numerals.as_ref()
@@ -387,6 +387,12 @@ impl BindingMap {
             .attributes
     }
 
+    pub fn get_constructor_info(&self, name: &LocalName) -> Option<&ConstructorInfo> {
+        self.constant_info
+            .get(name)
+            .and_then(|info| info.constructor.as_ref())
+    }
+
     /// Call this after an instance attribute has been defined to typecheck it.
     /// Returns (resolved typeclass attribute, defined instance attribute).
     /// The resolved typeclass attribute is like
@@ -526,7 +532,7 @@ impl BindingMap {
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
-        constructor: Option<(Class, usize, usize)>,
+        constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         match defined_name {
             DefinedName::Local(local_name) => {
@@ -555,7 +561,7 @@ impl BindingMap {
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
-        constructor: Option<(Class, usize, usize)>,
+        constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
@@ -1391,6 +1397,19 @@ impl TypeclassInfo {
     }
 }
 
+/// Information about a constructor.
+#[derive(Clone)]
+pub struct ConstructorInfo {
+    /// The class that this constructor constructs.
+    pub class: Class,
+
+    /// The index of this constructor in the class.
+    pub index: usize,
+
+    /// The total number of constructors for this class.
+    pub total: usize,
+}
+
 /// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
 pub struct ConstantInfo {
@@ -1413,7 +1432,7 @@ pub struct ConstantInfo {
     ///   an index of which constructor it is
     ///   how many total constructors there are
     /// Not included for aliases.
-    pub constructor: Option<(Class, usize, usize)>,
+    pub constructor: Option<ConstructorInfo>,
 }
 
 /// Helper for autocomplete.

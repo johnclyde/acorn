@@ -207,16 +207,16 @@ impl<'a> Evaluator<'a> {
         let info = match value {
             AcornValue::Constant(ci) => {
                 let bindings = self.get_bindings(ci.name.module_id);
-                bindings.constant_info.get(&ci.name.local_name).unwrap()
+                bindings.get_constructor_info(&ci.name.local_name)
             }
             _ => {
                 return Err(source.error("invalid pattern"));
             }
         };
-        match &info.constructor {
-            Some((constructor_type, i, total)) => {
-                expected_type.check_instance(constructor_type, source)?;
-                Ok((*i, *total))
+        match info {
+            Some(info) => {
+                expected_type.check_instance(&info.class, source)?;
+                Ok((info.index, info.total))
             }
             None => Err(source.error("expected a constructor")),
         }
