@@ -61,8 +61,7 @@ impl CodeGenerator<'_> {
         // Check if there's a local alias for this exact type
         if let Some(name) = self
             .bindings
-            .type_to_typename
-            .get(&PotentialType::Resolved(acorn_type.clone()))
+            .get_typename_for_type(&PotentialType::Resolved(acorn_type.clone()))
         {
             return Ok(Expression::generate_identifier(name));
         }

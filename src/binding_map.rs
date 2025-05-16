@@ -42,7 +42,7 @@ pub struct BindingMap {
     typename_to_type: BTreeMap<String, PotentialType>,
 
     /// Maps the type object to its name in this environment.
-    pub type_to_typename: HashMap<PotentialType, String>,
+    type_to_typename: HashMap<PotentialType, String>,
 
     /// Stores information about every class accessible from this module.
     pub class_info: HashMap<Class, ClassInfo>,
@@ -470,6 +470,10 @@ impl BindingMap {
     /// Gets the type for a type name, not for an identifier.
     pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
         self.typename_to_type.get(type_name)
+    }
+
+    pub fn get_typename_for_type(&self, potential_type: &PotentialType) -> Option<&String> {
+        self.type_to_typename.get(potential_type)
     }
 
     pub fn has_typename(&self, type_name: &str) -> bool {
