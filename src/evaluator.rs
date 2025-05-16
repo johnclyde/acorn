@@ -254,28 +254,25 @@ impl<'a> Evaluator<'a> {
             }
         };
         let (i, total) = self.expect_constructor(expected_type, &constructor, pattern)?;
-        let arg_types = match constructor.get_type() {
-            AcornType::Function(f) => {
-                if &*f.return_type != expected_type {
-                    return Err(pattern.error(&format!(
-                        "the pattern has type {} but we are matching type {}",
-                        &*f.return_type, expected_type
-                    )));
-                }
-                f.arg_types
-            }
-            _ => return Err(fn_exp.error("expected a function")),
+        let AcornType::Function(f) = constructor.get_type() else {
+            return Err(fn_exp.error("expected a function"));
         };
+        if &*f.return_type != expected_type {
+            return Err(pattern.error(&format!(
+                "the pattern has type {} but we are matching type {}",
+                &*f.return_type, expected_type
+            )));
+        }
         let name_exps = args.flatten_list(false)?;
-        if name_exps.len() != arg_types.len() {
+        if name_exps.len() != f.arg_types.len() {
             return Err(args.error(&format!(
                 "expected {} arguments but got {}",
-                arg_types.len(),
+                f.arg_types.len(),
                 name_exps.len()
             )));
         }
         let mut args = vec![];
-        for (name_exp, arg_type) in name_exps.into_iter().zip(arg_types.into_iter()) {
+        for (name_exp, arg_type) in name_exps.into_iter().zip(f.arg_types.into_iter()) {
             let name = match name_exp {
                 Expression::Singleton(token) => token.text().to_string(),
                 _ => return Err(name_exp.error("expected a simple name in pattern")),
