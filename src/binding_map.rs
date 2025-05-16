@@ -45,7 +45,7 @@ pub struct BindingMap {
     type_to_typename: HashMap<PotentialType, String>,
 
     /// Stores information about every class accessible from this module.
-    pub class_info: HashMap<Class, ClassInfo>,
+    class_info: HashMap<Class, ClassInfo>,
 
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
@@ -119,10 +119,6 @@ impl BindingMap {
             .map_or(false, |info| info.attributes.contains_key(var_name))
     }
 
-    pub fn unifier(&self) -> TypeUnifier {
-        TypeUnifier::new(self)
-    }
-
     pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
         if self.constant_info.contains_key(local_name) {
             return true;
@@ -162,6 +158,85 @@ impl BindingMap {
         }
     }
 
+    pub fn unifier(&self) -> TypeUnifier {
+        TypeUnifier::new(self)
+    }
+
+    /// Returns a PotentialValue representing this name, if there is one.
+    /// This can be either a resolved or unresolved value.
+    /// This function assumes that you are calling the correct binding map.
+    pub fn get_constant_value(
+        &self,
+        name: &DefinedName,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<PotentialValue> {
+        match name {
+            DefinedName::Local(local_name) => match self.constant_info.get(local_name) {
+                Some(info) => Ok(info.value.clone()),
+                None => Err(source.error(&format!("local constant {} not found", name))),
+            },
+            DefinedName::Instance(instance_name) => {
+                let definition = self
+                    .instance_definitions
+                    .get(instance_name)
+                    .ok_or_else(|| {
+                        source.error(&format!("instance constant {} not found", name))
+                    })?;
+                let value =
+                    AcornValue::instance_constant(instance_name.clone(), definition.get_type());
+                Ok(PotentialValue::Resolved(value))
+            }
+        }
+    }
+
+    /// Gets the type for a type name, not for an identifier.
+    pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
+        self.typename_to_type.get(type_name)
+    }
+
+    pub fn get_typename_for_type(&self, potential_type: &PotentialType) -> Option<&String> {
+        self.type_to_typename.get(potential_type)
+    }
+
+    pub fn has_typename(&self, type_name: &str) -> bool {
+        self.typename_to_type.contains_key(type_name)
+    }
+
+    pub fn get_typeclass_for_name(&self, typeclass_name: &str) -> Option<&Typeclass> {
+        self.name_to_typeclass.get(typeclass_name)
+    }
+
+    pub fn has_typeclass_name(&self, typeclass_name: &str) -> bool {
+        self.name_to_typeclass.contains_key(typeclass_name)
+    }
+
+    /// Just use this for testing.
+    pub fn has_constant_name(&self, name: &str) -> bool {
+        let name = LocalName::guess(name);
+        self.constant_info.contains_key(&name)
+    }
+
+    /// Returns the defined value, if there is a defined value.
+    /// If there isn't, returns None.
+    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
+        match name {
+            DefinedName::Local(local_name) => {
+                self.constant_info.get(local_name)?.definition.as_ref()
+            }
+            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
+        }
+    }
+
+    /// Returns the defined value and its parameters in their canonical order.
+    /// Returns None if there is no definition.
+    pub fn get_definition_and_params(
+        &self,
+        local_name: &LocalName,
+    ) -> Option<(&AcornValue, &[TypeParam])> {
+        let info = self.constant_info.get(local_name)?;
+        Some((info.definition.as_ref()?, info.value.unresolved_params()))
+    }
+
     // Get a set of all the typeclasses that this typeclass extends.
     pub fn get_extends(&self, typeclass: &Typeclass) -> impl Iterator<Item = &Typeclass> {
         self.typeclass_info
@@ -170,17 +245,39 @@ impl BindingMap {
             .flat_map(|info| info.extends.iter())
     }
 
-    /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
-    /// Find the next one that's available.
-    /// 'x' is the prefix here.
-    pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
-        loop {
-            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
-            *next_index += 1;
-            if !self.constant_name_in_use(&name) {
-                return name.to_string();
-            }
+    /// A helper to get the bindings from the project if needed bindings.
+    pub fn get_bindings<'a>(&'a self, module_id: ModuleId, project: &'a Project) -> &'a BindingMap {
+        if module_id == self.module_id {
+            self
+        } else {
+            project.get_bindings(module_id).unwrap()
         }
+    }
+
+    pub fn get_typeclass_attributes<'a>(
+        &'a self,
+        typeclass: &Typeclass,
+        project: &'a Project,
+    ) -> &'a BTreeMap<String, Typeclass> {
+        &self
+            .get_bindings(typeclass.module_id, project)
+            .typeclass_info
+            .get(&typeclass)
+            .unwrap()
+            .attributes
+    }
+
+    pub fn get_constructor_info(&self, name: &LocalName) -> Option<&ConstructorInfo> {
+        self.constant_info
+            .get(name)
+            .and_then(|info| info.constructor.as_ref())
+    }
+
+    pub fn get_module_for_class_attr(&self, class: &Class, attr: &str) -> Option<ModuleId> {
+        self.class_info
+            .get(class)
+            .and_then(|info| info.attributes.get(attr))
+            .copied()
     }
 
     /// Checks against names for both types and typeclasses because they can conflict.
@@ -202,6 +299,19 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         self.check_local_name_available(&LocalName::unqualified(name), source)
+    }
+
+    /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
+    /// Find the next one that's available.
+    /// 'x' is the prefix here.
+    pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
+        loop {
+            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
+            *next_index += 1;
+            if !self.constant_name_in_use(&name) {
+                return name.to_string();
+            }
+        }
     }
 
     /// Adds both directions for a name <-> type correspondence.
@@ -365,34 +475,6 @@ impl BindingMap {
         }
     }
 
-    /// A helper to get the bindings from the project if needed bindings.
-    pub fn get_bindings<'a>(&'a self, module_id: ModuleId, project: &'a Project) -> &'a BindingMap {
-        if module_id == self.module_id {
-            self
-        } else {
-            project.get_bindings(module_id).unwrap()
-        }
-    }
-
-    pub fn get_typeclass_attributes<'a>(
-        &'a self,
-        typeclass: &Typeclass,
-        project: &'a Project,
-    ) -> &'a BTreeMap<String, Typeclass> {
-        &self
-            .get_bindings(typeclass.module_id, project)
-            .typeclass_info
-            .get(&typeclass)
-            .unwrap()
-            .attributes
-    }
-
-    pub fn get_constructor_info(&self, name: &LocalName) -> Option<&ConstructorInfo> {
-        self.constant_info
-            .get(name)
-            .and_then(|info| info.constructor.as_ref())
-    }
-
     /// Call this after an instance attribute has been defined to typecheck it.
     /// Returns (resolved typeclass attribute, defined instance attribute).
     /// The resolved typeclass attribute is like
@@ -438,81 +520,6 @@ impl BindingMap {
             .or_insert_with(ClassInfo::new)
             .typeclasses
             .insert(typeclass, self.module_id);
-    }
-
-    /// Returns a PotentialValue representing this name, if there is one.
-    /// This can be either a resolved or unresolved value.
-    /// This function assumes that you are calling the correct binding map.
-    pub fn get_constant_value(
-        &self,
-        name: &DefinedName,
-        source: &dyn ErrorSource,
-    ) -> compilation::Result<PotentialValue> {
-        match name {
-            DefinedName::Local(local_name) => match self.constant_info.get(local_name) {
-                Some(info) => Ok(info.value.clone()),
-                None => Err(source.error(&format!("local constant {} not found", name))),
-            },
-            DefinedName::Instance(instance_name) => {
-                let definition = self
-                    .instance_definitions
-                    .get(instance_name)
-                    .ok_or_else(|| {
-                        source.error(&format!("instance constant {} not found", name))
-                    })?;
-                let value =
-                    AcornValue::instance_constant(instance_name.clone(), definition.get_type());
-                Ok(PotentialValue::Resolved(value))
-            }
-        }
-    }
-
-    /// Gets the type for a type name, not for an identifier.
-    pub fn get_type_for_typename(&self, type_name: &str) -> Option<&PotentialType> {
-        self.typename_to_type.get(type_name)
-    }
-
-    pub fn get_typename_for_type(&self, potential_type: &PotentialType) -> Option<&String> {
-        self.type_to_typename.get(potential_type)
-    }
-
-    pub fn has_typename(&self, type_name: &str) -> bool {
-        self.typename_to_type.contains_key(type_name)
-    }
-
-    pub fn get_typeclass_for_name(&self, typeclass_name: &str) -> Option<&Typeclass> {
-        self.name_to_typeclass.get(typeclass_name)
-    }
-
-    pub fn has_typeclass_name(&self, typeclass_name: &str) -> bool {
-        self.name_to_typeclass.contains_key(typeclass_name)
-    }
-
-    /// Just use this for testing.
-    pub fn has_constant_name(&self, name: &str) -> bool {
-        let name = LocalName::guess(name);
-        self.constant_info.contains_key(&name)
-    }
-
-    /// Returns the defined value, if there is a defined value.
-    /// If there isn't, returns None.
-    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
-        match name {
-            DefinedName::Local(local_name) => {
-                self.constant_info.get(local_name)?.definition.as_ref()
-            }
-            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
-        }
-    }
-
-    /// Returns the defined value and its parameters in their canonical order.
-    /// Returns None if there is no definition.
-    pub fn get_definition_and_params(
-        &self,
-        local_name: &LocalName,
-    ) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(local_name)?;
-        Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
     /// All other modules that we directly depend on, besides this one.
@@ -1329,9 +1336,9 @@ impl BindingMap {
 
 /// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
-pub struct ClassInfo {
+struct ClassInfo {
     /// What module defines each of the attributes of this class.
-    pub attributes: BTreeMap<String, ModuleId>,
+    attributes: BTreeMap<String, ModuleId>,
 
     /// Maps typeclasses this class is an instance of to the module with the instance statement.
     typeclasses: HashMap<Typeclass, ModuleId>,
@@ -1416,7 +1423,7 @@ pub struct ConstructorInfo {
 
 /// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
-pub struct ConstantInfo {
+struct ConstantInfo {
     /// The value for this constant. Not the definition, but the constant itself.
     /// If this is a generic constant, this value is unresolved.
     value: PotentialValue,
@@ -1436,7 +1443,7 @@ pub struct ConstantInfo {
     ///   an index of which constructor it is
     ///   how many total constructors there are
     /// Not included for aliases.
-    pub constructor: Option<ConstructorInfo>,
+    constructor: Option<ConstructorInfo>,
 }
 
 /// Helper for autocomplete.

@@ -335,11 +335,9 @@ impl<'a> Evaluator<'a> {
     ) -> compilation::Result<PotentialValue> {
         let module_id = self
             .bindings
-            .class_info
-            .get(class)
-            .and_then(|info| info.attributes.get(attr_name))
+            .get_module_for_class_attr(class, attr_name)
             .ok_or_else(|| source.error("attribute not found"))?;
-        let bindings = self.get_bindings(*module_id);
+        let bindings = self.get_bindings(module_id);
         let constant_name = DefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(&constant_name, source)
     }
