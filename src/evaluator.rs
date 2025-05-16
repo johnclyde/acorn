@@ -89,14 +89,13 @@ impl<'a> Evaluator<'a> {
                 _ => Err(token.error("unexpected binary operator in type expression")),
             },
             Expression::Concatenation(left, params) => {
-                let param_exprs = if let Expression::Grouping(opening, expr, _) = params.as_ref() {
-                    if opening.token_type != TokenType::LessThan {
-                        return Err(opening.error("expected '<' for type params"));
-                    }
-                    expr.flatten_comma_separated_list()
-                } else {
+                let Expression::Grouping(opening, expr, _) = params.as_ref() else {
                     return Err(params.error("expected type parameters in type application"));
                 };
+                if opening.token_type != TokenType::LessThan {
+                    return Err(opening.error("expected '<' for type params"));
+                }
+                let param_exprs = expr.flatten_comma_separated_list();
                 let mut instance_params = vec![];
                 for param_expr in param_exprs {
                     instance_params.push(self.evaluate_type(param_expr)?);
