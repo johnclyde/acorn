@@ -60,7 +60,7 @@ impl<'a> Evaluator<'a> {
                 if token.token_type == TokenType::Axiom {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
-                if let Some(t) = self.bindings.typename_to_type.get(token.text()) {
+                if let Some(t) = self.bindings.get_type_for_typename(token.text()) {
                     Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))

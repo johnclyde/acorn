@@ -34,12 +34,12 @@ pub struct BindingMap {
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
     /// entirety of this environment.
     /// This also includes aliases.
-    pub constant_info: HashMap<LocalName, ConstantInfo>,
+    constant_info: HashMap<LocalName, ConstantInfo>,
 
     /// Maps the name of a type to the type object.
     /// Includes unresolved names like List that don't have enough information
     /// to get a specific type.
-    pub typename_to_type: BTreeMap<String, PotentialType>,
+    typename_to_type: BTreeMap<String, PotentialType>,
 
     /// Maps the type object to its name in this environment.
     pub type_to_typename: HashMap<PotentialType, String>,
