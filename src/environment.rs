@@ -26,6 +26,7 @@ use crate::statement::{
     VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
+use crate::type_unifier::TypeclassRegistry;
 
 /// Each line has a LineType, to handle line-based user interface.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1484,6 +1485,20 @@ impl Environment {
         };
         let instance_class = self.check_can_add_attributes(&is.type_name, &instance_type)?;
         let typeclass = self.evaluator(project).evaluate_typeclass(&is.typeclass)?;
+
+        // Every base typeclass that this typeclass extends, the instance class must
+        // already be an instance of.
+        for base_typeclass in self.bindings.get_extends(&typeclass) {
+            if !self
+                .bindings
+                .is_instance_of(&instance_class, &base_typeclass)
+            {
+                return Err(statement.error(&format!(
+                    "'{}' must be an instance of '{}' in order to be an instance of '{}'",
+                    is.type_name, base_typeclass.name, typeclass.name
+                )));
+            }
+        }
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];

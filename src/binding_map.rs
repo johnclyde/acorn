@@ -211,10 +211,6 @@ impl BindingMap {
         answer
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // Simple helper functions.
-    ////////////////////////////////////////////////////////////////////////////////
-
     /// Whether this type has this attribute in the current context.
     pub fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
         self.class_info
@@ -263,6 +259,14 @@ impl BindingMap {
                 self.instance_definitions.contains_key(instance_name)
             }
         }
+    }
+
+    // Get a set of all the typeclasses that this typeclass extends.
+    pub fn get_extends(&self, typeclass: &Typeclass) -> impl Iterator<Item = &Typeclass> {
+        self.typeclass_info
+            .get(typeclass)
+            .into_iter()
+            .flat_map(|info| info.extends.iter())
     }
 
     /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
