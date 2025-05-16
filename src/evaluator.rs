@@ -204,22 +204,15 @@ impl<'a> Evaluator<'a> {
         value: &AcornValue,
         source: &dyn ErrorSource,
     ) -> compilation::Result<(usize, usize)> {
-        let info = match value {
-            AcornValue::Constant(ci) => {
-                let bindings = self.get_bindings(ci.name.module_id);
-                bindings.get_constructor_info(&ci.name.local_name)
-            }
-            _ => {
-                return Err(source.error("invalid pattern"));
-            }
+        let AcornValue::Constant(ci) = value else {
+            return Err(source.error("invalid pattern"));
         };
-        match info {
-            Some(info) => {
-                expected_type.check_instance(&info.class, source)?;
-                Ok((info.index, info.total))
-            }
-            None => Err(source.error("expected a constructor")),
-        }
+        let bindings = self.get_bindings(ci.name.module_id);
+        let Some(info) = bindings.get_constructor_info(&ci.name.local_name) else {
+            return Err(source.error("expected a constructor"));
+        };
+        expected_type.check_instance(&info.class, source)?;
+        Ok((info.index, info.total))
     }
 
     /// Evaluates a pattern match. Infers their types from the pattern.
@@ -248,17 +241,16 @@ impl<'a> Evaluator<'a> {
         let constructor = match potential_constructor {
             PotentialValue::Resolved(v) => v,
             PotentialValue::Unresolved(uc) => {
-                if let AcornType::Data(class, params) = expected_type {
-                    if !uc.name.is_attribute_of(&class) {
-                        return Err(pattern.error(&format!(
-                            "pattern {} is not an attribute of {}",
-                            &uc.name.local_name, class.name
-                        )));
-                    }
-                    uc.resolve(pattern, params.clone())?
-                } else {
+                let AcornType::Data(class, params) = expected_type else {
                     return Err(pattern.error("unmatchable datatype?"));
+                };
+                if !uc.name.is_attribute_of(&class) {
+                    return Err(pattern.error(&format!(
+                        "pattern {} is not an attribute of {}",
+                        &uc.name.local_name, class.name
+                    )));
                 }
+                uc.resolve(pattern, params.clone())?
             }
         };
         let (i, total) = self.expect_constructor(expected_type, &constructor, pattern)?;
