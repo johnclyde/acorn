@@ -28,7 +28,7 @@ impl<'a> Evaluator<'a> {
     // This is useful while we're still analyzing the module, because in that case, the project
     // won't have access to it yet.
     fn get_bindings(&self, module_id: ModuleId) -> &'a BindingMap {
-        if module_id == self.bindings.module_id {
+        if module_id == self.bindings.module_id() {
             self.bindings
         } else {
             self.project.get_bindings(module_id).unwrap()

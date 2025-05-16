@@ -150,7 +150,7 @@ impl CodeGenerator<'_> {
         }
 
         // Handle local constants
-        if name.module_id == self.bindings.module_id {
+        if name.module_id == self.bindings.module_id() {
             return Ok(match &name.local_name {
                 LocalName::Unqualified(word) => Expression::generate_identifier(word),
                 LocalName::Attribute(left, right) => Expression::generate_dot(

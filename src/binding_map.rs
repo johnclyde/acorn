@@ -28,7 +28,7 @@ use crate::unresolved_constant::UnresolvedConstant;
 #[derive(Clone)]
 pub struct BindingMap {
     /// The module all these names are in.
-    pub module_id: ModuleId,
+    module_id: ModuleId,
 
     /// Maps the name of a constant defined in this scope to information about it.
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
@@ -101,6 +101,10 @@ impl BindingMap {
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
+    }
+
+    pub fn module_id(&self) -> ModuleId {
+        self.module_id
     }
 
     /// Whether this type has this attribute in the current context.
