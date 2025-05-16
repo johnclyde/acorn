@@ -539,7 +539,7 @@ impl<'a> Evaluator<'a> {
                         }
                     }
                     TokenType::Numeral => {
-                        let class = match &self.bindings.numerals {
+                        let class = match self.bindings.numerals() {
                             Some(c) => c,
                             None => {
                                 return Err(name_token

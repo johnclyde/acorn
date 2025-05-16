@@ -73,7 +73,7 @@ pub struct BindingMap {
     pub module_to_name: HashMap<ModuleId, String>,
 
     /// The default data type to use for numeric literals.
-    pub numerals: Option<Class>,
+    numerals: Option<Class>,
 
     /// The definitions of the instance attributes defined in this module.
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
@@ -105,6 +105,11 @@ impl BindingMap {
 
     pub fn module_id(&self) -> ModuleId {
         self.module_id
+    }
+    
+    /// Returns the default data type for numeric literals, if set.
+    pub fn numerals(&self) -> Option<&Class> {
+        self.numerals.as_ref()
     }
 
     /// Whether this type has this attribute in the current context.

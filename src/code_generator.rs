@@ -133,7 +133,7 @@ impl CodeGenerator<'_> {
                 let numeral = TokenType::Numeral.new_token(attr);
 
                 // If it's the default type, we don't need to scope it
-                if let Some(numerals) = &self.bindings.numerals {
+                if let Some(numerals) = self.bindings.numerals() {
                     if numerals.module_id == name.module_id && &numerals.name == class {
                         return Ok(Expression::Singleton(numeral));
                     }
