@@ -81,114 +81,6 @@ pub struct BindingMap {
     instance_definitions: HashMap<InstanceName, AcornValue>,
 }
 
-/// Information about a class that is accessible from this module.
-#[derive(Clone, Debug)]
-pub struct ClassInfo {
-    /// What module defines each of the attributes of this class.
-    pub attributes: BTreeMap<String, ModuleId>,
-
-    /// Maps typeclasses this class is an instance of to the module with the instance statement.
-    typeclasses: HashMap<Typeclass, ModuleId>,
-}
-
-impl ClassInfo {
-    fn new() -> Self {
-        ClassInfo {
-            attributes: BTreeMap::new(),
-            typeclasses: HashMap::new(),
-        }
-    }
-
-    fn import(
-        &mut self,
-        info: &ClassInfo,
-        typename: &str,
-        source: &dyn ErrorSource,
-    ) -> compilation::Result<()> {
-        for (attr, other_module_id) in info.attributes.iter() {
-            match self.attributes.get(attr) {
-                None => {
-                    self.attributes.insert(attr.clone(), *other_module_id);
-                }
-                Some(module_id) => {
-                    if *module_id != *other_module_id {
-                        return Err(source.error(&format!(
-                            "attribute {}.{} is defined in two different modules",
-                            typename, attr
-                        )));
-                    }
-                }
-            }
-        }
-        for (typeclass, other_module_id) in info.typeclasses.iter() {
-            if let Some(module_id) = self.typeclasses.insert(typeclass.clone(), *other_module_id) {
-                if module_id != *other_module_id {
-                    return Err(source.error(&format!(
-                        "instance relation {}: {} is defined in two different modules",
-                        typename, typeclass.name
-                    )));
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-/// Information about a typeclass that is defined in this module.
-#[derive(Clone, Debug)]
-pub struct TypeclassInfo {
-    /// The attributes available to this typeclass.
-    /// The value stores the typeclass on which this attribute was originally defined.
-    /// (This can be the typeclass itself.)
-    pub attributes: BTreeMap<String, Typeclass>,
-
-    /// The typeclasses that this typeclass extends.
-    extends: HashSet<Typeclass>,
-}
-
-impl TypeclassInfo {
-    pub fn new() -> Self {
-        TypeclassInfo {
-            attributes: BTreeMap::new(),
-            extends: HashSet::new(),
-        }
-    }
-}
-
-/// Information that the BindingMap stores about a constant.
-#[derive(Clone)]
-pub struct ConstantInfo {
-    /// The value for this constant. Not the definition, but the constant itself.
-    /// If this is a generic constant, this value is unresolved.
-    value: PotentialValue,
-
-    /// The definition of this constant, if it has one.
-    /// Not included for aliases.
-    definition: Option<AcornValue>,
-
-    /// Whether this is the canonical name for a constant, as opposed to an alias or an import.
-    canonical: bool,
-
-    /// Whether this is a theorem.
-    theorem: bool,
-
-    /// If this constant is a constructor and this is its canonical name, store:
-    ///   the class it constructs
-    ///   an index of which constructor it is
-    ///   how many total constructors there are
-    /// Not included for aliases.
-    pub constructor: Option<(Class, usize, usize)>,
-}
-
-fn keys_with_prefix<'a, T>(
-    map: &'a BTreeMap<String, T>,
-    prefix: &'a str,
-) -> impl Iterator<Item = &'a String> {
-    map.range(prefix.to_string()..)
-        .take_while(move |(key, _)| key.starts_with(prefix))
-        .map(|(key, _)| key)
-}
-
 impl BindingMap {
     pub fn new(module: ModuleId) -> Self {
         assert!(module >= Module::FIRST_NORMAL);
@@ -1414,6 +1306,115 @@ impl BindingMap {
             .expect("value_to_code failed");
         assert_eq!(input_code, output_code);
     }
+}
+
+/// Information about a class that is accessible from this module.
+#[derive(Clone, Debug)]
+pub struct ClassInfo {
+    /// What module defines each of the attributes of this class.
+    pub attributes: BTreeMap<String, ModuleId>,
+
+    /// Maps typeclasses this class is an instance of to the module with the instance statement.
+    typeclasses: HashMap<Typeclass, ModuleId>,
+}
+
+impl ClassInfo {
+    fn new() -> Self {
+        ClassInfo {
+            attributes: BTreeMap::new(),
+            typeclasses: HashMap::new(),
+        }
+    }
+
+    fn import(
+        &mut self,
+        info: &ClassInfo,
+        typename: &str,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
+        for (attr, other_module_id) in info.attributes.iter() {
+            match self.attributes.get(attr) {
+                None => {
+                    self.attributes.insert(attr.clone(), *other_module_id);
+                }
+                Some(module_id) => {
+                    if *module_id != *other_module_id {
+                        return Err(source.error(&format!(
+                            "attribute {}.{} is defined in two different modules",
+                            typename, attr
+                        )));
+                    }
+                }
+            }
+        }
+        for (typeclass, other_module_id) in info.typeclasses.iter() {
+            if let Some(module_id) = self.typeclasses.insert(typeclass.clone(), *other_module_id) {
+                if module_id != *other_module_id {
+                    return Err(source.error(&format!(
+                        "instance relation {}: {} is defined in two different modules",
+                        typename, typeclass.name
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Information about a typeclass that is defined in this module.
+#[derive(Clone, Debug)]
+pub struct TypeclassInfo {
+    /// The attributes available to this typeclass.
+    /// The value stores the typeclass on which this attribute was originally defined.
+    /// (This can be the typeclass itself.)
+    pub attributes: BTreeMap<String, Typeclass>,
+
+    /// The typeclasses that this typeclass extends.
+    extends: HashSet<Typeclass>,
+}
+
+impl TypeclassInfo {
+    pub fn new() -> Self {
+        TypeclassInfo {
+            attributes: BTreeMap::new(),
+            extends: HashSet::new(),
+        }
+    }
+}
+
+/// Information that the BindingMap stores about a constant.
+#[derive(Clone)]
+pub struct ConstantInfo {
+    /// The value for this constant. Not the definition, but the constant itself.
+    /// If this is a generic constant, this value is unresolved.
+    value: PotentialValue,
+
+    /// The definition of this constant, if it has one.
+    /// Not included for aliases.
+    definition: Option<AcornValue>,
+
+    /// Whether this is the canonical name for a constant, as opposed to an alias or an import.
+    canonical: bool,
+
+    /// Whether this is a theorem.
+    theorem: bool,
+
+    /// If this constant is a constructor and this is its canonical name, store:
+    ///   the class it constructs
+    ///   an index of which constructor it is
+    ///   how many total constructors there are
+    /// Not included for aliases.
+    pub constructor: Option<(Class, usize, usize)>,
+}
+
+/// Helper for autocomplete.
+fn keys_with_prefix<'a, T>(
+    map: &'a BTreeMap<String, T>,
+    prefix: &'a str,
+) -> impl Iterator<Item = &'a String> {
+    map.range(prefix.to_string()..)
+        .take_while(move |(key, _)| key.starts_with(prefix))
+        .map(|(key, _)| key)
 }
 
 impl TypeclassRegistry for BindingMap {

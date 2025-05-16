@@ -28,30 +28,6 @@ use crate::statement::{
 use crate::token::{Token, TokenIter, TokenType};
 use crate::type_unifier::TypeclassRegistry;
 
-/// Each line has a LineType, to handle line-based user interface.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LineType {
-    /// Only used within subenvironments.
-    /// The line relates to the block, but is outside the opening brace for this block.
-    Opening,
-
-    /// This line corresponds to a node inside the environment.
-    /// The usize is an index into the nodes array.
-    /// If the node represents a block, this line should also have a line type in the
-    /// subenvironment within the block.
-    Node(usize),
-
-    /// Either only whitespace is here, or a comment.
-    Empty,
-
-    /// Lines with other sorts of statements besides prop statements.
-    Other,
-
-    /// Only used within subenvironments.
-    /// The line has the closing brace for this block.
-    Closing,
-}
-
 /// The Environment takes Statements as input and processes them.
 /// It does not prove anything directly, but it is responsible for determining which
 /// things need to be proved, and which statements are usable in which proofs.
@@ -2310,4 +2286,28 @@ impl Environment {
         cursor.descend(0);
         &cursor.env().bindings
     }
+}
+
+/// Each line has a LineType, to handle line-based user interface.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LineType {
+    /// Only used within subenvironments.
+    /// The line relates to the block, but is outside the opening brace for this block.
+    Opening,
+
+    /// This line corresponds to a node inside the environment.
+    /// The usize is an index into the nodes array.
+    /// If the node represents a block, this line should also have a line type in the
+    /// subenvironment within the block.
+    Node(usize),
+
+    /// Either only whitespace is here, or a comment.
+    Empty,
+
+    /// Lines with other sorts of statements besides prop statements.
+    Other,
+
+    /// Only used within subenvironments.
+    /// The line has the closing brace for this block.
+    Closing,
 }
