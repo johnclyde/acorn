@@ -26,6 +26,10 @@ pub enum SourceType {
     /// The string is the name of the constant. It can be <Type>.<name> for members.
     ConstantDefinition(AcornValue, String),
 
+    /// The fact that one typeclass extends a particular set.
+    /// The source only tracks the typeclass that is being defined.
+    Extends(String),
+
     /// The fact that a type is an instance of a typeclass.
     /// Comes from an 'instance' statement.
     /// The strings are (type, typeclass).
@@ -207,6 +211,7 @@ impl Source {
             SourceType::Anonymous => format!("line {}", self.user_visible_line()),
             SourceType::TypeDefinition(type_name, _) => format!("the '{}' definition", type_name),
             SourceType::ConstantDefinition(value, _) => format!("the '{}' definition", value),
+            SourceType::Extends(tc) => format!("the '{}' definition", tc),
             SourceType::Instance(instance, tc) => {
                 format!("the '{}: {}' relationship", instance, tc)
             }
@@ -239,6 +244,7 @@ impl Source {
                 Some(format!("{}.{}", type_name, member))
             }
             SourceType::ConstantDefinition(_, name) => Some(name.clone()),
+            SourceType::Extends(tc) => Some(format!("{}.extends", tc)),
             SourceType::Instance(instance, tc) => Some(format!("{}.{}", instance, tc)),
             SourceType::Premise | SourceType::NegatedGoal => None,
         }
