@@ -67,10 +67,10 @@ pub struct BindingMap {
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
     /// It's important that these are in alphabetical order, so that dependency hashes are consistent.
-    pub name_to_module: BTreeMap<String, ModuleId>,
+    name_to_module: BTreeMap<String, ModuleId>,
 
     /// The local name for imported modules.
-    pub module_to_name: HashMap<ModuleId, String>,
+    module_to_name: HashMap<ModuleId, String>,
 
     /// The default data type to use for numeric literals.
     numerals: Option<Class>,
@@ -224,6 +224,14 @@ impl BindingMap {
 
     pub fn has_typeclass_name(&self, typeclass_name: &str) -> bool {
         self.name_to_typeclass.contains_key(typeclass_name)
+    }
+
+    pub fn get_module_id_for_name(&self, name: &str) -> Option<ModuleId> {
+        self.name_to_module.get(name).copied()
+    }
+
+    pub fn get_name_for_module_id(&self, module_id: ModuleId) -> Option<&String> {
+        self.module_to_name.get(&module_id)
     }
 
     /// Just use this for testing.

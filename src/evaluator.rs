@@ -497,8 +497,8 @@ impl<'a> Evaluator<'a> {
                 match name_token.token_type {
                     TokenType::Identifier => {
                         if self.bindings.is_module(name) {
-                            match self.bindings.name_to_module.get(name) {
-                                Some(module) => Ok(NamedEntity::Module(*module)),
+                            match self.bindings.get_module_id_for_name(name) {
+                                Some(module) => Ok(NamedEntity::Module(module)),
                                 None => Err(name_token.error("unknown module")),
                             }
                         } else if self.bindings.has_typename(name) {

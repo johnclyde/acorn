@@ -78,7 +78,7 @@ impl CodeGenerator<'_> {
                 }
 
                 // Reference this type via referencing the imported module
-                if let Some(module_name) = self.bindings.module_to_name.get(&class.module_id) {
+                if let Some(module_name) = self.bindings.get_name_for_module_id(class.module_id) {
                     let base_expr =
                         Expression::generate_identifier_chain(&[module_name, &class.name]);
                     return self.parametrize_expr(base_expr, params);
@@ -176,7 +176,7 @@ impl CodeGenerator<'_> {
         }
 
         // Refer to this constant using its module
-        match self.bindings.module_to_name.get(&name.module_id) {
+        match self.bindings.get_name_for_module_id(name.module_id) {
             Some(module_name) => {
                 let mut parts: Vec<&str> = vec![module_name];
                 parts.extend(name.local_name.name_chain().unwrap().into_iter());
