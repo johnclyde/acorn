@@ -62,7 +62,7 @@ pub struct BindingMap {
     /// if we're generating code, we prefer to use the local name.
     /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
-    pub canonical_to_alias: HashMap<GlobalName, String>,
+    canonical_to_alias: HashMap<GlobalName, String>,
 
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
@@ -128,6 +128,11 @@ impl BindingMap {
         attr: &str,
     ) -> Option<&Typeclass> {
         self.typeclass_info.get(typeclass)?.attributes.get(attr)
+    }
+
+    /// Gets the local alias to use for a given global name.
+    pub fn get_alias(&self, name: &GlobalName) -> Option<&String> {
+        self.canonical_to_alias.get(name)
     }
 
     pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
