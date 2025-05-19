@@ -46,7 +46,7 @@ pub enum SourceType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Source {
     /// The module where this value was defined
-    pub module: ModuleId,
+    pub module_id: ModuleId,
 
     /// The range in the source document that corresponds to the value's definition
     pub range: Range,
@@ -70,7 +70,7 @@ impl Source {
         depth: u32,
     ) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type,
             importable,
@@ -92,7 +92,7 @@ impl Source {
             SourceType::Theorem(name)
         };
         Source {
-            module,
+            module_id: module,
             range,
             source_type,
             importable,
@@ -102,7 +102,7 @@ impl Source {
 
     pub fn anonymous(module: ModuleId, range: Range, depth: u32) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type: SourceType::Anonymous,
             importable: false,
@@ -118,7 +118,7 @@ impl Source {
         member_name: String,
     ) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type: SourceType::TypeDefinition(type_name, member_name),
             importable: true,
@@ -134,7 +134,7 @@ impl Source {
         name: &str,
     ) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type: SourceType::ConstantDefinition(constant, name.to_string()),
             importable: depth == 0,
@@ -151,7 +151,7 @@ impl Source {
         typeclass_name: &str,
     ) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type: SourceType::Instance(
                 instance_name.to_string(),
@@ -164,7 +164,7 @@ impl Source {
 
     pub fn premise(module: ModuleId, range: Range, depth: u32) -> Source {
         Source {
-            module,
+            module_id: module,
             range,
             source_type: SourceType::Premise,
             importable: false,
@@ -184,7 +184,7 @@ impl Source {
     /// Just for testing.
     pub fn mock() -> Source {
         Source {
-            module: 0,
+            module_id: 0,
             range: Range::default(),
             source_type: SourceType::Anonymous,
             importable: true,
@@ -252,7 +252,7 @@ impl Source {
 
     /// The source name with a module id to make it unique.
     pub fn qualified_name(&self) -> Option<(ModuleId, String)> {
-        self.name().map(|name| (self.module, name))
+        self.name().map(|name| (self.module_id, name))
     }
 
     pub fn truthiness(&self) -> Truthiness {

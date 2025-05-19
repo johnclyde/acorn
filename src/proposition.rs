@@ -85,7 +85,7 @@ impl Proposition {
             SourceType::ConstantDefinition(v, name) => {
                 let new_type = SourceType::ConstantDefinition(v.instantiate(params), name.clone());
                 Source {
-                    module: self.source.module,
+                    module_id: self.source.module_id,
                     range: self.source.range.clone(),
                     source_type: new_type,
                     importable: self.source.importable,

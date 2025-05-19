@@ -9,7 +9,7 @@ use crate::acorn_value::AcornValue;
 use crate::active_set::ActiveSet;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
-use crate::code_generator::{Error, CodeGenerator};
+use crate::code_generator::{CodeGenerator, Error};
 use crate::display::DisplayClause;
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
@@ -782,7 +782,7 @@ impl Prover {
         let (rule, location) = match &step.rule {
             Rule::Assumption(info) => {
                 let location = project
-                    .path_from_module_id(info.source.module)
+                    .path_from_module_id(info.source.module_id)
                     .and_then(|path| Url::from_file_path(path).ok())
                     .map(|uri| Location {
                         uri,

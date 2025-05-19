@@ -1375,7 +1375,7 @@ impl Environment {
         if !extends_set.is_empty() {
             // Create a node for the extends relationship.
             let source = Source {
-                module: self.module_id,
+                module_id: self.module_id,
                 range: statement.range(),
                 source_type: SourceType::Extends(typeclass_name.to_string()),
                 importable: true,
@@ -1605,7 +1605,7 @@ impl Environment {
 
         // Create a node for the instance relationship.
         let source = Source {
-            module: self.module_id,
+            module_id: self.module_id,
             range: statement.range(),
             source_type: SourceType::Instance(
                 instance_name.to_string(),
