@@ -48,7 +48,8 @@ copy "%buildBin%" "%releaseBin%"
 
 echo Build for %tag% successful.
 
-echo Creating release %tag% on GitHub
-gh release create %tag% --notes "Automated release for version %tag%"
 echo Uploading %releaseBin% to GitHub
 gh release upload %tag% %releaseBin%
+
+echo Moving %tag% out of draft stage
+gh release edit %tag% --draft=false

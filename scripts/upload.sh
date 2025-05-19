@@ -35,6 +35,9 @@ declare -A MAP=(
   ["darwin-arm64"]="aarch64-apple-darwin"
 )
 
+# Create the draft release
+gh release create $TAG --draft --notes "Automated release for version %tag%"
+
 # Use files/release for renaming
 [[ -d files ]] || { echo "missing files directory"; exit 1; }
 mkdir -p files/release

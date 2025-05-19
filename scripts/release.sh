@@ -26,4 +26,18 @@ if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     exit 1
 fi
 
-echo "Releasing version: $VERSION"
+echo "New version: $VERSION"
+
+./scripts/crossbuild.sh
+
+git add .
+git commit -m "Releasing version $VERSION"
+git push
+git push upstream master
+
+# Making the tag will kick off the windows build.
+./python/tag.py
+
+echo Check the Windows build here:      https://github.com/acornprover/acorn/actions
+echo Edit the release description here: https://github.com/acornprover/acorn/releases
+echo Publish the extension with:        ./scripts/publish.sh
