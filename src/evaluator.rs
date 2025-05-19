@@ -353,11 +353,12 @@ impl<'a> Evaluator<'a> {
 
         // Check if this attribute is an inherited one.
         // Note that if we are in the definition of typeclass conditions, there is no info yet.
-        if let Some(info) = self.bindings.typeclass_info.get(&typeclass) {
-            if let Some(base_tc) = info.attributes.get(attr_name) {
-                if base_tc != typeclass {
-                    return self.evaluate_typeclass_attribute(&base_tc, attr_name, source);
-                }
+        if let Some(base_tc) = self
+            .bindings
+            .typeclass_attribute_lookup(&typeclass, attr_name)
+        {
+            if base_tc != typeclass {
+                return self.evaluate_typeclass_attribute(&base_tc, attr_name, source);
             }
         }
 

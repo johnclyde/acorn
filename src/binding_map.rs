@@ -52,7 +52,7 @@ pub struct BindingMap {
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
     /// Stores information about every typeclass accessible from this module.
-    pub typeclass_info: HashMap<Typeclass, TypeclassInfo>,
+    typeclass_info: HashMap<Typeclass, TypeclassInfo>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -117,6 +117,17 @@ impl BindingMap {
         self.class_info
             .get(class)
             .map_or(false, |info| info.attributes.contains_key(var_name))
+    }
+
+    /// For a given typeclass attribute, find the typeclass that defines it.
+    /// This can return the typeclass argument itself, or a base typeclass that it extends.
+    /// Returns None if there is no such attribute.
+    pub fn typeclass_attribute_lookup(
+        &self,
+        typeclass: &Typeclass,
+        attr: &str,
+    ) -> Option<&Typeclass> {
+        self.typeclass_info.get(typeclass)?.attributes.get(attr)
     }
 
     pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
