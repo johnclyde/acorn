@@ -3338,4 +3338,24 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_no_redefining_property_in_extension() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+        "#,
+        );
+        // Should fail because property can't be redefined.
+        env.bad(
+            r#"
+            typeclass B: Bar extends Foo {
+                property: B -> Bool
+            }
+        "#,
+        );
+    }
 }

@@ -1373,6 +1373,16 @@ impl Environment {
 
         // Define all the constants that are in the typeclass.
         for (attr_name, type_expr) in &ts.constants {
+            if let Some(existing_tc) = self
+                .bindings
+                .typeclass_attribute_lookup(&typeclass, attr_name.text())
+            {
+                return Err(attr_name.error(&format!(
+                    "attribute '{}' is already defined via base typeclass '{}'",
+                    attr_name.text(),
+                    existing_tc.name
+                )));
+            }
             let arb_type = self.evaluator(project).evaluate_type(type_expr)?;
             let var_type = arb_type.genericize(&type_params);
             let local_name = LocalName::attribute(typeclass_name, attr_name.text());

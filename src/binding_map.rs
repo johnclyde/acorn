@@ -430,7 +430,6 @@ impl BindingMap {
     }
 
     /// Adds a newly-defined typeclass to this environment.
-    /// Panics if the typeclass is already defined - that should be checked before calling this.
     pub fn add_typeclass(
         &mut self,
         name: &str,
@@ -471,7 +470,9 @@ impl BindingMap {
                 entry.insert(info);
             }
             std::collections::hash_map::Entry::Occupied(entry) => {
-                panic!("typeclass {} is already bound", entry.key().name);
+                return Err(
+                    source.error(&format!("typeclass {} is already bound", entry.key().name))
+                );
             }
         }
         self.add_typeclass_name(&name, typeclass);
