@@ -133,7 +133,11 @@ pub struct Monomorphizer {
     /// Lists (prop id, instantiation for the constant) for each occurrence.
     constant_info: HashMap<GlobalName, GenericConstantInfo>,
 
-    /// A set of all the instance relations we know about.
+    /// Extends maps each typeclass to the typeclasses it extends.
+    /// This includes indirect extensions.
+    extends: HashMap<Typeclass, HashSet<Typeclass>>,
+
+    /// All the instance relations we know about.
     /// Monomorphization is only allowed with valid instance relations.
     instances: HashMap<Typeclass, HashSet<Class>>,
 
@@ -150,6 +154,7 @@ impl Monomorphizer {
             prop_info: vec![],
             output: vec![],
             constant_info: HashMap::new(),
+            extends: HashMap::new(),
             instances: HashMap::new(),
             instantiation_failures: HashMap::new(),
         }
@@ -181,11 +186,28 @@ impl Monomorphizer {
         }
     }
 
+    fn add_extends(&mut self, tc: Typeclass, base_set: HashSet<Typeclass>) {
+        match self.extends.entry(tc) {
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(base_set);
+            }
+            std::collections::hash_map::Entry::Occupied(e) => {
+                panic!(
+                    "Adding extends to an already existing typeclass: {}",
+                    e.key().name
+                );
+            }
+        }
+    }
+
     // Adds a fact. It might or might not be generic.
     pub fn add_fact(&mut self, fact: Fact) {
         match fact {
             Fact::Proposition(proposition) => {
                 self.add_proposition(proposition);
+            }
+            Fact::Extends(tc, base_set, _) => {
+                self.add_extends(tc, base_set);
             }
             Fact::Instance(class, typeclass, _) => {
                 self.add_instance_of(class, typeclass);
@@ -377,8 +399,10 @@ impl TypeclassRegistry for Monomorphizer {
         }
     }
 
-    fn extends(&self, _typeclass: &Typeclass, _base: &Typeclass) -> bool {
-        // TODO: fix this
-        false
+    fn extends(&self, typeclass: &Typeclass, base: &Typeclass) -> bool {
+        let Some(base_set) = self.extends.get(typeclass) else {
+            return false;
+        };
+        base_set.contains(base)
     }
 }

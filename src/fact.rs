@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use crate::acorn_type::{AcornType, Class, Typeclass};
@@ -13,6 +14,9 @@ pub enum Fact {
     // A true statement representable as a boolean value.
     Proposition(Proposition),
 
+    // The first typeclass extends this set of typeclasses.
+    Extends(Typeclass, HashSet<Typeclass>, Source),
+
     // The fact that this class is an instance of this typeclass.
     Instance(Class, Typeclass, Source),
 
@@ -26,6 +30,14 @@ impl fmt::Display for Fact {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Fact::Proposition(p) => write!(f, "prop: {}", p),
+            Fact::Extends(tc, base_set, _) => {
+                let s = base_set
+                    .iter()
+                    .map(|t| t.name.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "{} extends {}", tc.name, s)
+            }
             Fact::Instance(class, typeclass, _) => {
                 write!(f, "{} is an instance of {}", class.name, typeclass.name)
             }
@@ -42,6 +54,7 @@ impl Fact {
     pub fn source(&self) -> &Source {
         match self {
             Fact::Proposition(p) => &p.source,
+            Fact::Extends(_, _, source) => source,
             Fact::Instance(_, _, source) => source,
             Fact::Definition(_, _, source) => source,
         }
