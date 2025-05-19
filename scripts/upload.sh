@@ -2,14 +2,15 @@
 # Publish the language server binaries and extension to GitHub.
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+project_root="$(cd "$script_dir/.." && pwd)"
 current_dir="$(pwd)"
-[[ $script_dir == $current_dir ]] || { echo "Run this script from the repository root."; exit 1; }
+[[ $current_dir == $project_root ]] || { echo "Run this script from the repository root."; exit 1; }
 
 # Exit immediately if any command fails
 set -ex
 
 # We always want an up-to-date build, and it's cached so it won't slow us down to redo this.
-./crossbuild.sh
+./scripts/crossbuild.sh
 
 # Default value: empty
 CLOBBER=""
