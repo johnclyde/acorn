@@ -3427,4 +3427,27 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_allow_diamonds() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+
+            typeclass B: Bar extends Foo{
+                bar_property: B -> Bool
+            }
+
+            typeclass Q: Qux extends Foo {
+                qux_property: Q -> Bool
+            }
+
+            typeclass Z: Zap extends Bar, Qux {
+            }
+        "#,
+        );
+    }
 }
