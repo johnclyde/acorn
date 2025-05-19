@@ -16,7 +16,8 @@ if [ $# -eq 1 ]; then
     ./python/version.py "$VERSION"
 else
     # Bump version and capture the new version
-    VERSION=$(./python/version.py bump | grep "version:" | awk '{print $2}')
+    VERSION_OUTPUT=$(./python/version.py bump)
+    VERSION=$(echo "$VERSION_OUTPUT" | grep "changed to:" | awk '{print $3}')
 fi
 
 # Verify version format (number.number.number)
