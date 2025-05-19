@@ -948,8 +948,10 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 continue;
             }
             TokenType::RightBrace => {
-                if constants.is_empty() && conditions.is_empty() {
-                    return Err(token.error("typeclasses must have some constants or conditions"));
+                if constants.is_empty() && conditions.is_empty() && extends.len() < 2 {
+                    return Err(token.error(
+                        "This typeclass is redundant, because it has no constants or conditions.",
+                    ));
                 }
 
                 return Ok(Statement {

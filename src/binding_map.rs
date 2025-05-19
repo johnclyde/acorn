@@ -451,8 +451,8 @@ impl BindingMap {
                 if let Some(current) = info.attributes.get(attr) {
                     if current != original {
                         return Err(source.error(&format!(
-                            "attribute {} is defined in both {} and {}",
-                            attr, &current.name, &original.name
+                            "you cannot extend both '{}' and '{}' because they both define the attribute '{}'",
+                            &current.name, &original.name, attr
                         )));
                     }
                 } else {

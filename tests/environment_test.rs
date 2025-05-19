@@ -3358,4 +3358,73 @@ theorem add_assoc(a: Nat, b: Nat, c: Nat) { add(add(a, b), c) = add(a, add(b, c)
         "#,
         );
     }
+
+    #[test]
+    fn test_env_empty_zero_extension_not_ok() {
+        let mut env = Environment::test();
+        env.bad(
+            r#"
+            typeclass F: Foo {
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_env_empty_single_extension_not_ok() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+        "#,
+        );
+        env.bad(
+            r#"
+            typeclass B: Bar extends Foo {
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_env_empty_double_extension_ok() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+            typeclass B: Bar {
+                other_property: B -> Bool
+            }
+            typeclass Q: Qux extends Foo, Bar {
+            }
+        "#,
+        );
+    }
+
+    #[test]
+    fn test_env_extending_incompatible_typeclasses() {
+        let mut env = Environment::test();
+        env.add(
+            r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+
+            typeclass B: Bar {
+                property: B -> Bool
+            }
+        "#,
+        );
+        // Should fail because Foo and Bar are incompatible.
+        env.bad(
+            r#"
+            typeclass Q: Qux extends Foo, Bar {
+            }
+        "#,
+        );
+    }
 }
