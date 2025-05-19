@@ -45,10 +45,7 @@ mod prover_test {
         (prover, outcome, code)
     }
 
-    fn prove_as_main(
-        text: &str,
-        goal_name: &str,
-    ) -> (Prover, Outcome, Result<Vec<String>, Error>) {
+    fn prove_as_main(text: &str, goal_name: &str) -> (Prover, Outcome, Result<Vec<String>, Error>) {
         let mut project = Project::new_mock();
         project.mock("/mock/main.ac", text);
         prove(&mut project, "main", goal_name)
@@ -2339,5 +2336,27 @@ mod prover_test {
         );
         let (_, outcome, _) = prove(&mut p, "main", "goal");
         assert_eq!(outcome, Outcome::Success);
+    }
+
+    #[test]
+    fn test_proving_with_properties_of_base_typeclass() {
+        let text = r#"
+            typeclass F: Foo {
+                property: Bool
+
+                property_true {
+                    F.property
+                }
+            }
+
+            typeclass B: Bar extends Foo {
+                bar_property: Bool
+            }
+
+            theorem goal<B: Bar> {
+                B.property
+            }
+        "#;
+        verify_succeeds(text);
     }
 }
