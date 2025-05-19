@@ -1,5 +1,6 @@
 #!/bin/bash
 # Publish the language server binaries and extension to GitHub.
+# Add the --clobber flag to overwrite any existing files.
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "$script_dir/.." && pwd)"

@@ -48,7 +48,7 @@ All commands are run from `~/acorn`.
 3. Do the cross-platform build.
 
    ```bash
-   ./crossbuild.sh
+   ./scripts/crossbuild.sh
    ```
 
 4. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
@@ -74,13 +74,13 @@ All commands are run from `~/acorn`.
 6. Upload the Linux and Mac language server binaries to GitHub
 
    ```bash
-   ./upload.sh
+   ./scripts/upload.sh
    ```
 
    If you've already published the binaries for a tag and want to update them, run
 
    ```bash
-   ./upload.sh --clobber
+   ./scripts/upload.sh --clobber
    ```
 
    This also uploads the extension to GitHub. If you just want to test a new extension, you can stop here. On the test machine, get the `.vsix` file from the GitHub release, and
@@ -92,9 +92,6 @@ All commands are run from `~/acorn`.
 
 7. Publish the extension to the Visual Studio Marketplace.
 
-   From the acorn/vscode/extension directory, after uploading:
-
    ```bash
-   cd vscode/extension
-   vsce publish
+   ./scripts/publish.sh
    ```
