@@ -1,5 +1,5 @@
 #!/bin/bash
-# Publish the language server binaries and extension to GitHub.
+# Creates a draft release and uploads the language server binaries and extension.
 # Add the --clobber flag to overwrite any existing files.
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +36,7 @@ declare -A MAP=(
 )
 
 # Create the draft release
-gh release create $TAG --draft --title "Version $VERSION" --notes "Automated release for version $VERSION"
+gh release create $TAG --draft --title "$TAG" --notes "Automated release for version $VERSION"
 
 # Use files/release for renaming
 [[ -d files ]] || { echo "missing files directory"; exit 1; }

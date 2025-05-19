@@ -35,8 +35,11 @@ git commit -m "Releasing version $VERSION"
 git push
 git push upstream master
 
-# Making the tag will kick off the windows build.
+# Making the tag will kick off the Windows build.
 ./python/tag.py
+
+# This creates the release, and hopefully finishes before the Windows build.
+./scripts/upload.sh
 
 echo Check the Windows build here:      https://github.com/acornprover/acorn/actions
 echo Edit the release description here: https://github.com/acornprover/acorn/releases
