@@ -1411,27 +1411,6 @@ impl ClassInfo {
     }
 }
 
-/// Information about a typeclass that is defined in this module.
-#[derive(Clone, Debug)]
-pub struct TypeclassInfo {
-    /// The attributes available to this typeclass.
-    /// The value stores the typeclass on which this attribute was originally defined.
-    /// (This can be the typeclass itself.)
-    pub attributes: BTreeMap<String, Typeclass>,
-
-    /// The typeclasses that this typeclass extends.
-    extends: HashSet<Typeclass>,
-}
-
-impl TypeclassInfo {
-    pub fn new() -> Self {
-        TypeclassInfo {
-            attributes: BTreeMap::new(),
-            extends: HashSet::new(),
-        }
-    }
-}
-
 /// Information about a constructor.
 #[derive(Clone)]
 pub struct ConstructorInfo {
@@ -1443,6 +1422,27 @@ pub struct ConstructorInfo {
 
     /// The total number of constructors for this class.
     pub total: usize,
+}
+
+/// Information about a typeclass that is defined in this module.
+#[derive(Clone, Debug)]
+struct TypeclassInfo {
+    /// The attributes available to this typeclass.
+    /// The value stores the typeclass on which this attribute was originally defined.
+    /// (This can be the typeclass itself.)
+    attributes: BTreeMap<String, Typeclass>,
+
+    /// The typeclasses that this typeclass extends.
+    extends: HashSet<Typeclass>,
+}
+
+impl TypeclassInfo {
+    fn new() -> Self {
+        TypeclassInfo {
+            attributes: BTreeMap::new(),
+            extends: HashSet::new(),
+        }
+    }
 }
 
 /// Information that the BindingMap stores about a constant.
