@@ -12,7 +12,7 @@ def looks_like_version_string(s):
     return s.count(".") == 2 and all(x.isdigit() for x in s.split("."))
 
 
-def main():
+def main(args=None):
     # Find cargo.toml
     python_dir = os.path.dirname(os.path.abspath(__file__))
     acorn_dir = os.path.dirname(python_dir)
@@ -49,17 +49,17 @@ def main():
     old_version = cargo_version
     print("version:", old_version)
 
-    if len(sys.argv) < 2:
+    if args is None or len(args) < 1:
         return
 
     # Handle bump command
-    if sys.argv[1] == "bump":
+    if args[0] == "bump":
         # Split version into components and increment the last part
         parts = old_version.split(".")
         parts[-1] = str(int(parts[-1]) + 1)
         new_version = ".".join(parts)
     else:
-        new_version = sys.argv[1]
+        new_version = args[0]
         if not looks_like_version_string(new_version):
             raise Exception(f"invalid version string: {new_version}")
 
@@ -85,4 +85,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

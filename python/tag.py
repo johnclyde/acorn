@@ -1,6 +1,10 @@
 #!/usr/bin/env -S uv run
 
-# Script to tag the current version with git
+# Script to tag the current version and push it upstream.
+#
+# To do it step by step:
+#   git tag v0.0.1
+#   git push upstream v0.0.1
 
 import os
 import subprocess
