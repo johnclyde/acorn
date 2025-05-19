@@ -37,6 +37,8 @@ declare -A MAP=(
 
 # Create the draft release
 gh release create $TAG --draft --title "$TAG" --notes "Automated release for version $VERSION"
+# Wait a little bit for the release to actually be created.
+sleep 5
 
 # Use files/release for renaming
 [[ -d files ]] || { echo "missing files directory"; exit 1; }
