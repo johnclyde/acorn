@@ -36,7 +36,7 @@ declare -A MAP=(
 )
 
 # Create the draft release
-gh release create $TAG --draft --notes "Automated release for version %tag%"
+gh release create $TAG --draft --title "Version $VERSION" --notes "Automated release for version $VERSION"
 
 # Use files/release for renaming
 [[ -d files ]] || { echo "missing files directory"; exit 1; }
