@@ -831,6 +831,24 @@ mod tests {
     }
 
     #[test]
+    fn test_codegen_typeclass_infix() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+
+            theorem goal<M: Magma>(x: M) {
+                x * x = x
+            }
+            "#,
+        );
+        p.check_goal_code("main", "goal", "x * x = x")
+    }
+
+    #[test]
     fn test_codegen_extended_infix() {
         let mut p = Project::new_mock();
         p.mock(
