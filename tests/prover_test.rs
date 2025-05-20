@@ -2359,4 +2359,30 @@ mod prover_test {
         "#;
         verify_succeeds(text);
     }
+
+    #[test]
+    fn test_proving_with_deep_base_theorem() {
+        let text = r#"
+            typeclass F: Foo {
+                add: (F, F) -> F
+
+                comm(a: F, b: F) {
+                    a + b = b + a
+                }
+            }
+
+            typeclass B: Bar extends Foo {
+                bar_property: Bool
+            }
+
+            typeclass B: Baz extends Bar {
+                baz_property: Bool
+            }
+
+            theorem goal<B: Baz>(a: B, b: B) {
+                a + b = b + a
+            }
+        "#;
+        verify_succeeds(text);
+    }
 }
