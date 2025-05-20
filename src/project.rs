@@ -1069,7 +1069,7 @@ impl Project {
     }
 
     #[cfg(test)]
-    fn check_code(&mut self, module_name: &str, code: &str) {
+    pub fn check_code(&mut self, module_name: &str, code: &str) {
         self.check_code_into(module_name, code, code);
     }
 
@@ -1215,20 +1215,6 @@ mod tests {
         "#,
         );
         p.expect_ok("main");
-    }
-
-    #[test]
-    fn test_code_generation() {
-        let mut p = Project::new_mock();
-        p.mock(
-            "/mock/main.ac",
-            r#"
-            type MyType: axiom
-            let t: MyType = axiom
-        "#,
-        );
-        p.check_code("main", "t");
-        p.check_code("main", "forall(x0: MyType) { x0 = t }");
     }
 
     #[test]

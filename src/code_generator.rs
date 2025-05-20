@@ -442,3 +442,22 @@ impl fmt::Display for Error {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::project::Project;
+
+    #[test]
+    fn test_code_generation() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            type MyType: axiom
+            let t: MyType = axiom
+        "#,
+        );
+        p.check_code("main", "t");
+        p.check_code("main", "forall(x0: MyType) { x0 = t }");
+    }
+}
