@@ -1,6 +1,6 @@
 # The release process
 
-To do a full release, you'll need to do the Linux/Mac build on a Linux machine, and then
+To do a full release, you need a Linux machine. The Linux and Mac builds happen locally, and then
 GitHub Actions will handle the Windows build.
 
 ## Linux/Mac release builds
@@ -21,7 +21,7 @@ snap install zig --classic --beta
 cargo install --locked cargo-zigbuild
 ```
 
-## The whole release process
+## The typical release process
 
 When we create a new release, we release a new language server, and then a new VSCode extension.
 
@@ -37,61 +37,26 @@ All commands are run from `~/acorn`.
 
    Then check in the updated submodule reference and merge it upstream.
 
-2. Bump the version using the `version.py` tool. Or you can set it manually for bigger version changes.
+2. Release to GitHub.
 
-   ```bash
-   ./python/version.py bump
+   ```
+   ./scripts/release.sh
    ```
 
-   Commit all changes and merge them upstream with `git push upstream master`.
-
-3. Do the cross-platform build.
-
-   ```bash
-   ./scripts/crossbuild.sh
-   ```
-
-4. Make a tag for the new language server release, "v" plus the version. Then push it upstream.
-
-   ```bash
-   ./python/tag.py
-   ```
-
-   or to do it step by step:
-
-   ```bash
-   git tag v0.0.1
-   git push upstream v0.0.1
-   ```
-
-   This should automatically trigger a Windows release build of the language server.
+   This should locally build Linux and Mac, create a draft release, upload some files, and trigger a Windows release build. It pushes a new version file to GitHub, so if something goes wrong, you
+   will need to muck around to fix it.
 
    Check that the [GitHub Actions](https://github.com/acornprover/acorn/actions) succeed.
-   They might take 7-8 minutes. At the end of it, a GitHub release should be created automatically.
+   They might take 7-8 minutes. At the end of it, the GitHub release should be moved out of "draft".
 
-5. Edit the release description [here](https://github.com/acornprover/acorn/releases).
+   Once the release moves out of "draft", the CLI will pick it up.
 
-6. Upload the Linux and Mac language server binaries to GitHub
+   Meanwhile, you can edit the release description [here](https://github.com/acornprover/acorn/releases).
 
-   ```bash
-   ./scripts/upload.sh
-   ```
-
-   If you've already published the binaries for a tag and want to update them, run
-
-   ```bash
-   ./scripts/upload.sh --clobber
-   ```
-
-   This also uploads the extension to GitHub. If you just want to test a new extension, you can stop here. On the test machine, get the `.vsix` file from the GitHub release, and
-   install that into VS Code with:
-
-   ```bash
-   code --install-extension acorn-<version>.vsix
-   ```
-
-7. Publish the extension to the Visual Studio Marketplace.
+3. Publish the extension to the Visual Studio Marketplace.
 
    ```bash
    ./scripts/publish.sh
    ```
+
+   This makes the VS Code extension pick up the release.

@@ -1,5 +1,12 @@
 #!/bin/bash
+#
 # Does the whole release process.
+# Picks a version number that just bumps the last number by one.
+#
+# You should be able to set a version with:
+#   ./scripts/release.sh <version>
+#
+# But I've never actually tried it.
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "$script_dir/.." && pwd)"
