@@ -1066,7 +1066,7 @@ impl Project {
 
     // Checks that generating code for the goal of the given theorem gives the expected result.
     #[cfg(test)]
-    pub fn check_goal(&mut self, module_name: &str, theorem_name: &str, expected: &str) {
+    pub fn check_goal_code(&mut self, module_name: &str, theorem_name: &str, expected: &str) {
         use crate::code_generator::CodeGenerator;
 
         let module_id = self.expect_ok(module_name);

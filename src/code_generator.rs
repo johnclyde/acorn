@@ -849,5 +849,6 @@ mod tests {
             }
             "#,
         );
+        p.check_goal_code("main", "goal", "x * x = x")
     }
 }
