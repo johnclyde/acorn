@@ -460,4 +460,358 @@ mod tests {
         p.check_code("main", "t");
         p.check_code("main", "forall(x0: MyType) { x0 = t }");
     }
+
+    #[test]
+    fn test_code_for_imported_things() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/stuff.ac",
+            r#"
+            let thing1: Bool = axiom
+            let thing2: Bool = axiom
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import stuff
+            let st1: Bool = stuff.thing1
+        "#,
+        );
+        p.check_code_into("main", "stuff.thing1", "st1");
+        p.check_code("main", "st1");
+        p.check_code("main", "stuff.thing2");
+    }
+
+    #[test]
+    fn test_imported_member_functions() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/boolpair.ac",
+            r#"
+            structure BoolPair {
+                first: Bool
+                second: Bool
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import boolpair
+            type BoolPair: boolpair.BoolPair
+            let first: BoolPair -> Bool = BoolPair.first
+        "#,
+        );
+        p.expect_ok("main");
+        p.check_code("main", "first");
+        p.check_code_into("main", "BoolPair.first", "first");
+        p.check_code_into("main", "boolpair.BoolPair.first", "first");
+
+        p.check_code("main", "BoolPair.second");
+        p.check_code_into("main", "boolpair.BoolPair.second", "BoolPair.second");
+    }
+
+    #[test]
+    fn test_structure_aliasing() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/stuff.ac",
+            r#"
+            structure Foo {
+                member: Bool
+            }
+            type Bar: Foo
+        "#,
+        );
+        p.expect_ok("stuff");
+        p.check_code_into("stuff", "Bar.member", "Foo.member");
+    }
+
+    #[test]
+    fn test_names_imported_via_from() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/stuff.ac",
+            r#"
+            type Foo: axiom
+            class Foo {
+                let foo: Bool = true
+                let foo2: Bool = false
+            }
+            type Bar: Foo
+            let bar: Bar = axiom
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from stuff import Foo, Bar, bar
+            let x: Bool = Bar.foo
+            let y: Bar = bar
+        "#,
+        );
+        p.expect_ok("stuff");
+        p.expect_ok("main");
+        p.check_code("main", "x");
+        p.check_code_into("main", "y", "bar");
+        p.check_code_into("main", "stuff.Foo.foo2", "Foo.foo2");
+    }
+
+    #[test]
+    fn test_imported_numbers_codegen_basic() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/nat.ac",
+            r#"
+            inductive Nat {
+                0
+                suc(Nat)
+            }
+
+            numerals Nat
+
+            class Nat {
+                define add(self, other: Nat) -> Nat {
+                    0
+                }
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from nat import Nat
+            "#,
+        );
+        p.check_code_into("main", "nat.Nat.0", "Nat.0");
+        p.check_code_into("main", "Nat.suc(Nat.0)", "Nat.0.suc");
+        p.check_code_into("main", "Nat.add(Nat.0, Nat.0)", "Nat.0 + Nat.0");
+    }
+
+    #[test]
+    fn test_imported_numbers_codegen_with_numerals() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/nat.ac",
+            r#"
+            inductive Nat {
+                0
+                suc(Nat)
+            }
+
+            numerals Nat
+
+            class Nat {
+                define add(self, other: Nat) -> Nat {
+                    0
+                }
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from nat import Nat
+            numerals Nat
+            "#,
+        );
+        p.check_code_into("main", "nat.Nat.0", "0");
+        p.check_code_into("main", "Nat.suc(Nat.0)", "0.suc");
+        p.check_code_into("main", "Nat.add(Nat.0, Nat.0)", "0 + 0");
+    }
+
+    #[test]
+    fn test_import_without_from_codegen() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/boolbox.ac",
+            r#"
+            structure BoolBox {
+                item: Bool
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import boolbox
+        "#,
+        );
+        p.check_code("main", "forall(x0: boolbox.BoolBox) { true }");
+    }
+
+    #[test]
+    fn test_importing_a_generic_type() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from pair import Pair
+            "#,
+        );
+        p.check_code("main", "forall(x0: Pair<Bool, Bool>) { true }");
+        p.check_code(
+            "main",
+            "forall(x0: Bool, x1: Bool) { Pair.new(x0, x1).second = x1 }",
+        );
+    }
+
+    #[test]
+    fn test_generic_type_in_imported_module() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import pair
+            "#,
+        );
+        p.check_code("main", "forall(x0: pair.Pair<Bool, Bool>) { true }");
+    }
+
+    #[test]
+    fn test_aliasing_local_generic_constant() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            let pbbn: (Bool, Bool) -> Pair<Bool, Bool> = Pair<Bool, Bool>.new
+            "#,
+        );
+        p.expect_ok("pair");
+        p.check_code("pair", "pbbn(false, true)");
+    }
+
+    #[test]
+    fn test_importing_generic_function() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            define double<T>(x: T) -> Pair<T, T> {
+                Pair.new(x, x)
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from pair import double
+            "#,
+        );
+        p.check_code("main", "double(true)");
+    }
+
+    #[test]
+    fn test_generic_function_in_imported_module() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/pair.ac",
+            r#"
+            structure Pair<T, U> {
+                first: T
+                second: U
+            }
+
+            define double<T>(x: T) -> Pair<T, T> {
+                Pair.new(x, x)
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import pair
+            "#,
+        );
+        p.check_code("main", "pair.double(true)");
+    }
+
+    #[test]
+    fn test_importing_typeclasses_with_import() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/magma.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            import magma
+
+            inductive Z1 {
+                zero
+            }
+
+            instance Z1: magma.Magma {
+                define mul(self, other: Z1) -> Z1 {
+                    Z1.zero
+                }
+            }
+            "#,
+        );
+        p.check_code("main", "magma.Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+    }
+
+    #[test]
+    fn test_importing_typeclasses_with_from() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/magma.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from magma import Magma
+
+            inductive Z1 {
+                zero
+            }
+
+            instance Z1: Magma {
+                define mul(self, other: Z1) -> Z1 {
+                    Z1.zero
+                }
+            }
+            "#,
+        );
+        p.check_code("main", "Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+    }
 }
