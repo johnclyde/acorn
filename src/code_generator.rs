@@ -361,6 +361,21 @@ impl CodeGenerator<'_> {
             }
         }
     }
+
+    /// For testing. Panics if generating code for this value does not give expected.
+    pub fn expect(bindings: &BindingMap, input: &str, value: &AcornValue, expected: &str) {
+        let output = match CodeGenerator::new(bindings).value_to_code(&value) {
+            Ok(output) => output,
+            Err(e) => panic!("code generation error: {}", e),
+        };
+
+        if output != expected {
+            panic!(
+                "\nconverted:\n  {}\nto value:\n  {}\nand back to:\n  {}\nbut expected:\n  {}\n",
+                input, value, output, expected
+            );
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -762,7 +777,7 @@ mod tests {
             "/mock/magma.ac",
             r#"
             typeclass M: Magma {
-                mul: (M, M) -> M
+                op: (M, M) -> M
             }
             "#,
         );
@@ -776,13 +791,13 @@ mod tests {
             }
 
             instance Z1: magma.Magma {
-                define mul(self, other: Z1) -> Z1 {
+                define op(self, other: Z1) -> Z1 {
                     Z1.zero
                 }
             }
             "#,
         );
-        p.check_code("main", "magma.Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+        p.check_code("main", "magma.Magma.op(Z1.zero, Z1.zero) = Z1.zero");
     }
 
     #[test]
@@ -813,5 +828,26 @@ mod tests {
             "#,
         );
         p.check_code("main", "Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+    }
+
+    #[test]
+    fn test_codegen_extended_infix() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
+
+            typeclass T: Thing extends Magma {
+                thing_property: Bool
+            }
+
+            theorem goal<T: Thing>(x: T) {
+                x * x = x
+            }
+            "#,
+        );
     }
 }

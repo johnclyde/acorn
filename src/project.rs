@@ -1048,6 +1048,7 @@ impl Project {
     #[cfg(test)]
     pub fn check_code_into(&mut self, module_name: &str, input: &str, expected: &str) {
         use crate::{code_generator::CodeGenerator, evaluator::Evaluator, expression::Expression};
+
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
         let env = self.get_env_by_id(module_id).expect("no env");
@@ -1055,22 +1056,26 @@ impl Project {
             Ok(value) => value,
             Err(e) => panic!("evaluation error: {}", e),
         };
-        let output = match CodeGenerator::new(&env.bindings).value_to_code(&value) {
-            Ok(output) => output,
-            Err(e) => panic!("code generation error: {}", e),
-        };
-
-        if output != expected {
-            panic!(
-                "\nconverted:\n  {}\nto value:\n  {}\nand back to:\n  {}\nbut expected:\n  {}\n",
-                input, value, output, expected
-            );
-        }
+        CodeGenerator::expect(&env.bindings, input, &value, expected);
     }
 
     #[cfg(test)]
     pub fn check_code(&mut self, module_name: &str, code: &str) {
         self.check_code_into(module_name, code, code);
+    }
+
+    // Checks that generating code for the goal of the given theorem gives the expected result.
+    #[cfg(test)]
+    pub fn check_goal(&mut self, module_name: &str, theorem_name: &str, expected: &str) {
+        use crate::code_generator::CodeGenerator;
+
+        let module_id = self.expect_ok(module_name);
+        let env = self.get_env_by_id(module_id).expect("no env");
+        let node = env.get_node_by_description(theorem_name);
+        let goal_context = node.goal_context().unwrap();
+        let value = goal_context.goal.value();
+        let fake_input = format!("<{}>", theorem_name);
+        CodeGenerator::expect(&node.env().bindings, &fake_input, &value, expected);
     }
 
     // Returns num_success.
