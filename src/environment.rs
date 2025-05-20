@@ -1350,7 +1350,6 @@ impl Environment {
             let typeclass = self.evaluator(project).evaluate_typeclass(extend)?;
             extends.push(typeclass);
         }
-        let extends_set: HashSet<_> = extends.iter().cloned().collect();
 
         // Check names are available and bind the typeclass.
         let instance_name = ts.instance_name.text();
@@ -1372,7 +1371,7 @@ impl Environment {
         self.bindings.add_arbitrary_type(type_param.clone());
         let type_params = vec![type_param.clone()];
 
-        if !extends_set.is_empty() {
+        if let Some(extends_set) = self.bindings.get_extends_set(&typeclass) {
             // Create a node for the extends relationship.
             let source = Source {
                 module_id: self.module_id,
@@ -1381,7 +1380,7 @@ impl Environment {
                 importable: true,
                 depth: self.depth,
             };
-            let extends_fact = Fact::Extends(typeclass.clone(), extends_set, source);
+            let extends_fact = Fact::Extends(typeclass.clone(), extends_set.clone(), source);
             self.add_node(Node::Structural(extends_fact));
         }
 

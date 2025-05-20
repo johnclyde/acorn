@@ -174,6 +174,13 @@ impl BindingMap {
         }
     }
 
+    /// Get the set of all typeclasses that this one extends.
+    /// This is the transitive closure, ie when A extends B and B extends C, A's set
+    /// will include both B and C.
+    pub fn get_extends_set(&self, typeclass: &Typeclass) -> Option<&HashSet<Typeclass>> {
+        Some(&self.typeclass_info.get(typeclass)?.extends)
+    }
+
     pub fn unifier(&self) -> TypeUnifier {
         TypeUnifier::new(self)
     }
