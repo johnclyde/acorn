@@ -331,13 +331,14 @@ impl CodeGenerator<'_> {
             }
             AcornValue::Constant(c) => {
                 if c.params.len() == 1 {
-                    if let Some(typeclass) = c.params[0].as_typeclass_representative() {
-                        if let Some(attribute) = c.name.as_typeclass_attribute(typeclass) {
-                            // This type is an abstract representation of the typeclass, so we
-                            // can represent this constant with dot syntax on the type rather than
-                            // the typeclass.
+                    if let Some((module_id, entity, attr)) = c.name.as_attribute() {
+                        if self
+                            .bindings
+                            .inherits_attributes(&c.params[0], module_id, entity)
+                        {
+                            // We can use receiver+attribute syntax
                             let lhs = self.type_to_expr(&c.params[0])?;
-                            let rhs = Expression::generate_identifier(&attribute);
+                            let rhs = Expression::generate_identifier(&attr);
                             return Ok(Expression::generate_dot(lhs, rhs));
                         }
                     }
