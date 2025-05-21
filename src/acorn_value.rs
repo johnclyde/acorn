@@ -176,32 +176,6 @@ impl ConstantInstance {
         }
     }
 
-    /// If this value is a dotted attribute of the given receiver type, return its name.
-    /// This can be constants or functions on a class, or attributes of a typeclass if the type
-    /// is a variable or arbitrary.
-    /// Note that this doesn't handle typeclasses correctly, so it kind of sucks.
-    pub fn bad_as_attribute(&self, t: &AcornType) -> Option<String> {
-        match t {
-            AcornType::Data(class, _) => {
-                if self.name.module_id != class.module_id {
-                    return None;
-                }
-                if let LocalName::Attribute(receiver, member) = &self.name.local_name {
-                    if receiver == &class.name {
-                        return Some(member.to_string());
-                    }
-                }
-            }
-            AcornType::Arbitrary(param) | AcornType::Variable(param) => {
-                if let Some(tc) = &param.typeclass {
-                    return self.name.as_typeclass_attribute(&tc);
-                }
-            }
-            _ => {}
-        };
-        None
-    }
-
     /// If this value is a typeclass attribute with the specific typeclass and class, convert
     /// it to the name used in its definition.
     pub fn to_defined_instance_name(
@@ -1804,17 +1778,6 @@ impl AcornValue {
             }
         }
         answer.unwrap()
-    }
-
-    /// If this value is a dotted attribute of the given receiver type, return its name.
-    /// This can be constants or functions on a class, or attributes of a typeclass if the type
-    /// is a variable or arbitrary.
-    /// Note that this doesn't handle typeclasses correctly, so it kind of sucks.
-    pub fn bad_as_attribute(&self, t: &AcornType) -> Option<String> {
-        match &self {
-            AcornValue::Constant(c) => c.bad_as_attribute(t),
-            _ => None,
-        }
     }
 
     /// If this value is a dotted attribute of a class or typeclass, return:
