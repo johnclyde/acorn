@@ -1,9 +1,10 @@
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
+use crate::module::ModuleId;
 use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
 use crate::token::TokenType;
 
@@ -178,7 +179,8 @@ impl ConstantInstance {
     /// If this value is a dotted attribute of the given receiver type, return its name.
     /// This can be constants or functions on a class, or attributes of a typeclass if the type
     /// is a variable or arbitrary.
-    pub fn as_attribute(&self, t: &AcornType) -> Option<String> {
+    /// Note that this doesn't handle typeclasses correctly, so it kind of sucks.
+    pub fn bad_as_attribute(&self, t: &AcornType) -> Option<String> {
         match t {
             AcornType::Data(class, _) => {
                 if self.name.module_id != class.module_id {
@@ -1807,9 +1809,19 @@ impl AcornValue {
     /// If this value is a dotted attribute of the given receiver type, return its name.
     /// This can be constants or functions on a class, or attributes of a typeclass if the type
     /// is a variable or arbitrary.
-    pub fn as_attribute(&self, t: &AcornType) -> Option<String> {
+    /// Note that this doesn't handle typeclasses correctly, so it kind of sucks.
+    pub fn bad_as_attribute(&self, t: &AcornType) -> Option<String> {
         match &self {
-            AcornValue::Constant(c) => c.as_attribute(t),
+            AcornValue::Constant(c) => c.bad_as_attribute(t),
+            _ => None,
+        }
+    }
+
+    /// If this value is a dotted attribute of a class or typeclass, return:
+    ///   (module id, receiver name, attribute name)
+    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
+        match &self {
+            AcornValue::Constant(c) => c.name.as_attribute(),
             _ => None,
         }
     }
@@ -1930,43 +1942,47 @@ impl AcornValue {
     /// Collects all type variables used in this value into the provided HashMap.
     /// The HashMap keys are the variable names.
     /// Returns an error if a type variable name is used with different typeclasses.
-    pub fn find_type_vars(&self, vars: &mut HashMap<String, TypeParam>, source: &dyn ErrorSource) -> compilation::Result<()> {
+    pub fn find_type_vars(
+        &self,
+        vars: &mut HashMap<String, TypeParam>,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
         match self {
             AcornValue::Variable(_, var_type) => {
                 var_type.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::Application(app) => {
                 app.function.find_type_vars(vars, source)?;
                 for arg in &app.args {
                     arg.find_type_vars(vars, source)?;
                 }
-            },
-            AcornValue::Lambda(args, value) | 
-            AcornValue::ForAll(args, value) | 
-            AcornValue::Exists(args, value) => {
+            }
+            AcornValue::Lambda(args, value)
+            | AcornValue::ForAll(args, value)
+            | AcornValue::Exists(args, value) => {
                 for arg_type in args {
                     arg_type.find_type_vars(vars, source)?;
                 }
                 value.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::Binary(_, left, right) => {
                 left.find_type_vars(vars, source)?;
                 right.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::Not(x) => {
                 x.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::Constant(c) => {
                 for param in &c.params {
                     param.find_type_vars(vars, source)?;
                 }
                 c.instance_type.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::IfThenElse(cond, if_value, else_value) => {
                 cond.find_type_vars(vars, source)?;
                 if_value.find_type_vars(vars, source)?;
                 else_value.find_type_vars(vars, source)?;
-            },
+            }
             AcornValue::Match(scrutinee, cases) => {
                 scrutinee.find_type_vars(vars, source)?;
                 for (new_vars, pattern, result) in cases {
@@ -1976,10 +1992,10 @@ impl AcornValue {
                     pattern.find_type_vars(vars, source)?;
                     result.find_type_vars(vars, source)?;
                 }
-            },
+            }
             AcornValue::Bool(_) => {
                 // Bool values don't contain type variables
-            },
+            }
         }
         Ok(())
     }

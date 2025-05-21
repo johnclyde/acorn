@@ -1366,6 +1366,19 @@ impl BindingMap {
     }
 }
 
+/// Information about a constructor.
+#[derive(Clone)]
+pub struct ConstructorInfo {
+    /// The class that this constructor constructs.
+    pub class: Class,
+
+    /// The index of this constructor in the class.
+    pub index: usize,
+
+    /// The total number of constructors for this class.
+    pub total: usize,
+}
+
 /// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
 struct ClassInfo {
@@ -1417,19 +1430,6 @@ impl ClassInfo {
         }
         Ok(())
     }
-}
-
-/// Information about a constructor.
-#[derive(Clone)]
-pub struct ConstructorInfo {
-    /// The class that this constructor constructs.
-    pub class: Class,
-
-    /// The index of this constructor in the class.
-    pub index: usize,
-
-    /// The total number of constructors for this class.
-    pub total: usize,
 }
 
 /// Information about a typeclass that is defined in this module.
@@ -1489,7 +1489,7 @@ fn keys_with_prefix<'a, T>(
 }
 
 impl TypeclassRegistry for BindingMap {
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+    fn class_is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
         self.class_info
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))

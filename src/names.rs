@@ -204,6 +204,16 @@ impl GlobalName {
         None
     }
 
+    /// If this value is a dotted attribute of a class or typeclass, return:
+    ///   (module id, receiver name, attribute name)
+    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
+        if let LocalName::Attribute(receiver, member) = &self.local_name {
+            Some((self.module_id, receiver, member))
+        } else {
+            None
+        }
+    }
+
     pub fn is_attribute_of(&self, class: &Class) -> bool {
         self.module_id == class.module_id && self.local_name.is_attribute_of(&class.name)
     }

@@ -1500,7 +1500,7 @@ impl Environment {
         for base_typeclass in self.bindings.get_extends(&typeclass) {
             if !self
                 .bindings
-                .is_instance_of(&instance_class, &base_typeclass)
+                .class_is_instance_of(&instance_class, &base_typeclass)
             {
                 return Err(statement.error(&format!(
                     "'{}' must be an instance of '{}' in order to be an instance of '{}'",

@@ -446,7 +446,6 @@ impl AcornType {
         }
     }
 
-
     /// Change the arbitrary types in this list of parameters to generic ones.
     pub fn genericize(&self, params: &[TypeParam]) -> AcornType {
         match self {

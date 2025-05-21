@@ -391,7 +391,7 @@ impl Monomorphizer {
 }
 
 impl TypeclassRegistry for Monomorphizer {
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+    fn class_is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
         if let Some(set) = self.instances.get(typeclass) {
             set.contains(class)
         } else {
