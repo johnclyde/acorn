@@ -853,7 +853,7 @@ mod tests {
             }
             "#,
         );
-        p.check_goal_code("main", "goal", "x * x = x")
+        p.check_goal_code("main", "goal", "x * x = x");
     }
 
     #[test]
@@ -875,6 +875,36 @@ mod tests {
             }
             "#,
         );
-        p.check_goal_code("main", "goal", "x * x = x")
+        p.check_goal_code("main", "goal", "x * x = x");
+    }
+
+    #[test]
+    fn test_codegen_for_imported_typeclasses() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            typeclass F: Foo {
+                zero: F
+                add: (F, F) -> F
+                neg: F -> F
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from foo import Foo
+
+            typeclass B: Bar extends Foo {
+                bar_property: Bool
+            }
+
+            theorem goal<B: Bar>(x: B) {
+                x + -x = B.zero + B.zero
+            }
+            "#,
+        );
+        p.check_goal_code("main", "goal", "x + -x = B.zero + B.zero");
     }
 }
