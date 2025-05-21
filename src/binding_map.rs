@@ -1489,7 +1489,7 @@ fn keys_with_prefix<'a, T>(
 }
 
 impl TypeclassRegistry for BindingMap {
-    fn class_is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
         self.class_info
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))

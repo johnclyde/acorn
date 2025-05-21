@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
+use crate::module::ModuleId;
 use crate::potential_value::PotentialValue;
 use crate::unresolved_constant::UnresolvedConstant;
 
@@ -36,21 +37,29 @@ pub enum Error {
 /// The registry is responsible for that.
 pub trait TypeclassRegistry {
     /// Returns whether the class is an instance of the typeclass.
-    fn class_is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool;
+    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool;
 
     /// Returns whether typeclass extends base.
     /// In particular, this returns false when typeclass == base.
     fn extends(&self, typeclass: &Typeclass, base: &Typeclass) -> bool;
 
-    /// Returns true if the type is an instance of the typeclass.
-    fn type_is_instance_of(&self, t: &AcornType, typeclass: &Typeclass) -> bool {
+    /// Returns whether this type has the attributes defined on the given entity.
+    /// The entity name can be either a class or typeclass.
+    fn inherits_attributes(&self, t: &AcornType, module_id: ModuleId, entity_name: &str) -> bool {
         match t {
-            AcornType::Data(class, _) => self.class_is_instance_of(class, typeclass),
+            AcornType::Data(class, _) => class.module_id == module_id && class.name == entity_name,
             AcornType::Variable(param) | AcornType::Arbitrary(param) => {
                 let Some(param_tc) = &param.typeclass else {
                     return false;
                 };
-                param_tc == typeclass || self.extends(param_tc, typeclass)
+                if param_tc.module_id == module_id && param_tc.name == entity_name {
+                    return true;
+                }
+                let typeclass = Typeclass {
+                    module_id,
+                    name: entity_name.to_string(),
+                };
+                self.extends(param_tc, &typeclass)
             }
             _ => false,
         }
@@ -95,10 +104,7 @@ impl<'a> TypeUnifier<'a> {
                 if let Some(generic_typeclass) = param.typeclass.as_ref() {
                     match instance_type {
                         AcornType::Data(class, _) => {
-                            if !self
-                                .registry
-                                .class_is_instance_of(&class, generic_typeclass)
-                            {
+                            if !self.registry.is_instance_of(&class, generic_typeclass) {
                                 return Err(Error::Class(class.clone(), generic_typeclass.clone()));
                             }
                         }

@@ -7,6 +7,7 @@ use crate::expression::{Declaration, Expression};
 use crate::module::{Module, ModuleId};
 use crate::names::{GlobalName, LocalName};
 use crate::token::TokenType;
+use crate::type_unifier::TypeclassRegistry;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -242,48 +243,55 @@ impl CodeGenerator<'_> {
                 }
 
                 // Check if we could replace this with receiver+attribute syntax
-                if let Some(name) = fa.function.bad_as_attribute(&fa.args[0].get_type()) {
-                    if args.len() == 1 {
-                        // Prefix operators
-                        if let Some(op) = TokenType::from_prefix_magic_method_name(&name) {
-                            return Ok(Expression::generate_unary(op, args.pop().unwrap()));
-                        }
-                    }
-
-                    if args.len() == 2 {
-                        // Infix operators
-                        if let Some(op) = TokenType::from_infix_magic_method_name(&name) {
-                            let right = args.pop().unwrap();
-                            let left = args.pop().unwrap();
-                            return Ok(Expression::generate_binary(left, op, right));
-                        }
-
-                        // Long numeric literals
-                        if name == "read" && args[0].is_number() {
-                            if let Some(digit) = args[1].to_digit() {
-                                let left = args.remove(0);
-                                return Ok(Expression::generate_number(left, digit));
+                let receiver_type = fa.args[0].get_type();
+                if let Some((module_id, entity, attr)) = fa.function.as_attribute() {
+                    if self
+                        .bindings
+                        .inherits_attributes(&receiver_type, module_id, entity)
+                    {
+                        // We can use receiver+attribute syntax
+                        if args.len() == 1 {
+                            // Prefix operators
+                            if let Some(op) = TokenType::from_prefix_magic_method_name(&attr) {
+                                return Ok(Expression::generate_unary(op, args.pop().unwrap()));
                             }
                         }
-                    }
 
-                    // General member functions
-                    let instance = args.remove(0);
-                    let bound = Expression::generate_binary(
-                        instance,
-                        TokenType::Dot,
-                        Expression::generate_identifier(&name),
-                    );
-                    if args.len() == 0 {
-                        // Like foo.bar
-                        return Ok(bound);
-                    } else {
-                        // Like foo.bar(baz, qux)
-                        let applied = Expression::Concatenation(
-                            Box::new(bound),
-                            Box::new(Expression::generate_paren_grouping(args)),
+                        if args.len() == 2 {
+                            // Infix operators
+                            if let Some(op) = TokenType::from_infix_magic_method_name(&attr) {
+                                let right = args.pop().unwrap();
+                                let left = args.pop().unwrap();
+                                return Ok(Expression::generate_binary(left, op, right));
+                            }
+
+                            // Long numeric literals
+                            if attr == "read" && args[0].is_number() {
+                                if let Some(digit) = args[1].to_digit() {
+                                    let left = args.remove(0);
+                                    return Ok(Expression::generate_number(left, digit));
+                                }
+                            }
+                        }
+
+                        // General member functions
+                        let instance = args.remove(0);
+                        let bound = Expression::generate_binary(
+                            instance,
+                            TokenType::Dot,
+                            Expression::generate_identifier(&attr),
                         );
-                        return Ok(applied);
+                        if args.len() == 0 {
+                            // Like foo.bar
+                            return Ok(bound);
+                        } else {
+                            // Like foo.bar(baz, qux)
+                            let applied = Expression::Concatenation(
+                                Box::new(bound),
+                                Box::new(Expression::generate_paren_grouping(args)),
+                            );
+                            return Ok(applied);
+                        }
                     }
                 }
 
@@ -848,25 +856,25 @@ mod tests {
         p.check_goal_code("main", "goal", "x * x = x")
     }
 
-    // #[test]
-    // fn test_codegen_extended_infix() {
-    //     let mut p = Project::new_mock();
-    //     p.mock(
-    //         "/mock/main.ac",
-    //         r#"
-    //         typeclass M: Magma {
-    //             mul: (M, M) -> M
-    //         }
+    #[test]
+    fn test_codegen_extended_infix() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass M: Magma {
+                mul: (M, M) -> M
+            }
 
-    //         typeclass T: Thing extends Magma {
-    //             thing_property: Bool
-    //         }
+            typeclass T: Thing extends Magma {
+                thing_property: Bool
+            }
 
-    //         theorem goal<T: Thing>(x: T) {
-    //             x * x = x
-    //         }
-    //         "#,
-    //     );
-    //     p.check_goal_code("main", "goal", "x * x = x")
-    // }
+            theorem goal<T: Thing>(x: T) {
+                x * x = x
+            }
+            "#,
+        );
+        p.check_goal_code("main", "goal", "x * x = x")
+    }
 }
