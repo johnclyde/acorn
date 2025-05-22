@@ -462,14 +462,6 @@ impl BindingMap {
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
-            // Old style
-            let global_name =
-                GlobalName::new(u.class.module_id, LocalName::unqualified(&u.class.name));
-            self.constant_to_alias
-                .entry(global_name)
-                .or_insert(alias.to_string());
-
-            // New style
             self.add_class_alias(&u.class, alias);
         }
 
@@ -529,16 +521,6 @@ impl BindingMap {
     /// Adds a local name for this typeclass.
     /// Panics if the name is already bound - that should be checked before calling this.
     fn add_typeclass_name(&mut self, name: &str, typeclass: Typeclass) {
-        // There can be multiple names for a typeclass.
-        // If we already have a name for the reverse lookup, we don't overwrite it.
-        // Old style
-        let canonical_name =
-            GlobalName::new(typeclass.module_id, LocalName::unqualified(&typeclass.name));
-        self.constant_to_alias
-            .entry(canonical_name)
-            .or_insert(name.to_string());
-
-        // New style
         self.add_typeclass_alias(&typeclass, name);
 
         match self.name_to_typeclass.entry(name.to_string()) {
