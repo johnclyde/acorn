@@ -41,11 +41,9 @@ impl CodeGenerator<'_> {
             return Ok(Expression::generate_identifier(&class.name));
         }
 
-        // Check if it's a type from a module that we have imported
-        // See if we have an alias
-        let global_name = GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-        if let Some(name) = self.bindings.constant_alias(&global_name) {
-            return Ok(Expression::generate_identifier(name));
+        // Check if we have an alias
+        if let Some(alias) = self.bindings.class_alias(&class) {
+            return Ok(Expression::generate_identifier(alias));
         }
 
         // Reference this type via referencing the imported module
