@@ -62,7 +62,7 @@ pub struct BindingMap {
     /// if we're generating code, we prefer to use the local name.
     /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
-    canonical_to_alias: HashMap<GlobalName, String>,
+    constant_to_alias: HashMap<GlobalName, String>,
 
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
@@ -92,7 +92,7 @@ impl BindingMap {
             name_to_typeclass: BTreeMap::new(),
             typeclass_info: HashMap::new(),
             unqualified: BTreeMap::new(),
-            canonical_to_alias: HashMap::new(),
+            constant_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
             numerals: None,
@@ -130,9 +130,41 @@ impl BindingMap {
         self.typeclass_info.get(typeclass)?.attributes.get(attr)
     }
 
-    /// Gets the local alias to use for a given global name.
-    pub fn get_alias(&self, name: &GlobalName) -> Option<&String> {
-        self.canonical_to_alias.get(name)
+    /// Gets the local alias to use for a given constant.
+    /// TODO: only use this for constants.
+    pub fn constant_alias(&self, name: &GlobalName) -> Option<&String> {
+        self.constant_to_alias.get(name)
+    }
+
+    /// Gets the local alias to use for a given class.
+    pub fn class_alias(&self, class: &Class) -> Option<&String> {
+        self.class_info.get(class)?.alias.as_ref()
+    }
+
+    fn add_class_alias(&mut self, class: &Class, alias: &str) {
+        if !self.class_info.contains_key(class) {
+            self.class_info.insert(class.clone(), ClassInfo::new());
+        }
+        let info = self.class_info.get_mut(class).unwrap();
+        if info.alias.is_none() {
+            info.alias = Some(alias.to_string());
+        }
+    }
+
+    fn add_typeclass_alias(&mut self, typeclass: &Typeclass, alias: &str) {
+        if !self.typeclass_info.contains_key(typeclass) {
+            self.typeclass_info
+                .insert(typeclass.clone(), TypeclassInfo::new());
+        }
+        let info = self.typeclass_info.get_mut(typeclass).unwrap();
+        if info.alias.is_none() {
+            info.alias = Some(alias.to_string());
+        }
+    }
+
+    /// Gets the local alias to use for a given typeclass.
+    pub fn typeclass_alias(&self, typeclass: &Typeclass) -> Option<&String> {
+        self.typeclass_info.get(typeclass)?.alias.as_ref()
     }
 
     pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
@@ -415,22 +447,30 @@ impl BindingMap {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
+                // Old style
                 let global_name =
                     GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-                self.canonical_to_alias
+                self.constant_to_alias
                     .entry(global_name)
                     .or_insert(alias.to_string());
+
+                // New style
+                self.add_class_alias(class, alias);
             }
         }
 
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
+            // Old style
             let global_name =
                 GlobalName::new(u.class.module_id, LocalName::unqualified(&u.class.name));
-            self.canonical_to_alias
+            self.constant_to_alias
                 .entry(global_name)
                 .or_insert(alias.to_string());
+
+            // New style
+            self.add_class_alias(&u.class, alias);
         }
 
         self.insert_type_name(alias.to_string(), potential);
@@ -491,11 +531,15 @@ impl BindingMap {
     fn add_typeclass_name(&mut self, name: &str, typeclass: Typeclass) {
         // There can be multiple names for a typeclass.
         // If we already have a name for the reverse lookup, we don't overwrite it.
+        // Old style
         let canonical_name =
             GlobalName::new(typeclass.module_id, LocalName::unqualified(&typeclass.name));
-        self.canonical_to_alias
+        self.constant_to_alias
             .entry(canonical_name)
             .or_insert(name.to_string());
+
+        // New style
+        self.add_typeclass_alias(&typeclass, name);
 
         match self.name_to_typeclass.entry(name.to_string()) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -697,7 +741,7 @@ impl BindingMap {
 
     /// Adds a local alias for an already-existing constant value.
     /// TODO: is aliasing theorems supposed to work?
-    pub fn add_alias(
+    pub fn add_constant_alias(
         &mut self,
         local_name: LocalName,
         global_name: GlobalName,
@@ -705,7 +749,7 @@ impl BindingMap {
     ) {
         if global_name.module_id != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
-            self.canonical_to_alias
+            self.constant_to_alias
                 .entry(global_name.clone())
                 .or_insert(local_name.to_string());
         }
@@ -987,7 +1031,7 @@ impl BindingMap {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some(global_name) = value.as_simple_constant() {
-                    self.add_alias(
+                    self.add_constant_alias(
                         local_name,
                         global_name.clone(),
                         PotentialValue::Resolved(value),
@@ -1009,7 +1053,11 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedValue(uc) => {
-                self.add_alias(local_name, uc.name.clone(), PotentialValue::Unresolved(uc));
+                self.add_constant_alias(
+                    local_name,
+                    uc.name.clone(),
+                    PotentialValue::Unresolved(uc),
+                );
                 Ok(())
             }
 
@@ -1387,6 +1435,9 @@ struct ClassInfo {
 
     /// Maps typeclasses this class is an instance of to the module with the instance statement.
     typeclasses: HashMap<Typeclass, ModuleId>,
+
+    /// The preferred local name for this class.
+    alias: Option<String>,
 }
 
 impl ClassInfo {
@@ -1394,6 +1445,7 @@ impl ClassInfo {
         ClassInfo {
             attributes: BTreeMap::new(),
             typeclasses: HashMap::new(),
+            alias: None,
         }
     }
 
@@ -1442,6 +1494,9 @@ struct TypeclassInfo {
 
     /// The typeclasses that this typeclass extends.
     extends: HashSet<Typeclass>,
+
+    /// The preferred local name for this typeclass.
+    alias: Option<String>,
 }
 
 impl TypeclassInfo {
@@ -1449,6 +1504,7 @@ impl TypeclassInfo {
         TypeclassInfo {
             attributes: BTreeMap::new(),
             extends: HashSet::new(),
+            alias: None,
         }
     }
 }

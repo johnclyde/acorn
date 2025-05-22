@@ -375,7 +375,7 @@ impl Environment {
                     // For local names, 'let x = y' should create an alias for y, not a new constant.
                     // Aliases for local names are handled in the binding map.
                     DefinedName::Local(local_name) => {
-                        self.bindings.add_alias(
+                        self.bindings.add_constant_alias(
                             local_name.clone(),
                             global_name.clone(),
                             PotentialValue::Resolved(value.clone()),

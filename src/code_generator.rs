@@ -44,7 +44,7 @@ impl CodeGenerator<'_> {
         // Check if it's a type from a module that we have imported
         // See if we have an alias
         let global_name = GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-        if let Some(name) = self.bindings.get_alias(&global_name) {
+        if let Some(name) = self.bindings.constant_alias(&global_name) {
             return Ok(Expression::generate_identifier(name));
         }
 
@@ -165,7 +165,7 @@ impl CodeGenerator<'_> {
         }
 
         // Check if there's a local alias for this constant.
-        if let Some(alias) = self.bindings.get_alias(&name) {
+        if let Some(alias) = self.bindings.constant_alias(&name) {
             return Ok(Expression::generate_identifier(alias));
         }
 
@@ -173,7 +173,7 @@ impl CodeGenerator<'_> {
         // Note that the receiver could be either a class or a typeclass.
         if let LocalName::Attribute(rname, attr) = &name.local_name {
             let receiver = GlobalName::new(name.module_id, LocalName::unqualified(rname));
-            if let Some(alias) = self.bindings.get_alias(&receiver) {
+            if let Some(alias) = self.bindings.constant_alias(&receiver) {
                 let lhs = Expression::generate_identifier(alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::generate_dot(lhs, rhs));
