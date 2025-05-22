@@ -205,3 +205,47 @@ impl GlobalName {
         self.module_id == class.module_id && self.local_name.is_attribute_of(&class.name)
     }
 }
+
+/// The ConstantName provides an identifier for a constant.
+/// It is unique within a given scope. It is not necessarily globally unique, because you
+/// could have two different modules mix the same attribute into a class or typeclass, or
+/// you could have a stack variable with the same name in two different places.
+#[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
+pub enum ConstantName {
+    /// An attribute of a class.
+    ClassAttribute(Class, String),
+
+    /// An attribute of a typeclass.
+    TypeclassAttribute(Typeclass, String),
+
+    /// A name for a constant that is not an attribute.
+    Unqualified(ModuleId, String),
+}
+
+impl ConstantName {
+    pub fn class_attr(class: Class, attr: &str) -> ConstantName {
+        ConstantName::ClassAttribute(class, attr.to_string())
+    }
+
+    pub fn typeclass_attr(tc: Typeclass, attr: &str) -> ConstantName {
+        ConstantName::TypeclassAttribute(tc, attr.to_string())
+    }
+
+    pub fn unqualified(module_id: ModuleId, name: &str) -> ConstantName {
+        ConstantName::Unqualified(module_id, name.to_string())
+    }
+
+    pub fn to_global_name(&self) -> GlobalName {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => {
+                GlobalName::new(class.module_id, LocalName::attribute(&class.name, attr))
+            }
+            ConstantName::TypeclassAttribute(tc, attr) => {
+                GlobalName::new(tc.module_id, LocalName::attribute(&tc.name, attr))
+            }
+            ConstantName::Unqualified(module_id, name) => {
+                GlobalName::new(*module_id, LocalName::unqualified(name))
+            }
+        }
+    }
+}
