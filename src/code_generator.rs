@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::{AcornType, PotentialType};
+use crate::acorn_type::{AcornType, Class, PotentialType};
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
@@ -36,30 +36,34 @@ impl CodeGenerator<'_> {
         }
     }
 
+    fn class_to_expr(&self, class: &Class) -> Result<Expression> {
+        if class.module_id == self.bindings.module_id() {
+            return Ok(Expression::generate_identifier(&class.name));
+        }
+
+        // Check if it's a type from a module that we have imported
+        // See if we have an alias
+        let global_name = GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
+        if let Some(name) = self.bindings.get_alias(&global_name) {
+            return Ok(Expression::generate_identifier(name));
+        }
+
+        // Reference this type via referencing the imported module
+        if let Some(module_name) = self.bindings.get_name_for_module_id(class.module_id) {
+            return Ok(Expression::generate_identifier_chain(&[
+                module_name,
+                &class.name,
+            ]));
+        }
+        Err(Error::unnamed_type(&class))
+    }
+
     /// Returns an error if this type can't be encoded as an expression.
     /// This will happen when it's defined in a module that isn't directly imported.
     /// In theory we could fix this, but we would have to have a way to suggest imports.
     /// There are probably other error cases.
     pub fn type_to_expr(&self, acorn_type: &AcornType) -> Result<Expression> {
-        if let AcornType::Function(ft) = acorn_type {
-            let mut args = vec![];
-            for arg_type in &ft.arg_types {
-                args.push(self.type_to_expr(arg_type)?);
-            }
-            let lhs = if args.len() == 1 {
-                args.pop().unwrap()
-            } else {
-                Expression::generate_paren_grouping(args)
-            };
-            let rhs = self.type_to_expr(&ft.return_type)?;
-            return Ok(Expression::Binary(
-                Box::new(lhs),
-                TokenType::RightArrow.generate(),
-                Box::new(rhs),
-            ));
-        }
-
-        // Check if there's a local alias for this exact type
+        // Check if there's a local name for this exact type
         if let Some(name) = self
             .bindings
             .get_typename_for_type(&PotentialType::Resolved(acorn_type.clone()))
@@ -69,29 +73,33 @@ impl CodeGenerator<'_> {
 
         match acorn_type {
             AcornType::Data(class, params) => {
-                // Check if it's a type from a module that we have imported
-                // See if we have an alias
-                let global_name =
-                    GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-                if let Some(name) = self.bindings.get_alias(&global_name) {
-                    let base_expr = Expression::generate_identifier(name);
-                    return self.parametrize_expr(base_expr, params);
-                }
+                let base_expr = self.class_to_expr(class)?;
 
-                // Reference this type via referencing the imported module
-                if let Some(module_name) = self.bindings.get_name_for_module_id(class.module_id) {
-                    let base_expr =
-                        Expression::generate_identifier_chain(&[module_name, &class.name]);
-                    return self.parametrize_expr(base_expr, params);
-                }
+                self.parametrize_expr(base_expr, params)
             }
             AcornType::Variable(param) | AcornType::Arbitrary(param) => {
-                return Ok(Expression::generate_identifier(&param.name));
+                Ok(Expression::generate_identifier(&param.name))
             }
-            _ => {}
+            AcornType::Function(ft) => {
+                let mut args = vec![];
+                for arg_type in &ft.arg_types {
+                    args.push(self.type_to_expr(arg_type)?);
+                }
+                let lhs = if args.len() == 1 {
+                    args.pop().unwrap()
+                } else {
+                    Expression::generate_paren_grouping(args)
+                };
+                let rhs = self.type_to_expr(&ft.return_type)?;
+                Ok(Expression::Binary(
+                    Box::new(lhs),
+                    TokenType::RightArrow.generate(),
+                    Box::new(rhs),
+                ))
+            }
+            AcornType::Empty => Err(Error::InternalError("empty type generated".to_string())),
+            AcornType::Bool => Err(Error::InternalError("Bool unbound".to_string())),
         }
-
-        Err(Error::unnamed_type(acorn_type))
     }
 
     /// Adds parameters, if there are any, to an expression representing a type.
@@ -416,8 +424,8 @@ impl Error {
         Error::Skolem(s.to_string())
     }
 
-    pub fn unnamed_type(acorn_type: &AcornType) -> Error {
-        Error::UnnamedType(format!("{:?}", acorn_type))
+    pub fn unnamed_type(class: &Class) -> Error {
+        Error::UnnamedType(class.name.to_string())
     }
 
     pub fn unhandled_value(s: &str) -> Error {
@@ -907,5 +915,55 @@ mod tests {
             "#,
         );
         p.check_goal_code("main", "goal", "x + -x = B.zero + B.zero");
+    }
+
+    #[test]
+    fn test_codegen_for_quantified_types() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass F: Foo {
+                item: F
+            }
+
+            inductive List<T> {
+                nil
+                cons(T, List<T>)
+            }
+
+            structure Bar {
+                item: Bool
+            }
+
+            theorem goal1 {
+                exists(a: Bar) {
+                    true
+                }
+            }
+
+            theorem goal2 {
+                exists(a: List<Bool>) {
+                    true
+                }
+            }
+
+            theorem goal3<F: Foo> {
+                exists(a: List<F>) {
+                    true
+                }
+            }
+
+            theorem goal4 {
+                exists(a: Bool) {
+                    a
+                }
+            }
+            "#,
+        );
+        p.check_goal_code("main", "goal1", "exists(k0: Bar) { true }");
+        p.check_goal_code("main", "goal2", "exists(k0: List<Bool>) { true }");
+        p.check_goal_code("main", "goal3", "exists(k0: List<F>) { true }");
+        p.check_goal_code("main", "goal4", "exists(k0: Bool) { k0 }");
     }
 }
