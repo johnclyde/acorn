@@ -825,11 +825,12 @@ impl BindingMap {
             entry.import(imported_info, &class.name, source)?;
         }
 
-        // Copy over the typeclass info.
+        // Copy over the typeclass info, but drop any aliases.
         for (typeclass, imported_info) in bindings.typeclass_info.iter() {
             if !self.typeclass_info.contains_key(typeclass) {
-                self.typeclass_info
-                    .insert(typeclass.clone(), imported_info.clone());
+                let mut imported_info = imported_info.clone();
+                imported_info.alias = None;
+                self.typeclass_info.insert(typeclass.clone(), imported_info);
             }
         }
         Ok(())

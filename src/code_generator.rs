@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class, PotentialType};
+use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
@@ -170,8 +170,23 @@ impl CodeGenerator<'_> {
         // If it's a member function, check if there's a local alias for its receiver.
         // Note that the receiver could be either a class or a typeclass.
         if let LocalName::Attribute(rname, attr) = &name.local_name {
-            let receiver = GlobalName::new(name.module_id, LocalName::unqualified(rname));
-            if let Some(alias) = self.bindings.constant_alias(&receiver) {
+            // Check if this is a class attribute
+            let class = Class {
+                module_id: name.module_id,
+                name: rname.to_string(),
+            };
+            if let Some(alias) = self.bindings.class_alias(&class) {
+                let lhs = Expression::generate_identifier(alias);
+                let rhs = Expression::generate_identifier(attr);
+                return Ok(Expression::generate_dot(lhs, rhs));
+            }
+
+            // Check if this is a typeclass attribute
+            let typeclass = Typeclass {
+                module_id: name.module_id,
+                name: rname.to_string(),
+            };
+            if let Some(alias) = self.bindings.typeclass_alias(&typeclass) {
                 let lhs = Expression::generate_identifier(alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::generate_dot(lhs, rhs));
