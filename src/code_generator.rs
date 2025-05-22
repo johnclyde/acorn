@@ -125,10 +125,6 @@ impl CodeGenerator<'_> {
 
     /// Given a module and a name, find an expression that refers to the name.
     /// The name can be dotted, if it's a class member.
-    /// Note that:
-    ///   module, the canonical module of the entity we are trying to express
-    /// is different from
-    ///   self.module, the module we are trying to express the name in
     fn name_to_expr(&self, name: &GlobalName) -> Result<Expression> {
         // We can't do skolems
         if name.module_id == Module::SKOLEM {
@@ -965,5 +961,61 @@ mod tests {
         p.check_goal_code("main", "goal2", "exists(k0: List<Bool>) { true }");
         p.check_goal_code("main", "goal3", "exists(k0: List<F>) { true }");
         p.check_goal_code("main", "goal4", "exists(k0: Bool) { k0 }");
+    }
+
+    #[test]
+    fn test_codegen_indirect_attribute() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo_base.ac",
+            r#"
+            inductive Foo {
+                foo
+            }
+
+            class Foo {
+                define add(self, other: Foo) -> Foo {
+                    Foo.foo
+                }
+            }
+        "#,
+        );
+        p.mock(
+            "/mock/foo_middle.ac",
+            r#"
+            from foo_base import Foo
+            class Foo {
+                define mul(self, other: Foo) -> Foo {
+                    Foo.foo
+                }
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/foo.ac",
+            r#"
+            from foo_middle import Foo
+            class Foo {
+                define sub(self, other: Foo) -> Foo {
+                    Foo.foo
+                }
+            }
+            "#,
+        );
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            from foo import Foo
+            "#,
+        );
+        p.check_code("main", "Foo.add");
+        p.check_code("main", "Foo.foo.add");
+        p.check_code("main", "Foo.foo + Foo.foo");
+        p.check_code("main", "Foo.mul");
+        p.check_code("main", "Foo.foo.mul");
+        p.check_code("main", "Foo.foo * Foo.foo");
+        p.check_code("main", "Foo.sub");
+        p.check_code("main", "Foo.foo.sub");
+        p.check_code("main", "Foo.foo - Foo.foo");
     }
 }
