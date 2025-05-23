@@ -278,6 +278,7 @@ impl NameShim {
         NameShim(global_name)
     }
 
+    /// TODO: deprecate and remove.
     pub fn to_global_name(&self) -> GlobalName {
         self.0.clone()
     }

@@ -615,6 +615,20 @@ impl BindingMap {
         }
     }
 
+    /// Adds a constant that is an attribute of a class.
+    pub fn add_class_attribute(
+        &mut self,
+        class: &Class,
+        attr: &str,
+        params: Vec<TypeParam>,
+        constant_type: AcornType,
+        definition: Option<AcornValue>,
+        constructor: Option<ConstructorInfo>,
+    ) -> PotentialValue {
+        let local_name = LocalName::attribute(&class.name, attr);
+        self.add_local_constant(local_name, params, constant_type, definition, constructor)
+    }
+
     /// Adds a constant that is not an attribute of anything.
     pub fn add_unqualified_constant(
         &mut self,

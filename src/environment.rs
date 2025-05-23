@@ -791,8 +791,7 @@ impl Environment {
                     field_name_token.text()
                 )));
             }
-            let member_fn_name = LocalName::attribute(&ss.name, field_name_token.text());
-            member_fn_names.push(member_fn_name);
+            member_fn_names.push(field_name_token.text());
         }
 
         // If there's a constraint, add a block to prove it can be satisfied.
@@ -830,6 +829,10 @@ impl Environment {
 
         // The member functions take the type itself to a particular member.
         // These may be unresolved values.
+        let class = Class {
+            module_id: self.module_id,
+            name: ss.name.clone(),
+        };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let potential_type = self.bindings.add_potential_type(&ss.name, typeclasses);
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
@@ -837,7 +840,8 @@ impl Environment {
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
-            let potential = self.bindings.add_local_constant(
+            let potential = self.bindings.add_class_attribute(
+                &class,
                 member_fn_name,
                 type_params.clone(),
                 member_fn_type.genericize(&type_params),
@@ -848,10 +852,7 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
-        let class = Class {
-            module_id: self.module_id,
-            name: ss.name.clone(),
-        };
+
         let new_fn_name = LocalName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let constructor_info = ConstructorInfo {
