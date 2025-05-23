@@ -670,8 +670,8 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
-        let local_name = LocalName::attribute(&class.name, attr);
-        self.add_local_name(local_name, params, constant_type, definition, constructor)
+        let constant_name = ConstantName::class_attr(class.clone(), attr);
+        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
     }
 
     pub fn add_typeclass_attribute(
@@ -683,8 +683,8 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
-        let local_name = LocalName::attribute(&typeclass.name, attr);
-        self.add_local_name(local_name, params, constant_type, definition, constructor)
+        let constant_name = ConstantName::typeclass_attr(typeclass.clone(), attr);
+        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
     }
 
     /// Adds a constant that is not an attribute of anything.
@@ -696,8 +696,8 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
-        let local_name = LocalName::unqualified(name);
-        self.add_local_name(local_name, params, constant_type, definition, constructor)
+        let constant_name = ConstantName::unqualified(self.module_id, name);
+        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
     }
 
     /// Adds a constant that is defined locally.
@@ -1286,7 +1286,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_local_name(function_name.to_local(), vec![], fn_type, None, None);
+            self.add_constant_name(function_name, vec![], fn_type, None, None);
         }
 
         // Evaluate the internal value using our modified bindings
