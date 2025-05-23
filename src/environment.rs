@@ -1454,8 +1454,9 @@ impl Environment {
             let lambda_claim = AcornValue::lambda(arg_types.clone(), unbound_claim.clone())
                 .genericize(&type_params);
             let theorem_type = lambda_claim.get_type();
-            self.bindings.add_local_constant(
-                local_name.clone(),
+            self.bindings.add_typeclass_attribute(
+                &typeclass,
+                &condition.name.text(),
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim),

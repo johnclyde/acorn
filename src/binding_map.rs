@@ -656,7 +656,7 @@ impl BindingMap {
     }
 
     /// Adds a constant that is defined locally.
-    pub fn add_local_constant(
+    fn add_local_constant(
         &mut self,
         local_name: LocalName,
         params: Vec<TypeParam>,
