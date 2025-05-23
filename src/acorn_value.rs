@@ -454,20 +454,6 @@ impl AcornValue {
         AcornValue::Constant(ci)
     }
 
-    /// TODO: deprecate and remove.
-    pub fn old_constant(
-        global_name: GlobalName,
-        params: Vec<AcornType>,
-        instance_type: AcornType,
-    ) -> AcornValue {
-        let ci = ConstantInstance {
-            name: NameShim::new(global_name),
-            params,
-            instance_type,
-        };
-        AcornValue::Constant(ci)
-    }
-
     /// Creates a constant value
     pub fn constant(
         name: NameShim,

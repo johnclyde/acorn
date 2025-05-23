@@ -178,6 +178,11 @@ impl ConstantName {
             ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
         }
     }
+
+    // TODO: deprecate and remove.
+    pub fn from_constant_name(name: &ConstantName) -> ConstantName {
+        name.clone()
+    }
 }
 
 impl fmt::Display for ConstantName {
@@ -215,6 +220,10 @@ impl NameShim {
 
     pub fn unqualified(module_id: ModuleId, name: &str) -> NameShim {
         NameShim(GlobalName::new(module_id, LocalName::unqualified(name)))
+    }
+
+    pub fn from_constant_name(name: &ConstantName) -> NameShim {
+        NameShim(name.to_global())
     }
 
     /// TODO: deprecate and remove.

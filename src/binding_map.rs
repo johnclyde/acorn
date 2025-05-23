@@ -710,15 +710,9 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
-        let local_name = match constant_name {
-            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
-        };
-
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
-                panic!("invalid definition for constant {}: {}", local_name, e);
+                panic!("invalid definition for constant {}: {}", constant_name, e);
             }
             if params.is_empty() && definition.has_generic() {
                 panic!("there should not be generic types in non-parametrized definitions");
@@ -727,20 +721,22 @@ impl BindingMap {
                 panic!("there should not be arbitrary types in parametrized definitions");
             }
         }
-        let global_name = GlobalName::new(self.module_id, local_name.clone());
 
         let value = if params.is_empty() {
             if constant_type.has_generic() {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
-            PotentialValue::Resolved(AcornValue::old_constant(global_name, vec![], constant_type))
+            PotentialValue::Resolved(AcornValue::constant(
+                NameShim::from_constant_name(constant_name),
+                vec![],
+                constant_type,
+            ))
         } else {
             if constant_type.has_arbitrary() {
                 panic!("there should not be arbitrary types in parametrized constant types");
             }
-            let global_name = GlobalName::new(self.module_id, local_name.clone());
             PotentialValue::Unresolved(UnresolvedConstant {
-                name: NameShim::new(global_name),
+                name: NameShim::from_constant_name(constant_name),
                 params,
                 generic_type: constant_type,
             })
@@ -755,7 +751,7 @@ impl BindingMap {
             constructor,
         };
 
-        self.add_constant_info(local_name, info);
+        self.add_constant_info(constant_name.to_local(), info);
         value
     }
 
