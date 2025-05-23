@@ -167,9 +167,6 @@ impl BindingMap {
     }
 
     fn local_name_in_use(&self, local_name: &LocalName) -> bool {
-        if self.constant_info.contains_key(local_name) {
-            return true;
-        }
         match local_name {
             LocalName::Unqualified(word) => {
                 self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
@@ -199,10 +196,13 @@ impl BindingMap {
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
             DefinedName::Constant(constant_name) => {
+                if self.constant_info.contains_key(&constant_name.to_local()) {
+                    return true;
+                }
                 match constant_name {
                     ConstantName::Unqualified(_, name) => {
-                        let local_name = LocalName::unqualified(name);
-                        self.local_name_in_use(&local_name)
+                        self.unqualified.contains_key(name)
+                            || self.name_to_module.contains_key(name)
                     }
                     ConstantName::ClassAttribute(class, attr) => {
                         let local_name = LocalName::attribute(&class.name, attr);
@@ -243,8 +243,12 @@ impl BindingMap {
             DefinedName::Constant(constant_name) => {
                 let local_name = match constant_name {
                     ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                    ConstantName::ClassAttribute(class, attr) => {
+                        LocalName::attribute(&class.name, attr)
+                    }
+                    ConstantName::TypeclassAttribute(tc, attr) => {
+                        LocalName::attribute(&tc.name, attr)
+                    }
                 };
                 match self.constant_info.get(&local_name) {
                     Some(info) => Ok(info.value.clone()),
@@ -307,8 +311,12 @@ impl BindingMap {
             DefinedName::Constant(constant_name) => {
                 let local_name = match constant_name {
                     ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                    ConstantName::ClassAttribute(class, attr) => {
+                        LocalName::attribute(&class.name, attr)
+                    }
+                    ConstantName::TypeclassAttribute(tc, attr) => {
+                        LocalName::attribute(&tc.name, attr)
+                    }
                 };
                 self.constant_info.get(&local_name)?.definition.as_ref()
             }
@@ -396,7 +404,8 @@ impl BindingMap {
     /// 'x' is the prefix here.
     pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
-            let name = DefinedName::unqualified(self.module_id, &format!("{}{}", prefix, next_index));
+            let name =
+                DefinedName::unqualified(self.module_id, &format!("{}{}", prefix, next_index));
             *next_index += 1;
             if !self.constant_name_in_use(&name) {
                 return name.to_string();
@@ -626,8 +635,12 @@ impl BindingMap {
             DefinedName::Constant(constant_name) => {
                 let local_name = match constant_name {
                     ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                    ConstantName::ClassAttribute(class, attr) => {
+                        LocalName::attribute(&class.name, attr)
+                    }
+                    ConstantName::TypeclassAttribute(tc, attr) => {
+                        LocalName::attribute(&tc.name, attr)
+                    }
                 };
                 self.add_local_constant(local_name, params, constant_type, definition, constructor)
             }

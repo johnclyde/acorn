@@ -167,11 +167,7 @@ impl Environment {
             .bindings
             .get_constant_value(defined_name, &PanicOnError)
             .expect("bad add_definition call");
-        let range = self
-            .definition_ranges
-            .get(defined_name)
-            .unwrap()
-            .clone();
+        let range = self.definition_ranges.get(defined_name).unwrap().clone();
         let name = defined_name.to_string();
         let source = Source::constant_definition(
             self.module_id,
@@ -381,8 +377,12 @@ impl Environment {
                     DefinedName::Constant(constant_name) => {
                         let local_name = match constant_name {
                             ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-                            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                            ConstantName::ClassAttribute(class, attr) => {
+                                LocalName::attribute(&class.name, attr)
+                            }
+                            ConstantName::TypeclassAttribute(tc, attr) => {
+                                LocalName::attribute(&tc.name, attr)
+                            }
                         };
                         self.bindings.add_constant_alias(
                             local_name.clone(),
@@ -447,7 +447,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                constant_name.as_local().as_ref(),
+                constant_name.to_local().as_ref(),
                 project,
             )?;
 
@@ -684,8 +684,7 @@ impl Environment {
             end: fss.satisfy_token.end_pos(),
         };
         let name = DefinedName::unqualified(self.module_id, &fss.name);
-        self.definition_ranges
-            .insert(name, definition_range);
+        self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
             &[],

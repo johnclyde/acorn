@@ -170,6 +170,14 @@ impl ConstantName {
             }
         }
     }
+
+    pub fn to_local(&self) -> LocalName {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+        }
+    }
 }
 
 impl fmt::Display for ConstantName {
@@ -305,18 +313,14 @@ impl DefinedName {
         }
     }
 
-    pub fn as_local(&self) -> Option<LocalName> {
+    pub fn as_constant(&self) -> Option<&ConstantName> {
         match self {
-            DefinedName::Constant(constant_name) => match constant_name {
-                ConstantName::Unqualified(_, name) => Some(LocalName::unqualified(name)),
-                ConstantName::ClassAttribute(class, attr) => {
-                    Some(LocalName::attribute(&class.name, attr))
-                }
-                ConstantName::TypeclassAttribute(tc, attr) => {
-                    Some(LocalName::attribute(&tc.name, attr))
-                }
-            },
+            DefinedName::Constant(name) => Some(name),
             DefinedName::Instance(_) => None,
         }
+    }
+
+    pub fn to_local(&self) -> Option<LocalName> {
+        Some(self.as_constant()?.to_local())
     }
 }
