@@ -10,7 +10,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
-use crate::names::{DefinedName, LocalName};
+use crate::names::DefinedName;
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -123,11 +123,13 @@ impl Block {
         let mut internal_args = vec![];
         for (arg_name, generic_arg_type) in &args {
             let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
-            let arg_name = LocalName::unqualified(arg_name);
-            let potential =
-                subenv
-                    .bindings
-                    .add_local_constant(arg_name, vec![], specific_arg_type, None, None);
+            let potential = subenv.bindings.add_unqualified_constant(
+                arg_name,
+                vec![],
+                specific_arg_type,
+                None,
+                None,
+            );
             internal_args.push(potential.force_value());
         }
 
@@ -184,11 +186,13 @@ impl Block {
                 // Inside the block, the pattern arguments are constants.
                 let mut arg_values = vec![];
                 for (arg_name, arg_type) in pattern_args {
-                    let arg_name = LocalName::unqualified(&arg_name);
-                    let potential =
-                        subenv
-                            .bindings
-                            .add_local_constant(arg_name, vec![], arg_type, None, None);
+                    let potential = subenv.bindings.add_unqualified_constant(
+                        &arg_name,
+                        vec![],
+                        arg_type,
+                        None,
+                        None,
+                    );
                     arg_values.push(potential.force_value());
                 }
                 // Inside the block, we can assume the pattern matches.

@@ -562,8 +562,8 @@ impl Environment {
         let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
-            self.bindings.add_local_constant(
-                LocalName::unqualified(name),
+            self.bindings.add_unqualified_constant(
+                name,
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
@@ -632,9 +632,13 @@ impl Environment {
 
         // Define the quantifiers as constants
         for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
-            let name = LocalName::unqualified(quant_name);
-            self.bindings
-                .add_local_constant(name, vec![], quant_type.clone(), None, None);
+            self.bindings.add_unqualified_constant(
+                quant_name,
+                vec![],
+                quant_type.clone(),
+                None,
+                None,
+            );
         }
 
         // We can then assume the specific existence claim with the named constants
@@ -715,10 +719,9 @@ impl Environment {
         )?;
 
         // We define this function not with an equality, but via the condition.
-        let local_name = LocalName::unqualified(&fss.name);
         let function_type = AcornType::functional(arg_types.clone(), return_type);
-        self.bindings.add_local_constant(
-            local_name.clone(),
+        self.bindings.add_unqualified_constant(
+            &fss.name,
             vec![],
             function_type.clone(),
             None,

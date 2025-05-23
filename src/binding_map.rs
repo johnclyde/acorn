@@ -615,7 +615,20 @@ impl BindingMap {
         }
     }
 
-    /// Adds a constant where we already know it has a local name.
+    /// Adds a constant that is not an attribute of anything.
+    pub fn add_unqualified_constant(
+        &mut self,
+        name: &str,
+        params: Vec<TypeParam>,
+        constant_type: AcornType,
+        definition: Option<AcornValue>,
+        constructor: Option<ConstructorInfo>,
+    ) -> PotentialValue {
+        let local_name = LocalName::unqualified(name);
+        self.add_local_constant(local_name, params, constant_type, definition, constructor)
+    }
+
+    /// Adds a constant that is defined locally.
     pub fn add_local_constant(
         &mut self,
         local_name: LocalName,
