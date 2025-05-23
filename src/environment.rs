@@ -2298,7 +2298,7 @@ impl Environment {
 
     /// Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
-        let name = OldDefinedName::guess(name);
+        let name = OldDefinedName::unqualified(name);
         let env_value = match self.bindings.get_definition(&name) {
             Some(t) => t,
             None => panic!("{} not found in environment", name),
@@ -2308,18 +2308,18 @@ impl Environment {
 
     /// Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
-        let name1 = OldDefinedName::guess(name1);
+        let name1 = OldDefinedName::unqualified(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = OldDefinedName::guess(name2);
+        let name2 = OldDefinedName::unqualified(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_eq!(def1, def2);
     }
 
     /// Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
-        let name1 = OldDefinedName::guess(name1);
+        let name1 = OldDefinedName::unqualified(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = OldDefinedName::guess(name2);
+        let name2 = OldDefinedName::unqualified(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_ne!(def1, def2);
     }

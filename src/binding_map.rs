@@ -274,7 +274,7 @@ impl BindingMap {
 
     /// Just use this for testing.
     pub fn has_constant_name(&self, name: &str) -> bool {
-        let name = LocalName::guess(name);
+        let name = LocalName::unqualified(name);
         self.constant_info.contains_key(&name)
     }
 
@@ -1409,7 +1409,7 @@ impl BindingMap {
 
     /// Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let name = OldDefinedName::guess(name);
+        let name = OldDefinedName::unqualified(name);
         let value = self
             .get_constant_value(&name, &PanicOnError)
             .expect("no such constant");

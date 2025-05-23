@@ -165,11 +165,6 @@ impl OldDefinedName {
             OldDefinedName::Instance(..) => None,
         }
     }
-
-    /// Just use this for testing.
-    pub fn guess(s: &str) -> OldDefinedName {
-        OldDefinedName::Local(LocalName::guess(s))
-    }
 }
 
 /// The GlobalName provides a globally unique identifier for a constant.
@@ -186,14 +181,6 @@ impl GlobalName {
         GlobalName {
             module_id,
             local_name,
-        }
-    }
-
-    /// Only use this for testing.
-    pub fn guess(module_id: ModuleId, s: &str) -> GlobalName {
-        GlobalName {
-            module_id,
-            local_name: LocalName::guess(s),
         }
     }
 
