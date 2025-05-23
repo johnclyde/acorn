@@ -155,8 +155,8 @@ impl Environment {
 
     /// Adds a node to represent the definition of the provided
     /// constant.
-    pub fn add_definition(&mut self, constant_name: &OldDefinedName) {
-        let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
+    pub fn add_definition(&mut self, defined_name: &DefinedName) {
+        let definition = if let Some(d) = self.bindings.get_definition(&defined_name.to_old()) {
             d.clone()
         } else {
             return;
@@ -165,10 +165,14 @@ impl Environment {
         // This constant can be generic, with type variables in it.
         let potential = self
             .bindings
-            .get_constant_value(constant_name, &PanicOnError)
+            .get_constant_value(&defined_name.to_old(), &PanicOnError)
             .expect("bad add_definition call");
-        let range = self.definition_ranges.get(&constant_name).unwrap().clone();
-        let name = constant_name.to_string();
+        let range = self
+            .definition_ranges
+            .get(&defined_name.to_old())
+            .unwrap()
+            .clone();
+        let name = defined_name.to_string();
         let source = Source::constant_definition(
             self.module_id,
             range,
@@ -183,15 +187,15 @@ impl Environment {
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
     fn define_constant(
         &mut self,
-        name: OldDefinedName,
+        name: DefinedName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
         range: Range,
     ) {
         self.bindings
-            .add_constant(name.clone(), params, constant_type, definition, None);
-        self.definition_ranges.insert(name.clone(), range);
+            .add_constant(name.to_old(), params, constant_type, definition, None);
+        self.definition_ranges.insert(name.to_old(), range);
         self.add_definition(&name);
     }
 
@@ -388,7 +392,7 @@ impl Environment {
                 }
             }
         }
-        self.define_constant(defined_name.to_old(), type_params, acorn_type, value, range);
+        self.define_constant(defined_name, type_params, acorn_type, value, range);
         Ok(())
     }
 
@@ -401,7 +405,7 @@ impl Environment {
     fn add_define_statement(
         &mut self,
         project: &Project,
-        constant_name: OldDefinedName,
+        constant_name: DefinedName,
         self_type: Option<&AcornType>,
         class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
@@ -423,7 +427,7 @@ impl Environment {
                 .name_token
                 .error("member functions may not have type parameters"));
         }
-        if self.bindings.constant_name_in_use(&constant_name) {
+        if self.bindings.constant_name_in_use(&constant_name.to_old()) {
             return Err(ds.name_token.error(&format!(
                 "function name '{}' already defined in this scope",
                 constant_name
@@ -438,7 +442,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                constant_name.as_local(),
+                constant_name.to_old().as_local(),
                 project,
             )?;
 
@@ -1321,7 +1325,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        OldDefinedName::attribute(&cs.name, &ds.name),
+                        DefinedName::attribute(class, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1542,11 +1546,7 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        OldDefinedName::instance(
-                            typeclass.clone(),
-                            &ds.name,
-                            instance_class.clone(),
-                        ),
+                        DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1996,7 +1996,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
-                    OldDefinedName::unqualified(&ds.name),
+                    DefinedName::unqualified(self.module_id, &ds.name),
                     None,
                     None,
                     ds,

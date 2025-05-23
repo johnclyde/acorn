@@ -10,7 +10,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::environment::{Environment, LineType};
 use crate::fact::Fact;
 use crate::goal::{Goal, GoalContext};
-use crate::names::OldDefinedName;
+use crate::names::DefinedName;
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -145,7 +145,7 @@ impl Block {
                     // Within the theorem block, the theorem is treated like a function,
                     // with propositions to define its identity.
                     // This makes it less annoying to define inductive hypotheses.
-                    subenv.add_definition(&OldDefinedName::unqualified(name));
+                    subenv.add_definition(&DefinedName::unqualified(env.module_id, name));
                 }
 
                 if let Some((unbound_premise, premise_range)) = premise {
