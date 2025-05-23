@@ -447,14 +447,6 @@ impl BindingMap {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
-                // Old style
-                let global_name =
-                    GlobalName::new(class.module_id, LocalName::unqualified(&class.name));
-                self.constant_to_alias
-                    .entry(global_name)
-                    .or_insert(alias.to_string());
-
-                // New style
                 self.add_class_alias(class, alias);
             }
         }

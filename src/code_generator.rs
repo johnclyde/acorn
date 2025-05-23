@@ -130,20 +130,22 @@ impl CodeGenerator<'_> {
         }
 
         // Handle numeric literals
-        if let LocalName::Attribute(class, attr) = &name.local_name {
+        if let LocalName::Attribute(class_name, attr) = &name.local_name {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
+                let class = Class {
+                    module_id: name.module_id,
+                    name: class_name.to_string(),
+                };
+
                 let numeral = TokenType::Numeral.new_token(attr);
 
                 // If it's the default type, we don't need to scope it
-                if let Some(numerals) = self.bindings.numerals() {
-                    if numerals.module_id == name.module_id && &numerals.name == class {
-                        return Ok(Expression::Singleton(numeral));
-                    }
+                if self.bindings.numerals() == Some(&class) {
+                    return Ok(Expression::Singleton(numeral));
                 }
 
                 // Otherwise, we need to scope it by the type
-                let type_name = GlobalName::new(name.module_id, LocalName::unqualified(class));
-                let numeric_type = self.name_to_expr(&type_name)?;
+                let numeric_type = self.class_to_expr(&class)?;
                 return Ok(Expression::generate_dot(
                     numeric_type,
                     Expression::Singleton(numeral),
