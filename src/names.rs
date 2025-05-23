@@ -74,38 +74,6 @@ impl fmt::Display for InstanceName {
     }
 }
 
-/// The GlobalName provides a globally unique identifier for a constant.
-/// It doesn't work correctly with mixins, because it doesn't differentiate between
-/// the place where the class was defined, and the place where the attribute was defined.
-#[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
-pub struct GlobalName {
-    pub module_id: ModuleId,
-    pub local_name: LocalName,
-}
-
-impl GlobalName {
-    pub fn new(module_id: ModuleId, local_name: LocalName) -> GlobalName {
-        GlobalName {
-            module_id,
-            local_name,
-        }
-    }
-
-    /// If this value is a dotted attribute of a class or typeclass, return:
-    ///   (module id, receiver name, attribute name)
-    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
-        if let LocalName::Attribute(receiver, member) = &self.local_name {
-            Some((self.module_id, receiver, member))
-        } else {
-            None
-        }
-    }
-
-    pub fn is_attribute_of(&self, class: &Class) -> bool {
-        self.module_id == class.module_id && self.local_name.is_attribute_of(&class.name)
-    }
-}
-
 /// The ConstantName provides an identifier for a constant.
 /// It is unique within a given scope. It is not necessarily globally unique, because you
 /// could have two different modules mix the same attribute into a class or typeclass, or
@@ -140,20 +108,6 @@ impl ConstantName {
             ConstantName::ClassAttribute(class, attr) => Some((class.module_id, &class.name, attr)),
             ConstantName::TypeclassAttribute(tc, attr) => Some((tc.module_id, &tc.name, attr)),
             ConstantName::Unqualified(..) => None,
-        }
-    }
-
-    pub fn to_global(&self) -> GlobalName {
-        match self {
-            ConstantName::ClassAttribute(class, attr) => {
-                GlobalName::new(class.module_id, LocalName::attribute(&class.name, attr))
-            }
-            ConstantName::TypeclassAttribute(tc, attr) => {
-                GlobalName::new(tc.module_id, LocalName::attribute(&tc.name, attr))
-            }
-            ConstantName::Unqualified(module_id, name) => {
-                GlobalName::new(*module_id, LocalName::unqualified(name))
-            }
         }
     }
 
@@ -192,11 +146,6 @@ impl ConstantName {
             ConstantName::ClassAttribute(class_attr, _) => class_attr == class,
             _ => false,
         }
-    }
-
-    // TODO: deprecate and remove.
-    pub fn from_constant_name(name: &ConstantName) -> ConstantName {
-        name.clone()
     }
 }
 
