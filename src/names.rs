@@ -207,47 +207,6 @@ impl fmt::Display for ConstantName {
     }
 }
 
-// For migrating from GlobalName to ConstantName.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct NameShim(GlobalName);
-
-impl NameShim {
-    pub fn class_attr(class: Class, attr: &str) -> NameShim {
-        NameShim(GlobalName::new(
-            class.module_id,
-            LocalName::attribute(&class.name, attr),
-        ))
-    }
-
-    pub fn typeclass_attr(tc: Typeclass, attr: &str) -> NameShim {
-        NameShim(GlobalName::new(
-            tc.module_id,
-            LocalName::attribute(&tc.name, attr),
-        ))
-    }
-
-    pub fn unqualified(module_id: ModuleId, name: &str) -> NameShim {
-        NameShim(GlobalName::new(module_id, LocalName::unqualified(name)))
-    }
-
-    pub fn from_constant_name(name: &ConstantName) -> NameShim {
-        NameShim(name.to_global())
-    }
-
-    /// TODO: deprecate and remove.
-    pub fn to_global(&self) -> GlobalName {
-        self.0.clone()
-    }
-
-    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
-        self.0.as_attribute()
-    }
-
-    pub fn module_id(&self) -> ModuleId {
-        self.0.module_id
-    }
-}
-
 /// The DefinedName describes how a constant was defined.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub enum DefinedName {
