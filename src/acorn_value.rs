@@ -98,11 +98,29 @@ impl fmt::Display for BinaryOp {
     }
 }
 
+// For migrating to the new naming scheme
+#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct NameShim(GlobalName);
+
+impl NameShim {
+    pub fn to_global_name(&self) -> GlobalName {
+        self.0.clone()
+    }
+
+    fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
+        self.0.as_attribute()
+    }
+
+    fn as_global_name(&self) -> &GlobalName {
+        &self.0
+    }
+}
+
 /// An instance of a constant. Could be generic or not.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
-    /// The global name of this constant
-    global_name: GlobalName,
+    /// The name of this constant
+    name: NameShim,
 
     /// The type parameters that this constant was instantiated with, if any.
     /// Ordered the same way as in the definition.
@@ -127,7 +145,7 @@ impl ConstantInstance {
     /// Make another constant with the same name as this one.
     fn same_name(&self, params: Vec<AcornType>, instance_type: AcornType) -> ConstantInstance {
         ConstantInstance {
-            global_name: self.global_name.clone(),
+            name: self.name.clone(),
             params,
             instance_type,
         }
@@ -135,7 +153,7 @@ impl ConstantInstance {
 
     // TODO: remove this, because it acts weirdly for mixins
     pub fn global_name(&self) -> GlobalName {
-        self.global_name.clone()
+        self.name.to_global_name()
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
@@ -456,7 +474,7 @@ impl AcornValue {
         );
         let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
-            global_name: attr_name,
+            name: NameShim(attr_name),
             params: vec![param],
             instance_type,
         };
@@ -470,7 +488,7 @@ impl AcornValue {
         instance_type: AcornType,
     ) -> AcornValue {
         let ci = ConstantInstance {
-            global_name,
+            name: NameShim(global_name),
             params,
             instance_type,
         };
@@ -1790,7 +1808,7 @@ impl AcornValue {
     ///   (module id, receiver name, attribute name)
     pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
         match &self {
-            AcornValue::Constant(c) => c.global_name.as_attribute(),
+            AcornValue::Constant(c) => c.name.as_attribute(),
             _ => None,
         }
     }
@@ -1799,7 +1817,7 @@ impl AcornValue {
     /// Otherwise, return None.
     pub fn as_name(&self) -> Option<&GlobalName> {
         match &self {
-            AcornValue::Constant(c) => Some(&c.global_name),
+            AcornValue::Constant(c) => Some(c.name.as_global_name()),
             _ => None,
         }
     }
@@ -1818,7 +1836,7 @@ impl AcornValue {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    Some(&c.global_name)
+                    Some(c.name.as_global_name())
                 } else {
                     None
                 }
