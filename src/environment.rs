@@ -679,7 +679,8 @@ impl Environment {
             end: fss.satisfy_token.end_pos(),
         };
         let name = DefinedName::unqualified(self.module_id, &fss.name);
-        self.definition_ranges.insert(name.to_old(), definition_range);
+        self.definition_ranges
+            .insert(name.to_old(), definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
             &[],
@@ -1406,9 +1407,9 @@ impl Environment {
             }
             let arb_type = self.evaluator(project).evaluate_type(type_expr)?;
             let var_type = arb_type.genericize(&type_params);
-            let local_name = LocalName::attribute(typeclass_name, attr_name.text());
+            let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name.text());
             self.bindings
-                .check_local_name_available(&local_name, attr_name)?;
+                .check_defined_name_available(&defined_name, attr_name)?;
             self.bindings.add_typeclass_attribute(
                 &typeclass,
                 &attr_name.text(),
@@ -1430,10 +1431,10 @@ impl Environment {
                 end: condition.claim.last_token().end_pos(),
             };
             let local_name = LocalName::attribute(&typeclass_name, &condition.name.text());
+            let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
             self.bindings
-                .check_local_name_available(&local_name, &condition.name)?;
-            let condition_name = local_name.clone().to_defined();
-            self.definition_ranges.insert(condition_name.clone(), range);
+                .check_defined_name_available(&defined_name, &condition.name)?;
+            self.definition_ranges.insert(defined_name.to_old(), range);
 
             let (bad_params, _, arg_types, unbound_claim, _) =
                 self.bindings.evaluate_scoped_value(
@@ -1473,7 +1474,7 @@ impl Environment {
                 range,
                 true,
                 self.depth,
-                Some(condition_name.to_string()),
+                Some(defined_name.to_string()),
             );
             let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
             self.add_node(Node::structural(project, self, prop));
@@ -1604,8 +1605,7 @@ impl Environment {
                 continue;
             }
 
-            let name =
-                DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
             if !self.bindings.constant_name_in_use(&name.to_old()) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))

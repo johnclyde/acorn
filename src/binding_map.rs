@@ -166,7 +166,7 @@ impl BindingMap {
         self.typeclass_info.get(typeclass)?.alias.as_ref()
     }
 
-    pub fn local_name_in_use(&self, local_name: &LocalName) -> bool {
+    fn local_name_in_use(&self, local_name: &LocalName) -> bool {
         if self.constant_info.contains_key(local_name) {
             return true;
         }
@@ -185,13 +185,24 @@ impl BindingMap {
         }
     }
 
-    pub fn check_local_name_available(
+    fn check_local_name_available(
         &self,
         local_name: &LocalName,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         if self.local_name_in_use(local_name) {
             return Err(source.error(&format!("local name {} is already in use", local_name)));
+        }
+        Ok(())
+    }
+
+    pub fn check_defined_name_available(
+        &self,
+        defined_name: &DefinedName,
+        source: &dyn ErrorSource,
+    ) -> compilation::Result<()> {
+        if self.constant_name_in_use(&defined_name.to_old()) {
+            return Err(source.error(&format!("constant name {} is already in use", defined_name)));
         }
         Ok(())
     }
