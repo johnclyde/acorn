@@ -33,24 +33,6 @@ impl LocalName {
         LocalName::Attribute(class.to_string(), attr.to_string())
     }
 
-    /// Just use this for testing.
-    pub fn guess(s: &str) -> LocalName {
-        if s.contains('.') {
-            let parts: Vec<&str> = s.split('.').collect();
-            if parts.len() == 2 {
-                LocalName::Attribute(parts[0].to_string(), parts[1].to_string())
-            } else {
-                panic!("Unguessable name format: {}", s);
-            }
-        } else {
-            LocalName::Unqualified(s.to_string())
-        }
-    }
-
-    pub fn to_defined(self) -> OldDefinedName {
-        OldDefinedName::Local(self)
-    }
-
     /// Return this constant's name as a chain of strings, if that's possible.
     pub fn name_chain(&self) -> Option<Vec<&str>> {
         match self {
@@ -89,81 +71,6 @@ impl fmt::Display for InstanceName {
             "{}.{}<{}>",
             self.typeclass.name, self.attribute, self.class.name
         )
-    }
-}
-
-/// The OldDefinedName describes how a constant, type, or typeclass was defined.
-/// It doesn't work correctly with mixins, because it doesn't differentiate between
-/// the place where the class was defined, and the place where the attribute was defined.
-#[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
-pub enum OldDefinedName {
-    /// A regular local name.
-    Local(LocalName),
-
-    /// An attribute defined via an instance statement.
-    Instance(InstanceName),
-}
-
-impl fmt::Display for OldDefinedName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OldDefinedName::Local(name) => write!(f, "{}", name),
-            OldDefinedName::Instance(name) => write!(f, "{}", name),
-        }
-    }
-}
-
-impl OldDefinedName {
-    pub fn unqualified(name: &str) -> OldDefinedName {
-        OldDefinedName::Local(LocalName::Unqualified(name.to_string()))
-    }
-
-    pub fn attribute(class: &str, attr: &str) -> OldDefinedName {
-        OldDefinedName::Local(LocalName::Attribute(class.to_string(), attr.to_string()))
-    }
-
-    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> OldDefinedName {
-        let inst = InstanceName {
-            typeclass: tc,
-            attribute: attr.to_string(),
-            class,
-        };
-        OldDefinedName::Instance(inst)
-    }
-
-    pub fn is_qualified(&self) -> bool {
-        match self {
-            OldDefinedName::Local(LocalName::Unqualified(_)) => false,
-            _ => true,
-        }
-    }
-
-    pub fn is_instance(&self) -> bool {
-        match self {
-            OldDefinedName::Instance(..) => true,
-            _ => false,
-        }
-    }
-
-    pub fn as_attribute(&self) -> Option<(&str, &str)> {
-        match self {
-            OldDefinedName::Local(LocalName::Attribute(class, attr)) => Some((class, attr)),
-            _ => None,
-        }
-    }
-
-    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Class) -> bool {
-        match self {
-            OldDefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
-            OldDefinedName::Local(_) => false,
-        }
-    }
-
-    pub fn as_local(&self) -> Option<&LocalName> {
-        match self {
-            OldDefinedName::Local(name) => Some(name),
-            OldDefinedName::Instance(..) => None,
-        }
     }
 }
 
@@ -247,18 +154,6 @@ impl ConstantName {
             ConstantName::Unqualified(module_id, name) => {
                 GlobalName::new(*module_id, LocalName::unqualified(name))
             }
-        }
-    }
-
-    pub fn to_old_defined(&self) -> OldDefinedName {
-        match self {
-            ConstantName::ClassAttribute(class, attr) => {
-                OldDefinedName::Local(LocalName::attribute(&class.name, attr))
-            }
-            ConstantName::TypeclassAttribute(tc, attr) => {
-                OldDefinedName::Local(LocalName::attribute(&tc.name, attr))
-            }
-            ConstantName::Unqualified(_, name) => OldDefinedName::unqualified(name),
         }
     }
 
@@ -412,21 +307,16 @@ impl DefinedName {
 
     pub fn as_local(&self) -> Option<LocalName> {
         match self {
-            DefinedName::Constant(constant_name) => {
-                match constant_name {
-                    ConstantName::Unqualified(_, name) => Some(LocalName::unqualified(name)),
-                    ConstantName::ClassAttribute(class, attr) => Some(LocalName::attribute(&class.name, attr)),
-                    ConstantName::TypeclassAttribute(tc, attr) => Some(LocalName::attribute(&tc.name, attr)),
+            DefinedName::Constant(constant_name) => match constant_name {
+                ConstantName::Unqualified(_, name) => Some(LocalName::unqualified(name)),
+                ConstantName::ClassAttribute(class, attr) => {
+                    Some(LocalName::attribute(&class.name, attr))
                 }
-            }
+                ConstantName::TypeclassAttribute(tc, attr) => {
+                    Some(LocalName::attribute(&tc.name, attr))
+                }
+            },
             DefinedName::Instance(_) => None,
-        }
-    }
-
-    pub fn to_old(&self) -> OldDefinedName {
-        match self {
-            DefinedName::Constant(name) => name.to_old_defined(),
-            DefinedName::Instance(name) => OldDefinedName::Instance(name.clone()),
         }
     }
 }
