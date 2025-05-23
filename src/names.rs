@@ -249,3 +249,25 @@ impl ConstantName {
         }
     }
 }
+
+// For migrating from GlobalName to ConstantName.
+#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct NameShim(GlobalName);
+
+impl NameShim {
+    pub fn new(global_name: GlobalName) -> NameShim {
+        NameShim(global_name)
+    }
+
+    pub fn to_global_name(&self) -> GlobalName {
+        self.0.clone()
+    }
+
+    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
+        self.0.as_attribute()
+    }
+
+    pub fn as_global_name(&self) -> &GlobalName {
+        &self.0
+    }
+}

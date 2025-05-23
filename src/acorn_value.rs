@@ -5,7 +5,7 @@ use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -97,25 +97,6 @@ impl fmt::Display for BinaryOp {
         write!(f, "{}", self.token_type().to_str())
     }
 }
-
-// For migrating to the new naming scheme
-#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct NameShim(GlobalName);
-
-impl NameShim {
-    pub fn to_global_name(&self) -> GlobalName {
-        self.0.clone()
-    }
-
-    fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
-        self.0.as_attribute()
-    }
-
-    fn as_global_name(&self) -> &GlobalName {
-        &self.0
-    }
-}
-
 /// An instance of a constant. Could be generic or not.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
@@ -474,7 +455,7 @@ impl AcornValue {
         );
         let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
-            name: NameShim(attr_name),
+            name: NameShim::new(attr_name),
             params: vec![param],
             instance_type,
         };
@@ -488,7 +469,7 @@ impl AcornValue {
         instance_type: AcornType,
     ) -> AcornValue {
         let ci = ConstantInstance {
-            name: NameShim(global_name),
+            name: NameShim::new(global_name),
             params,
             instance_type,
         };
