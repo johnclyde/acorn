@@ -124,7 +124,7 @@ impl CodeGenerator<'_> {
     /// Given a constant instance, find an expression that refers to it.
     /// This does *not* include the parameters.
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
-        let name = &ci.global_name();
+        let name = &ci.name.to_global();
 
         // We can't do skolems
         if name.module_id == Module::SKOLEM {
@@ -352,7 +352,7 @@ impl CodeGenerator<'_> {
             }
             AcornValue::Constant(c) => {
                 if c.params.len() == 1 {
-                    if let Some((module_id, entity, attr)) = c.global_name().as_attribute() {
+                    if let Some((module_id, entity, attr)) = c.name.to_global().as_attribute() {
                         if self
                             .bindings
                             .inherits_attributes(&c.params[0], module_id, entity)

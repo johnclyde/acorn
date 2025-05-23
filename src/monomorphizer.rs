@@ -4,7 +4,7 @@ use std::fmt;
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::fact::Fact;
-use crate::names::GlobalName;
+use crate::names::NameShim;
 use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
@@ -131,7 +131,7 @@ pub struct Monomorphizer {
     /// An index tracking wherever a generic constant is located in the generic props.
     /// This is updated whenever we add a generic prop.
     /// Lists (prop id, instantiation for the constant) for each occurrence.
-    constant_info: HashMap<GlobalName, GenericConstantInfo>,
+    constant_info: HashMap<NameShim, GenericConstantInfo>,
 
     /// Extends maps each typeclass to the typeclasses it extends.
     /// This includes indirect extensions.
@@ -255,7 +255,7 @@ impl Monomorphizer {
         // Store a reference to our generic constants in the index
         for c in generic_constants.clone() {
             self.constant_info
-                .entry(c.global_name().clone())
+                .entry(c.name_shim().clone())
                 .or_insert_with(GenericConstantInfo::new)
                 .occurrences
                 .push((i, ConstantParams::new(c.params)));
@@ -263,7 +263,7 @@ impl Monomorphizer {
 
         // Check how this new generic proposition should be monomorphized
         for c in generic_constants {
-            let c_name = c.global_name().clone();
+            let c_name = c.name_shim().clone();
             let instance_params = ConstantParams::new(c.params);
             if let Some(info) = self.constant_info.get(&c_name) {
                 for monomorph_params in info.instantiations.clone() {
@@ -298,7 +298,7 @@ impl Monomorphizer {
         params.assert_full();
         let info = self
             .constant_info
-            .entry(constant.global_name().clone())
+            .entry(constant.name_shim().clone())
             .or_insert_with(GenericConstantInfo::new);
         if info.instantiations.contains(&params) {
             // We already have this monomorph
@@ -309,7 +309,7 @@ impl Monomorphizer {
         info.instantiations.push(params.clone());
 
         // For every prop that mentions this constant, try to monomorphize the prop to match it.
-        if let Some(info) = self.constant_info.get(&constant.global_name()) {
+        if let Some(info) = self.constant_info.get(&constant.name_shim()) {
             for (prop_id, generic_params) in info.occurrences.clone() {
                 self.try_to_monomorphize_prop(prop_id, &generic_params, &params);
             }

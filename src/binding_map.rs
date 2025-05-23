@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{ConstantName, DefinedName, GlobalName, InstanceName, LocalName, NameShim};
+use crate::names::{ConstantName, DefinedName, InstanceName, LocalName, NameShim};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -806,13 +806,13 @@ impl BindingMap {
     pub fn add_constant_alias(
         &mut self,
         local_name: LocalName,
-        global_name: GlobalName,
+        name_shim: NameShim,
         value: PotentialValue,
     ) {
-        if global_name.module_id != self.module_id {
+        if name_shim.module_id() != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
             self.constant_to_alias
-                .entry(NameShim::new(global_name))
+                .entry(name_shim)
                 .or_insert(local_name.to_string());
         }
         let info = ConstantInfo {
@@ -905,9 +905,9 @@ impl BindingMap {
     /// Whether this value is calling a theorem on some arguments.
     pub fn is_citation(&self, claim: &AcornValue, project: &Project) -> bool {
         match claim.is_named_function_call() {
-            Some(global_name) => {
-                let bindings = self.get_bindings(global_name.module_id, project);
-                bindings.is_theorem(&global_name.local_name)
+            Some(name_shim) => {
+                let bindings = self.get_bindings(name_shim.module_id(), project);
+                bindings.is_theorem(&name_shim.to_global().local_name)
             }
             None => false,
         }
@@ -1099,10 +1099,10 @@ impl BindingMap {
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
-                if let Some(global_name) = value.as_simple_constant() {
+                if let Some(name_shim) = value.as_simple_constant() {
                     self.add_constant_alias(
                         LocalName::unqualified(name),
-                        global_name.clone(),
+                        name_shim.clone(),
                         PotentialValue::Resolved(value),
                     );
                     Ok(())
@@ -1124,7 +1124,7 @@ impl BindingMap {
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
                     LocalName::unqualified(name),
-                    uc.name.to_global(),
+                    uc.name.clone(),
                     PotentialValue::Unresolved(uc),
                 );
                 Ok(())
@@ -1304,7 +1304,7 @@ impl BindingMap {
 
             if let Some(function_name) = function_name {
                 let mut checker =
-                    TerminationChecker::new(function_name.to_global(), internal_arg_types.len());
+                    TerminationChecker::new(NameShim::from_constant_name(function_name), internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
                         value_expr.error("the compiler thinks this looks like an infinite loop")
@@ -1347,7 +1347,7 @@ impl BindingMap {
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
                     let derecursed =
-                        internal_value.set_params(&function_name.to_global(), &generic_params);
+                        internal_value.set_params(&NameShim::from_constant_name(function_name), &generic_params);
                     Some(derecursed.genericize(&type_params))
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
@@ -1384,12 +1384,12 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.global_name().module_id == self.module_id
-                    && !self.constant_info.contains_key(&c.global_name().local_name)
+                if c.name.module_id() == self.module_id
+                    && !self.constant_info.contains_key(&c.name.to_global().local_name)
                 {
                     assert!(c.params.is_empty());
                     answer.insert(
-                        c.global_name().local_name.to_string(),
+                        c.name.to_global().local_name.to_string(),
                         c.instance_type.clone(),
                     );
                 }
@@ -1439,9 +1439,9 @@ impl BindingMap {
             .unwrap_or_else(|e| panic!("invalid claim: {} ({})", proposition.value, e));
 
         let value = proposition.value.replace_constants(0, &|c| {
-            let bindings = self.get_bindings(c.global_name().module_id, project);
-            if bindings.is_theorem(&c.global_name().local_name) {
-                match bindings.get_definition_and_params(&c.global_name().local_name) {
+            let bindings = self.get_bindings(c.name.module_id(), project);
+            if bindings.is_theorem(&c.name.to_global().local_name) {
+                match bindings.get_definition_and_params(&c.name.to_global().local_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {

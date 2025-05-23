@@ -1,12 +1,12 @@
 use crate::acorn_value::AcornValue;
 use crate::atom::AtomId;
-use crate::names::GlobalName;
+use crate::names::NameShim;
 
 // The TerminationChecker determines whether recursive functions will always terminate,
 // because they always get called on a substructure of the input.
 pub struct TerminationChecker {
     // The function whose definition we are checking.
-    name: GlobalName,
+    name: NameShim,
 
     // substructure[i] = j if x_i is a ubstructure of x_j, due to match relationships.
     // j is the smallest such j.
@@ -19,7 +19,7 @@ pub struct TerminationChecker {
 }
 
 impl TerminationChecker {
-    pub fn new(name: GlobalName, num_args: usize) -> Self {
+    pub fn new(name: NameShim, num_args: usize) -> Self {
         let substructure_map = (0..num_args).map(|i| Some(i as AtomId)).collect();
         let always_strict_sub = vec![true; num_args];
         TerminationChecker {
@@ -36,7 +36,7 @@ impl TerminationChecker {
                 // These values can't contain function calls within them, so they don't matter.
             }
             AcornValue::Constant(c) => {
-                if c.global_name() == self.name {
+                if &c.name == &self.name {
                     // We are using the recursive function without calling it, so we can't
                     // really say that any of its arguments are always strict any more.
                     self.always_strict_sub = vec![false; self.always_strict_sub.len()];

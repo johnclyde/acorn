@@ -108,7 +108,7 @@ pub struct ConstantInstance {
 
 impl fmt::Display for ConstantInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.global_name().local_name)?;
+        write!(f, "{}", self.name.to_global().local_name)?;
         if !self.params.is_empty() {
             let types: Vec<_> = self.params.iter().map(|t| t.to_string()).collect();
             write!(f, "<{}>", types.join(", "))?;
@@ -130,6 +130,10 @@ impl ConstantInstance {
     // TODO: remove this, because it acts weirdly for mixins
     pub fn global_name(&self) -> GlobalName {
         self.name.to_global()
+    }
+
+    pub fn name_shim(&self) -> &NameShim {
+        &self.name
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
@@ -185,10 +189,10 @@ impl ConstantInstance {
         typeclass: &Typeclass,
         class: &Class,
     ) -> Option<DefinedName> {
-        if self.global_name().module_id != typeclass.module_id {
+        if self.name.module_id() != typeclass.module_id {
             return None;
         }
-        if let LocalName::Attribute(receiver, attribute) = &self.global_name().local_name {
+        if let LocalName::Attribute(receiver, attribute) = &self.name.to_global().local_name {
             if receiver == &typeclass.name && self.params.len() == 1 {
                 if let AcornType::Data(param_class, _) = &self.params[0] {
                     if param_class == class {
@@ -1693,10 +1697,10 @@ impl AcornValue {
     }
 
     /// Set parameters to the given constant wherever it occurs in this value.
-    pub fn set_params(self, name: &GlobalName, params: &Vec<AcornType>) -> AcornValue {
+    pub fn set_params(self, name: &NameShim, params: &Vec<AcornType>) -> AcornValue {
         match self {
             // The only interesting case.
-            AcornValue::Constant(c) if &c.global_name() == name => {
+            AcornValue::Constant(c) if &c.name == name => {
                 AcornValue::Constant(c.same_name(params.clone(), c.instance_type.clone()))
             }
 
@@ -1788,15 +1792,15 @@ impl AcornValue {
 
     /// If this is a plain constant, give access to its name.
     /// Otherwise, return None.
-    pub fn as_name(&self) -> Option<&GlobalName> {
+    pub fn as_name(&self) -> Option<&NameShim> {
         match &self {
-            AcornValue::Constant(c) => Some(c.name.as_global()),
+            AcornValue::Constant(c) => Some(&c.name),
             _ => None,
         }
     }
 
     /// If this is a function call of a constant function, give access to its name.
-    pub fn is_named_function_call(&self) -> Option<&GlobalName> {
+    pub fn is_named_function_call(&self) -> Option<&NameShim> {
         match self {
             AcornValue::Application(fa) => fa.function.as_name(),
             _ => None,
@@ -1805,11 +1809,11 @@ impl AcornValue {
 
     /// If this is a constant with no parameters, give access to its name.
     /// Otherwise, return None.
-    pub fn as_simple_constant(&self) -> Option<&GlobalName> {
+    pub fn as_simple_constant(&self) -> Option<&NameShim> {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    Some(c.name.as_global())
+                    Some(&c.name)
                 } else {
                     None
                 }
