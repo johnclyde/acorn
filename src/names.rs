@@ -187,6 +187,13 @@ impl ConstantName {
         }
     }
 
+    pub fn is_attribute_of(&self, class: &Class) -> bool {
+        match self {
+            ConstantName::ClassAttribute(class_attr, _) => class_attr == class,
+            _ => false,
+        }
+    }
+
     // TODO: deprecate and remove.
     pub fn from_constant_name(name: &ConstantName) -> ConstantName {
         name.clone()

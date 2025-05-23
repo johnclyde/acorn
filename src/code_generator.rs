@@ -124,18 +124,16 @@ impl CodeGenerator<'_> {
     /// Given a constant instance, find an expression that refers to it.
     /// This does *not* include the parameters.
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
-        let name = &ci.name.to_global();
-
         // We can't do skolems
-        if name.module_id == Module::SKOLEM {
-            return Err(Error::skolem(&name.local_name.to_string()));
+        if ci.name.module_id() == Module::SKOLEM {
+            return Err(Error::skolem(&ci.name.to_local().to_string()));
         }
 
         // Handle numeric literals
-        if let LocalName::Attribute(class_name, attr) = &name.local_name {
+        if let Some((_, class_name, attr)) = ci.name.as_attribute() {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
                 let class = Class {
-                    module_id: name.module_id,
+                    module_id: ci.name.module_id(),
                     name: class_name.to_string(),
                 };
 
@@ -156,8 +154,8 @@ impl CodeGenerator<'_> {
         }
 
         // Handle local constants
-        if name.module_id == self.bindings.module_id() {
-            return Ok(match &name.local_name {
+        if ci.name.module_id() == self.bindings.module_id() {
+            return Ok(match ci.name.to_local() {
                 LocalName::Unqualified(word) => Expression::generate_identifier(&word),
                 LocalName::Attribute(left, right) => Expression::generate_dot(
                     Expression::generate_identifier(&left),
@@ -173,10 +171,10 @@ impl CodeGenerator<'_> {
 
         // If it's a member function, check if there's a local alias for its receiver.
         // Note that the receiver could be either a class or a typeclass.
-        if let LocalName::Attribute(rname, attr) = &name.local_name {
+        if let Some((_, rname, attr)) = ci.name.as_attribute() {
             // Check if this is a class attribute
             let class = Class {
-                module_id: name.module_id,
+                module_id: ci.name.module_id(),
                 name: rname.to_string(),
             };
             if let Some(alias) = self.bindings.class_alias(&class) {
@@ -187,7 +185,7 @@ impl CodeGenerator<'_> {
 
             // Check if this is a typeclass attribute
             let typeclass = Typeclass {
-                module_id: name.module_id,
+                module_id: ci.name.module_id(),
                 name: rname.to_string(),
             };
             if let Some(alias) = self.bindings.typeclass_alias(&typeclass) {
@@ -198,15 +196,16 @@ impl CodeGenerator<'_> {
         }
 
         // Refer to this constant using its module
-        match self.bindings.get_name_for_module_id(name.module_id) {
+        match self.bindings.get_name_for_module_id(ci.name.module_id()) {
             Some(module_name) => {
+                let local_name = ci.name.to_local();
                 let mut parts: Vec<&str> = vec![module_name];
-                parts.extend(name.local_name.name_chain().unwrap().into_iter());
+                parts.extend(local_name.name_chain().unwrap().into_iter());
                 Ok(Expression::generate_identifier_chain(&parts))
             }
             None => Err(Error::UnimportedModule(
-                name.module_id,
-                name.local_name.to_string(),
+                ci.name.module_id(),
+                ci.name.to_local().to_string(),
             )),
         }
     }
@@ -352,7 +351,7 @@ impl CodeGenerator<'_> {
             }
             AcornValue::Constant(c) => {
                 if c.params.len() == 1 {
-                    if let Some((module_id, entity, attr)) = c.name.to_global().as_attribute() {
+                    if let Some((module_id, entity, attr)) = c.name.as_attribute() {
                         if self
                             .bindings
                             .inherits_attributes(&c.params[0], module_id, entity)

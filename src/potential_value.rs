@@ -22,7 +22,7 @@ impl PotentialValue {
             PotentialValue::Unresolved(u) => {
                 panic!(
                     "tried to force unresolved constant {}",
-                    u.name.to_global().local_name
+                    u.name.to_local()
                 );
             }
             PotentialValue::Resolved(c) => c,
@@ -34,7 +34,7 @@ impl PotentialValue {
         match self {
             PotentialValue::Unresolved(u) => Err(source.error(&format!(
                 "value {} has unresolved type",
-                u.name.to_global().local_name
+                u.name.to_local()
             ))),
             PotentialValue::Resolved(c) => Ok(c),
         }

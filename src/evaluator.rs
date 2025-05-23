@@ -207,7 +207,7 @@ impl<'a> Evaluator<'a> {
             return Err(source.error("invalid pattern"));
         };
         let bindings = self.get_bindings(ci.name.module_id());
-        let Some(info) = bindings.get_constructor_info(&ci.name.to_global().local_name) else {
+        let Some(info) = bindings.get_constructor_info(&ci.name.to_local()) else {
             return Err(source.error("expected a constructor"));
         };
         expected_type.check_instance(&info.class, source)?;
@@ -243,10 +243,10 @@ impl<'a> Evaluator<'a> {
                 let AcornType::Data(class, params) = expected_type else {
                     return Err(pattern.error("unmatchable datatype?"));
                 };
-                if !uc.name.to_global().is_attribute_of(&class) {
+                if !uc.name.is_attribute_of(&class) {
                     return Err(pattern.error(&format!(
                         "pattern {} is not an attribute of {}",
-                        &uc.name.to_global().local_name,
+                        &uc.name.to_local(),
                         class.name
                     )));
                 }
