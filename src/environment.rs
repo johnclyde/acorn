@@ -370,7 +370,7 @@ impl Environment {
 
         // Check for aliasing
         if let Some(value) = &value {
-            if let Some(name_shim) = value.as_simple_constant() {
+            if let Some(simple_name) = value.as_simple_constant() {
                 match &defined_name {
                     // For local names, 'let x = y' should create an alias for y, not a new constant.
                     // Aliases for local names are handled in the binding map.
@@ -386,7 +386,7 @@ impl Environment {
                         };
                         self.bindings.add_constant_alias(
                             local_name.clone(),
-                            name_shim.clone(),
+                            simple_name.clone(),
                             PotentialValue::Resolved(value.clone()),
                         );
                         return Ok(());
