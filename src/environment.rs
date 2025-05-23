@@ -1033,8 +1033,7 @@ impl Environment {
                 // This provides a base case
                 has_base = true;
             }
-            let member_name = LocalName::attribute(&is.name, name_token.text());
-            constructors.push((member_name, type_list));
+            constructors.push((name_token.text(), type_list));
         }
         if !has_base {
             return Err(statement.error("inductive type must have a base case"));
@@ -1057,8 +1056,9 @@ impl Environment {
                 index: i,
                 total,
             };
-            let gen_constructor_fn = self.bindings.add_local_constant(
-                constructor_name.clone(),
+            let gen_constructor_fn = self.bindings.add_class_attribute(
+                &class,
+                constructor_name,
                 type_params.clone(),
                 gen_constructor_type,
                 None,
