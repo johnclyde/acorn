@@ -12,7 +12,7 @@ use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::{OldDefinedName, LocalName, NameShim};
+use crate::names::{DefinedName, LocalName, NameShim, OldDefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -287,7 +287,7 @@ impl Environment {
     fn add_let_statement(
         &mut self,
         project: &Project,
-        constant_name: OldDefinedName,
+        defined_name: DefinedName,
         ls: &LetStatement,
         range: Range,
         class_params: Option<&Vec<TypeParam>>,
@@ -299,10 +299,10 @@ impl Environment {
             )));
         }
 
-        if self.bindings.constant_name_in_use(&constant_name) {
+        if self.bindings.constant_name_in_use(&defined_name.to_old()) {
             return Err(ls.name_token.error(&format!(
                 "constant name '{}' already defined in this scope",
-                &constant_name
+                &defined_name
             )));
         }
 
@@ -321,7 +321,7 @@ impl Environment {
 
         let acorn_type = self.evaluator(project).evaluate_type(&ls.type_expr)?;
         if ls.name_token.token_type == TokenType::Numeral {
-            let class_name = match constant_name.as_attribute() {
+            let class_name = match defined_name.as_attribute() {
                 Some((class_name, _)) => class_name.to_string(),
                 _ => {
                     return Err(ls
@@ -371,7 +371,7 @@ impl Environment {
         // Check for aliasing
         if let Some(value) = &value {
             if let Some(global_name) = value.as_simple_constant() {
-                match &constant_name {
+                match defined_name.to_old() {
                     // For local names, 'let x = y' should create an alias for y, not a new constant.
                     // Aliases for local names are handled in the binding map.
                     OldDefinedName::Local(local_name) => {
@@ -388,7 +388,7 @@ impl Environment {
                 }
             }
         }
-        self.define_constant(constant_name, type_params, acorn_type, value, range);
+        self.define_constant(defined_name.to_old(), type_params, acorn_type, value, range);
         Ok(())
     }
 
@@ -1305,14 +1305,14 @@ impl Environment {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
         let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
-        self.check_can_add_attributes(&cs.name_token, &instance_type)?;
+        let class = self.check_can_add_attributes(&cs.name_token, &instance_type)?;
 
         for substatement in &cs.body.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        OldDefinedName::attribute(&cs.name, &ls.name),
+                        DefinedName::attribute(class, &ls.name),
                         ls,
                         substatement.range(),
                         Some(&type_params),
@@ -1522,7 +1522,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        OldDefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
+                        DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
                         ls,
                         substatement.range(),
                         None,
@@ -1542,7 +1542,11 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        OldDefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
+                        OldDefinedName::instance(
+                            typeclass.clone(),
+                            &ds.name,
+                            instance_class.clone(),
+                        ),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1600,7 +1604,8 @@ impl Environment {
                 continue;
             }
 
-            let name = OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            let name =
+                OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
@@ -1980,7 +1985,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
-                    OldDefinedName::unqualified(&ls.name),
+                    DefinedName::unqualified(self.module_id, &ls.name),
                     ls,
                     statement.range(),
                     None,

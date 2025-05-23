@@ -418,4 +418,11 @@ impl DefinedName {
             DefinedName::Constant(_) => false,
         }
     }
+
+    pub fn to_old(&self) -> OldDefinedName {
+        match self {
+            DefinedName::Constant(name) => name.to_old_defined(),
+            DefinedName::Instance(name) => OldDefinedName::Instance(name.clone()),
+        }
+    }
 }
