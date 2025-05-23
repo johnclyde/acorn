@@ -255,6 +255,25 @@ impl ConstantName {
 pub struct NameShim(GlobalName);
 
 impl NameShim {
+    pub fn class_attr(class: Class, attr: &str) -> NameShim {
+        NameShim(GlobalName::new(
+            class.module_id,
+            LocalName::attribute(&class.name, attr),
+        ))
+    }
+
+    pub fn typeclass_attr(tc: Typeclass, attr: &str) -> NameShim {
+        NameShim(GlobalName::new(
+            tc.module_id,
+            LocalName::attribute(&tc.name, attr),
+        ))
+    }
+
+    pub fn unqualified(module_id: ModuleId, name: &str) -> NameShim {
+        NameShim(GlobalName::new(module_id, LocalName::unqualified(name)))
+    }
+
+    /// TODO: deprecate and remove.
     pub fn new(global_name: GlobalName) -> NameShim {
         NameShim(global_name)
     }
@@ -267,6 +286,7 @@ impl NameShim {
         self.0.as_attribute()
     }
 
+    /// TODO: deprecate and remove.
     pub fn as_global_name(&self) -> &GlobalName {
         &self.0
     }
