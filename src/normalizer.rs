@@ -6,7 +6,7 @@ use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
-use crate::names::{GlobalName, LocalName};
+use crate::names::{GlobalName, LocalName, NameShim};
 use crate::normalization_map::NormalizationMap;
 use crate::proof_step::{ProofStep, Truthiness};
 use crate::source::SourceType;
@@ -76,7 +76,7 @@ impl Normalizer {
         // Hacky. Turn the int into an s-name
         let local_name = LocalName::Unqualified(format!("s{}", skolem_index));
         let global_name = GlobalName::new(SKOLEM, local_name);
-        AcornValue::constant(global_name, vec![], acorn_type)
+        AcornValue::old_constant(global_name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -202,7 +202,7 @@ impl Normalizer {
                         // Hacky. Turn the s-name back to an int
                         Atom::Skolem(c.global_name().local_name.to_string()[1..].parse().unwrap())
                     } else {
-                        self.normalization_map.add_constant(c.global_name().clone(), local)
+                        self.normalization_map.add_constant(c.name.clone(), local)
                     };
                     Ok(Term::new(type_id, type_id, constant_atom, vec![]))
                 } else {
@@ -382,8 +382,12 @@ impl Normalizer {
         // Check if this looks like an aliasing.
         if let Some((ci, name, constant_type)) = fact.as_instance_alias() {
             let local = fact.source().truthiness() != Truthiness::Factual;
-            self.normalization_map
-                .alias_monomorph(ci, name, &constant_type, local);
+            self.normalization_map.alias_monomorph(
+                ci,
+                &NameShim::new(name.clone()),
+                &constant_type,
+                local,
+            );
         }
 
         self.monomorphizer.add_fact(fact);
@@ -441,7 +445,7 @@ impl Normalizer {
                 let acorn_type = self.skolem_types[*i as usize].clone();
                 let local_name = LocalName::Unqualified(format!("s{}", i));
                 let global_name = GlobalName::new(SKOLEM, local_name);
-                AcornValue::constant(global_name, vec![], acorn_type)
+                AcornValue::old_constant(global_name, vec![], acorn_type)
             }
         }
     }
@@ -494,11 +498,13 @@ impl Normalizer {
             Atom::GlobalConstant(i) => self
                 .normalization_map
                 .name_for_global_id(*i)
+                .to_global_name()
                 .local_name
                 .to_string(),
             Atom::LocalConstant(i) => self
                 .normalization_map
                 .name_for_local_id(*i)
+                .to_global_name()
                 .local_name
                 .to_string(),
             Atom::Monomorph(i) => {

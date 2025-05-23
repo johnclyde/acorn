@@ -270,4 +270,8 @@ impl NameShim {
     pub fn as_global_name(&self) -> &GlobalName {
         &self.0
     }
+
+    pub fn module_id(&self) -> ModuleId {
+        self.0.module_id
+    }
 }

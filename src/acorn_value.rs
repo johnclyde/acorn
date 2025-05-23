@@ -101,7 +101,7 @@ impl fmt::Display for BinaryOp {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
     /// The name of this constant
-    name: NameShim,
+    pub name: NameShim,
 
     /// The type parameters that this constant was instantiated with, if any.
     /// Ordered the same way as in the definition.
@@ -462,14 +462,28 @@ impl AcornValue {
         AcornValue::Constant(ci)
     }
 
-    /// Creates a constant value
-    pub fn constant(
+    /// TODO: deprecate and remove.
+    pub fn old_constant(
         global_name: GlobalName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
         let ci = ConstantInstance {
             name: NameShim::new(global_name),
+            params,
+            instance_type,
+        };
+        AcornValue::Constant(ci)
+    }
+
+    /// Creates a constant value
+    pub fn constant(
+        name: NameShim,
+        params: Vec<AcornType>,
+        instance_type: AcornType,
+    ) -> AcornValue {
+        let ci = ConstantInstance {
+            name,
             params,
             instance_type,
         };

@@ -725,7 +725,7 @@ impl Environment {
             None,
         );
         let global_name = GlobalName::new(self.module_id, local_name);
-        let function_constant = AcornValue::constant(global_name, vec![], function_type);
+        let function_constant = AcornValue::old_constant(global_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types

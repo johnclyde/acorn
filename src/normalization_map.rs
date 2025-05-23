@@ -4,7 +4,7 @@ use crate::acorn_type::AcornType;
 use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
 use crate::module::SKOLEM;
-use crate::names::GlobalName;
+use crate::names::NameShim;
 use crate::term::{Term, TypeId};
 
 /// In the Acorn language, constants and types have names, scoped by modules. They can be rich values
@@ -13,17 +13,17 @@ use crate::term::{Term, TypeId};
 /// The NormalizationMap is a mapping between the two.
 #[derive(Clone)]
 pub struct NormalizationMap {
-    /// For global constant i in the prover, global_constants[i] is the corresponding GlobalName.
-    /// Part of the Atom -> GlobalName lookup direction.
-    global_constants: Vec<Option<GlobalName>>,
+    /// For global constant i in the prover, global_constants[i] is the corresponding NameShim.
+    /// Part of the Atom -> NameShim lookup direction.
+    global_constants: Vec<Option<NameShim>>,
 
-    /// For local constant i in the prover, local_constants[i] is the corresponding GlobalName.
-    /// Part of the Atom -> GlobalName lookup direction.
-    local_constants: Vec<Option<GlobalName>>,
+    /// For local constant i in the prover, local_constants[i] is the corresponding NameShim.
+    /// Part of the Atom -> NameShim lookup direction.
+    local_constants: Vec<Option<NameShim>>,
 
     /// Inverse map of constants that can be referenced with a single name.
-    /// The GlobalName -> Atom lookup direction.
-    name_to_atom: HashMap<GlobalName, Atom>,
+    /// The NameShim -> Atom lookup direction.
+    name_to_atom: HashMap<NameShim, Atom>,
 
     /// type_to_type_id[acorn_type] is the TypeId
     type_to_type_id: HashMap<AcornType, TypeId>,
@@ -60,8 +60,8 @@ impl NormalizationMap {
 
     /// Assigns an id to this (module, name) pair if it doesn't already have one.
     /// local determines whether the constant will be represented as a local or global atom.
-    pub fn add_constant(&mut self, name: GlobalName, local: bool) -> Atom {
-        if name.module_id == SKOLEM {
+    pub fn add_constant(&mut self, name: NameShim, local: bool) -> Atom {
+        if name.module_id() == SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
         }
         if let Some(&atom) = self.name_to_atom.get(&name) {
@@ -81,12 +81,12 @@ impl NormalizationMap {
     }
 
     /// Get the name corresponding to a particular global AtomId.
-    pub fn name_for_global_id(&self, atom_id: AtomId) -> &GlobalName {
+    pub fn name_for_global_id(&self, atom_id: AtomId) -> &NameShim {
         &self.global_constants[atom_id as usize].as_ref().unwrap()
     }
 
     /// Get the name corresponding to a particular local AtomId.
-    pub fn name_for_local_id(&self, atom_id: AtomId) -> &GlobalName {
+    pub fn name_for_local_id(&self, atom_id: AtomId) -> &NameShim {
         &self.local_constants[atom_id as usize].as_ref().unwrap()
     }
 
@@ -111,7 +111,7 @@ impl NormalizationMap {
     pub fn alias_monomorph(
         &mut self,
         c: ConstantInstance,
-        name: &GlobalName,
+        name: &NameShim,
         constant_type: &AcornType,
         local: bool,
     ) {
