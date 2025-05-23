@@ -602,27 +602,6 @@ impl BindingMap {
         self.numerals = Some(class);
     }
 
-    /// Adds a definition for a constant.
-    /// Panics if the name is already bound.
-    /// The type and definition can be generic. If so, the parameters must be listed in params.
-    /// Don't call this for aliases, this doesn't handle aliases intelligently.
-    /// Returns the value for the newly created constant.
-    fn add_constant_name(
-        &mut self,
-        constant_name: &ConstantName,
-        params: Vec<TypeParam>,
-        constant_type: AcornType,
-        definition: Option<AcornValue>,
-        constructor: Option<ConstructorInfo>,
-    ) -> PotentialValue {
-        let local_name = match constant_name {
-            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
-        };
-        self.add_local_name(local_name, params, constant_type, definition, constructor)
-    }
-
     /// Adds a definition for a name that can either be a normal constant, or an instance.
     /// Panics if the name is already bound.
     /// The type and definition can be generic. If so, the parameters must be listed in params.
@@ -671,7 +650,13 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let constant_name = ConstantName::class_attr(class.clone(), attr);
-        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
+        self.add_constant_name(
+            &constant_name,
+            params,
+            constant_type,
+            definition,
+            constructor,
+        )
     }
 
     pub fn add_typeclass_attribute(
@@ -684,7 +669,13 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let constant_name = ConstantName::typeclass_attr(typeclass.clone(), attr);
-        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
+        self.add_constant_name(
+            &constant_name,
+            params,
+            constant_type,
+            definition,
+            constructor,
+        )
     }
 
     /// Adds a constant that is not an attribute of anything.
@@ -697,18 +688,34 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let constant_name = ConstantName::unqualified(self.module_id, name);
-        self.add_constant_name(&constant_name, params, constant_type, definition, constructor)
+        self.add_constant_name(
+            &constant_name,
+            params,
+            constant_type,
+            definition,
+            constructor,
+        )
     }
 
-    /// Adds a constant that is defined locally.
-    fn add_local_name(
+    /// Adds a definition for a constant.
+    /// Panics if the name is already bound.
+    /// The type and definition can be generic. If so, the parameters must be listed in params.
+    /// Don't call this for aliases, this doesn't handle aliases intelligently.
+    /// Returns the value for the newly created constant.
+    fn add_constant_name(
         &mut self,
-        local_name: LocalName,
+        constant_name: &ConstantName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
+        let local_name = match constant_name {
+            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+        };
+
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
                 panic!("invalid definition for constant {}: {}", local_name, e);
