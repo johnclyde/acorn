@@ -6,7 +6,7 @@ use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
-use crate::names::{GlobalName, LocalName, NameShim};
+use crate::names::NameShim;
 use crate::normalization_map::NormalizationMap;
 use crate::proof_step::{ProofStep, Truthiness};
 use crate::source::SourceType;
@@ -442,9 +442,8 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let local_name = LocalName::Unqualified(format!("s{}", i));
-                let global_name = GlobalName::new(SKOLEM, local_name);
-                AcornValue::old_constant(global_name, vec![], acorn_type)
+                let name = NameShim::unqualified(SKOLEM, &format!("s{}", i));
+                AcornValue::constant(name, vec![], acorn_type)
             }
         }
     }
