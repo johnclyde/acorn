@@ -805,15 +805,15 @@ impl BindingMap {
     /// TODO: is aliasing theorems supposed to work?
     pub fn add_constant_alias(
         &mut self,
-        local_name: LocalName,
-        constant_name: ConstantName,
+        alias: LocalName,
+        canonical: ConstantName,
         value: PotentialValue,
     ) {
-        if constant_name.module_id() != self.module_id {
+        if canonical.module_id() != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
             self.constant_to_alias
-                .entry(constant_name)
-                .or_insert(local_name.to_string());
+                .entry(canonical)
+                .or_insert(alias.to_string());
         }
         let info = ConstantInfo {
             value,
@@ -822,7 +822,7 @@ impl BindingMap {
             definition: None,
             constructor: None,
         };
-        self.add_constant_info(local_name, info);
+        self.add_constant_info(alias, info);
     }
 
     pub fn mark_as_theorem(&mut self, name: &LocalName) {
@@ -1346,8 +1346,7 @@ impl BindingMap {
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
-                    let derecursed =
-                        internal_value.set_params(function_name, &generic_params);
+                    let derecursed = internal_value.set_params(function_name, &generic_params);
                     Some(derecursed.genericize(&type_params))
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
@@ -1388,10 +1387,7 @@ impl BindingMap {
                     && !self.constant_info.contains_key(&c.name.to_local())
                 {
                     assert!(c.params.is_empty());
-                    answer.insert(
-                        c.name.to_local().to_string(),
-                        c.instance_type.clone(),
-                    );
+                    answer.insert(c.name.to_local().to_string(), c.instance_type.clone());
                 }
             }
 
