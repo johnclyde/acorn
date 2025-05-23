@@ -185,17 +185,6 @@ impl BindingMap {
         }
     }
 
-    fn check_local_name_available(
-        &self,
-        local_name: &LocalName,
-        source: &dyn ErrorSource,
-    ) -> compilation::Result<()> {
-        if self.local_name_in_use(local_name) {
-            return Err(source.error(&format!("local name {} is already in use", local_name)));
-        }
-        Ok(())
-    }
-
     pub fn check_defined_name_available(
         &self,
         defined_name: &DefinedName,
@@ -371,7 +360,8 @@ impl BindingMap {
         name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        self.check_local_name_available(&LocalName::unqualified(name), source)
+        let defined_name = DefinedName::unqualified(self.module_id, name);
+        self.check_defined_name_available(&defined_name, source)
     }
 
     /// We use variables named x0, x1, x2, etc when new temporary variables are needed.
@@ -1040,8 +1030,13 @@ impl BindingMap {
         module: ModuleId,
         name_token: &Token,
     ) -> compilation::Result<()> {
-        let local_name = LocalName::unqualified(name_token.text());
-        self.check_local_name_available(&local_name, name_token)?;
+        // Check if this name is lowercase
+        let name = name_token.text();
+        if name.chars().next().map(char::is_lowercase).unwrap_or(false) {
+            let defined_name = DefinedName::unqualified(module, name);
+            self.check_defined_name_available(&defined_name, name_token)?;
+        }
+
         let bindings = match project.get_bindings(module) {
             Some(b) => b,
             None => {
@@ -1052,12 +1047,13 @@ impl BindingMap {
         };
         let entity =
             Evaluator::new(bindings, project).evaluate_name(name_token, &Stack::new(), None)?;
+
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some(global_name) = value.as_simple_constant() {
                     self.add_constant_alias(
-                        local_name,
+                        LocalName::unqualified(name),
                         global_name.clone(),
                         PotentialValue::Resolved(value),
                     );
@@ -1068,18 +1064,18 @@ impl BindingMap {
                 }
             }
             NamedEntity::Type(acorn_type) => {
-                self.add_type_alias(&name_token.text(), PotentialType::Resolved(acorn_type));
+                self.add_type_alias(&name, PotentialType::Resolved(acorn_type));
                 Ok(())
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
             NamedEntity::Typeclass(tc) => {
-                self.add_typeclass_name(&name_token.text(), tc);
+                self.add_typeclass_name(&name, tc);
                 Ok(())
             }
 
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
-                    local_name,
+                    LocalName::unqualified(name),
                     uc.name.to_global_name(),
                     PotentialValue::Unresolved(uc),
                 );
@@ -1087,7 +1083,7 @@ impl BindingMap {
             }
 
             NamedEntity::UnresolvedType(u) => {
-                self.add_type_alias(&name_token.text(), PotentialType::Unresolved(u));
+                self.add_type_alias(&name, PotentialType::Unresolved(u));
                 Ok(())
             }
         }
