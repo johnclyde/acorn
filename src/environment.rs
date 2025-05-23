@@ -1598,7 +1598,7 @@ impl Environment {
                         Some(name) => name,
                         None => return None,
                     };
-                    self.bindings.get_definition(&name).cloned()
+                    self.bindings.get_definition(&name.to_old()).cloned()
                 });
                 conditions.push(condition);
                 continue;

@@ -5,7 +5,7 @@ use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -67,15 +67,10 @@ impl FunctionApplication {
 /// Represents binary operators used in Acorn
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum BinaryOp {
-    /// Logical implication (=>)
     Implies,
-    /// Equality (=)
     Equals,
-    /// Inequality (!=)
     NotEquals,
-    /// Logical AND (&&)
     And,
-    /// Logical OR (||)
     Or,
 }
 
@@ -189,7 +184,7 @@ impl ConstantInstance {
         &self,
         typeclass: &Typeclass,
         class: &Class,
-    ) -> Option<OldDefinedName> {
+    ) -> Option<DefinedName> {
         if self.global_name().module_id != typeclass.module_id {
             return None;
         }
@@ -197,7 +192,7 @@ impl ConstantInstance {
             if receiver == &typeclass.name && self.params.len() == 1 {
                 if let AcornType::Data(param_class, _) = &self.params[0] {
                     if param_class == class {
-                        return Some(OldDefinedName::Instance(InstanceName {
+                        return Some(DefinedName::Instance(InstanceName {
                             typeclass: typeclass.clone(),
                             attribute: attribute.clone(),
                             class: class.clone(),

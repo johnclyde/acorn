@@ -5,7 +5,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, OldDefinedName};
+use crate::names::DefinedName;
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
@@ -519,10 +519,11 @@ impl<'a> Evaluator<'a> {
                             // This is a stack variable
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
                         } else {
-                            let constant_name = OldDefinedName::unqualified(name);
+                            let constant_name =
+                                DefinedName::unqualified(self.bindings.module_id(), name);
                             Ok(NamedEntity::new(
                                 self.bindings
-                                    .get_constant_value(&constant_name, name_token)?,
+                                    .get_constant_value(&constant_name.to_old(), name_token)?,
                             ))
                         }
                     }
