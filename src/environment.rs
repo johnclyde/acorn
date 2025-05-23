@@ -1316,7 +1316,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::attribute(class, &ls.name),
+                        DefinedName::class_attr(class, &ls.name),
                         ls,
                         substatement.range(),
                         Some(&type_params),
@@ -1325,7 +1325,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::attribute(class, &ds.name),
+                        DefinedName::class_attr(class, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,

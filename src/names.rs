@@ -362,8 +362,12 @@ impl DefinedName {
         DefinedName::Constant(ConstantName::unqualified(module_id, name))
     }
 
-    pub fn attribute(class: &Class, attr: &str) -> DefinedName {
+    pub fn class_attr(class: &Class, attr: &str) -> DefinedName {
         DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
+    }
+
+    pub fn typeclass_attr(tc: &Typeclass, attr: &str) -> DefinedName {
+        DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
     }
 
     pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {

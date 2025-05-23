@@ -339,8 +339,8 @@ impl<'a> Evaluator<'a> {
             .get_module_for_class_attr(class, attr_name)
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(module_id);
-        let constant_name = DefinedName::attribute(&class, attr_name);
-        bindings.get_constant_value(&constant_name.to_old(), source)
+        let defined_name = DefinedName::class_attr(&class, attr_name);
+        bindings.get_constant_value(&defined_name.to_old(), source)
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
@@ -363,8 +363,8 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        let constant_name = OldDefinedName::attribute(&typeclass.name, attr_name);
-        bindings.get_constant_value(&constant_name, source)
+        let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name);
+        bindings.get_constant_value(&defined_name.to_old(), source)
     }
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.
