@@ -62,7 +62,7 @@ pub struct BindingMap {
     /// if we're generating code, we prefer to use the local name.
     /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
-    constant_to_alias: HashMap<GlobalName, String>,
+    constant_to_alias: HashMap<NameShim, String>,
 
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
@@ -131,8 +131,7 @@ impl BindingMap {
     }
 
     /// Gets the local alias to use for a given constant.
-    /// TODO: only use this for constants.
-    pub fn constant_alias(&self, name: &GlobalName) -> Option<&String> {
+    pub fn constant_alias(&self, name: &NameShim) -> Option<&String> {
         self.constant_to_alias.get(name)
     }
 
@@ -764,7 +763,7 @@ impl BindingMap {
         if global_name.module_id != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
             self.constant_to_alias
-                .entry(global_name.clone())
+                .entry(NameShim::new(global_name))
                 .or_insert(local_name.to_string());
         }
         let info = ConstantInfo {

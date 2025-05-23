@@ -167,7 +167,7 @@ impl CodeGenerator<'_> {
         }
 
         // Check if there's a local alias for this constant.
-        if let Some(alias) = self.bindings.constant_alias(&name) {
+        if let Some(alias) = self.bindings.constant_alias(&ci.name) {
             return Ok(Expression::generate_identifier(alias));
         }
 
