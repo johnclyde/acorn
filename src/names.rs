@@ -262,6 +262,32 @@ impl ConstantName {
             }
         }
     }
+
+    pub fn to_old_defined(&self) -> OldDefinedName {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => {
+                OldDefinedName::Local(LocalName::attribute(&class.name, attr))
+            }
+            ConstantName::TypeclassAttribute(tc, attr) => {
+                OldDefinedName::Local(LocalName::attribute(&tc.name, attr))
+            }
+            ConstantName::Unqualified(_, name) => OldDefinedName::unqualified(name),
+        }
+    }
+
+    pub fn to_defined(&self) -> DefinedName {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => {
+                DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
+            }
+            ConstantName::TypeclassAttribute(tc, attr) => {
+                DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
+            }
+            ConstantName::Unqualified(module_id, name) => {
+                DefinedName::unqualified(*module_id, name)
+            }
+        }
+    }
 }
 
 impl fmt::Display for ConstantName {
