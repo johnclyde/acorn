@@ -5,7 +5,7 @@ use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
+use crate::names::{DefinedName, InstanceName, LocalName, NameShim};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -125,15 +125,6 @@ impl ConstantInstance {
             params,
             instance_type,
         }
-    }
-
-    // TODO: remove this, because it acts weirdly for mixins
-    pub fn global_name(&self) -> GlobalName {
-        self.name.to_global()
-    }
-
-    pub fn name_shim(&self) -> &NameShim {
-        &self.name
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
