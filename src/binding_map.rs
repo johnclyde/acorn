@@ -166,22 +166,6 @@ impl BindingMap {
         self.typeclass_info.get(typeclass)?.alias.as_ref()
     }
 
-    fn local_name_in_use(&self, local_name: &LocalName) -> bool {
-        match local_name {
-            LocalName::Unqualified(word) => {
-                self.unqualified.contains_key(word) || self.name_to_module.contains_key(word)
-            }
-            LocalName::Attribute(receiver, attr) => {
-                if let Some(t) = self.typename_to_type.get(receiver) {
-                    if let Some(class) = t.as_base_class() {
-                        return self.has_type_attribute(class, attr);
-                    }
-                }
-                false
-            }
-        }
-    }
-
     pub fn check_defined_name_available(
         &self,
         defined_name: &DefinedName,
@@ -193,6 +177,7 @@ impl BindingMap {
         Ok(())
     }
 
+    /// Note: Doesn't work correctly for typeclass attributes.
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
             DefinedName::Constant(constant_name) => {
@@ -205,12 +190,11 @@ impl BindingMap {
                             || self.name_to_module.contains_key(name)
                     }
                     ConstantName::ClassAttribute(class, attr) => {
-                        let local_name = LocalName::attribute(&class.name, attr);
-                        self.local_name_in_use(&local_name)
+                        self.has_type_attribute(class, attr)
                     }
-                    ConstantName::TypeclassAttribute(tc, attr) => {
-                        let local_name = LocalName::attribute(&tc.name, attr);
-                        self.local_name_in_use(&local_name)
+                    ConstantName::TypeclassAttribute(..) => {
+                        // This doesn't seem right!
+                        false
                     }
                 }
             }
