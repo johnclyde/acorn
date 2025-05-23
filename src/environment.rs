@@ -509,8 +509,8 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings
                 .check_unqualified_name_available(&name, &statement.first_token)?;
-            let name = OldDefinedName::unqualified(name);
-            self.definition_ranges.insert(name, range.clone());
+            let name = DefinedName::unqualified(self.module_id, name);
+            self.definition_ranges.insert(name.to_old(), range.clone());
         }
 
         let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
@@ -678,8 +678,8 @@ impl Environment {
             start: statement.first_token.start_pos(),
             end: fss.satisfy_token.end_pos(),
         };
-        let name = OldDefinedName::unqualified(&fss.name);
-        self.definition_ranges.insert(name, definition_range);
+        let name = DefinedName::unqualified(self.module_id, &fss.name);
+        self.definition_ranges.insert(name.to_old(), definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
             &[],
@@ -1605,8 +1605,8 @@ impl Environment {
             }
 
             let name =
-                OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
-            if !self.bindings.constant_name_in_use(&name) {
+                DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            if !self.bindings.constant_name_in_use(&name.to_old()) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
                 );
@@ -2298,8 +2298,8 @@ impl Environment {
 
     /// Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
-        let name = OldDefinedName::unqualified(name);
-        let env_value = match self.bindings.get_definition(&name) {
+        let name = DefinedName::unqualified(self.module_id, name);
+        let env_value = match self.bindings.get_definition(&name.to_old()) {
             Some(t) => t,
             None => panic!("{} not found in environment", name),
         };
@@ -2308,19 +2308,19 @@ impl Environment {
 
     /// Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
-        let name1 = OldDefinedName::unqualified(name1);
-        let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = OldDefinedName::unqualified(name2);
-        let def2 = self.bindings.get_definition(&name2).unwrap();
+        let name1 = DefinedName::unqualified(self.module_id, name1);
+        let def1 = self.bindings.get_definition(&name1.to_old()).unwrap();
+        let name2 = DefinedName::unqualified(self.module_id, name2);
+        let def2 = self.bindings.get_definition(&name2.to_old()).unwrap();
         assert_eq!(def1, def2);
     }
 
     /// Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
-        let name1 = OldDefinedName::unqualified(name1);
-        let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = OldDefinedName::unqualified(name2);
-        let def2 = self.bindings.get_definition(&name2).unwrap();
+        let name1 = DefinedName::unqualified(self.module_id, name1);
+        let def1 = self.bindings.get_definition(&name1.to_old()).unwrap();
+        let name2 = DefinedName::unqualified(self.module_id, name2);
+        let def2 = self.bindings.get_definition(&name2.to_old()).unwrap();
         assert_ne!(def1, def2);
     }
 
