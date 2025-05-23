@@ -1,11 +1,11 @@
 use std::fmt;
 
 use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
-use crate::acorn_value::AcornValue;
+use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
 use crate::module::{Module, ModuleId};
-use crate::names::{GlobalName, LocalName};
+use crate::names::LocalName;
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
 
@@ -121,9 +121,11 @@ impl CodeGenerator<'_> {
         Ok(expr.to_string())
     }
 
-    /// Given a module and a name, find an expression that refers to the name.
-    /// The name can be dotted, if it's a class member.
-    fn name_to_expr(&self, name: &GlobalName) -> Result<Expression> {
+    /// Given a constant instance, find an expression that refers to it.
+    /// This does *not* include the parameters.
+    fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
+        let name = &ci.name;
+
         // We can't do skolems
         if name.module_id == Module::SKOLEM {
             return Err(Error::skolem(&name.local_name.to_string()));
@@ -363,13 +365,13 @@ impl CodeGenerator<'_> {
                     }
                 }
 
-                let name_expr = self.name_to_expr(&c.name)?;
+                let const_expr = self.const_to_expr(&c)?;
 
                 if !inferrable && !c.params.is_empty() {
-                    self.parametrize_expr(name_expr, &c.params)
+                    self.parametrize_expr(const_expr, &c.params)
                 } else {
                     // We don't need to parametrize because it can be inferred
-                    Ok(name_expr)
+                    Ok(const_expr)
                 }
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
