@@ -12,7 +12,7 @@ use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::{DefinedName, LocalName, NameShim};
+use crate::names::{OldDefinedName, LocalName, NameShim};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -44,7 +44,7 @@ pub struct Environment {
     pub nodes: Vec<Node>,
 
     /// The region in the source document where a name was defined
-    definition_ranges: HashMap<DefinedName, Range>,
+    definition_ranges: HashMap<OldDefinedName, Range>,
 
     /// Whether a plain "false" is anywhere in this environment.
     /// This indicates that the environment is supposed to have contradictory facts.
@@ -155,7 +155,7 @@ impl Environment {
 
     /// Adds a node to represent the definition of the provided
     /// constant.
-    pub fn add_definition(&mut self, constant_name: &DefinedName) {
+    pub fn add_definition(&mut self, constant_name: &OldDefinedName) {
         let definition = if let Some(d) = self.bindings.get_definition(&constant_name) {
             d.clone()
         } else {
@@ -183,7 +183,7 @@ impl Environment {
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
     fn define_constant(
         &mut self,
-        name: DefinedName,
+        name: OldDefinedName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
@@ -195,7 +195,7 @@ impl Environment {
         self.add_definition(&name);
     }
 
-    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
+    pub fn get_definition(&self, name: &OldDefinedName) -> Option<&AcornValue> {
         self.bindings.get_definition(name)
     }
 
@@ -287,7 +287,7 @@ impl Environment {
     fn add_let_statement(
         &mut self,
         project: &Project,
-        constant_name: DefinedName,
+        constant_name: OldDefinedName,
         ls: &LetStatement,
         range: Range,
         class_params: Option<&Vec<TypeParam>>,
@@ -374,7 +374,7 @@ impl Environment {
                 match &constant_name {
                     // For local names, 'let x = y' should create an alias for y, not a new constant.
                     // Aliases for local names are handled in the binding map.
-                    DefinedName::Local(local_name) => {
+                    OldDefinedName::Local(local_name) => {
                         self.bindings.add_constant_alias(
                             local_name.clone(),
                             global_name.clone(),
@@ -384,7 +384,7 @@ impl Environment {
                     }
                     // Aliases for instance names are handled in normalization.
                     // Just do nothing here.
-                    DefinedName::Instance(_) => {}
+                    OldDefinedName::Instance(_) => {}
                 }
             }
         }
@@ -401,7 +401,7 @@ impl Environment {
     fn add_define_statement(
         &mut self,
         project: &Project,
-        constant_name: DefinedName,
+        constant_name: OldDefinedName,
         self_type: Option<&AcornType>,
         class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
@@ -505,7 +505,7 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings
                 .check_unqualified_name_available(&name, &statement.first_token)?;
-            let name = DefinedName::unqualified(name);
+            let name = OldDefinedName::unqualified(name);
             self.definition_ranges.insert(name, range.clone());
         }
 
@@ -674,7 +674,7 @@ impl Environment {
             start: statement.first_token.start_pos(),
             end: fss.satisfy_token.end_pos(),
         };
-        let name = DefinedName::unqualified(&fss.name);
+        let name = OldDefinedName::unqualified(&fss.name);
         self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
@@ -1312,7 +1312,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::attribute(&cs.name, &ls.name),
+                        OldDefinedName::attribute(&cs.name, &ls.name),
                         ls,
                         substatement.range(),
                         Some(&type_params),
@@ -1321,7 +1321,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::attribute(&cs.name, &ds.name),
+                        OldDefinedName::attribute(&cs.name, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1522,7 +1522,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
+                        OldDefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
                         ls,
                         substatement.range(),
                         None,
@@ -1542,7 +1542,7 @@ impl Environment {
                     }
                     self.add_define_statement(
                         project,
-                        DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
+                        OldDefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
                         Some(&instance_type),
                         None,
                         ds,
@@ -1600,7 +1600,7 @@ impl Environment {
                 continue;
             }
 
-            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            let name = OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
@@ -1980,7 +1980,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
-                    DefinedName::unqualified(&ls.name),
+                    OldDefinedName::unqualified(&ls.name),
                     ls,
                     statement.range(),
                     None,
@@ -1991,7 +1991,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
-                    DefinedName::unqualified(&ds.name),
+                    OldDefinedName::unqualified(&ds.name),
                     None,
                     None,
                     ds,
@@ -2293,7 +2293,7 @@ impl Environment {
 
     /// Check that the given name is defined to be this value
     pub fn expect_def(&mut self, name: &str, value_string: &str) {
-        let name = DefinedName::guess(name);
+        let name = OldDefinedName::guess(name);
         let env_value = match self.bindings.get_definition(&name) {
             Some(t) => t,
             None => panic!("{} not found in environment", name),
@@ -2303,18 +2303,18 @@ impl Environment {
 
     /// Assert that these two names are defined to equal the same thing
     pub fn assert_def_eq(&self, name1: &str, name2: &str) {
-        let name1 = DefinedName::guess(name1);
+        let name1 = OldDefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = DefinedName::guess(name2);
+        let name2 = OldDefinedName::guess(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_eq!(def1, def2);
     }
 
     /// Assert that these two names are defined to be different things
     pub fn assert_def_ne(&self, name1: &str, name2: &str) {
-        let name1 = DefinedName::guess(name1);
+        let name1 = OldDefinedName::guess(name1);
         let def1 = self.bindings.get_definition(&name1).unwrap();
-        let name2 = DefinedName::guess(name2);
+        let name2 = OldDefinedName::guess(name2);
         let def2 = self.bindings.get_definition(&name2).unwrap();
         assert_ne!(def1, def2);
     }

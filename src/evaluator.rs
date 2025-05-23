@@ -5,7 +5,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
-use crate::names::DefinedName;
+use crate::names::OldDefinedName;
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
@@ -339,7 +339,7 @@ impl<'a> Evaluator<'a> {
             .get_module_for_class_attr(class, attr_name)
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(module_id);
-        let constant_name = DefinedName::attribute(&class.name, attr_name);
+        let constant_name = OldDefinedName::attribute(&class.name, attr_name);
         bindings.get_constant_value(&constant_name, source)
     }
 
@@ -363,7 +363,7 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        let constant_name = DefinedName::attribute(&typeclass.name, attr_name);
+        let constant_name = OldDefinedName::attribute(&typeclass.name, attr_name);
         bindings.get_constant_value(&constant_name, source)
     }
 
@@ -519,7 +519,7 @@ impl<'a> Evaluator<'a> {
                             // This is a stack variable
                             Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
                         } else {
-                            let constant_name = DefinedName::unqualified(name);
+                            let constant_name = OldDefinedName::unqualified(name);
                             Ok(NamedEntity::new(
                                 self.bindings
                                     .get_constant_value(&constant_name, name_token)?,

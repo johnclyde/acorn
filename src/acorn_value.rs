@@ -5,7 +5,7 @@ use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
+use crate::names::{GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -189,7 +189,7 @@ impl ConstantInstance {
         &self,
         typeclass: &Typeclass,
         class: &Class,
-    ) -> Option<DefinedName> {
+    ) -> Option<OldDefinedName> {
         if self.global_name().module_id != typeclass.module_id {
             return None;
         }
@@ -197,7 +197,7 @@ impl ConstantInstance {
             if receiver == &typeclass.name && self.params.len() == 1 {
                 if let AcornType::Data(param_class, _) = &self.params[0] {
                     if param_class == class {
-                        return Some(DefinedName::Instance(InstanceName {
+                        return Some(OldDefinedName::Instance(InstanceName {
                             typeclass: typeclass.clone(),
                             attribute: attribute.clone(),
                             class: class.clone(),

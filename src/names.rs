@@ -47,8 +47,8 @@ impl LocalName {
         }
     }
 
-    pub fn to_defined(self) -> DefinedName {
-        DefinedName::Local(self)
+    pub fn to_defined(self) -> OldDefinedName {
+        OldDefinedName::Local(self)
     }
 
     /// Return this constant's name as a chain of strings, if that's possible.
@@ -68,6 +68,8 @@ impl LocalName {
 }
 
 /// An instance name is something like Ring.add<Int>.
+/// This can be defined directly, although it should be expressed in
+/// parametrized form when it's a value.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
 pub struct InstanceName {
     /// Like "Ring", in Ring.add<Int>.
@@ -90,9 +92,11 @@ impl fmt::Display for InstanceName {
     }
 }
 
-/// The DefinedName describes how a constant, type, or typeclass was defined.
+/// The OldDefinedName describes how a constant, type, or typeclass was defined.
+/// It doesn't work correctly with mixins, because it doesn't differentiate between
+/// the place where the class was defined, and the place where the attribute was defined.
 #[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
-pub enum DefinedName {
+pub enum OldDefinedName {
     /// A regular local name.
     Local(LocalName),
 
@@ -100,75 +104,77 @@ pub enum DefinedName {
     Instance(InstanceName),
 }
 
-impl fmt::Display for DefinedName {
+impl fmt::Display for OldDefinedName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DefinedName::Local(name) => write!(f, "{}", name),
-            DefinedName::Instance(name) => write!(f, "{}", name),
+            OldDefinedName::Local(name) => write!(f, "{}", name),
+            OldDefinedName::Instance(name) => write!(f, "{}", name),
         }
     }
 }
 
-impl DefinedName {
-    pub fn unqualified(name: &str) -> DefinedName {
-        DefinedName::Local(LocalName::Unqualified(name.to_string()))
+impl OldDefinedName {
+    pub fn unqualified(name: &str) -> OldDefinedName {
+        OldDefinedName::Local(LocalName::Unqualified(name.to_string()))
     }
 
-    pub fn attribute(class: &str, attr: &str) -> DefinedName {
-        DefinedName::Local(LocalName::Attribute(class.to_string(), attr.to_string()))
+    pub fn attribute(class: &str, attr: &str) -> OldDefinedName {
+        OldDefinedName::Local(LocalName::Attribute(class.to_string(), attr.to_string()))
     }
 
-    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {
+    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> OldDefinedName {
         let inst = InstanceName {
             typeclass: tc,
             attribute: attr.to_string(),
             class,
         };
-        DefinedName::Instance(inst)
+        OldDefinedName::Instance(inst)
     }
 
     pub fn is_qualified(&self) -> bool {
         match self {
-            DefinedName::Local(LocalName::Unqualified(_)) => false,
+            OldDefinedName::Local(LocalName::Unqualified(_)) => false,
             _ => true,
         }
     }
 
     pub fn is_instance(&self) -> bool {
         match self {
-            DefinedName::Instance(..) => true,
+            OldDefinedName::Instance(..) => true,
             _ => false,
         }
     }
 
     pub fn as_attribute(&self) -> Option<(&str, &str)> {
         match self {
-            DefinedName::Local(LocalName::Attribute(class, attr)) => Some((class, attr)),
+            OldDefinedName::Local(LocalName::Attribute(class, attr)) => Some((class, attr)),
             _ => None,
         }
     }
 
     pub fn matches_instance(&self, typeclass: &Typeclass, class: &Class) -> bool {
         match self {
-            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
-            DefinedName::Local(_) => false,
+            OldDefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
+            OldDefinedName::Local(_) => false,
         }
     }
 
     pub fn as_local(&self) -> Option<&LocalName> {
         match self {
-            DefinedName::Local(name) => Some(name),
-            DefinedName::Instance(..) => None,
+            OldDefinedName::Local(name) => Some(name),
+            OldDefinedName::Instance(..) => None,
         }
     }
 
     /// Just use this for testing.
-    pub fn guess(s: &str) -> DefinedName {
-        DefinedName::Local(LocalName::guess(s))
+    pub fn guess(s: &str) -> OldDefinedName {
+        OldDefinedName::Local(LocalName::guess(s))
     }
 }
 
 /// The GlobalName provides a globally unique identifier for a constant.
+/// It doesn't work correctly with mixins, because it doesn't differentiate between
+/// the place where the class was defined, and the place where the attribute was defined.
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub struct GlobalName {
     pub module_id: ModuleId,
@@ -235,6 +241,14 @@ impl ConstantName {
         ConstantName::Unqualified(module_id, name.to_string())
     }
 
+    pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => Some((class.module_id, &class.name, attr)),
+            ConstantName::TypeclassAttribute(tc, attr) => Some((tc.module_id, &tc.name, attr)),
+            ConstantName::Unqualified(..) => None,
+        }
+    }
+
     pub fn to_global_name(&self) -> GlobalName {
         match self {
             ConstantName::ClassAttribute(class, attr) => {
@@ -246,6 +260,20 @@ impl ConstantName {
             ConstantName::Unqualified(module_id, name) => {
                 GlobalName::new(*module_id, LocalName::unqualified(name))
             }
+        }
+    }
+}
+
+impl fmt::Display for ConstantName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConstantName::ClassAttribute(class, attr) => {
+                write!(f, "{}.{}", class.name, attr)
+            }
+            ConstantName::TypeclassAttribute(tc, attr) => {
+                write!(f, "{}.{}", tc.name, attr)
+            }
+            ConstantName::Unqualified(_, name) => write!(f, "{}", name),
         }
     }
 }
@@ -294,5 +322,74 @@ impl NameShim {
 
     pub fn module_id(&self) -> ModuleId {
         self.0.module_id
+    }
+}
+
+/// The DefinedName describes how a constant was defined.
+#[derive(Hash, Debug, Eq, PartialEq, Clone, PartialOrd, Ord)]
+pub enum DefinedName {
+    /// A regular constant name.
+    Constant(ConstantName),
+
+    /// An attribute defined via an instance statement.
+    Instance(InstanceName),
+}
+
+impl fmt::Display for DefinedName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DefinedName::Constant(name) => write!(f, "{}", name),
+            DefinedName::Instance(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+impl DefinedName {
+    pub fn unqualified(module_id: ModuleId, name: &str) -> DefinedName {
+        DefinedName::Constant(ConstantName::unqualified(module_id, name))
+    }
+
+    pub fn attribute(class: &Class, attr: &str) -> DefinedName {
+        DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
+    }
+
+    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {
+        let inst = InstanceName {
+            typeclass: tc,
+            attribute: attr.to_string(),
+            class,
+        };
+        DefinedName::Instance(inst)
+    }
+
+    pub fn is_qualified(&self) -> bool {
+        match self {
+            DefinedName::Constant(ConstantName::Unqualified(..)) => false,
+            _ => true,
+        }
+    }
+
+    pub fn is_instance(&self) -> bool {
+        match self {
+            DefinedName::Instance(..) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_attribute(&self) -> Option<(&str, &str)> {
+        match self {
+            DefinedName::Constant(c) => {
+                let (_, entity, attr) = c.as_attribute()?;
+                Some((entity, attr))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Class) -> bool {
+        match self {
+            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
+            DefinedName::Constant(_) => false,
+        }
     }
 }

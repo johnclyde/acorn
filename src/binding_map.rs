@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
+use crate::names::{GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -196,10 +196,10 @@ impl BindingMap {
         Ok(())
     }
 
-    pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
+    pub fn constant_name_in_use(&self, name: &OldDefinedName) -> bool {
         match name {
-            DefinedName::Local(local_name) => self.local_name_in_use(local_name),
-            DefinedName::Instance(instance_name) => {
+            OldDefinedName::Local(local_name) => self.local_name_in_use(local_name),
+            OldDefinedName::Instance(instance_name) => {
                 self.instance_definitions.contains_key(instance_name)
             }
         }
@@ -221,15 +221,15 @@ impl BindingMap {
     /// This function assumes that you are calling the correct binding map.
     pub fn get_constant_value(
         &self,
-        name: &DefinedName,
+        name: &OldDefinedName,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         match name {
-            DefinedName::Local(local_name) => match self.constant_info.get(local_name) {
+            OldDefinedName::Local(local_name) => match self.constant_info.get(local_name) {
                 Some(info) => Ok(info.value.clone()),
                 None => Err(source.error(&format!("local constant {} not found", name))),
             },
-            DefinedName::Instance(instance_name) => {
+            OldDefinedName::Instance(instance_name) => {
                 let definition = self
                     .instance_definitions
                     .get(instance_name)
@@ -280,12 +280,12 @@ impl BindingMap {
 
     /// Returns the defined value, if there is a defined value.
     /// If there isn't, returns None.
-    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
+    pub fn get_definition(&self, name: &OldDefinedName) -> Option<&AcornValue> {
         match name {
-            DefinedName::Local(local_name) => {
+            OldDefinedName::Local(local_name) => {
                 self.constant_info.get(local_name)?.definition.as_ref()
             }
-            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
+            OldDefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
         }
     }
 
@@ -368,7 +368,7 @@ impl BindingMap {
     /// 'x' is the prefix here.
     pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
-            let name = DefinedName::unqualified(&format!("{}{}", prefix, next_index));
+            let name = OldDefinedName::unqualified(&format!("{}{}", prefix, next_index));
             *next_index += 1;
             if !self.constant_name_in_use(&name) {
                 return name.to_string();
@@ -539,7 +539,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
         // Get the relevant properties of the typeclass.
-        let typeclass_attr_name = DefinedName::attribute(&typeclass.name, attr_name);
+        let typeclass_attr_name = OldDefinedName::attribute(&typeclass.name, attr_name);
         let typeclass_attr = self
             .get_bindings(typeclass.module_id, &project)
             .get_constant_value(&typeclass_attr_name, source)?;
@@ -550,7 +550,7 @@ impl BindingMap {
         // Get the relevant properties of the instance class.
         let instance_class = instance_type.get_class(source)?;
         let instance_attr_name =
-            DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
         let instance_attr = self.get_constant_value(&instance_attr_name, source)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
@@ -588,17 +588,17 @@ impl BindingMap {
     /// Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
-        defined_name: DefinedName,
+        defined_name: OldDefinedName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         match defined_name {
-            DefinedName::Local(local_name) => {
+            OldDefinedName::Local(local_name) => {
                 self.add_local_constant(local_name, params, constant_type, definition, constructor)
             }
-            DefinedName::Instance(instance_name) => {
+            OldDefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
                 if !params.is_empty() {
                     panic!("instance may not have parameters");
@@ -1409,7 +1409,7 @@ impl BindingMap {
 
     /// Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let name = DefinedName::guess(name);
+        let name = OldDefinedName::guess(name);
         let value = self
             .get_constant_value(&name, &PanicOnError)
             .expect("no such constant");
