@@ -235,11 +235,6 @@ impl NameShim {
         self.0.as_attribute()
     }
 
-    /// TODO: deprecate and remove.
-    pub fn as_global(&self) -> &GlobalName {
-        &self.0
-    }
-
     pub fn module_id(&self) -> ModuleId {
         self.0.module_id
     }
