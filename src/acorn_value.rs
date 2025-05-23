@@ -124,17 +124,25 @@ impl fmt::Display for ConstantInstance {
 }
 
 impl ConstantInstance {
+    /// Make another constant with the same name as this one.
+    fn same_name(&self, params: Vec<AcornType>, instance_type: AcornType) -> ConstantInstance {
+        ConstantInstance {
+            global_name: self.global_name.clone(),
+            params,
+            instance_type,
+        }
+    }
+
     // TODO: remove this, because it acts weirdly for mixins
     pub fn global_name(&self) -> GlobalName {
         self.global_name.clone()
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
-        ConstantInstance {
-            global_name: self.global_name(),
-            params: self.params.iter().map(|t| t.instantiate(params)).collect(),
-            instance_type: self.instance_type.instantiate(params),
-        }
+        self.same_name(
+            self.params.iter().map(|t| t.instantiate(params)).collect(),
+            self.instance_type.instantiate(params),
+        )
     }
 
     pub fn has_generic(&self) -> bool {
@@ -162,11 +170,7 @@ impl ConstantInstance {
             // Just genericize what we started with, same as usual
             self.params.iter().map(|t| t.genericize(params)).collect()
         };
-        ConstantInstance {
-            global_name: self.global_name(),
-            params,
-            instance_type,
-        }
+        self.same_name(params, instance_type)
     }
 
     fn has_arbitrary(&self) -> bool {
@@ -174,11 +178,10 @@ impl ConstantInstance {
     }
 
     pub fn to_arbitrary(&self) -> ConstantInstance {
-        ConstantInstance {
-            global_name: self.global_name(),
-            params: self.params.iter().map(|t| t.to_arbitrary()).collect(),
-            instance_type: self.instance_type.to_arbitrary(),
-        }
+        self.same_name(
+            self.params.iter().map(|t| t.to_arbitrary()).collect(),
+            self.instance_type.to_arbitrary(),
+        )
     }
 
     /// If this value is a typeclass attribute with the specific typeclass and class, convert
@@ -1703,11 +1706,7 @@ impl AcornValue {
         match self {
             // The only interesting case.
             AcornValue::Constant(c) if &c.global_name() == name => {
-                AcornValue::Constant(ConstantInstance {
-                    global_name: c.global_name(),
-                    params: params.clone(),
-                    instance_type: c.instance_type,
-                })
+                AcornValue::Constant(c.same_name(params.clone(), c.instance_type.clone()))
             }
 
             // Otherwise just recurse.
