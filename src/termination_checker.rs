@@ -36,7 +36,7 @@ impl TerminationChecker {
                 // These values can't contain function calls within them, so they don't matter.
             }
             AcornValue::Constant(c) => {
-                if c.name == self.name {
+                if *c.global_name() == self.name {
                     // We are using the recursive function without calling it, so we can't
                     // really say that any of its arguments are always strict any more.
                     self.always_strict_sub = vec![false; self.always_strict_sub.len()];

@@ -206,8 +206,8 @@ impl<'a> Evaluator<'a> {
         let AcornValue::Constant(ci) = value else {
             return Err(source.error("invalid pattern"));
         };
-        let bindings = self.get_bindings(ci.name.module_id);
-        let Some(info) = bindings.get_constructor_info(&ci.name.local_name) else {
+        let bindings = self.get_bindings(ci.global_name().module_id);
+        let Some(info) = bindings.get_constructor_info(&ci.global_name().local_name) else {
             return Err(source.error("expected a constructor"));
         };
         expected_type.check_instance(&info.class, source)?;

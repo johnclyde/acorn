@@ -124,7 +124,7 @@ impl CodeGenerator<'_> {
     /// Given a constant instance, find an expression that refers to it.
     /// This does *not* include the parameters.
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
-        let name = &ci.name;
+        let name = &ci.global_name();
 
         // We can't do skolems
         if name.module_id == Module::SKOLEM {
@@ -139,7 +139,7 @@ impl CodeGenerator<'_> {
                     name: class_name.to_string(),
                 };
 
-                let numeral = TokenType::Numeral.new_token(attr);
+                let numeral = TokenType::Numeral.new_token(&attr);
 
                 // If it's the default type, we don't need to scope it
                 if self.bindings.numerals() == Some(&class) {
@@ -158,10 +158,10 @@ impl CodeGenerator<'_> {
         // Handle local constants
         if name.module_id == self.bindings.module_id() {
             return Ok(match &name.local_name {
-                LocalName::Unqualified(word) => Expression::generate_identifier(word),
+                LocalName::Unqualified(word) => Expression::generate_identifier(&word),
                 LocalName::Attribute(left, right) => Expression::generate_dot(
-                    Expression::generate_identifier(left),
-                    Expression::generate_identifier(right),
+                    Expression::generate_identifier(&left),
+                    Expression::generate_identifier(&right),
                 ),
             });
         }
@@ -352,7 +352,7 @@ impl CodeGenerator<'_> {
             }
             AcornValue::Constant(c) => {
                 if c.params.len() == 1 {
-                    if let Some((module_id, entity, attr)) = c.name.as_attribute() {
+                    if let Some((module_id, entity, attr)) = c.global_name().as_attribute() {
                         if self
                             .bindings
                             .inherits_attributes(&c.params[0], module_id, entity)

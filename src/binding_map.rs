@@ -1290,11 +1290,14 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.name.module_id == self.module_id
-                    && !self.constant_info.contains_key(&c.name.local_name)
+                if c.global_name().module_id == self.module_id
+                    && !self.constant_info.contains_key(&c.global_name().local_name)
                 {
                     assert!(c.params.is_empty());
-                    answer.insert(c.name.local_name.to_string(), c.instance_type.clone());
+                    answer.insert(
+                        c.global_name().local_name.to_string(),
+                        c.instance_type.clone(),
+                    );
                 }
             }
 
@@ -1342,9 +1345,9 @@ impl BindingMap {
             .unwrap_or_else(|e| panic!("invalid claim: {} ({})", proposition.value, e));
 
         let value = proposition.value.replace_constants(0, &|c| {
-            let bindings = self.get_bindings(c.name.module_id, project);
-            if bindings.is_theorem(&c.name.local_name) {
-                match bindings.get_definition_and_params(&c.name.local_name) {
+            let bindings = self.get_bindings(c.global_name().module_id, project);
+            if bindings.is_theorem(&c.global_name().local_name) {
+                match bindings.get_definition_and_params(&c.global_name().local_name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {

@@ -198,11 +198,11 @@ impl Normalizer {
                 if c.params.is_empty() {
                     check_normalized_type(&c.instance_type)?;
                     let type_id = self.normalization_map.add_type(&c.instance_type);
-                    let constant_atom = if c.name.module_id == SKOLEM {
+                    let constant_atom = if c.global_name().module_id == SKOLEM {
                         // Hacky. Turn the s-name back to an int
-                        Atom::Skolem(c.name.local_name.to_string()[1..].parse().unwrap())
+                        Atom::Skolem(c.global_name().local_name.to_string()[1..].parse().unwrap())
                     } else {
-                        self.normalization_map.add_constant(c.name.clone(), local)
+                        self.normalization_map.add_constant(c.global_name().clone(), local)
                     };
                     Ok(Term::new(type_id, type_id, constant_atom, vec![]))
                 } else {

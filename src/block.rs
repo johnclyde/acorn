@@ -279,8 +279,8 @@ impl Block {
         // Replace the internal constants with variables
         let replaced = inner_value.clone().insert_stack(0, shift_amount);
         let replaced = replaced.replace_constants(0, &|c| {
-            if c.name.module_id == outer_env.module_id {
-                if let Some(i) = map.get(&c.name.local_name.to_string()) {
+            if c.global_name().module_id == outer_env.module_id {
+                if let Some(i) = map.get(&c.global_name().local_name.to_string()) {
                     assert!(c.params.is_empty());
                     Some(AcornValue::Variable(*i, c.instance_type.clone()))
                 } else {

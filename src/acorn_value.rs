@@ -102,7 +102,7 @@ impl fmt::Display for BinaryOp {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
     /// The global name of this constant
-    pub name: GlobalName,
+    name: GlobalName,
 
     /// The type parameters that this constant was instantiated with, if any.
     /// Ordered the same way as in the definition.
@@ -124,6 +124,11 @@ impl fmt::Display for ConstantInstance {
 }
 
 impl ConstantInstance {
+    // TODO: remove this, because it acts weirdly for mixins
+    pub fn global_name(&self) -> &GlobalName {
+        &self.name
+    }
+
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
         ConstantInstance {
             name: self.name.clone(),
