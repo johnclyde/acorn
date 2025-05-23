@@ -852,16 +852,15 @@ impl Environment {
         }
 
         // A "new" function to create one of these struct types.
-
-        let new_fn_name = LocalName::attribute(&ss.name, "new");
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let constructor_info = ConstructorInfo {
-            class,
+            class: class.clone(),
             index: 0,
             total: 1,
         };
-        let new_fn = self.bindings.add_local_constant(
-            new_fn_name,
+        let new_fn = self.bindings.add_class_attribute(
+            &class,
+            "new",
             type_params.clone(),
             new_fn_type.genericize(&type_params),
             None,
