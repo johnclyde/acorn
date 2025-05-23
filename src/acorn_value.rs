@@ -449,13 +449,10 @@ impl AcornValue {
 
     /// Make a constant for an instance attribute.
     pub fn instance_constant(instance_name: InstanceName, instance_type: AcornType) -> AcornValue {
-        let attr_name = GlobalName::new(
-            instance_name.typeclass.module_id,
-            LocalName::Attribute(instance_name.typeclass.name, instance_name.attribute),
-        );
+        let name = NameShim::typeclass_attr(instance_name.typeclass, &instance_name.attribute);
         let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
-            name: NameShim::new(attr_name),
+            name,
             params: vec![param],
             instance_type,
         };
