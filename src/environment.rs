@@ -12,7 +12,7 @@ use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::{DefinedName, GlobalName, LocalName};
+use crate::names::{DefinedName, LocalName, NameShim};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -724,8 +724,8 @@ impl Environment {
             None,
             None,
         );
-        let global_name = GlobalName::new(self.module_id, local_name);
-        let function_constant = AcornValue::old_constant(global_name, vec![], function_type);
+        let const_name = NameShim::unqualified(self.module_id, &fss.name);
+        let function_constant = AcornValue::constant(const_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
             arg_types
