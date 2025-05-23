@@ -410,6 +410,19 @@ impl DefinedName {
         }
     }
 
+    pub fn as_local(&self) -> Option<LocalName> {
+        match self {
+            DefinedName::Constant(constant_name) => {
+                match constant_name {
+                    ConstantName::Unqualified(_, name) => Some(LocalName::unqualified(name)),
+                    ConstantName::ClassAttribute(class, attr) => Some(LocalName::attribute(&class.name, attr)),
+                    ConstantName::TypeclassAttribute(tc, attr) => Some(LocalName::attribute(&tc.name, attr)),
+                }
+            }
+            DefinedName::Instance(_) => None,
+        }
+    }
+
     pub fn to_old(&self) -> OldDefinedName {
         match self {
             DefinedName::Constant(name) => name.to_old_defined(),

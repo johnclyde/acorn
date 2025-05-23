@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
+use crate::names::{ConstantName, DefinedName, GlobalName, InstanceName, LocalName, NameShim};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -190,16 +190,31 @@ impl BindingMap {
         defined_name: &DefinedName,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        if self.constant_name_in_use(&defined_name.to_old()) {
+        if self.constant_name_in_use(defined_name) {
             return Err(source.error(&format!("constant name {} is already in use", defined_name)));
         }
         Ok(())
     }
 
-    pub fn constant_name_in_use(&self, name: &OldDefinedName) -> bool {
+    pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
-            OldDefinedName::Local(local_name) => self.local_name_in_use(local_name),
-            OldDefinedName::Instance(instance_name) => {
+            DefinedName::Constant(constant_name) => {
+                match constant_name {
+                    ConstantName::Unqualified(_, name) => {
+                        let local_name = LocalName::unqualified(name);
+                        self.local_name_in_use(&local_name)
+                    }
+                    ConstantName::ClassAttribute(class, attr) => {
+                        let local_name = LocalName::attribute(&class.name, attr);
+                        self.local_name_in_use(&local_name)
+                    }
+                    ConstantName::TypeclassAttribute(tc, attr) => {
+                        let local_name = LocalName::attribute(&tc.name, attr);
+                        self.local_name_in_use(&local_name)
+                    }
+                }
+            }
+            DefinedName::Instance(instance_name) => {
                 self.instance_definitions.contains_key(instance_name)
             }
         }
@@ -221,15 +236,22 @@ impl BindingMap {
     /// This function assumes that you are calling the correct binding map.
     pub fn get_constant_value(
         &self,
-        name: &OldDefinedName,
+        name: &DefinedName,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         match name {
-            OldDefinedName::Local(local_name) => match self.constant_info.get(local_name) {
-                Some(info) => Ok(info.value.clone()),
-                None => Err(source.error(&format!("local constant {} not found", name))),
-            },
-            OldDefinedName::Instance(instance_name) => {
+            DefinedName::Constant(constant_name) => {
+                let local_name = match constant_name {
+                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                };
+                match self.constant_info.get(&local_name) {
+                    Some(info) => Ok(info.value.clone()),
+                    None => Err(source.error(&format!("local constant {} not found", name))),
+                }
+            }
+            DefinedName::Instance(instance_name) => {
                 let definition = self
                     .instance_definitions
                     .get(instance_name)
@@ -280,12 +302,17 @@ impl BindingMap {
 
     /// Returns the defined value, if there is a defined value.
     /// If there isn't, returns None.
-    pub fn get_definition(&self, name: &OldDefinedName) -> Option<&AcornValue> {
+    pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         match name {
-            OldDefinedName::Local(local_name) => {
-                self.constant_info.get(local_name)?.definition.as_ref()
+            DefinedName::Constant(constant_name) => {
+                let local_name = match constant_name {
+                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                };
+                self.constant_info.get(&local_name)?.definition.as_ref()
             }
-            OldDefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
+            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
         }
     }
 
@@ -369,7 +396,7 @@ impl BindingMap {
     /// 'x' is the prefix here.
     pub fn next_indexed_var(&self, prefix: char, next_index: &mut u32) -> String {
         loop {
-            let name = OldDefinedName::unqualified(&format!("{}{}", prefix, next_index));
+            let name = DefinedName::unqualified(self.module_id, &format!("{}{}", prefix, next_index));
             *next_index += 1;
             if !self.constant_name_in_use(&name) {
                 return name.to_string();
@@ -540,7 +567,7 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<(AcornValue, AcornValue)> {
         // Get the relevant properties of the typeclass.
-        let typeclass_attr_name = OldDefinedName::attribute(&typeclass.name, attr_name);
+        let typeclass_attr_name = DefinedName::typeclass_attr(typeclass, attr_name);
         let typeclass_attr = self
             .get_bindings(typeclass.module_id, &project)
             .get_constant_value(&typeclass_attr_name, source)?;
@@ -551,7 +578,7 @@ impl BindingMap {
         // Get the relevant properties of the instance class.
         let instance_class = instance_type.get_class(source)?;
         let instance_attr_name =
-            OldDefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
         let instance_attr = self.get_constant_value(&instance_attr_name, source)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
@@ -589,17 +616,22 @@ impl BindingMap {
     /// Returns the value for the newly created constant.
     pub fn add_constant(
         &mut self,
-        defined_name: OldDefinedName,
+        defined_name: &DefinedName,
         params: Vec<TypeParam>,
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         match defined_name {
-            OldDefinedName::Local(local_name) => {
+            DefinedName::Constant(constant_name) => {
+                let local_name = match constant_name {
+                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+                    ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+                    ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+                };
                 self.add_local_constant(local_name, params, constant_type, definition, constructor)
             }
-            OldDefinedName::Instance(instance_name) => {
+            DefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
                 if !params.is_empty() {
                     panic!("instance may not have parameters");
@@ -609,7 +641,7 @@ impl BindingMap {
                 }
                 self.instance_definitions
                     .insert(instance_name.clone(), definition);
-                let value = AcornValue::instance_constant(instance_name, constant_type);
+                let value = AcornValue::instance_constant(instance_name.clone(), constant_type);
                 PotentialValue::Resolved(value)
             }
         }
@@ -1418,7 +1450,7 @@ impl BindingMap {
     pub fn expect_type(&self, name: &str, type_string: &str) {
         let name = DefinedName::unqualified(self.module_id, name);
         let value = self
-            .get_constant_value(&name.to_old(), &PanicOnError)
+            .get_constant_value(&name, &PanicOnError)
             .expect("no such constant");
         let env_type = value.get_type();
         assert_eq!(env_type.to_string(), type_string);

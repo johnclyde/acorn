@@ -340,7 +340,7 @@ impl<'a> Evaluator<'a> {
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(module_id);
         let defined_name = DefinedName::class_attr(&class, attr_name);
-        bindings.get_constant_value(&defined_name.to_old(), source)
+        bindings.get_constant_value(&defined_name, source)
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
@@ -364,7 +364,7 @@ impl<'a> Evaluator<'a> {
         }
 
         let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name);
-        bindings.get_constant_value(&defined_name.to_old(), source)
+        bindings.get_constant_value(&defined_name, source)
     }
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.
@@ -523,7 +523,7 @@ impl<'a> Evaluator<'a> {
                                 DefinedName::unqualified(self.bindings.module_id(), name);
                             Ok(NamedEntity::new(
                                 self.bindings
-                                    .get_constant_value(&constant_name.to_old(), name_token)?,
+                                    .get_constant_value(&constant_name, name_token)?,
                             ))
                         }
                     }
