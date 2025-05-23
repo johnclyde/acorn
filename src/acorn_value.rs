@@ -129,7 +129,7 @@ impl ConstantInstance {
 
     // TODO: remove this, because it acts weirdly for mixins
     pub fn global_name(&self) -> GlobalName {
-        self.name.to_global_name()
+        self.name.to_global()
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
@@ -1804,7 +1804,7 @@ impl AcornValue {
     /// Otherwise, return None.
     pub fn as_name(&self) -> Option<&GlobalName> {
         match &self {
-            AcornValue::Constant(c) => Some(c.name.as_global_name()),
+            AcornValue::Constant(c) => Some(c.name.as_global()),
             _ => None,
         }
     }
@@ -1823,7 +1823,7 @@ impl AcornValue {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    Some(c.name.as_global_name())
+                    Some(c.name.as_global())
                 } else {
                     None
                 }

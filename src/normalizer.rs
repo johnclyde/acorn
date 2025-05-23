@@ -496,13 +496,13 @@ impl Normalizer {
             Atom::GlobalConstant(i) => self
                 .normalization_map
                 .name_for_global_id(*i)
-                .to_global_name()
+                .to_global()
                 .local_name
                 .to_string(),
             Atom::LocalConstant(i) => self
                 .normalization_map
                 .name_for_local_id(*i)
-                .to_global_name()
+                .to_global()
                 .local_name
                 .to_string(),
             Atom::Monomorph(i) => {

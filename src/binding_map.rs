@@ -1105,7 +1105,7 @@ impl BindingMap {
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
                     LocalName::unqualified(name),
-                    uc.name.to_global_name(),
+                    uc.name.to_global(),
                     PotentialValue::Unresolved(uc),
                 );
                 Ok(())
@@ -1241,7 +1241,7 @@ impl BindingMap {
         value_type_expr: Option<&Expression>,
         value_expr: &Expression,
         class_type: Option<&AcornType>,
-        function_name: Option<&LocalName>,
+        function_name: Option<&ConstantName>,
         project: &Project,
     ) -> compilation::Result<(
         Vec<TypeParam>,
@@ -1270,7 +1270,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_local_constant(function_name.clone(), vec![], fn_type, None, None);
+            self.add_local_constant(function_name.to_local(), vec![], fn_type, None, None);
         }
 
         // Evaluate the internal value using our modified bindings
@@ -1284,8 +1284,8 @@ impl BindingMap {
             )?;
 
             if let Some(function_name) = function_name {
-                let global_name = GlobalName::new(self.module_id, function_name.clone());
-                let mut checker = TerminationChecker::new(global_name, internal_arg_types.len());
+                let mut checker =
+                    TerminationChecker::new(function_name.to_global(), internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
                         value_expr.error("the compiler thinks this looks like an infinite loop")
@@ -1301,7 +1301,7 @@ impl BindingMap {
             self.remove_type(&param.name);
         }
         if let Some(function_name) = function_name {
-            self.remove_constant(&function_name);
+            self.remove_constant(&function_name.to_local());
         }
 
         // We might have types parametrized on this function, or they might be parametrized on the
@@ -1323,12 +1323,12 @@ impl BindingMap {
                     // In this case, internally it's not polymorphic. It's just a constant
                     // with a type that depends on the arbitrary types we introduced.
                     // But, externally we need to make it polymorphic.
-                    let global_name = GlobalName::new(self.module_id, function_name.clone());
                     let generic_params = type_params
                         .iter()
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
-                    let derecursed = internal_value.set_params(&global_name, &generic_params);
+                    let derecursed =
+                        internal_value.set_params(&function_name.to_global(), &generic_params);
                     Some(derecursed.genericize(&type_params))
                 } else {
                     // There's no name for this function so it can't possibly be recursive.

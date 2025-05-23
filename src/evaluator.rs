@@ -243,10 +243,10 @@ impl<'a> Evaluator<'a> {
                 let AcornType::Data(class, params) = expected_type else {
                     return Err(pattern.error("unmatchable datatype?"));
                 };
-                if !uc.name.to_global_name().is_attribute_of(&class) {
+                if !uc.name.to_global().is_attribute_of(&class) {
                     return Err(pattern.error(&format!(
                         "pattern {} is not an attribute of {}",
-                        &uc.name.to_global_name().local_name,
+                        &uc.name.to_global().local_name,
                         class.name
                     )));
                 }

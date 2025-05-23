@@ -410,7 +410,7 @@ impl Environment {
     fn add_define_statement(
         &mut self,
         project: &Project,
-        constant_name: DefinedName,
+        defined_name: DefinedName,
         self_type: Option<&AcornType>,
         class_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
@@ -432,10 +432,10 @@ impl Environment {
                 .name_token
                 .error("member functions may not have type parameters"));
         }
-        if self.bindings.constant_name_in_use(&constant_name) {
+        if self.bindings.constant_name_in_use(&defined_name) {
             return Err(ds.name_token.error(&format!(
                 "function name '{}' already defined in this scope",
-                constant_name
+                defined_name
             )));
         }
 
@@ -447,7 +447,7 @@ impl Environment {
                 Some(&ds.return_type),
                 &ds.return_value,
                 self_type,
-                constant_name.to_local().as_ref(),
+                defined_name.as_constant(),
                 project,
             )?;
 
@@ -482,7 +482,7 @@ impl Environment {
 
             // Add the function value to the environment
             self.define_constant(
-                constant_name,
+                defined_name,
                 params,
                 fn_value.get_type(),
                 Some(fn_value),
@@ -493,7 +493,7 @@ impl Environment {
 
         // Defining an axiom
         let new_axiom_type = AcornType::functional(arg_types, value_type);
-        self.define_constant(constant_name, fn_param_names, new_axiom_type, None, range);
+        self.define_constant(defined_name, fn_param_names, new_axiom_type, None, range);
         Ok(())
     }
 

@@ -143,7 +143,7 @@ impl ConstantName {
         }
     }
 
-    pub fn to_global_name(&self) -> GlobalName {
+    pub fn to_global(&self) -> GlobalName {
         match self {
             ConstantName::ClassAttribute(class, attr) => {
                 GlobalName::new(class.module_id, LocalName::attribute(&class.name, attr))
@@ -223,7 +223,7 @@ impl NameShim {
     }
 
     /// TODO: deprecate and remove.
-    pub fn to_global_name(&self) -> GlobalName {
+    pub fn to_global(&self) -> GlobalName {
         self.0.clone()
     }
 
@@ -232,7 +232,7 @@ impl NameShim {
     }
 
     /// TODO: deprecate and remove.
-    pub fn as_global_name(&self) -> &GlobalName {
+    pub fn as_global(&self) -> &GlobalName {
         &self.0
     }
 
