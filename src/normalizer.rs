@@ -74,9 +74,8 @@ impl Normalizer {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
-        let local_name = LocalName::Unqualified(format!("s{}", skolem_index));
-        let global_name = GlobalName::new(SKOLEM, local_name);
-        AcornValue::old_constant(global_name, vec![], acorn_type)
+        let name = NameShim::unqualified(SKOLEM, &format!("s{}", skolem_index));
+        AcornValue::constant(name, vec![], acorn_type)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
