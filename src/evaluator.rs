@@ -5,7 +5,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
-use crate::names::OldDefinedName;
+use crate::names::{DefinedName, OldDefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
@@ -339,8 +339,8 @@ impl<'a> Evaluator<'a> {
             .get_module_for_class_attr(class, attr_name)
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(module_id);
-        let constant_name = OldDefinedName::attribute(&class.name, attr_name);
-        bindings.get_constant_value(&constant_name, source)
+        let constant_name = DefinedName::attribute(&class, attr_name);
+        bindings.get_constant_value(&constant_name.to_old(), source)
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
