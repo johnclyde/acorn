@@ -1,14 +1,14 @@
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
-use crate::names::GlobalName;
+use crate::names::NameShim;
 
 /// A generic constant that we don't know the type of yet.
 /// It's more of a "constant with unresolved type" than an "unresolved constant".
 #[derive(Debug, Clone)]
 pub struct UnresolvedConstant {
     /// The global name of the constant.
-    pub name: GlobalName,
+    pub name: NameShim,
 
     /// The type parameters are all the type variables used in the definition of this constant,
     /// in their canonical order. Each of these type parameters should be referenced in the type of
@@ -42,7 +42,7 @@ impl UnresolvedConstant {
             .collect();
         let resolved_type = self.generic_type.instantiate(&named_params);
         Ok(AcornValue::old_constant(
-            self.name.clone(),
+            self.name.to_global_name(),
             params,
             resolved_type,
         ))
@@ -55,6 +55,6 @@ impl UnresolvedConstant {
             .into_iter()
             .map(|p| AcornType::Variable(p))
             .collect();
-        AcornValue::old_constant(self.name.clone(), params, self.generic_type)
+        AcornValue::old_constant(self.name.to_global_name(), params, self.generic_type)
     }
 }

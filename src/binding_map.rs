@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{DefinedName, GlobalName, InstanceName, LocalName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -648,7 +648,7 @@ impl BindingMap {
             }
             let global_name = GlobalName::new(self.module_id, local_name.clone());
             PotentialValue::Unresolved(UnresolvedConstant {
-                name: global_name,
+                name: NameShim::new(global_name),
                 params,
                 generic_type: constant_type,
             })
@@ -1030,7 +1030,7 @@ impl BindingMap {
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
                     local_name,
-                    uc.name.clone(),
+                    uc.name.to_global_name(),
                     PotentialValue::Unresolved(uc),
                 );
                 Ok(())
