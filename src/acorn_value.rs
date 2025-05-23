@@ -102,7 +102,7 @@ impl fmt::Display for BinaryOp {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
     /// The global name of this constant
-    name: GlobalName,
+    global_name: GlobalName,
 
     /// The type parameters that this constant was instantiated with, if any.
     /// Ordered the same way as in the definition.
@@ -114,7 +114,7 @@ pub struct ConstantInstance {
 
 impl fmt::Display for ConstantInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name.local_name)?;
+        write!(f, "{}", self.global_name().local_name)?;
         if !self.params.is_empty() {
             let types: Vec<_> = self.params.iter().map(|t| t.to_string()).collect();
             write!(f, "<{}>", types.join(", "))?;
@@ -125,13 +125,13 @@ impl fmt::Display for ConstantInstance {
 
 impl ConstantInstance {
     // TODO: remove this, because it acts weirdly for mixins
-    pub fn global_name(&self) -> &GlobalName {
-        &self.name
+    pub fn global_name(&self) -> GlobalName {
+        self.global_name.clone()
     }
 
     pub fn instantiate(&self, params: &[(String, AcornType)]) -> ConstantInstance {
         ConstantInstance {
-            name: self.name.clone(),
+            global_name: self.global_name(),
             params: self.params.iter().map(|t| t.instantiate(params)).collect(),
             instance_type: self.instance_type.instantiate(params),
         }
@@ -163,7 +163,7 @@ impl ConstantInstance {
             self.params.iter().map(|t| t.genericize(params)).collect()
         };
         ConstantInstance {
-            name: self.name.clone(),
+            global_name: self.global_name(),
             params,
             instance_type,
         }
@@ -175,7 +175,7 @@ impl ConstantInstance {
 
     pub fn to_arbitrary(&self) -> ConstantInstance {
         ConstantInstance {
-            name: self.name.clone(),
+            global_name: self.global_name(),
             params: self.params.iter().map(|t| t.to_arbitrary()).collect(),
             instance_type: self.instance_type.to_arbitrary(),
         }
@@ -188,10 +188,10 @@ impl ConstantInstance {
         typeclass: &Typeclass,
         class: &Class,
     ) -> Option<DefinedName> {
-        if self.name.module_id != typeclass.module_id {
+        if self.global_name().module_id != typeclass.module_id {
             return None;
         }
-        if let LocalName::Attribute(receiver, attribute) = &self.name.local_name {
+        if let LocalName::Attribute(receiver, attribute) = &self.global_name().local_name {
             if receiver == &typeclass.name && self.params.len() == 1 {
                 if let AcornType::Data(param_class, _) = &self.params[0] {
                     if param_class == class {
@@ -453,7 +453,7 @@ impl AcornValue {
         );
         let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
-            name: attr_name,
+            global_name: attr_name,
             params: vec![param],
             instance_type,
         };
@@ -462,12 +462,12 @@ impl AcornValue {
 
     /// Creates a constant value
     pub fn constant(
-        name: GlobalName,
+        global_name: GlobalName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
         let ci = ConstantInstance {
-            name,
+            global_name,
             params,
             instance_type,
         };
@@ -1702,11 +1702,13 @@ impl AcornValue {
     pub fn set_params(self, name: &GlobalName, params: &Vec<AcornType>) -> AcornValue {
         match self {
             // The only interesting case.
-            AcornValue::Constant(c) if &c.name == name => AcornValue::Constant(ConstantInstance {
-                name: c.name,
-                params: params.clone(),
-                instance_type: c.instance_type,
-            }),
+            AcornValue::Constant(c) if &c.global_name() == name => {
+                AcornValue::Constant(ConstantInstance {
+                    global_name: c.global_name(),
+                    params: params.clone(),
+                    instance_type: c.instance_type,
+                })
+            }
 
             // Otherwise just recurse.
             AcornValue::Constant(..) | AcornValue::Variable(..) | AcornValue::Bool(_) => self,
@@ -1789,7 +1791,7 @@ impl AcornValue {
     ///   (module id, receiver name, attribute name)
     pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
         match &self {
-            AcornValue::Constant(c) => c.name.as_attribute(),
+            AcornValue::Constant(c) => c.global_name.as_attribute(),
             _ => None,
         }
     }
@@ -1798,7 +1800,7 @@ impl AcornValue {
     /// Otherwise, return None.
     pub fn as_name(&self) -> Option<&GlobalName> {
         match &self {
-            AcornValue::Constant(c) => Some(&c.name),
+            AcornValue::Constant(c) => Some(&c.global_name),
             _ => None,
         }
     }
@@ -1817,7 +1819,7 @@ impl AcornValue {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {
-                    Some(&c.name)
+                    Some(&c.global_name)
                 } else {
                     None
                 }
