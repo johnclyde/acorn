@@ -602,12 +602,33 @@ impl BindingMap {
         self.numerals = Some(class);
     }
 
-    /// Adds a constant.
+    /// Adds a definition for a constant.
     /// Panics if the name is already bound.
     /// The type and definition can be generic. If so, the parameters must be listed in params.
     /// Don't call this for aliases, this doesn't handle aliases intelligently.
     /// Returns the value for the newly created constant.
-    pub fn add_constant(
+    fn add_constant_name(
+        &mut self,
+        constant_name: &ConstantName,
+        params: Vec<TypeParam>,
+        constant_type: AcornType,
+        definition: Option<AcornValue>,
+        constructor: Option<ConstructorInfo>,
+    ) -> PotentialValue {
+        let local_name = match constant_name {
+            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
+            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
+            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
+        };
+        self.add_local_name(local_name, params, constant_type, definition, constructor)
+    }
+
+    /// Adds a definition for a name that can either be a normal constant, or an instance.
+    /// Panics if the name is already bound.
+    /// The type and definition can be generic. If so, the parameters must be listed in params.
+    /// Don't call this for aliases, this doesn't handle aliases intelligently.
+    /// Returns the value for the newly created constant.
+    pub fn add_defined_name(
         &mut self,
         defined_name: &DefinedName,
         params: Vec<TypeParam>,
@@ -616,18 +637,13 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         match defined_name {
-            DefinedName::Constant(constant_name) => {
-                let local_name = match constant_name {
-                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => {
-                        LocalName::attribute(&class.name, attr)
-                    }
-                    ConstantName::TypeclassAttribute(tc, attr) => {
-                        LocalName::attribute(&tc.name, attr)
-                    }
-                };
-                self.add_local_constant(local_name, params, constant_type, definition, constructor)
-            }
+            DefinedName::Constant(constant_name) => self.add_constant_name(
+                constant_name,
+                params,
+                constant_type,
+                definition,
+                constructor,
+            ),
             DefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
                 if !params.is_empty() {
@@ -655,7 +671,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let local_name = LocalName::attribute(&class.name, attr);
-        self.add_local_constant(local_name, params, constant_type, definition, constructor)
+        self.add_local_name(local_name, params, constant_type, definition, constructor)
     }
 
     pub fn add_typeclass_attribute(
@@ -668,7 +684,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let local_name = LocalName::attribute(&typeclass.name, attr);
-        self.add_local_constant(local_name, params, constant_type, definition, constructor)
+        self.add_local_name(local_name, params, constant_type, definition, constructor)
     }
 
     /// Adds a constant that is not an attribute of anything.
@@ -681,11 +697,11 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
     ) -> PotentialValue {
         let local_name = LocalName::unqualified(name);
-        self.add_local_constant(local_name, params, constant_type, definition, constructor)
+        self.add_local_name(local_name, params, constant_type, definition, constructor)
     }
 
     /// Adds a constant that is defined locally.
-    fn add_local_constant(
+    fn add_local_name(
         &mut self,
         local_name: LocalName,
         params: Vec<TypeParam>,
@@ -1270,7 +1286,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_local_constant(function_name.to_local(), vec![], fn_type, None, None);
+            self.add_local_name(function_name.to_local(), vec![], fn_type, None, None);
         }
 
         // Evaluate the internal value using our modified bindings

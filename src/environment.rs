@@ -190,7 +190,7 @@ impl Environment {
         range: Range,
     ) {
         self.bindings
-            .add_constant(&name, params, constant_type, definition, None);
+            .add_defined_name(&name, params, constant_type, definition, None);
         self.definition_ranges.insert(name.clone(), range);
         self.add_definition(&name);
     }
