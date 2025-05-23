@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
+use crate::names::{DefinedName, GlobalName, InstanceName, LocalName, NameShim, OldDefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -1409,9 +1409,9 @@ impl BindingMap {
 
     /// Check that the given name actually does have this type in the environment.
     pub fn expect_type(&self, name: &str, type_string: &str) {
-        let name = OldDefinedName::unqualified(name);
+        let name = DefinedName::unqualified(self.module_id, name);
         let value = self
-            .get_constant_value(&name, &PanicOnError)
+            .get_constant_value(&name.to_old(), &PanicOnError)
             .expect("no such constant");
         let env_type = value.get_type();
         assert_eq!(env_type.to_string(), type_string);
