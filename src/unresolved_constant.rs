@@ -1,14 +1,14 @@
 use crate::acorn_type::{AcornType, TypeParam};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
-use crate::names::NameShim;
+use crate::names::ConstantName;
 
 /// A generic constant that we don't know the type of yet.
 /// It's more of a "constant with unresolved type" than an "unresolved constant".
 #[derive(Debug, Clone)]
 pub struct UnresolvedConstant {
     /// The global name of the constant.
-    pub name: NameShim,
+    pub name: ConstantName,
 
     /// The type parameters are all the type variables used in the definition of this constant,
     /// in their canonical order. Each of these type parameters should be referenced in the type of

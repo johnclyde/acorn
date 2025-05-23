@@ -4,7 +4,7 @@ use std::fmt;
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::fact::Fact;
-use crate::names::NameShim;
+use crate::names::ConstantName;
 use crate::potential_value::PotentialValue;
 use crate::proof_step::Truthiness;
 use crate::proposition::{MonomorphicProposition, Proposition};
@@ -131,7 +131,7 @@ pub struct Monomorphizer {
     /// An index tracking wherever a generic constant is located in the generic props.
     /// This is updated whenever we add a generic prop.
     /// Lists (prop id, instantiation for the constant) for each occurrence.
-    constant_info: HashMap<NameShim, GenericConstantInfo>,
+    constant_info: HashMap<ConstantName, GenericConstantInfo>,
 
     /// Extends maps each typeclass to the typeclasses it extends.
     /// This includes indirect extensions.

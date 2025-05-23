@@ -179,6 +179,14 @@ impl ConstantName {
         }
     }
 
+    pub fn module_id(&self) -> ModuleId {
+        match self {
+            ConstantName::ClassAttribute(class, _) => class.module_id,
+            ConstantName::TypeclassAttribute(tc, _) => tc.module_id,
+            ConstantName::Unqualified(module_id, _) => *module_id,
+        }
+    }
+
     // TODO: deprecate and remove.
     pub fn from_constant_name(name: &ConstantName) -> ConstantName {
         name.clone()

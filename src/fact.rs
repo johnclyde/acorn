@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::acorn_type::{AcornType, Class, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
-use crate::names::NameShim;
+use crate::names::ConstantName;
 use crate::potential_value::PotentialValue;
 use crate::proposition::Proposition;
 use crate::source::Source;
@@ -70,7 +70,7 @@ impl Fact {
     /// Returns Some(..) if this fact is an aliasing for an instance of a typeclass constant.
     /// I.e., it's part of an instance statement with "let _ = _" so that it's an alias of a previously
     /// defined constant.
-    pub fn as_instance_alias(&self) -> Option<(ConstantInstance, &NameShim, AcornType)> {
+    pub fn as_instance_alias(&self) -> Option<(ConstantInstance, &ConstantName, AcornType)> {
         if let Fact::Definition(potential, definition, _) = self {
             if let PotentialValue::Resolved(AcornValue::Constant(ci)) = potential {
                 if let Some(name) = definition.as_simple_constant() {

@@ -6,7 +6,7 @@ use crate::fact::Fact;
 use crate::literal::Literal;
 use crate::module::SKOLEM;
 use crate::monomorphizer::Monomorphizer;
-use crate::names::NameShim;
+use crate::names::ConstantName;
 use crate::normalization_map::NormalizationMap;
 use crate::proof_step::{ProofStep, Truthiness};
 use crate::source::SourceType;
@@ -74,7 +74,7 @@ impl Normalizer {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
-        let name = NameShim::unqualified(SKOLEM, &format!("s{}", skolem_index));
+        let name = ConstantName::unqualified(SKOLEM, &format!("s{}", skolem_index));
         AcornValue::constant(name, vec![], acorn_type)
     }
 
@@ -442,7 +442,7 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let name = NameShim::unqualified(SKOLEM, &format!("s{}", i));
+                let name = ConstantName::unqualified(SKOLEM, &format!("s{}", i));
                 AcornValue::constant(name, vec![], acorn_type)
             }
         }

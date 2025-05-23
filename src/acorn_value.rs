@@ -5,7 +5,7 @@ use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
-use crate::names::{DefinedName, InstanceName, LocalName, NameShim};
+use crate::names::{ConstantName, DefinedName, InstanceName};
 use crate::token::TokenType;
 
 /// Represents a function application with a function and its arguments.
@@ -96,7 +96,7 @@ impl fmt::Display for BinaryOp {
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct ConstantInstance {
     /// The name of this constant
-    pub name: NameShim,
+    pub name: ConstantName,
 
     /// The type parameters that this constant was instantiated with, if any.
     /// Ordered the same way as in the definition.
@@ -108,7 +108,7 @@ pub struct ConstantInstance {
 
 impl fmt::Display for ConstantInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name.to_global().local_name)?;
+        write!(f, "{}", self.name.to_local())?;
         if !self.params.is_empty() {
             let types: Vec<_> = self.params.iter().map(|t| t.to_string()).collect();
             write!(f, "<{}>", types.join(", "))?;
@@ -183,13 +183,13 @@ impl ConstantInstance {
         if self.name.module_id() != typeclass.module_id {
             return None;
         }
-        if let LocalName::Attribute(receiver, attribute) = &self.name.to_global().local_name {
+        if let Some((_, receiver, attribute)) = self.name.as_attribute() {
             if receiver == &typeclass.name && self.params.len() == 1 {
                 if let AcornType::Data(param_class, _) = &self.params[0] {
                     if param_class == class {
                         return Some(DefinedName::Instance(InstanceName {
                             typeclass: typeclass.clone(),
-                            attribute: attribute.clone(),
+                            attribute: attribute.to_string(),
                             class: class.clone(),
                         }));
                     }
@@ -439,7 +439,7 @@ impl AcornValue {
 
     /// Make a constant for an instance attribute.
     pub fn instance_constant(instance_name: InstanceName, instance_type: AcornType) -> AcornValue {
-        let name = NameShim::typeclass_attr(instance_name.typeclass, &instance_name.attribute);
+        let name = ConstantName::typeclass_attr(instance_name.typeclass, &instance_name.attribute);
         let param = AcornType::Data(instance_name.class, vec![]);
         let ci = ConstantInstance {
             name,
@@ -451,7 +451,7 @@ impl AcornValue {
 
     /// Creates a constant value
     pub fn constant(
-        name: NameShim,
+        name: ConstantName,
         params: Vec<AcornType>,
         instance_type: AcornType,
     ) -> AcornValue {
@@ -1688,7 +1688,7 @@ impl AcornValue {
     }
 
     /// Set parameters to the given constant wherever it occurs in this value.
-    pub fn set_params(self, name: &NameShim, params: &Vec<AcornType>) -> AcornValue {
+    pub fn set_params(self, name: &ConstantName, params: &Vec<AcornType>) -> AcornValue {
         match self {
             // The only interesting case.
             AcornValue::Constant(c) if &c.name == name => {
@@ -1783,7 +1783,7 @@ impl AcornValue {
 
     /// If this is a plain constant, give access to its name.
     /// Otherwise, return None.
-    pub fn as_name(&self) -> Option<&NameShim> {
+    pub fn as_name(&self) -> Option<&ConstantName> {
         match &self {
             AcornValue::Constant(c) => Some(&c.name),
             _ => None,
@@ -1791,7 +1791,7 @@ impl AcornValue {
     }
 
     /// If this is a function call of a constant function, give access to its name.
-    pub fn is_named_function_call(&self) -> Option<&NameShim> {
+    pub fn is_named_function_call(&self) -> Option<&ConstantName> {
         match self {
             AcornValue::Application(fa) => fa.function.as_name(),
             _ => None,
@@ -1800,7 +1800,7 @@ impl AcornValue {
 
     /// If this is a constant with no parameters, give access to its name.
     /// Otherwise, return None.
-    pub fn as_simple_constant(&self) -> Option<&NameShim> {
+    pub fn as_simple_constant(&self) -> Option<&ConstantName> {
         match self {
             AcornValue::Constant(c) => {
                 if c.params.is_empty() {

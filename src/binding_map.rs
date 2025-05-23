@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{ConstantName, DefinedName, InstanceName, LocalName, NameShim};
+use crate::names::{ConstantName, DefinedName, InstanceName, LocalName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -62,7 +62,7 @@ pub struct BindingMap {
     /// if we're generating code, we prefer to use the local name.
     /// This contains constants, types, and typenames.
     /// For this reason, canonical_to_alias maps the global name to the preferred local alias.
-    constant_to_alias: HashMap<NameShim, String>,
+    constant_to_alias: HashMap<ConstantName, String>,
 
     /// Names that refer to other modules.
     /// After "import foo", "foo" refers to a module.
@@ -131,7 +131,7 @@ impl BindingMap {
     }
 
     /// Gets the local alias to use for a given constant.
-    pub fn constant_alias(&self, name: &NameShim) -> Option<&String> {
+    pub fn constant_alias(&self, name: &ConstantName) -> Option<&String> {
         self.constant_to_alias.get(name)
     }
 
@@ -727,7 +727,7 @@ impl BindingMap {
                 panic!("there should not be generic types in non-parametrized constant types");
             }
             PotentialValue::Resolved(AcornValue::constant(
-                NameShim::from_constant_name(constant_name),
+                constant_name.clone(),
                 vec![],
                 constant_type,
             ))
@@ -736,7 +736,7 @@ impl BindingMap {
                 panic!("there should not be arbitrary types in parametrized constant types");
             }
             PotentialValue::Unresolved(UnresolvedConstant {
-                name: NameShim::from_constant_name(constant_name),
+                name: constant_name.clone(),
                 params,
                 generic_type: constant_type,
             })
@@ -806,13 +806,13 @@ impl BindingMap {
     pub fn add_constant_alias(
         &mut self,
         local_name: LocalName,
-        name_shim: NameShim,
+        constant_name: ConstantName,
         value: PotentialValue,
     ) {
-        if name_shim.module_id() != self.module_id {
+        if constant_name.module_id() != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
             self.constant_to_alias
-                .entry(name_shim)
+                .entry(constant_name)
                 .or_insert(local_name.to_string());
         }
         let info = ConstantInfo {
@@ -905,9 +905,9 @@ impl BindingMap {
     /// Whether this value is calling a theorem on some arguments.
     pub fn is_citation(&self, claim: &AcornValue, project: &Project) -> bool {
         match claim.is_named_function_call() {
-            Some(name_shim) => {
-                let bindings = self.get_bindings(name_shim.module_id(), project);
-                bindings.is_theorem(&name_shim.to_global().local_name)
+            Some(constant_name) => {
+                let bindings = self.get_bindings(constant_name.module_id(), project);
+                bindings.is_theorem(&constant_name.to_local())
             }
             None => false,
         }
@@ -1099,10 +1099,10 @@ impl BindingMap {
         match entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
-                if let Some(name_shim) = value.as_simple_constant() {
+                if let Some(constant_name) = value.as_simple_constant() {
                     self.add_constant_alias(
                         LocalName::unqualified(name),
-                        name_shim.clone(),
+                        constant_name.clone(),
                         PotentialValue::Resolved(value),
                     );
                     Ok(())
@@ -1304,7 +1304,7 @@ impl BindingMap {
 
             if let Some(function_name) = function_name {
                 let mut checker =
-                    TerminationChecker::new(NameShim::from_constant_name(function_name), internal_arg_types.len());
+                    TerminationChecker::new(function_name.clone(), internal_arg_types.len());
                 if !checker.check(&value) {
                     return Err(
                         value_expr.error("the compiler thinks this looks like an infinite loop")
@@ -1347,7 +1347,7 @@ impl BindingMap {
                         .map(|param| AcornType::Variable(param.clone()))
                         .collect();
                     let derecursed =
-                        internal_value.set_params(&NameShim::from_constant_name(function_name), &generic_params);
+                        internal_value.set_params(function_name, &generic_params);
                     Some(derecursed.genericize(&type_params))
                 } else {
                     // There's no name for this function so it can't possibly be recursive.
@@ -1385,11 +1385,11 @@ impl BindingMap {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
                 if c.name.module_id() == self.module_id
-                    && !self.constant_info.contains_key(&c.name.to_global().local_name)
+                    && !self.constant_info.contains_key(&c.name.to_local())
                 {
                     assert!(c.params.is_empty());
                     answer.insert(
-                        c.name.to_global().local_name.to_string(),
+                        c.name.to_local().to_string(),
                         c.instance_type.clone(),
                     );
                 }
@@ -1440,8 +1440,8 @@ impl BindingMap {
 
         let value = proposition.value.replace_constants(0, &|c| {
             let bindings = self.get_bindings(c.name.module_id(), project);
-            if bindings.is_theorem(&c.name.to_global().local_name) {
-                match bindings.get_definition_and_params(&c.name.to_global().local_name) {
+            if bindings.is_theorem(&c.name.to_local()) {
+                match bindings.get_definition_and_params(&c.name.to_local()) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {
