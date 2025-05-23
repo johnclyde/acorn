@@ -1405,8 +1405,9 @@ impl Environment {
             let local_name = LocalName::attribute(typeclass_name, attr_name.text());
             self.bindings
                 .check_local_name_available(&local_name, attr_name)?;
-            self.bindings.add_local_constant(
-                local_name,
+            self.bindings.add_typeclass_attribute(
+                &typeclass,
+                &attr_name.text(),
                 vec![type_param.clone()],
                 var_type,
                 None,
