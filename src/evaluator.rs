@@ -207,7 +207,7 @@ impl<'a> Evaluator<'a> {
             return Err(source.error("invalid pattern"));
         };
         let bindings = self.get_bindings(ci.name.module_id());
-        let Some(info) = bindings.get_constructor_info(&ci.name.to_local()) else {
+        let Some(info) = bindings.get_constructor_info(&ci.name) else {
             return Err(source.error("expected a constructor"));
         };
         expected_type.check_instance(&info.class, source)?;

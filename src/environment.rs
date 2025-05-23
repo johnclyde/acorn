@@ -12,7 +12,7 @@ use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
-use crate::names::{ConstantName, DefinedName, LocalName};
+use crate::names::{ConstantName, DefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::{LoadError, Project};
 use crate::proposition::Proposition;
@@ -375,17 +375,8 @@ impl Environment {
                     // For local names, 'let x = y' should create an alias for y, not a new constant.
                     // Aliases for local names are handled in the binding map.
                     DefinedName::Constant(constant_name) => {
-                        let local_name = match constant_name {
-                            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                            ConstantName::ClassAttribute(class, attr) => {
-                                LocalName::attribute(&class.name, attr)
-                            }
-                            ConstantName::TypeclassAttribute(tc, attr) => {
-                                LocalName::attribute(&tc.name, attr)
-                            }
-                        };
                         self.bindings.add_constant_alias(
-                            local_name.clone(),
+                            constant_name.clone(),
                             simple_name.clone(),
                             PotentialValue::Resolved(value.clone()),
                         );
@@ -610,7 +601,7 @@ impl Environment {
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
         if let Some(name) = &ts.name {
-            let name = LocalName::unqualified(name);
+            let name = ConstantName::unqualified(self.module_id, name);
             self.bindings.mark_as_theorem(&name);
         }
 
@@ -1256,7 +1247,7 @@ impl Environment {
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
-        let name = LocalName::attribute(&is.name, "induction");
+        let name = ConstantName::class_attr(class.clone(), "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
         self.bindings.add_class_attribute(
@@ -1434,7 +1425,6 @@ impl Environment {
                 start: condition.name.start_pos(),
                 end: condition.claim.last_token().end_pos(),
             };
-            let local_name = LocalName::attribute(&typeclass_name, &condition.name.text());
             let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
             self.bindings
                 .check_defined_name_available(&defined_name, &condition.name)?;
@@ -1482,7 +1472,8 @@ impl Environment {
             );
             let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
             self.add_node(Node::structural(project, self, prop));
-            self.bindings.mark_as_theorem(&local_name);
+            let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
+            self.bindings.mark_as_theorem(&constant_name);
         }
 
         self.bindings.remove_type(ts.instance_name.text());
@@ -1581,7 +1572,7 @@ impl Environment {
                 // This attribute is inherited, so we don't need to check it.
                 continue;
             }
-            let tc_attr_name = LocalName::attribute(&typeclass.name, attr_name);
+            let tc_attr_name = ConstantName::typeclass_attr(typeclass.clone(), attr_name);
             let tc_bindings = self.bindings.get_bindings(typeclass.module_id, project);
             if tc_bindings.is_theorem(&tc_attr_name) {
                 // Conditions don't have an implementation.

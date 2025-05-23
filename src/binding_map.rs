@@ -11,7 +11,7 @@ use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::{Module, ModuleId};
 use crate::named_entity::NamedEntity;
-use crate::names::{ConstantName, DefinedName, InstanceName, LocalName};
+use crate::names::{ConstantName, DefinedName, InstanceName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::proposition::Proposition;
@@ -34,7 +34,7 @@ pub struct BindingMap {
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
     /// entirety of this environment.
     /// This also includes aliases.
-    constant_info: HashMap<LocalName, ConstantInfo>,
+    constant_info: HashMap<ConstantName, ConstantInfo>,
 
     /// Maps the name of a type to the type object.
     /// Includes unresolved names like List that don't have enough information
@@ -106,6 +106,7 @@ impl BindingMap {
     pub fn module_id(&self) -> ModuleId {
         self.module_id
     }
+
 
     /// Returns the default data type for numeric literals, if set.
     pub fn numerals(&self) -> Option<&Class> {
@@ -181,7 +182,7 @@ impl BindingMap {
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
             DefinedName::Constant(constant_name) => {
-                if self.constant_info.contains_key(&constant_name.to_local()) {
+                if self.constant_info.contains_key(constant_name) {
                     return true;
                 }
                 match constant_name {
@@ -225,16 +226,7 @@ impl BindingMap {
     ) -> compilation::Result<PotentialValue> {
         match name {
             DefinedName::Constant(constant_name) => {
-                let local_name = match constant_name {
-                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => {
-                        LocalName::attribute(&class.name, attr)
-                    }
-                    ConstantName::TypeclassAttribute(tc, attr) => {
-                        LocalName::attribute(&tc.name, attr)
-                    }
-                };
-                match self.constant_info.get(&local_name) {
+                match self.constant_info.get(constant_name) {
                     Some(info) => Ok(info.value.clone()),
                     None => Err(source.error(&format!("local constant {} not found", name))),
                 }
@@ -284,8 +276,8 @@ impl BindingMap {
 
     /// Just use this for testing.
     pub fn has_constant_name(&self, name: &str) -> bool {
-        let name = LocalName::unqualified(name);
-        self.constant_info.contains_key(&name)
+        let constant_name = ConstantName::unqualified(self.module_id, name);
+        self.constant_info.contains_key(&constant_name)
     }
 
     /// Returns the defined value, if there is a defined value.
@@ -293,16 +285,7 @@ impl BindingMap {
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         match name {
             DefinedName::Constant(constant_name) => {
-                let local_name = match constant_name {
-                    ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-                    ConstantName::ClassAttribute(class, attr) => {
-                        LocalName::attribute(&class.name, attr)
-                    }
-                    ConstantName::TypeclassAttribute(tc, attr) => {
-                        LocalName::attribute(&tc.name, attr)
-                    }
-                };
-                self.constant_info.get(&local_name)?.definition.as_ref()
+                self.constant_info.get(constant_name)?.definition.as_ref()
             }
             DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
         }
@@ -312,9 +295,9 @@ impl BindingMap {
     /// Returns None if there is no definition.
     pub fn get_definition_and_params(
         &self,
-        local_name: &LocalName,
+        constant_name: &ConstantName,
     ) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(local_name)?;
+        let info = self.constant_info.get(constant_name)?;
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
@@ -348,7 +331,7 @@ impl BindingMap {
             .attributes
     }
 
-    pub fn get_constructor_info(&self, name: &LocalName) -> Option<&ConstructorInfo> {
+    pub fn get_constructor_info(&self, name: &ConstantName) -> Option<&ConstructorInfo> {
         self.constant_info
             .get(name)
             .and_then(|info| info.constructor.as_ref())
@@ -751,53 +734,44 @@ impl BindingMap {
             constructor,
         };
 
-        self.add_constant_info(constant_name.to_local(), info);
+        self.add_constant_info(constant_name.clone(), info);
         value
     }
 
     /// Adds information for either a newly defined constant, or an alias.
-    fn add_constant_info(&mut self, local_name: LocalName, info: ConstantInfo) {
-        match &local_name {
-            LocalName::Attribute(entity_name, attribute) => {
-                if let Some(t) = self.typename_to_type.get(entity_name) {
-                    if let Some(class) = t.as_base_class() {
-                        // We are defining a new class attribute.
-                        self.class_info
-                            .entry(class.clone())
-                            .or_insert_with(ClassInfo::new)
-                            .attributes
-                            .insert(attribute.clone(), self.module_id);
-                    } else {
-                        panic!("cannot figure out receiver: {:?}", t);
-                    }
-                } else {
-                    let typeclass = Typeclass {
-                        module_id: self.module_id,
-                        name: entity_name.clone(),
-                    };
-                    self.typeclass_info
-                        .entry(typeclass.clone())
-                        .or_insert_with(TypeclassInfo::new)
-                        .attributes
-                        .insert(attribute.clone(), typeclass);
-                }
+    fn add_constant_info(&mut self, constant_name: ConstantName, info: ConstantInfo) {
+        match &constant_name {
+            ConstantName::ClassAttribute(class, attribute) => {
+                // We are defining a new class attribute.
+                self.class_info
+                    .entry(class.clone())
+                    .or_insert_with(ClassInfo::new)
+                    .attributes
+                    .insert(attribute.clone(), self.module_id);
             }
-            LocalName::Unqualified(name) => {
+            ConstantName::TypeclassAttribute(typeclass, attribute) => {
+                self.typeclass_info
+                    .entry(typeclass.clone())
+                    .or_insert_with(TypeclassInfo::new)
+                    .attributes
+                    .insert(attribute.clone(), typeclass.clone());
+            }
+            ConstantName::Unqualified(_, name) => {
                 self.unqualified.insert(name.clone(), ());
             }
         }
 
-        self.constant_info.insert(local_name, info);
+        self.constant_info.insert(constant_name, info);
     }
 
     /// Be really careful about this, it seems likely to break things.
-    fn remove_constant(&mut self, local_name: &LocalName) {
-        if let LocalName::Unqualified(word) = local_name {
+    fn remove_constant(&mut self, constant_name: &ConstantName) {
+        if let ConstantName::Unqualified(_, word) = constant_name {
             // Remove the unqualified name from the list of unqualified names.
             self.unqualified.remove(word);
         }
         self.constant_info
-            .remove(&local_name)
+            .remove(constant_name)
             .expect("constant name not in use");
     }
 
@@ -805,7 +779,7 @@ impl BindingMap {
     /// TODO: is aliasing theorems supposed to work?
     pub fn add_constant_alias(
         &mut self,
-        alias: LocalName,
+        alias: ConstantName,
         canonical: ConstantName,
         value: PotentialValue,
     ) {
@@ -825,16 +799,16 @@ impl BindingMap {
         self.add_constant_info(alias, info);
     }
 
-    pub fn mark_as_theorem(&mut self, name: &LocalName) {
+    pub fn mark_as_theorem(&mut self, name: &ConstantName) {
         self.constant_info
-            .get_mut(&name)
+            .get_mut(name)
             .expect("marking theorem that doesn't exist")
             .theorem = true;
     }
 
-    pub fn is_theorem(&self, name: &LocalName) -> bool {
+    pub fn is_theorem(&self, name: &ConstantName) -> bool {
         self.constant_info
-            .get(&name)
+            .get(name)
             .map_or(false, |info| info.theorem)
     }
 
@@ -907,7 +881,7 @@ impl BindingMap {
         match claim.is_named_function_call() {
             Some(constant_name) => {
                 let bindings = self.get_bindings(constant_name.module_id(), project);
-                bindings.is_theorem(&constant_name.to_local())
+                bindings.is_theorem(constant_name)
             }
             None => false,
         }
@@ -1023,9 +997,9 @@ impl BindingMap {
                 if key.contains('.') {
                     continue;
                 }
-                let name = LocalName::unqualified(key);
+                let constant_name = ConstantName::unqualified(self.module_id, key);
                 if importing {
-                    match self.constant_info.get(&name) {
+                    match self.constant_info.get(&constant_name) {
                         Some(info) => {
                             if !info.canonical || info.theorem {
                                 // Don't suggest aliases or theorems when importing
@@ -1101,7 +1075,7 @@ impl BindingMap {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some(constant_name) = value.as_simple_constant() {
                     self.add_constant_alias(
-                        LocalName::unqualified(name),
+                        ConstantName::unqualified(self.module_id, name),
                         constant_name.clone(),
                         PotentialValue::Resolved(value),
                     );
@@ -1123,7 +1097,7 @@ impl BindingMap {
 
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
-                    LocalName::unqualified(name),
+                    ConstantName::unqualified(self.module_id, name),
                     uc.name.clone(),
                     PotentialValue::Unresolved(uc),
                 );
@@ -1195,7 +1169,7 @@ impl BindingMap {
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<AcornValue> {
-        let tc_condition_name = LocalName::attribute(&typeclass.name, condition_name);
+        let tc_condition_name = ConstantName::typeclass_attr(typeclass.clone(), condition_name);
         let tc_bindings = self.get_bindings(typeclass.module_id, project);
         let (def, params) = match tc_bindings.get_definition_and_params(&tc_condition_name) {
             Some((def, params)) => (def, params),
@@ -1320,7 +1294,7 @@ impl BindingMap {
             self.remove_type(&param.name);
         }
         if let Some(function_name) = function_name {
-            self.remove_constant(&function_name.to_local());
+            self.remove_constant(function_name);
         }
 
         // We might have types parametrized on this function, or they might be parametrized on the
@@ -1384,7 +1358,7 @@ impl BindingMap {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
                 if c.name.module_id() == self.module_id
-                    && !self.constant_info.contains_key(&c.name.to_local())
+                    && !self.constant_info.contains_key(&c.name)
                 {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.to_local().to_string(), c.instance_type.clone());
@@ -1436,8 +1410,8 @@ impl BindingMap {
 
         let value = proposition.value.replace_constants(0, &|c| {
             let bindings = self.get_bindings(c.name.module_id(), project);
-            if bindings.is_theorem(&c.name.to_local()) {
-                match bindings.get_definition_and_params(&c.name.to_local()) {
+            if bindings.is_theorem(&c.name) {
+                match bindings.get_definition_and_params(&c.name) {
                     Some((def, params)) => {
                         let mut pairs = vec![];
                         for (param, t) in params.iter().zip(c.params.iter()) {
