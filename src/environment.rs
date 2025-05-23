@@ -1250,8 +1250,9 @@ impl Environment {
         let name = LocalName::attribute(&is.name, "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
-        self.bindings.add_local_constant(
-            name.clone(),
+        self.bindings.add_class_attribute(
+            &class,
+            "induction",
             type_params.clone(),
             gen_lambda_claim.get_type(),
             Some(gen_lambda_claim),
