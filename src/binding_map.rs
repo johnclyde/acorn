@@ -1361,7 +1361,7 @@ impl BindingMap {
                     && !self.constant_info.contains_key(&c.name)
                 {
                     assert!(c.params.is_empty());
-                    answer.insert(c.name.to_local().to_string(), c.instance_type.clone());
+                    answer.insert(c.name.to_string(), c.instance_type.clone());
                 }
             }
 

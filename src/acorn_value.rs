@@ -108,7 +108,7 @@ pub struct ConstantInstance {
 
 impl fmt::Display for ConstantInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name.to_local())?;
+        write!(f, "{}", self.name)?;
         if !self.params.is_empty() {
             let types: Vec<_> = self.params.iter().map(|t| t.to_string()).collect();
             write!(f, "<{}>", types.join(", "))?;

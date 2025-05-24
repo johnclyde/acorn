@@ -5,7 +5,7 @@ use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
 use crate::module::{Module, ModuleId};
-use crate::names::LocalName;
+use crate::names::ConstantName;
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
 
@@ -126,7 +126,7 @@ impl CodeGenerator<'_> {
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
         // We can't do skolems
         if ci.name.module_id() == Module::SKOLEM {
-            return Err(Error::skolem(&ci.name.to_local().to_string()));
+            return Err(Error::skolem(&ci.name.to_string()));
         }
 
         // Handle numeric literals
@@ -155,11 +155,15 @@ impl CodeGenerator<'_> {
 
         // Handle local constants
         if ci.name.module_id() == self.bindings.module_id() {
-            return Ok(match ci.name.to_local() {
-                LocalName::Unqualified(word) => Expression::generate_identifier(&word),
-                LocalName::Attribute(left, right) => Expression::generate_dot(
-                    Expression::generate_identifier(&left),
-                    Expression::generate_identifier(&right),
+            return Ok(match &ci.name {
+                ConstantName::Unqualified(_, word) => Expression::generate_identifier(word),
+                ConstantName::ClassAttribute(class, attr) => Expression::generate_dot(
+                    Expression::generate_identifier(&class.name),
+                    Expression::generate_identifier(attr),
+                ),
+                ConstantName::TypeclassAttribute(tc, attr) => Expression::generate_dot(
+                    Expression::generate_identifier(&tc.name),
+                    Expression::generate_identifier(attr),
                 ),
             });
         }
@@ -198,14 +202,23 @@ impl CodeGenerator<'_> {
         // Refer to this constant using its module
         match self.bindings.get_name_for_module_id(ci.name.module_id()) {
             Some(module_name) => {
-                let local_name = ci.name.to_local();
                 let mut parts: Vec<&str> = vec![module_name];
-                parts.extend(local_name.name_chain().unwrap().into_iter());
+                match &ci.name {
+                    ConstantName::Unqualified(_, name) => parts.push(name),
+                    ConstantName::ClassAttribute(class, attr) => {
+                        parts.push(&class.name);
+                        parts.push(attr);
+                    }
+                    ConstantName::TypeclassAttribute(tc, attr) => {
+                        parts.push(&tc.name);
+                        parts.push(attr);
+                    }
+                }
                 Ok(Expression::generate_identifier_chain(&parts))
             }
             None => Err(Error::UnimportedModule(
                 ci.name.module_id(),
-                ci.name.to_local().to_string(),
+                ci.name.to_string(),
             )),
         }
     }

@@ -199,7 +199,7 @@ impl Normalizer {
                     let type_id = self.normalization_map.add_type(&c.instance_type);
                     let constant_atom = if c.name.module_id() == SKOLEM {
                         // Hacky. Turn the s-name back to an int
-                        Atom::Skolem(c.name.to_local().to_string()[1..].parse().unwrap())
+                        Atom::Skolem(c.name.to_string()[1..].parse().unwrap())
                     } else {
                         self.normalization_map.add_constant(c.name.clone(), local)
                     };
@@ -496,12 +496,10 @@ impl Normalizer {
             Atom::GlobalConstant(i) => self
                 .normalization_map
                 .name_for_global_id(*i)
-                .to_local()
                 .to_string(),
             Atom::LocalConstant(i) => self
                 .normalization_map
                 .name_for_local_id(*i)
-                .to_local()
                 .to_string(),
             Atom::Monomorph(i) => {
                 format!("{}", self.normalization_map.get_monomorph(*i))

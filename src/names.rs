@@ -3,51 +3,6 @@ use std::fmt;
 use crate::acorn_type::{Class, Typeclass};
 use crate::module::ModuleId;
 
-/// The LocalName provides an identifier for a constant that is unique within its module.
-#[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
-pub enum LocalName {
-    /// An unqualified name has no dots.
-    Unqualified(String),
-
-    /// An attribute can either be of a class or a typeclass.
-    /// The first string is the class or typeclass name, defined in this module.
-    /// The second string is the attribute name.
-    Attribute(String, String),
-}
-
-impl fmt::Display for LocalName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            LocalName::Unqualified(name) => write!(f, "{}", name),
-            LocalName::Attribute(class, attr) => write!(f, "{}.{}", class, attr),
-        }
-    }
-}
-
-impl LocalName {
-    pub fn unqualified(name: &str) -> LocalName {
-        LocalName::Unqualified(name.to_string())
-    }
-
-    pub fn attribute(class: &str, attr: &str) -> LocalName {
-        LocalName::Attribute(class.to_string(), attr.to_string())
-    }
-
-    /// Return this constant's name as a chain of strings, if that's possible.
-    pub fn name_chain(&self) -> Option<Vec<&str>> {
-        match self {
-            LocalName::Unqualified(name) => Some(vec![name]),
-            LocalName::Attribute(class, attr) => Some(vec![class, attr]),
-        }
-    }
-
-    pub fn is_attribute_of(&self, receiver: &str) -> bool {
-        match self {
-            LocalName::Unqualified(_) => false,
-            LocalName::Attribute(r, _) => r == receiver,
-        }
-    }
-}
 
 /// An instance name is something like Ring.add<Int>.
 /// This can be defined directly, although it should be expressed in
@@ -125,13 +80,6 @@ impl ConstantName {
         }
     }
 
-    pub fn to_local(&self) -> LocalName {
-        match self {
-            ConstantName::ClassAttribute(class, attr) => LocalName::attribute(&class.name, attr),
-            ConstantName::TypeclassAttribute(tc, attr) => LocalName::attribute(&tc.name, attr),
-            ConstantName::Unqualified(_, name) => LocalName::unqualified(name),
-        }
-    }
 
     pub fn module_id(&self) -> ModuleId {
         match self {
@@ -242,7 +190,4 @@ impl DefinedName {
         }
     }
 
-    pub fn to_local(&self) -> Option<LocalName> {
-        Some(self.as_constant()?.to_local())
-    }
 }

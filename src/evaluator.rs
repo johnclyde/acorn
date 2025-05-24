@@ -246,7 +246,7 @@ impl<'a> Evaluator<'a> {
                 if !uc.name.is_attribute_of(&class) {
                     return Err(pattern.error(&format!(
                         "pattern {} is not an attribute of {}",
-                        &uc.name.to_local(),
+                        &uc.name,
                         class.name
                     )));
                 }
