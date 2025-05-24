@@ -1040,11 +1040,11 @@ mod tests {
         p.check_code("main", "Foo.add");
         p.check_code("main", "Foo.foo.add");
         p.check_code("main", "Foo.foo + Foo.foo");
-        // p.check_code("main", "Foo.mul");
-        // p.check_code("main", "Foo.foo.mul");
-        // p.check_code("main", "Foo.foo * Foo.foo");
-        // p.check_code("main", "Foo.sub");
-        // p.check_code("main", "Foo.foo.sub");
-        // p.check_code("main", "Foo.foo - Foo.foo");
+        p.check_code("main", "Foo.mul");
+        p.check_code("main", "Foo.foo.mul");
+        p.check_code("main", "Foo.foo * Foo.foo");
+        p.check_code("main", "Foo.sub");
+        p.check_code("main", "Foo.foo.sub");
+        p.check_code("main", "Foo.foo - Foo.foo");
     }
 }
