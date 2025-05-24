@@ -225,7 +225,8 @@ pub struct TypeclassCondition {
 pub struct TypeclassStatement {
     /// The definition of the typeclass uses a named instance type.
     /// Like Self in Rust, but "Self" would be weird mathematically.
-    pub instance_name: Token,
+    /// This is None for the no-block syntax.
+    pub instance_name: Option<Token>,
 
     /// The name of the typeclass being defined.
     pub typeclass_name: Token,
@@ -911,37 +912,109 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
 
 /// Parses a typeclass statement where the "typeclass" keyword has already been found.
 fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
-    let instance_type = tokens.expect_type_name()?;
-    tokens.expect_type(TokenType::Colon)?;
-    let typeclass_name = tokens.expect_type_name()?;
+    let first_name = tokens.expect_type_name()?;
+    
+    // Check if we have the block syntax (Q: TypeclassName) or no-block syntax (TypeclassName extends ...)
+    let (instance_name, typeclass_name) = match tokens.peek_type() {
+        Some(TokenType::Colon) => {
+            // Block syntax: typeclass Q: TypeclassName
+            tokens.next(); // consume ':'
+            let typeclass_name = tokens.expect_type_name()?;
+            (Some(first_name), typeclass_name)
+        }
+        Some(TokenType::Extends) | Some(TokenType::NewLine) | Some(TokenType::LeftBrace) | None => {
+            // No-block syntax: typeclass TypeclassName extends ... or just typeclass TypeclassName
+            // In this case, we don't have an instance type
+            (None, first_name)
+        }
+        _ => {
+            return Err(keyword.error("expected ':' for block syntax or 'extends'/'{'  for no-block syntax"));
+        }
+    };
 
     // Check for "extends" keyword and parse the extended typeclasses
     let mut extends = vec![];
-    match tokens.peek_type() {
+    let has_block = match tokens.peek_type() {
         Some(TokenType::LeftBrace) => {
-            // No extends
+            // No extends, has block
             tokens.next();
+            true
         }
         Some(TokenType::Extends) => {
             tokens.next();
             loop {
-                let (type_expr, token) = Expression::parse_type(
-                    tokens,
-                    Terminator::Or(TokenType::Comma, TokenType::LeftBrace),
-                )?;
+                // Parse a single type expression (just the identifier)
+                let type_token = tokens.expect_type_name()?;
+                let type_expr = Expression::Singleton(type_token);
                 extends.push(type_expr);
-                if token.token_type == TokenType::LeftBrace {
-                    break;
+                
+                // Check what comes next
+                match tokens.peek_type() {
+                    Some(TokenType::Comma) => {
+                        tokens.next(); // consume comma
+                        // Check if the next thing after comma is EOF/newline (no block)
+                        match tokens.peek_type() {
+                            Some(TokenType::NewLine) | None => {
+                                break false;
+                            }
+                            _ => {
+                                // Continue parsing more extends
+                                continue;
+                            }
+                        }
+                    }
+                    Some(TokenType::LeftBrace) => {
+                        tokens.next(); // consume left brace
+                        break true; // has block
+                    }
+                    Some(TokenType::NewLine) | None => {
+                        // End of extends clause, no block
+                        break false;
+                    }
+                    _ => {
+                        return Err(keyword.error("expected ',' or '{' or newline/EOF after typeclass name in extends"));
+                    }
                 }
             }
         }
-        _ => {
-            return Err(keyword.error("expected 'extends' or '{' after typeclass name"));
+        Some(TokenType::NewLine) | None => {
+            // No extends, no block (newline or EOF)
+            false
         }
-    }
+        _ => {
+            return Err(keyword.error("expected 'extends', '{', newline, or EOF after typeclass name"));
+        }
+    };
 
     let mut constants = vec![];
     let mut conditions = vec![];
+    
+    if !has_block {
+        // No-block syntax - just return the typeclass with extends only
+        if extends.is_empty() {
+            return Err(keyword.error("Typeclass without block must extend at least one typeclass"));
+        }
+        
+        // Find the last token for this statement
+        let last_token = if let Some(ref last_extend) = extends.last() {
+            last_extend.last_token().clone()
+        } else {
+            typeclass_name.clone()
+        };
+        
+        return Ok(Statement {
+            first_token: keyword,
+            last_token,
+            statement: StatementInfo::Typeclass(TypeclassStatement {
+                instance_name,
+                typeclass_name,
+                extends,
+                constants,
+                conditions,
+            }),
+        });
+    }
+    
     while let Some(token) = tokens.next() {
         match token.token_type {
             TokenType::NewLine => {
@@ -958,7 +1031,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     first_token: keyword,
                     last_token: token,
                     statement: StatementInfo::Typeclass(TypeclassStatement {
-                        instance_name: instance_type,
+                        instance_name,
                         typeclass_name,
                         extends,
                         constants,
@@ -1271,29 +1344,46 @@ impl Statement {
 
             StatementInfo::Typeclass(ts) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "typeclass {}: {}", ts.instance_name, ts.typeclass_name)?;
+                
+                if let Some(instance_name) = &ts.instance_name {
+                    // Block syntax: typeclass Q: TypeclassName extends ... { ... }
+                    write!(f, "typeclass {}: {}", instance_name, ts.typeclass_name)?;
 
-                // Write the extends part if there are any
-                if !ts.extends.is_empty() {
-                    write!(f, " extends ")?;
-                    for (i, typeclass) in ts.extends.iter().enumerate() {
-                        if i > 0 {
-                            write!(f, ", ")?;
+                    // Write the extends part if there are any
+                    if !ts.extends.is_empty() {
+                        write!(f, " extends ")?;
+                        for (i, typeclass) in ts.extends.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}", typeclass)?;
                         }
-                        write!(f, "{}", typeclass)?;
+                    }
+
+                    write!(f, " {{\n")?;
+                    for (name, type_expr) in &ts.constants {
+                        write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
+                    }
+                    for theorem in &ts.conditions {
+                        write!(f, "{}{}", new_indentation, theorem.name)?;
+                        write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
+                        write!(f, "\n")?;
+                    }
+                    write!(f, "{}}}", indentation)?;
+                } else {
+                    // No-block syntax: typeclass TypeclassName extends ...
+                    write!(f, "typeclass {}", ts.typeclass_name)?;
+                    if !ts.extends.is_empty() {
+                        write!(f, " extends ")?;
+                        for (i, typeclass) in ts.extends.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}", typeclass)?;
+                        }
                     }
                 }
-
-                write!(f, " {{\n")?;
-                for (name, type_expr) in &ts.constants {
-                    write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
-                }
-                for theorem in &ts.conditions {
-                    write!(f, "{}{}", new_indentation, theorem.name)?;
-                    write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
-                    write!(f, "\n")?;
-                }
-                write!(f, "{}}}", indentation)
+                Ok(())
             }
 
             StatementInfo::Instance(is) => {
@@ -2073,5 +2163,11 @@ mod tests {
         typeclass F: Foo extends Bar, Baz {
             b: Bool
         }"});
+    }
+
+    #[test]
+    fn test_parsing_typeclass_statement_no_block_syntax() {
+        ok("typeclass Qux extends Foo, Bar");
+        ok("typeclass Simple extends Base");
     }
 }

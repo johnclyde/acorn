@@ -1356,9 +1356,6 @@ impl Environment {
         }
 
         // Check names are available and bind the typeclass.
-        let instance_name = ts.instance_name.text();
-        self.bindings
-            .check_typename_available(instance_name, statement)?;
         let typeclass_name = ts.typeclass_name.text();
         self.bindings
             .check_typename_available(typeclass_name, statement)?;
@@ -1368,12 +1365,22 @@ impl Environment {
         };
         self.bindings
             .add_typeclass(typeclass_name, extends, &project, &ts.typeclass_name)?;
-        let type_param = TypeParam {
-            name: instance_name.to_string(),
-            typeclass: Some(typeclass.clone()),
+        
+        // For block syntax, we also need to bind the instance name
+        let type_params = if let Some(instance_name_token) = &ts.instance_name {
+            let instance_name = instance_name_token.text();
+            self.bindings
+                .check_typename_available(instance_name, statement)?;
+            let type_param = TypeParam {
+                name: instance_name.to_string(),
+                typeclass: Some(typeclass.clone()),
+            };
+            self.bindings.add_arbitrary_type(type_param.clone());
+            vec![type_param.clone()]
+        } else {
+            // No-block syntax doesn't have an instance name
+            vec![]
         };
-        self.bindings.add_arbitrary_type(type_param.clone());
-        let type_params = vec![type_param.clone()];
 
         if let Some(extends_set) = self.bindings.get_extends_set(&typeclass) {
             // Create a node for the extends relationship.
@@ -1389,30 +1396,34 @@ impl Environment {
         }
 
         // Define all the constants that are in the typeclass.
-        for (attr_name, type_expr) in &ts.constants {
-            if let Some(existing_tc) = self
-                .bindings
-                .typeclass_attribute_lookup(&typeclass, attr_name.text())
-            {
-                return Err(attr_name.error(&format!(
-                    "attribute '{}' is already defined via base typeclass '{}'",
-                    attr_name.text(),
-                    existing_tc.name
-                )));
+        // Only applicable for block syntax, not no-block syntax
+        if !type_params.is_empty() {
+            let type_param = &type_params[0]; // For block syntax, there's exactly one type param
+            for (attr_name, type_expr) in &ts.constants {
+                if let Some(existing_tc) = self
+                    .bindings
+                    .typeclass_attribute_lookup(&typeclass, attr_name.text())
+                {
+                    return Err(attr_name.error(&format!(
+                        "attribute '{}' is already defined via base typeclass '{}'",
+                        attr_name.text(),
+                        existing_tc.name
+                    )));
+                }
+                let arb_type = self.evaluator(project).evaluate_type(type_expr)?;
+                let var_type = arb_type.genericize(&type_params);
+                let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name.text());
+                self.bindings
+                    .check_defined_name_available(&defined_name, attr_name)?;
+                self.bindings.add_typeclass_attribute(
+                    &typeclass,
+                    &attr_name.text(),
+                    vec![type_param.clone()],
+                    var_type,
+                    None,
+                    None,
+                );
             }
-            let arb_type = self.evaluator(project).evaluate_type(type_expr)?;
-            let var_type = arb_type.genericize(&type_params);
-            let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name.text());
-            self.bindings
-                .check_defined_name_available(&defined_name, attr_name)?;
-            self.bindings.add_typeclass_attribute(
-                &typeclass,
-                &attr_name.text(),
-                vec![type_param.clone()],
-                var_type,
-                None,
-                None,
-            );
         }
 
         // Add a node for each typeclass condition.
@@ -1420,63 +1431,70 @@ impl Environment {
         // Conditions are similar to theorems, but they don't get proven at the typeclass level.
         // So they don't have blocks.
         // They do get proven, but in the instance statement, not in the typeclass statement.
-        for condition in &ts.conditions {
-            let range = Range {
-                start: condition.name.start_pos(),
-                end: condition.claim.last_token().end_pos(),
-            };
-            let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
-            self.bindings
-                .check_defined_name_available(&defined_name, &condition.name)?;
-            self.definition_ranges.insert(defined_name.clone(), range);
+        // Only applicable for block syntax, not no-block syntax
+        if !type_params.is_empty() {
+            let type_param = &type_params[0]; // For block syntax, there's exactly one type param
+            for condition in &ts.conditions {
+                let range = Range {
+                    start: condition.name.start_pos(),
+                    end: condition.claim.last_token().end_pos(),
+                };
+                let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
+                self.bindings
+                    .check_defined_name_available(&defined_name, &condition.name)?;
+                self.definition_ranges.insert(defined_name.clone(), range);
 
-            let (bad_params, _, arg_types, unbound_claim, _) =
-                self.bindings.evaluate_scoped_value(
-                    &[],
-                    &condition.args,
+                let (bad_params, _, arg_types, unbound_claim, _) =
+                    self.bindings.evaluate_scoped_value(
+                        &[],
+                        &condition.args,
+                        None,
+                        &condition.claim,
+                        None,
+                        None,
+                        project,
+                    )?;
+                if !bad_params.is_empty() {
+                    return Err(condition.name.error("type parameters are not allowed here"));
+                }
+                let unbound_claim = unbound_claim
+                    .ok_or_else(|| condition.claim.error("conditions must have values"))?;
+                let external_claim = AcornValue::forall(arg_types.clone(), unbound_claim.clone())
+                    .genericize(&type_params);
+                if let Err(message) = external_claim.validate() {
+                    return Err(condition.claim.error(&message));
+                }
+                let lambda_claim = AcornValue::lambda(arg_types.clone(), unbound_claim.clone())
+                    .genericize(&type_params);
+                let theorem_type = lambda_claim.get_type();
+                self.bindings.add_typeclass_attribute(
+                    &typeclass,
+                    &condition.name.text(),
+                    type_params.clone(),
+                    theorem_type.clone(),
+                    Some(lambda_claim),
                     None,
-                    &condition.claim,
-                    None,
-                    None,
-                    project,
-                )?;
-            if !bad_params.is_empty() {
-                return Err(condition.name.error("type parameters are not allowed here"));
-            }
-            let unbound_claim = unbound_claim
-                .ok_or_else(|| condition.claim.error("conditions must have values"))?;
-            let external_claim = AcornValue::forall(arg_types.clone(), unbound_claim.clone())
-                .genericize(&type_params);
-            if let Err(message) = external_claim.validate() {
-                return Err(condition.claim.error(&message));
-            }
-            let lambda_claim = AcornValue::lambda(arg_types.clone(), unbound_claim.clone())
-                .genericize(&type_params);
-            let theorem_type = lambda_claim.get_type();
-            self.bindings.add_typeclass_attribute(
-                &typeclass,
-                &condition.name.text(),
-                type_params.clone(),
-                theorem_type.clone(),
-                Some(lambda_claim),
-                None,
-            );
+                );
 
-            let source = Source::theorem(
-                true,
-                self.module_id,
-                range,
-                true,
-                self.depth,
-                Some(defined_name.to_string()),
-            );
-            let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
-            self.add_node(Node::structural(project, self, prop));
-            let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
-            self.bindings.mark_as_theorem(&constant_name);
+                let source = Source::theorem(
+                    true,
+                    self.module_id,
+                    range,
+                    true,
+                    self.depth,
+                    Some(defined_name.to_string()),
+                );
+                let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
+                self.add_node(Node::structural(project, self, prop));
+                let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
+                self.bindings.mark_as_theorem(&constant_name);
+            }
         }
 
-        self.bindings.remove_type(ts.instance_name.text());
+        // For block syntax, remove the instance type
+        if let Some(instance_name_token) = &ts.instance_name {
+            self.bindings.remove_type(instance_name_token.text());
+        }
         Ok(())
     }
 
