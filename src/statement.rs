@@ -253,7 +253,8 @@ pub struct InstanceStatement {
     pub typeclass: Expression,
 
     /// Definitions of each constant the typeclass requires.
-    pub definitions: Body,
+    /// This is None for the no-block syntax when no definitions are needed.
+    pub definitions: Option<Body>,
 
     /// The body is a proof that the type is an instance of the typeclass, if needed.
     pub body: Option<Body>,
@@ -1097,15 +1098,36 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
 fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let type_name = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
-    let (typeclass, left_brace) =
-        Expression::parse_type(tokens, Terminator::Is(TokenType::LeftBrace))?;
-    let (statements, right_brace) = parse_block(tokens)?;
-    let definitions = Body {
-        left_brace,
-        statements,
-        right_brace: right_brace.clone(),
+    
+    // Parse the typeclass expression, which can end with either '{' (block syntax) or newline/EOF (no-block syntax)
+    let (typeclass, terminator) = Expression::parse_type(tokens, Terminator::Or(TokenType::LeftBrace, TokenType::NewLine))?;
+    
+    let (definitions, body, last_token) = match terminator.token_type {
+        TokenType::LeftBrace => {
+            // Block syntax: instance Type: Typeclass { ... }
+            let (statements, right_brace) = parse_block(tokens)?;
+            let definitions = Body {
+                left_brace: terminator,
+                statements,
+                right_brace: right_brace.clone(),
+            };
+            let (body, last_token) = parse_by_block(right_brace, tokens)?;
+            (Some(definitions), body, last_token)
+        }
+        TokenType::NewLine => {
+            // No-block syntax: instance Type: Typeclass
+            (None, None, typeclass.last_token().clone())
+        }
+        _ => {
+            // Handle EOF case (when input doesn't end with newline)
+            if tokens.peek().is_none() {
+                (None, None, typeclass.last_token().clone())
+            } else {
+                return Err(terminator.error("expected '{' or newline after typeclass in instance statement"));
+            }
+        }
     };
-    let (body, last_token) = parse_by_block(right_brace, tokens)?;
+    
     let is = InstanceStatement {
         type_name,
         typeclass,
@@ -1388,7 +1410,11 @@ impl Statement {
 
             StatementInfo::Instance(is) => {
                 write!(f, "instance {}: {}", is.type_name, is.typeclass)?;
-                write_block(f, &is.definitions.statements, indentation)
+                if let Some(definitions) = &is.definitions {
+                    write_block(f, &definitions.statements, indentation)
+                } else {
+                    Ok(())
+                }
             }
         }
     }
@@ -2169,5 +2195,11 @@ mod tests {
     fn test_parsing_typeclass_statement_no_block_syntax() {
         ok("typeclass Qux extends Foo, Bar");
         ok("typeclass Simple extends Base");
+    }
+
+    #[test]
+    fn test_parsing_instance_statement_no_block_syntax() {
+        ok("instance Nat: Trivial");
+        ok("instance String: Show");
     }
 }

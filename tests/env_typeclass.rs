@@ -818,6 +818,27 @@ fn test_env_typeclass_no_block_syntax() {
 }
 
 #[test]
+fn test_env_instance_no_block_syntax() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            // Define a simple type
+            type Nat: axiom
+            
+            // A typeclass with only conditions, no constants
+            typeclass T: Trivial {
+                reflexive(x: T) {
+                    x = x
+                }
+            }
+            
+            // This should work with no-block syntax since no definitions are needed
+            instance Nat: Trivial
+        "#,
+    );
+}
+
+#[test]
 fn test_env_extending_incompatible_typeclasses() {
     let mut env = Environment::test();
     env.add(

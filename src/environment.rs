@@ -1535,49 +1535,53 @@ impl Environment {
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
-        for substatement in &is.definitions.statements {
-            match &substatement.statement {
-                StatementInfo::Let(ls) => {
-                    self.add_let_statement(
-                        project,
-                        DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
-                        ls,
-                        substatement.range(),
-                        None,
-                    )?;
+        
+        // Process definitions if they exist (block syntax), otherwise skip (no-block syntax)
+        if let Some(definitions) = &is.definitions {
+            for substatement in &definitions.statements {
+                match &substatement.statement {
+                    StatementInfo::Let(ls) => {
+                        self.add_let_statement(
+                            project,
+                            DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
+                            ls,
+                            substatement.range(),
+                            None,
+                        )?;
 
-                    pairs.push(self.bindings.check_instance_attribute(
-                        &instance_type,
-                        &typeclass,
-                        &ls.name,
-                        &project,
-                        substatement,
-                    )?);
-                }
-                StatementInfo::Define(ds) => {
-                    if !ds.type_params.is_empty() {
-                        return Err(substatement.error("type parameters are not allowed here"));
+                        pairs.push(self.bindings.check_instance_attribute(
+                            &instance_type,
+                            &typeclass,
+                            &ls.name,
+                            &project,
+                            substatement,
+                        )?);
                     }
-                    self.add_define_statement(
-                        project,
-                        DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
-                        Some(&instance_type),
-                        None,
-                        ds,
-                        substatement.range(),
-                    )?;
+                    StatementInfo::Define(ds) => {
+                        if !ds.type_params.is_empty() {
+                            return Err(substatement.error("type parameters are not allowed here"));
+                        }
+                        self.add_define_statement(
+                            project,
+                            DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
+                            Some(&instance_type),
+                            None,
+                            ds,
+                            substatement.range(),
+                        )?;
 
-                    pairs.push(self.bindings.check_instance_attribute(
-                        &instance_type,
-                        &typeclass,
-                        &ds.name,
-                        &project,
-                        substatement,
-                    )?);
-                }
-                _ => {
-                    return Err(substatement
-                        .error("only let and define statements are allowed in instance bodies"));
+                        pairs.push(self.bindings.check_instance_attribute(
+                            &instance_type,
+                            &typeclass,
+                            &ds.name,
+                            &project,
+                            substatement,
+                        )?);
+                    }
+                    _ => {
+                        return Err(substatement
+                            .error("only let and define statements are allowed in instance bodies"));
+                    }
                 }
             }
         }
@@ -1646,7 +1650,11 @@ impl Environment {
             let conditions_claim = AcornValue::reduce(BinaryOp::And, conditions);
             let range = Range {
                 start: statement.first_token.start_pos(),
-                end: is.definitions.right_brace.end_pos(),
+                end: if let Some(definitions) = &is.definitions {
+                    definitions.right_brace.end_pos()
+                } else {
+                    statement.last_token.end_pos()
+                },
             };
             let block_params = BlockParams::TypeRequirement(conditions_claim, range);
             let block = Block::new(
