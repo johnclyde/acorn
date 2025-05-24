@@ -1040,7 +1040,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     }),
                 });
             }
-            TokenType::Identifier => {
+            TokenType::Identifier | TokenType::Numeral => {
                 let next_type = tokens.peek_type();
                 match next_type {
                     Some(TokenType::LeftParen) => {

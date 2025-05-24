@@ -898,7 +898,7 @@ fn test_env_typeclass_with_numeral_attributes() {
             }
 
             theorem goal<B: Bar>(b: B) {
-                B.0 = F.0<B>
+                B.0 = Foo.0<B>
             }
         "#,
     );
