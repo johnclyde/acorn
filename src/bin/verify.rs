@@ -47,6 +47,15 @@ async fn main() {
     } else {
         VerifierMode::Standard
     };
-    let verifier = Verifier::new(mode, args.target, args.dataset);
+    
+    let current_dir = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            println!("Error getting current directory: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let verifier = Verifier::new(current_dir, mode, args.target, args.dataset);
     verifier.run();
 }

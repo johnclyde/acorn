@@ -18,14 +18,18 @@ pub struct Verifier {
 
     /// If true, a dataset is created, for training.
     create_dataset: bool,
+
+    /// The starting path to find the acorn library from.
+    start_path: PathBuf,
 }
 
 impl Verifier {
-    pub fn new(mode: VerifierMode, target: Option<String>, create_dataset: bool) -> Self {
+    pub fn new(start_path: PathBuf, mode: VerifierMode, target: Option<String>, create_dataset: bool) -> Self {
         Self {
             mode,
             target,
             create_dataset,
+            start_path,
         }
     }
 
@@ -33,7 +37,7 @@ impl Verifier {
     pub fn run(&self) {
         let use_cache = self.mode != VerifierMode::Full;
 
-        let mut project = match Project::new_local(use_cache) {
+        let mut project = match Project::new_local(&self.start_path, use_cache) {
             Ok(p) => p,
             Err(e) => {
                 println!("Error: {}", e);

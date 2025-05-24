@@ -7,8 +7,9 @@
 use acorn::project::Project;
 
 fn main() {
+    let current_dir = std::env::current_dir().unwrap();
     for _ in 0..10 {
-        let mut project = Project::new_local(false).unwrap();
+        let mut project = Project::new_local(&current_dir, false).unwrap();
         assert!(project.add_target_by_name("nat"));
         assert!(project.add_target_by_name("nat_gcd"));
         assert!(project.add_target_by_name("int"));

@@ -153,11 +153,10 @@ impl Project {
         None
     }
 
-    // A Project based on the current working directory.
+    // A Project based on the provided starting path.
     // Returns an error if we can't find an acorn library.
-    pub fn new_local(use_cache: bool) -> Result<Project, LoadError> {
-        let current_dir = std::env::current_dir()?;
-        let library_root = Project::find_local_acorn_library(&current_dir).ok_or_else(|| {
+    pub fn new_local(start_path: &Path, use_cache: bool) -> Result<Project, LoadError> {
+        let library_root = Project::find_local_acorn_library(start_path).ok_or_else(|| {
             LoadError(
                 "Could not find acornlib.\n\
                 Please run this from within the acornlib directory.\n\
