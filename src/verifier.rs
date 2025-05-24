@@ -142,4 +142,43 @@ theorem simple_truth {
         
         temp.close().unwrap();
     }
+
+    #[test]
+    fn test_verifier_with_acorn_toml_layout() {
+        // Create a temporary directory with the new acorn.toml + src layout
+        let temp = TempDir::new().unwrap();
+        let acornlib = temp.child("acornlib");
+        acornlib.create_dir_all().unwrap();
+        
+        // Create acorn.toml file
+        let acorn_toml = acornlib.child("acorn.toml");
+        acorn_toml.write_str("").unwrap();
+        
+        // Create src directory
+        let src = acornlib.child("src");
+        src.create_dir_all().unwrap();
+        
+        // Create foo.ac inside the src directory
+        let foo_ac = src.child("foo.ac");
+        foo_ac.write_str(r#"
+theorem simple_truth {
+    true
+}
+"#).unwrap();
+
+        // Create a verifier starting from the acornlib directory
+        // The verifier should find the src directory and use it as the root
+        let verifier = Verifier::new(
+            acornlib.path().to_path_buf(),
+            VerifierMode::Standard,
+            Some("foo".to_string()),
+            false
+        );
+        
+        // Test that the verifier can run successfully on our theorem in the src directory
+        let result = verifier.run();
+        assert!(result.is_ok(), "Verifier should successfully verify the theorem in src directory: {:?}", result);
+        
+        temp.close().unwrap();
+    }
 }

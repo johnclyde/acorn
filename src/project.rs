@@ -130,20 +130,22 @@ impl Project {
     // It can be either:
     //   a parent directory of the provided path
     //   a directory named "acornlib" next to one named "acorn"
+    // If an acornlib directory contains both "acorn.toml" and "src" directory,
+    // returns the "src" directory instead.
     pub fn find_local_acorn_library(start: &Path) -> Option<PathBuf> {
         let mut current = Some(start);
 
         while let Some(path) = current {
             // Check if path is an acornlib
             if path.ends_with("acornlib") {
-                return Some(path.to_path_buf());
+                return Self::check_acornlib_layout(path);
             }
 
             // Check if path has a sibling named acornlib
             if path.ends_with("acorn") {
                 let library_path = path.with_file_name("acornlib");
                 if library_path.is_dir() {
-                    return Some(library_path);
+                    return Self::check_acornlib_layout(&library_path);
                 }
             }
 
@@ -151,6 +153,20 @@ impl Project {
         }
 
         None
+    }
+
+    // Helper function to check if an acornlib directory uses the new format
+    // with acorn.toml and src directory. If so, returns the src directory.
+    // Otherwise, returns the acornlib directory itself.
+    fn check_acornlib_layout(acornlib_path: &Path) -> Option<PathBuf> {
+        let acorn_toml = acornlib_path.join("acorn.toml");
+        let src_dir = acornlib_path.join("src");
+        
+        if acorn_toml.is_file() && src_dir.is_dir() {
+            Some(src_dir)
+        } else {
+            Some(acornlib_path.to_path_buf())
+        }
     }
 
     // A Project based on the provided starting path.
@@ -1853,4 +1869,5 @@ mod tests {
         p.expect_ok("foo");
         p.expect_ok("main");
     }
+
 }
