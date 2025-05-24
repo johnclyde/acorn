@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::builder::{BuildStatus, BuildMetrics};
 use crate::project::Project;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -33,8 +34,8 @@ impl Verifier {
         }
     }
 
-    /// Returns an error if verification fails.
-    pub fn run(&self) -> Result<(), String> {
+    /// Returns (BuildStatus, BuildMetrics) on success, or an error string if verification fails.
+    pub fn run(&self) -> Result<(BuildStatus, BuildMetrics), String> {
         let use_cache = self.mode != VerifierMode::Full;
 
         let mut project = match Project::new_local(&self.start_path, use_cache) {
@@ -97,7 +98,7 @@ impl Verifier {
             return Err("Warning: the filtered prover was not able to handle all goals.".to_string());
         }
         
-        Ok(())
+        Ok((builder.status, builder.metrics))
     }
 }
 
@@ -140,6 +141,13 @@ theorem simple_truth {
         let result = verifier.run();
         assert!(result.is_ok(), "Verifier should successfully verify the simple theorem: {:?}", result);
         
+        // Check that we actually proved something
+        let (status, metrics) = result.unwrap();
+        assert_eq!(status, BuildStatus::Good);
+        assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
+        assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
+        assert!(metrics.searches_total > 0); // Should have performed at least one search
+        
         temp.close().unwrap();
     }
 
@@ -178,6 +186,13 @@ theorem simple_truth {
         // Test that the verifier can run successfully on our theorem in the src directory
         let result = verifier.run();
         assert!(result.is_ok(), "Verifier should successfully verify the theorem in src directory: {:?}", result);
+        
+        // Check that we actually proved something
+        let (status, metrics) = result.unwrap();
+        assert_eq!(status, BuildStatus::Good);
+        assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
+        assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
+        assert!(metrics.searches_total > 0); // Should have performed at least one search
         
         temp.close().unwrap();
     }
