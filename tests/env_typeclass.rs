@@ -802,6 +802,22 @@ fn test_env_empty_double_extension_ok() {
 }
 
 #[test]
+fn test_env_typeclass_no_block_syntax() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                property: F -> Bool
+            }
+            typeclass B: Bar {
+                other_property: B -> Bool
+            }
+            typeclass Qux extends Foo, Bar
+        "#,
+    );
+}
+
+#[test]
 fn test_env_extending_incompatible_typeclasses() {
     let mut env = Environment::test();
     env.add(
