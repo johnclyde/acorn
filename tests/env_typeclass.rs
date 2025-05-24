@@ -883,3 +883,23 @@ fn test_env_allow_diamonds() {
         "#,
     );
 }
+
+#[test]
+fn test_env_typeclass_with_numeral_attributes() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                0: F
+            }
+
+            typeclass B: Bar extends Foo{
+                bar_property: B -> Bool
+            }
+
+            theorem goal<B: Bar>(b: B) {
+                B.0 = F.0<B>
+            }
+        "#,
+    );
+}
