@@ -88,12 +88,12 @@ impl Verifier {
 
         // Build
         project.build(&mut builder);
-        builder.print_stats();
+        builder.metrics.print(builder.status);
         if let Some(dataset) = builder.dataset {
             dataset.save();
         }
 
-        if self.mode == VerifierMode::Filtered && builder.searches_fallback > 0 {
+        if self.mode == VerifierMode::Filtered && builder.metrics.searches_fallback > 0 {
             return Err("Warning: the filtered prover was not able to handle all goals.".to_string());
         }
         

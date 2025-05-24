@@ -663,7 +663,7 @@ impl Project {
     ) -> Prover {
         // Try the filtered prover
         if let Some(mut filtered_prover) = filtered_prover {
-            builder.searches_filtered += 1;
+            builder.metrics.searches_filtered += 1;
             filtered_prover.set_goal(goal_context);
             let start = std::time::Instant::now();
             let outcome = filtered_prover.verification_search();
@@ -671,11 +671,11 @@ impl Project {
                 builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
                 return filtered_prover;
             }
-            builder.searches_fallback += 1;
+            builder.metrics.searches_fallback += 1;
         }
 
         // Try the full prover
-        builder.searches_full += 1;
+        builder.metrics.searches_full += 1;
         full_prover.set_goal(goal_context);
         let start = std::time::Instant::now();
         let outcome = full_prover.verification_search();
@@ -690,7 +690,7 @@ impl Project {
         let (status, searches_success) = {
             let mut builder = self.builder(|event| events.push(event));
             self.build(&mut builder);
-            (builder.status, builder.searches_success)
+            (builder.status, builder.metrics.searches_success)
         };
         (status, events, searches_success)
     }
@@ -1328,9 +1328,9 @@ mod tests {
         let mut builder = Builder::new(|_| {});
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
-        assert_eq!(builder.searches_total, 5);
-        assert_eq!(builder.searches_full, 5);
-        assert_eq!(builder.searches_filtered, 0);
+        assert_eq!(builder.metrics.searches_total, 5);
+        assert_eq!(builder.metrics.searches_full, 5);
+        assert_eq!(builder.metrics.searches_filtered, 0);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
@@ -1340,9 +1340,9 @@ mod tests {
         let mut builder = Builder::new(|_| {});
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
-        assert_eq!(builder.searches_total, 0);
-        assert_eq!(builder.searches_full, 0);
-        assert_eq!(builder.searches_filtered, 0);
+        assert_eq!(builder.metrics.searches_total, 0);
+        assert_eq!(builder.metrics.searches_full, 0);
+        assert_eq!(builder.metrics.searches_filtered, 0);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
@@ -1354,9 +1354,9 @@ mod tests {
         let mut builder = Builder::new(|_| {});
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
-        assert_eq!(builder.searches_total, 5);
-        assert_eq!(builder.searches_full, 0);
-        assert_eq!(builder.searches_filtered, 5);
+        assert_eq!(builder.metrics.searches_total, 5);
+        assert_eq!(builder.metrics.searches_full, 0);
+        assert_eq!(builder.metrics.searches_filtered, 5);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);
@@ -1369,9 +1369,9 @@ mod tests {
         let mut builder = Builder::new(|_| {});
         p.verify_module(&main_descriptor, &env, &mut builder);
         assert_eq!(builder.status, BuildStatus::Good);
-        assert_eq!(builder.searches_total, 5);
-        assert_eq!(builder.searches_full, 1);
-        assert_eq!(builder.searches_filtered, 5);
+        assert_eq!(builder.metrics.searches_total, 5);
+        assert_eq!(builder.metrics.searches_full, 1);
+        assert_eq!(builder.metrics.searches_filtered, 5);
         let module_cache = p.build_cache.get_cloned(&main_descriptor).unwrap();
         assert_eq!(module_cache.blocks.len(), 2);
         module_cache.assert_premises_eq("goal1", &[]);

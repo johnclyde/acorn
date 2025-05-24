@@ -14,6 +14,86 @@ use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
 
+// Metrics collected during a build.
+#[derive(Debug, Default)]
+pub struct BuildMetrics {
+    // The total number of goals to be verified.
+    pub goals_total: i32,
+
+    // The number of goals that we have processed in the build.
+    pub goals_done: i32,
+
+    // The number of goals that were successfully proven.
+    pub goals_success: i32,
+
+    // How many proof searches we did.
+    pub searches_total: i32,
+
+    // Number of proof searches that ended in success.
+    pub searches_success: i32,
+
+    // The number of searches that we ran the full prover on.
+    pub searches_full: i32,
+
+    // The number of searches that we ran the filtered prover on.
+    pub searches_filtered: i32,
+
+    // The number of searches where we had to do a fallback.
+    pub searches_fallback: i32,
+
+    // The total number of clauses activated.
+    pub clauses_activated: i32,
+
+    // Total sum of square num_activated.
+    pub clauses_sum_square_activated: u64,
+
+    // Total number of clauses scored, both active and passive.
+    pub clauses_total: i32,
+
+    // The total amount of time spent proving, in seconds.
+    pub proving_time: f64,
+}
+
+impl BuildMetrics {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn print(&self, status: BuildStatus) {
+        println!();
+        match status {
+            BuildStatus::Error => {
+                println!("Compilation failed.");
+                return;
+            }
+            BuildStatus::Warning => {
+                println!("Verification failed.");
+            }
+            BuildStatus::Good => {
+                println!("Verification succeeded.");
+            }
+        }
+        println!("{}/{} OK", self.goals_success, self.goals_total);
+        println!(
+            "{} searches performed ({} full, {} filtered, {} fallback)",
+            self.searches_total, self.searches_full, self.searches_filtered, self.searches_fallback
+        );
+        if self.searches_total > 0 {
+            let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
+            println!("{:.2}% search success rate", success_percent);
+            let num_activated = self.clauses_activated as f64 / self.searches_success as f64;
+            println!("{:.2} average activations", num_activated);
+            let mean_square_activated =
+                self.clauses_sum_square_activated as f64 / self.searches_total as f64;
+            println!("{:.1} mean square activations", mean_square_activated);
+            let num_clauses = self.clauses_total as f64 / self.searches_total as f64;
+            println!("{:.2} average clauses", num_clauses);
+            let proving_time_ms = 1000.0 * self.proving_time / self.searches_total as f64;
+            println!("{:.1} ms average proving time", proving_time_ms);
+        }
+    }
+}
+
 // A "build" is when we verify a set of goals, determined by a Project.
 // For each build, we report many  build events.
 #[derive(Debug)]
@@ -93,16 +173,8 @@ pub struct Builder<'a> {
     // A unique id for each build.
     pub id: u32,
 
-    // The total number of goals to be verified.
-    // Counted up during the loading phase.
-    pub goals_total: i32,
-
-    // The number of goals that we have processed in the build.
-    // This includes cache hits, successful searches, and unsuccessful searches.
-    pub goals_done: i32,
-
-    // The number of goals that were successfully proven, either via search or via cache.
-    pub goals_success: i32,
+    // Build metrics collected during verification.
+    pub metrics: BuildMetrics,
 
     // When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
@@ -120,38 +192,6 @@ pub struct Builder<'a> {
 
     // If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
-
-    // The Builder also tracks statistics.
-    // When we use the cache, we don't use it to modify these statistics.
-
-    // How many proof searches we did.
-    pub searches_total: i32,
-
-    // Number of proof searches that ended in success.
-    pub searches_success: i32,
-
-    // The number of searches that we ran the full prover on.
-    pub searches_full: i32,
-
-    // The number of searches that we ran the filtered prover on.
-    // This plus searches_full can sum to more than searches_total because we run both sometimes.
-    pub searches_filtered: i32,
-
-    // The number of searches where we had to do a fallback, running the filtered prover and then
-    // the full prover.
-    pub searches_fallback: i32,
-
-    // The total number of clauses activated.
-    pub clauses_activated: i32,
-
-    // Total sum of square num_activated.
-    pub clauses_sum_square_activated: u64,
-
-    // Total number of clauses scored, both active and passive.
-    pub clauses_total: i32,
-
-    // The total amount of time spent proving, in seconds.
-    pub proving_time: f64,
 }
 
 impl<'a> Builder<'a> {
@@ -161,23 +201,12 @@ impl<'a> Builder<'a> {
             event_handler,
             status: BuildStatus::Good,
             id: NEXT_BUILD_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
-            goals_total: 0,
-            goals_done: 0,
-            goals_success: 0,
+            metrics: BuildMetrics::new(),
             log_when_slow: false,
             log_secondary_errors: true,
             current_module: None,
             current_module_good: true,
             dataset: None,
-            searches_total: 0,
-            searches_success: 0,
-            searches_full: 0,
-            searches_filtered: 0,
-            searches_fallback: 0,
-            clauses_activated: 0,
-            clauses_sum_square_activated: 0,
-            clauses_total: 0,
-            proving_time: 0.0,
         }
     }
 
@@ -202,20 +231,20 @@ impl<'a> Builder<'a> {
 
     // Called when a single module is loaded successfully.
     pub fn module_loaded(&mut self, env: &Environment) {
-        self.goals_total += env.iter_goals().count() as i32;
+        self.metrics.goals_total += env.iter_goals().count() as i32;
     }
 
     // When create_dataset is called, that tells the Builder to gather data for training.
     // Only call this before the build starts.
     pub fn create_dataset(&mut self) {
-        assert_eq!(self.goals_done, 0);
+        assert_eq!(self.metrics.goals_done, 0);
         self.dataset = Some(Dataset::new());
     }
 
     // Called when the entire loading phase is done.
     pub fn loading_phase_complete(&mut self) {
         let event = BuildEvent {
-            progress: Some((0, self.goals_total)),
+            progress: Some((0, self.metrics.goals_total)),
             ..self.default_event()
         };
         (self.event_handler)(event);
@@ -279,14 +308,14 @@ impl<'a> Builder<'a> {
         let elapsed_str = format!("{:.3}s", elapsed_f64);
 
         // Tracking statistics
-        self.goals_done += 1;
-        self.searches_total += 1;
-        self.proving_time += elapsed_f64;
+        self.metrics.goals_done += 1;
+        self.metrics.searches_total += 1;
+        self.metrics.proving_time += elapsed_f64;
         let clauses_activated = prover.num_activated() as i32;
-        self.clauses_activated += clauses_activated;
+        self.metrics.clauses_activated += clauses_activated;
         let num_passive = prover.num_passive() as i32;
-        self.clauses_total += clauses_activated + num_passive;
-        self.clauses_sum_square_activated += (clauses_activated * clauses_activated) as u64;
+        self.metrics.clauses_total += clauses_activated + num_passive;
+        self.metrics.clauses_sum_square_activated += (clauses_activated * clauses_activated) as u64;
 
         match outcome {
             Outcome::Success => match prover.get_condensed_proof() {
@@ -296,8 +325,8 @@ impl<'a> Builder<'a> {
                         self.log_proving_warning(&goal_context, "needs simplification");
                     } else {
                         // Both of these count as a search success.
-                        self.goals_success += 1;
-                        self.searches_success += 1;
+                        self.metrics.goals_success += 1;
+                        self.metrics.searches_success += 1;
                         if self.log_when_slow && elapsed_f64 > 0.1 {
                             self.log_proving_info(&goal_context, &format!("took {}", elapsed_str));
                         } else {
@@ -341,7 +370,7 @@ impl<'a> Builder<'a> {
     fn log_proving_success(&mut self, goal_context: &GoalContext) {
         let line_pair = (goal_context.first_line, goal_context.last_line);
         let event = BuildEvent {
-            progress: Some((self.goals_done, self.goals_total)),
+            progress: Some((self.metrics.goals_done, self.metrics.goals_total)),
             verified: Some(line_pair),
             ..self.default_event()
         };
@@ -365,8 +394,8 @@ impl<'a> Builder<'a> {
         }
         if node.node().has_goal() {
             let goal_context = node.goal_context().unwrap();
-            self.goals_done += 1;
-            self.goals_success += 1;
+            self.metrics.goals_done += 1;
+            self.metrics.goals_success += 1;
             self.log_proving_success(&goal_context);
         }
     }
@@ -386,7 +415,7 @@ impl<'a> Builder<'a> {
             ..Diagnostic::default()
         };
         BuildEvent {
-            progress: Some((self.goals_done, self.goals_total)),
+            progress: Some((self.metrics.goals_done, self.metrics.goals_total)),
             log_message: Some(full_message),
             diagnostic: Some(diagnostic),
             ..self.default_event()
@@ -411,43 +440,10 @@ impl<'a> Builder<'a> {
         let mut event = self.make_event(goal_context, message, DiagnosticSeverity::WARNING);
 
         // Set progress as complete, because an error will halt the build
-        event.progress = Some((self.goals_total, self.goals_total));
+        event.progress = Some((self.metrics.goals_total, self.metrics.goals_total));
         (self.event_handler)(event);
         self.current_module_good = false;
         self.status = BuildStatus::Error;
     }
 
-    pub fn print_stats(&self) {
-        println!();
-        match self.status {
-            BuildStatus::Error => {
-                println!("Compilation failed.");
-                return;
-            }
-            BuildStatus::Warning => {
-                println!("Verification failed.");
-            }
-            BuildStatus::Good => {
-                println!("Verification succeeded.");
-            }
-        }
-        println!("{}/{} OK", self.goals_success, self.goals_total);
-        println!(
-            "{} searches performed ({} full, {} filtered, {} fallback)",
-            self.searches_total, self.searches_full, self.searches_filtered, self.searches_fallback
-        );
-        if self.searches_total > 0 {
-            let success_percent = 100.0 * self.searches_success as f64 / self.searches_total as f64;
-            println!("{:.2}% search success rate", success_percent);
-            let num_activated = self.clauses_activated as f64 / self.searches_success as f64;
-            println!("{:.2} average activations", num_activated);
-            let mean_square_activated =
-                self.clauses_sum_square_activated as f64 / self.searches_total as f64;
-            println!("{:.1} mean square activations", mean_square_activated);
-            let num_clauses = self.clauses_total as f64 / self.searches_total as f64;
-            println!("{:.2} average clauses", num_clauses);
-            let proving_time_ms = 1000.0 * self.proving_time / self.searches_total as f64;
-            println!("{:.1} ms average proving time", proving_time_ms);
-        }
-    }
 }
