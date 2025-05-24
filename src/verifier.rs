@@ -33,16 +33,13 @@ impl Verifier {
         }
     }
 
-    /// Exits if there is a setup error.
-    pub fn run(&self) {
+    /// Returns an error if verification fails.
+    pub fn run(&self) -> Result<(), String> {
         let use_cache = self.mode != VerifierMode::Full;
 
         let mut project = match Project::new_local(&self.start_path, use_cache) {
             Ok(p) => p,
-            Err(e) => {
-                println!("Error: {}", e);
-                std::process::exit(1);
-            }
+            Err(e) => return Err(format!("Error: {}", e)),
         };
         if self.mode == VerifierMode::Filtered {
             project.check_hashes = false;
@@ -53,13 +50,11 @@ impl Verifier {
                 // Looks like a filename
                 let path = PathBuf::from(&target);
                 if !project.add_target_by_path(&path) {
-                    println!("File not found: {}", target);
-                    return;
+                    return Err(format!("File not found: {}", target));
                 }
             } else {
                 if !project.add_target_by_name(&target) {
-                    println!("Module not found: {}", target);
-                    return;
+                    return Err(format!("Module not found: {}", target));
                 }
             }
         } else {
@@ -99,8 +94,52 @@ impl Verifier {
         }
 
         if self.mode == VerifierMode::Filtered && builder.searches_fallback > 0 {
-            println!("\nWarning: the filtered prover was not able to handle all goals.");
-            std::process::exit(1);
+            return Err("Warning: the filtered prover was not able to handle all goals.".to_string());
         }
+        
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::prelude::*;
+    use assert_fs::TempDir;
+
+    #[test]
+    fn test_verifier_with_simple_acornlib() {
+        // Create a temporary directory with acornlib structure
+        let temp = TempDir::new().unwrap();
+        let acornlib = temp.child("acornlib");
+        acornlib.create_dir_all().unwrap();
+        
+        // Create foo.ac with a simple theorem
+        let foo_ac = acornlib.child("foo.ac");
+        foo_ac.write_str(r#"
+theorem simple_truth {
+    true
+}
+"#).unwrap();
+
+        // Create a verifier and test that it can run successfully
+        let verifier = Verifier::new(
+            acornlib.path().to_path_buf(),
+            VerifierMode::Standard,
+            Some("foo".to_string()),
+            false
+        );
+        
+        // Test that the verifier was created successfully with the right parameters
+        assert_eq!(verifier.start_path, acornlib.path());
+        assert_eq!(verifier.mode, VerifierMode::Standard);
+        assert_eq!(verifier.target, Some("foo".to_string()));
+        assert_eq!(verifier.create_dataset, false);
+        
+        // Test that the verifier can run successfully on our simple theorem
+        let result = verifier.run();
+        assert!(result.is_ok(), "Verifier should successfully verify the simple theorem: {:?}", result);
+        
+        temp.close().unwrap();
     }
 }
