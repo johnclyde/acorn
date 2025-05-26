@@ -1138,6 +1138,10 @@ fn combine_partial_expressions(
 
         return match partial {
             PartialExpression::Binary(token) => {
+                // Check for deprecated RightArrow in value expressions
+                if expected_type == ExpressionType::Value && token.token_type == TokenType::RightArrow {
+                    return Err(token.error("'->' is deprecated in value expressions, use 'implies' instead"));
+                }
                 let left = combine_partial_expressions(partials, expected_type, source)?;
                 let right = combine_partial_expressions(right_partials, expected_type, source)?;
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
@@ -1243,9 +1247,9 @@ mod tests {
 
     #[test]
     fn test_value_parsing() {
-        check_value("p -> (q -> p)");
-        check_value("(p -> (q -> r)) -> ((p -> q) -> (p -> r))");
-        check_value("(p iff q) = ((p -> q) and (q -> p))");
+        check_value("p implies (q implies p)");
+        check_value("(p implies (q implies r)) implies ((p implies q) implies (p implies r))");
+        check_value("(p iff q) = ((p implies q) and (q implies p))");
         check_value("p and q iff q and p");
         check_value("(p and q) and r iff p and (q and r)");
         check_value("p or q iff q or p");
@@ -1298,7 +1302,7 @@ mod tests {
 
     #[test]
     fn test_block_inside_binary() {
-        check_value("p -> forall(x: Nat) { x = x }");
+        check_value("p implies forall(x: Nat) { x = x }");
         check_value("f(forall(x: Nat) { x = x }, forall(y: Nat) { y = y })");
     }
 

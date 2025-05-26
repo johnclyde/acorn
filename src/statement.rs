@@ -1671,32 +1671,32 @@ mod tests {
     fn test_definition_statements() {
         ok("let a: int = x + 2");
         ok("let f: int -> bool = compose(g, h)");
-        ok("let f: int -> int = x -> x + 1");
+        ok("let f: int -> int = function(x: int) { x + 1 }");
         ok("let g: (int, int, int) -> bool = swap(h)");
         ok(indoc! {"
         define orx(p: bool, q: bool) -> bool {
-            (not p -> q)
+            (not p implies q)
         }"});
         ok(indoc! {"
         define andx(p: bool, q: bool) -> bool {
-            not (p -> not q)
+            not (p implies not q)
         }"});
         ok(indoc! {"
         define iff_func(p: bool, q: bool) -> bool {
-            (p -> q) and (q -> p)
+            (p implies q) and (q implies p)
         }"});
     }
 
     #[test]
     fn test_theorem_statements() {
         ok(indoc! {"axiom simplification {
-            p -> (q -> p)
+            p implies (q implies p)
         }"});
         ok(indoc! {"axiom distribution {
-            (p -> (q -> r)) -> ((p -> q) -> (p -> r))
+            (p implies (q implies r)) implies ((p implies q) implies (p implies r))
         }"});
         ok(indoc! {"axiom contraposition {
-            (not p -> not q) -> (q -> p)
+            (not p implies not q) implies (q implies p)
         }"});
         ok(indoc! {"theorem and_comm {
             p and q iff q and p
@@ -1721,7 +1721,7 @@ mod tests {
         theorem goal {
             true
         } by {
-            p -> p
+            p implies p
         }"});
     }
 
@@ -1729,7 +1729,7 @@ mod tests {
     fn test_forall_statements() {
         ok(indoc! {"
             forall(x: Nat) {
-                f(x) -> f(suc(x))
+                f(x) implies f(suc(x))
             }"});
     }
 
@@ -1744,7 +1744,7 @@ mod tests {
         ok("let suc: Nat -> Nat = axiom");
         ok(indoc! {"
         axiom suc_injective(x: Nat, y: Nat) {
-            suc(x) = suc(y) -> x = y
+            suc(x) = suc(y) implies x = y
         }"});
         ok(indoc! {"
         axiom suc_neq_zero(x: Nat) {
@@ -1752,7 +1752,7 @@ mod tests {
         }"});
         ok(indoc! {"
             axiom induction(f: Nat -> bool, n: Nat) {
-                f(0) and forall(k: Nat) { f(k) -> f(suc(k)) } -> f(n)
+                f(0) and forall(k: Nat) { f(k) implies f(suc(k)) } implies f(n)
             }"});
         ok(indoc! {"
         define recursion(f: Nat -> Nat, a: Nat, n: Nat) -> Nat {
@@ -1884,7 +1884,7 @@ mod tests {
 
     #[test]
     fn test_single_line_forall() {
-        should_parse("forall(x: Nat) { f(x) -> f(suc(x)) }");
+        should_parse("forall(x: Nat) { f(x) implies f(suc(x)) }");
     }
 
     #[test]
