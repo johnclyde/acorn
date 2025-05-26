@@ -203,6 +203,8 @@ impl Declaration {
             if last_token.token_type == TokenType::RightParen {
                 return Ok(declarations);
             }
+            // Skip any newlines after a comma
+            tokens.skip_newlines();
         }
     }
 

@@ -2344,3 +2344,16 @@ fn test_let_type_inference() {
     let mut env = Environment::test();
     env.add("let a = true\n");
 }
+
+#[test]
+fn test_newline_in_define_args() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+        define foo(b: Bool,
+                   c: Bool) -> Bool {
+            b or c
+        }
+        "#,
+    );
+}
