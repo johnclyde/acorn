@@ -319,33 +319,55 @@ impl Environment {
             self.bindings.add_arbitrary_type(param.clone());
         }
 
-        let acorn_type = self.evaluator(project).evaluate_type(&ls.type_expr)?;
-        if ls.name_token.token_type == TokenType::Numeral {
-            let class_name = match defined_name.as_attribute() {
-                Some((class_name, _)) => class_name.to_string(),
-                _ => {
+        let (acorn_type, value) = match &ls.type_expr {
+            Some(type_expr) => {
+                // Traditional let with explicit type: let name: Type = value
+                let acorn_type = self.evaluator(project).evaluate_type(type_expr)?;
+                if ls.name_token.token_type == TokenType::Numeral {
+                    let class_name = match defined_name.as_attribute() {
+                        Some((class_name, _)) => class_name.to_string(),
+                        _ => {
+                            return Err(ls
+                                .name_token
+                                .error("numeric literals must be class members"))
+                        }
+                    };
+                    let class = Class {
+                        module_id: self.module_id,
+                        name: class_name,
+                    };
+                    if acorn_type != AcornType::Data(class, vec![]) {
+                        return Err(type_expr
+                            .error("numeric class variables must be the class type"));
+                    }
+                }
+                let value = if ls.value.is_axiom() {
+                    None
+                } else {
+                    let v = self
+                        .evaluator(project)
+                        .evaluate_value(&ls.value, Some(&acorn_type))?;
+                    Some(v)
+                };
+                (acorn_type, value)
+            }
+            None => {
+                // Type inference let: let name = value
+                if ls.name_token.token_type == TokenType::Numeral {
                     return Err(ls
                         .name_token
-                        .error("numeric literals must be class members"))
+                        .error("numeric literals require explicit type annotation"));
                 }
-            };
-            let class = Class {
-                module_id: self.module_id,
-                name: class_name,
-            };
-            if acorn_type != AcornType::Data(class, vec![]) {
-                return Err(ls
-                    .type_expr
-                    .error("numeric class variables must be the class type"));
+                if ls.value.is_axiom() {
+                    return Err(ls.value.first_token().error(
+                        "axiom constants require explicit type annotation"
+                    ));
+                }
+                // Evaluate the value first to infer its type
+                let value = self.evaluator(project).evaluate_value(&ls.value, None)?;
+                let acorn_type = value.get_type();
+                (acorn_type, Some(value))
             }
-        }
-        let value = if ls.value.is_axiom() {
-            None
-        } else {
-            let v = self
-                .evaluator(project)
-                .evaluate_value(&ls.value, Some(&acorn_type))?;
-            Some(v)
         };
 
         // Reset the bindings

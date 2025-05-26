@@ -31,8 +31,8 @@ pub struct LetStatement {
     /// What the constant is parametrized by, if anything.
     pub type_params: Vec<TypeParamExpr>,
 
-    /// The expression for the type of this constant
-    pub type_expr: Expression,
+    /// The expression for the type of this constant (optional for type inference)
+    pub type_expr: Option<Expression>,
 
     // /// The expression for the value of this constant
     pub value: Expression,
@@ -497,18 +497,33 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
         }
     }
     let type_params = TypeParamExpr::parse_list(tokens)?;
-    tokens.expect_type(TokenType::Colon)?;
-    let (type_expr, middle_token) = Expression::parse_type(
-        tokens,
-        Terminator::Or(TokenType::Equals, TokenType::Satisfy),
-    )?;
-    if middle_token.token_type == TokenType::Satisfy {
-        return complete_variable_satisfy(
-            keyword,
-            tokens,
-            vec![Declaration::Typed(name_token, type_expr)],
-        );
-    }
+
+    // Check if there's a colon (type annotation) or equals (type inference)
+    let next_token = tokens.expect_token()?;
+    let (type_expr, _middle_token) = match next_token.token_type {
+        TokenType::Colon => {
+            // Traditional syntax: let name: Type = value
+            let (type_expr, middle_token) = Expression::parse_type(
+                tokens,
+                Terminator::Or(TokenType::Equals, TokenType::Satisfy),
+            )?;
+            if middle_token.token_type == TokenType::Satisfy {
+                return complete_variable_satisfy(
+                    keyword,
+                    tokens,
+                    vec![Declaration::Typed(name_token, type_expr)],
+                );
+            }
+            (Some(type_expr), middle_token)
+        }
+        TokenType::Equals => {
+            // Type inference syntax: let name = value
+            (None, next_token)
+        }
+        _ => {
+            return Err(next_token.error("expected ':' or '='"));
+        }
+    };
 
     let (value, last_token) = Expression::parse_value(tokens, Terminator::Is(TokenType::NewLine))?;
     let ls = LetStatement {
@@ -914,7 +929,7 @@ fn parse_match_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
 /// Parses a typeclass statement where the "typeclass" keyword has already been found.
 fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let first_name = tokens.expect_type_name()?;
-    
+
     // Check if we have the block syntax (Q: TypeclassName) or no-block syntax (TypeclassName extends ...)
     let (instance_name, typeclass_name) = match tokens.peek_type() {
         Some(TokenType::Colon) => {
@@ -929,7 +944,8 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
             (None, first_name)
         }
         _ => {
-            return Err(keyword.error("expected ':' for block syntax or 'extends'/'{'  for no-block syntax"));
+            return Err(keyword
+                .error("expected ':' for block syntax or 'extends'/'{'  for no-block syntax"));
         }
     };
 
@@ -948,12 +964,12 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 let type_token = tokens.expect_type_name()?;
                 let type_expr = Expression::Singleton(type_token);
                 extends.push(type_expr);
-                
+
                 // Check what comes next
                 match tokens.peek_type() {
                     Some(TokenType::Comma) => {
                         tokens.next(); // consume comma
-                        // Check if the next thing after comma is EOF/newline (no block)
+                                       // Check if the next thing after comma is EOF/newline (no block)
                         match tokens.peek_type() {
                             Some(TokenType::NewLine) | None => {
                                 break false;
@@ -973,7 +989,9 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         break false;
                     }
                     _ => {
-                        return Err(keyword.error("expected ',' or '{' or newline/EOF after typeclass name in extends"));
+                        return Err(keyword.error(
+                            "expected ',' or '{' or newline/EOF after typeclass name in extends",
+                        ));
                     }
                 }
             }
@@ -983,26 +1001,28 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
             false
         }
         _ => {
-            return Err(keyword.error("expected 'extends', '{', newline, or EOF after typeclass name"));
+            return Err(
+                keyword.error("expected 'extends', '{', newline, or EOF after typeclass name")
+            );
         }
     };
 
     let mut constants = vec![];
     let mut conditions = vec![];
-    
+
     if !has_block {
         // No-block syntax - just return the typeclass with extends only
         if extends.is_empty() {
             return Err(keyword.error("Typeclass without block must extend at least one typeclass"));
         }
-        
+
         // Find the last token for this statement
         let last_token = if let Some(ref last_extend) = extends.last() {
             last_extend.last_token().clone()
         } else {
             typeclass_name.clone()
         };
-        
+
         return Ok(Statement {
             first_token: keyword,
             last_token,
@@ -1015,7 +1035,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
             }),
         });
     }
-    
+
     while let Some(token) = tokens.next() {
         match token.token_type {
             TokenType::NewLine => {
@@ -1098,10 +1118,13 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
 fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let type_name = tokens.expect_type_name()?;
     tokens.expect_type(TokenType::Colon)?;
-    
+
     // Parse the typeclass expression, which can end with either '{' (block syntax) or newline/EOF (no-block syntax)
-    let (typeclass, terminator) = Expression::parse_type(tokens, Terminator::Or(TokenType::LeftBrace, TokenType::NewLine))?;
-    
+    let (typeclass, terminator) = Expression::parse_type(
+        tokens,
+        Terminator::Or(TokenType::LeftBrace, TokenType::NewLine),
+    )?;
+
     let (definitions, body, last_token) = match terminator.token_type {
         TokenType::LeftBrace => {
             // Block syntax: instance Type: Typeclass { ... }
@@ -1123,11 +1146,12 @@ fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<St
             if tokens.peek().is_none() {
                 (None, None, typeclass.last_token().clone())
             } else {
-                return Err(terminator.error("expected '{' or newline after typeclass in instance statement"));
+                return Err(terminator
+                    .error("expected '{' or newline after typeclass in instance statement"));
             }
         }
     };
-    
+
     let is = InstanceStatement {
         type_name,
         typeclass,
@@ -1196,7 +1220,10 @@ impl Statement {
             StatementInfo::Let(ls) => {
                 write!(f, "let {}", ls.name)?;
                 write_type_params(f, &ls.type_params)?;
-                write!(f, ": {} = {}", ls.type_expr, ls.value)
+                match &ls.type_expr {
+                    Some(type_expr) => write!(f, ": {} = {}", type_expr, ls.value),
+                    None => write!(f, " = {}", ls.value),
+                }
             }
 
             StatementInfo::Define(ds) => {
@@ -1366,7 +1393,7 @@ impl Statement {
 
             StatementInfo::Typeclass(ts) => {
                 let new_indentation = add_indent(indentation);
-                
+
                 if let Some(instance_name) = &ts.instance_name {
                     // Block syntax: typeclass Q: TypeclassName extends ... { ... }
                     write!(f, "typeclass {}: {}", instance_name, ts.typeclass_name)?;
