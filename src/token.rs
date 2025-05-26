@@ -23,7 +23,7 @@ pub enum TokenType {
     Not,
     Or,
     And,
-    LeftRightArrow,
+    Iff,
     Equals,
     NotEquals,
     GreaterThan,
@@ -106,6 +106,7 @@ pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
             ("typeclass", TokenType::Typeclass),
             ("instance", TokenType::Instance),
             ("extends", TokenType::Extends),
+            ("iff", TokenType::Iff),
         ])
     })
 }
@@ -161,7 +162,7 @@ impl TokenType {
             TokenType::RightArrow => true,
             TokenType::Or => true,
             TokenType::And => true,
-            TokenType::LeftRightArrow => true,
+            TokenType::Iff => true,
             TokenType::Equals => true,
             TokenType::NotEquals => true,
             TokenType::GreaterThan => true,
@@ -208,7 +209,7 @@ impl TokenType {
             TokenType::NotEquals => 7,
             TokenType::Or => 5,
             TokenType::And => 5,
-            TokenType::LeftRightArrow => 4,
+            TokenType::Iff => 4,
             TokenType::RightArrow => 3,
             TokenType::Implies => 3,
             TokenType::Colon => 2,
@@ -327,7 +328,7 @@ impl TokenType {
             TokenType::Not => "not",
             TokenType::Or => "or",
             TokenType::And => "and",
-            TokenType::LeftRightArrow => "<->",
+            TokenType::Iff => "iff",
             TokenType::Equals => "=",
             TokenType::NotEquals => "!=",
             TokenType::GreaterThan => ">",
@@ -475,7 +476,7 @@ impl Token {
             TokenType::Identifier => Some(SemanticTokenType::VARIABLE),
 
             TokenType::RightArrow
-            | TokenType::LeftRightArrow
+            | TokenType::Iff
             | TokenType::Equals
             | TokenType::NotEquals
             | TokenType::GreaterThan
@@ -585,15 +586,9 @@ impl Token {
                         Some(_) => TokenType::RightArrow,
                         None => TokenType::Minus,
                     },
-                    '<' => match char_indices.next_if_eq(&(char_index + 1, '-')) {
-                        Some(_) => match char_indices.next_if_eq(&(char_index + 2, '>')) {
-                            Some(_) => TokenType::LeftRightArrow,
-                            None => TokenType::Invalid,
-                        },
-                        None => match char_indices.next_if_eq(&(char_index + 1, '=')) {
-                            Some(_) => TokenType::LessThanOrEquals,
-                            None => TokenType::LessThan,
-                        },
+                    '<' => match char_indices.next_if_eq(&(char_index + 1, '=')) {
+                        Some(_) => TokenType::LessThanOrEquals,
+                        None => TokenType::LessThan,
                     },
                     '>' => match char_indices.next_if_eq(&(char_index + 1, '=')) {
                         Some(_) => TokenType::GreaterThanOrEquals,

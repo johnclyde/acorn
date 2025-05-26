@@ -1245,11 +1245,11 @@ mod tests {
     fn test_value_parsing() {
         check_value("p -> (q -> p)");
         check_value("(p -> (q -> r)) -> ((p -> q) -> (p -> r))");
-        check_value("(p <-> q) = ((p -> q) and (q -> p))");
-        check_value("p and q <-> q and p");
-        check_value("(p and q) and r <-> p and (q and r)");
-        check_value("p or q <-> q or p");
-        check_value("(p or q) or r <-> p or (q or r)");
+        check_value("(p iff q) = ((p -> q) and (q -> p))");
+        check_value("p and q iff q and p");
+        check_value("(p and q) and r iff p and (q and r)");
+        check_value("p or q iff q or p");
+        check_value("(p or q) or r iff p or (q or r)");
     }
 
     #[test]

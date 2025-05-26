@@ -1682,7 +1682,7 @@ mod tests {
             not (p -> not q)
         }"});
         ok(indoc! {"
-        define iff(p: bool, q: bool) -> bool {
+        define iff_func(p: bool, q: bool) -> bool {
             (p -> q) and (q -> p)
         }"});
     }
@@ -1699,16 +1699,16 @@ mod tests {
             (not p -> not q) -> (q -> p)
         }"});
         ok(indoc! {"theorem and_comm {
-            p and q <-> q and p
+            p and q iff q and p
         }"});
         ok(indoc! {"theorem and_assoc {
-            (p and q) and r <-> p and (q and r)
+            (p and q) and r iff p and (q and r)
         }"});
         ok(indoc! {"theorem or_comm {
-            p or q <-> q or p
+            p or q iff q or p
         }"});
         ok(indoc! {"theorem or_assoc {
-            (p or q) or r <-> p or (q or r)
+            (p or q) or r iff p or (q or r)
         }"});
         ok(indoc! {"theorem suc_gt_zero(x: nat) {
             suc(x) > 0

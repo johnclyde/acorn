@@ -380,7 +380,7 @@ impl BindingMap {
         }
     }
 
-    /// Adds both directions for a name <-> type correspondence.
+    /// Adds both directions for a name iff type correspondence.
     /// Panics if the name is already bound.
     fn insert_type_name(&mut self, name: String, potential_type: PotentialType) {
         // There can be multiple names for a type.

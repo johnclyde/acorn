@@ -8,7 +8,7 @@
       "name": "comment.line.double-slash"
     },
     {
-      "match": "\\b(if|else|forall|exists|by|function|and|or|not|implies)\\b",
+      "match": "\\b(if|else|forall|exists|by|function|and|or|not|implies|iff)\\b",
       "name": "keyword.control"
     },
     {
