@@ -913,9 +913,25 @@ impl<'a> Evaluator<'a> {
                 let cond =
                     self.evaluate_value_with_stack(stack, cond_exp, Some(&AcornType::Bool))?;
                 let if_value = self.evaluate_value_with_stack(stack, if_exp, expected_type)?;
-                let else_value =
-                    self.evaluate_value_with_stack(stack, else_exp, Some(&if_value.get_type()))?;
-                AcornValue::IfThenElse(Box::new(cond), Box::new(if_value), Box::new(else_value))
+                
+                match else_exp {
+                    Some(else_exp) => {
+                        // Traditional if-then-else
+                        let else_value =
+                            self.evaluate_value_with_stack(stack, else_exp, Some(&if_value.get_type()))?;
+                        AcornValue::IfThenElse(Box::new(cond), Box::new(if_value), Box::new(else_value))
+                    }
+                    None => {
+                        // If without else - convert to implies if if_value is boolean
+                        if if_value.get_type() == AcornType::Bool {
+                            AcornValue::implies(cond, if_value)
+                        } else {
+                            return Err(expression.error(
+                                "if expressions without else clauses require the if branch to be boolean"
+                            ));
+                        }
+                    }
+                }
             }
             Expression::Match(_, scrutinee_exp, case_exps, _) => {
                 let mut expected_type: Option<AcornType> = expected_type.cloned();

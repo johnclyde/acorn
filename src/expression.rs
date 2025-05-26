@@ -48,17 +48,17 @@ pub enum Expression {
     /// The last token is the closing brace.
     Binder(Token, Vec<Declaration>, Box<Expression>, Token),
 
-    /// If-then-else expressions have to have the else block.
+    /// If-then-else expressions. The else branch is optional.
     /// The first token is the "if" keyword.
     /// The first expression is the condition.
     /// The second expression is the "if" block.
-    /// The third expression is the "else" block.
+    /// The third expression is the optional "else" block.
     /// The last token is the closing brace.
     IfThenElse(
         Token,
         Box<Expression>,
         Box<Expression>,
-        Box<Expression>,
+        Option<Box<Expression>>,
         Token,
     ),
 
@@ -111,11 +111,14 @@ impl fmt::Display for Expression {
                 write!(f, " {{ {} }}", sub)
             }
             Expression::IfThenElse(_, cond, if_block, else_block, _) => {
-                write!(
-                    f,
-                    "if {} {{ {} }} else {{ {} }}",
-                    cond, if_block, else_block
-                )
+                match else_block {
+                    Some(else_expr) => write!(
+                        f,
+                        "if {} {{ {} }} else {{ {} }}",
+                        cond, if_block, else_expr
+                    ),
+                    None => write!(f, "if {} {{ {} }}", cond, if_block),
+                }
             }
             Expression::Match(_, scrutinee, cases, _) => {
                 write!(f, "match {} {{", scrutinee)?;
@@ -375,7 +378,10 @@ impl Expression {
                 println!("  token: {}", token);
                 println!("  cond: {}", cond);
                 println!("  if: {}", if_block);
-                println!("  else: {}", else_block);
+                match else_block {
+                    Some(else_expr) => println!("  else: {}", else_expr),
+                    None => println!("  else: None"),
+                }
             }
             Expression::Match(token, scrutinee, cases, _) => {
                 println!("Match:");
@@ -856,18 +862,26 @@ fn parse_partial_expressions(
                 }
                 let (condition, _) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
-                let (if_block, _) =
+                let (if_block, last_right_brace) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
-                tokens.expect_type(TokenType::Else)?;
-                tokens.expect_type(TokenType::LeftBrace)?;
-                let (else_block, last_right_brace) =
-                    Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
+                
+                // Check if there's an else clause
+                let (else_block, final_brace) = if tokens.peek_type() == Some(TokenType::Else) {
+                    tokens.next(); // consume the else token
+                    tokens.expect_type(TokenType::LeftBrace)?;
+                    let (else_expr, else_brace) =
+                        Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
+                    (Some(Box::new(else_expr)), else_brace)
+                } else {
+                    (None, last_right_brace)
+                };
+                
                 let exp = Expression::IfThenElse(
                     token,
                     Box::new(condition),
                     Box::new(if_block),
-                    Box::new(else_block),
-                    last_right_brace,
+                    else_block,
+                    final_brace,
                 );
                 partials.push_back(PartialExpression::Expression(exp));
             }
@@ -1347,10 +1361,10 @@ mod tests {
         check_value("if a = 0 { 0 } else { 1 }");
         check_value("if foo(a) { 0 } else { 1 }");
         check_value("if (a = 0) { 0 } else { 1 }");
+        check_value("if p { q }"); // Now valid - if without else
 
         check_not_value("if");
         check_not_value("if p");
-        check_not_value("if p { q }");
         check_not_value("else");
         check_not_value("else { r }");
         check_not_value("if p { q } else { r } else { s }");

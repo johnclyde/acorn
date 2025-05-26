@@ -394,7 +394,7 @@ impl CodeGenerator<'_> {
                     TokenType::If.generate(),
                     Box::new(condition),
                     Box::new(if_value),
-                    Box::new(else_value),
+                    Some(Box::new(else_value)),
                     TokenType::RightBrace.generate(),
                 ))
             }
