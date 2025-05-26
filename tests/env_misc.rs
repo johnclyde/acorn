@@ -2325,3 +2325,16 @@ fn test_proposition_must_typecheck_as_bool() {
     );
 }
 
+#[test]
+fn test_omitting_else_for_boolean() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+        let a: Bool = forall(b: Bool, c: Bool) {
+            if b {
+                c
+            }
+        }
+        "#,
+    );
+}
