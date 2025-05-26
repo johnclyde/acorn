@@ -2338,3 +2338,9 @@ fn test_omitting_else_for_boolean() {
         "#,
     );
 }
+
+#[test]
+fn test_let_type_inference() {
+    let mut env = Environment::test();
+    env.add("let a = true\n");
+}
