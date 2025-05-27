@@ -113,8 +113,22 @@ impl Verifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::fixture::ChildPath;
     use assert_fs::prelude::*;
     use assert_fs::TempDir;
+
+    /// Creates a standard Acorn project layout with acorn.toml, src/, and build/ directories.
+    /// Returns (project dir, src_dir, build_dir) for use in tests.
+    /// Close the project directory after use to clean up.
+    fn setup() -> (TempDir, ChildPath, ChildPath) {
+        let temp = TempDir::new().unwrap();
+        temp.child("acorn.toml").write_str("").unwrap();
+        let src = temp.child("src");
+        src.create_dir_all().unwrap();
+        let build = temp.child("build");
+        build.create_dir_all().unwrap();
+        (temp, src, build)
+    }
 
     #[test]
     fn test_verifier_with_simple_acornlib() {
@@ -170,21 +184,7 @@ theorem simple_truth {
     #[test]
     fn test_verifier_with_acorn_toml_layout() {
         // Create a temporary directory with the new acorn.toml + src layout
-        let temp = TempDir::new().unwrap();
-        let acornlib = temp.child("altname");
-        acornlib.create_dir_all().unwrap();
-
-        // Create acorn.toml file
-        let acorn_toml = acornlib.child("acorn.toml");
-        acorn_toml.write_str("").unwrap();
-
-        // Create src directory
-        let src = acornlib.child("src");
-        src.create_dir_all().unwrap();
-
-        // Create build directory
-        let build = acornlib.child("build");
-        build.create_dir_all().unwrap();
+        let (acornlib, src, build) = setup();
 
         // Create foo.ac inside the src directory
         let foo_ac = src.child("foo.ac");
@@ -252,6 +252,70 @@ theorem simple_truth {
             "Should use cache and perform no searches"
         );
 
-        temp.close().unwrap();
+        acornlib.close().unwrap();
+    }
+
+    #[test]
+    fn test_verifier_filter_picks_up_extends() {
+        let (acornlib, src, _) = setup();
+
+        src.child("foo.ac")
+            .write_str(
+                r#"
+            typeclass F: Foo {
+                foo_property: Bool
+            }
+
+            typeclass B: Bar extends Foo {
+                bar_property: Bool
+            }
+
+            axiom bar_has_foo_property<B: Bar> {
+                B.foo_property
+            }
+
+            typeclass Baz extends Bar {
+                baz_property: Bool
+            }
+        "#,
+            )
+            .unwrap();
+
+        src.child("main.ac")
+            .write_str(
+                r#"
+            from foo import Baz
+
+            // To prove this, we need to know that Baz extends Bar.
+            theorem baz_has_foo_property<B: Baz> {
+                B.foo_property
+            }
+        "#,
+            )
+            .unwrap();
+
+        let verifier1 = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Standard,
+            Some("main".to_string()),
+            false,
+        );
+        assert!(verifier1.run().is_ok(), "Verifier should run successfully");
+
+        let verifier2 = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Filtered,
+            Some("main".to_string()),
+            false,
+        );
+        let (status, result) = verifier2.run().unwrap();
+        assert_eq!(
+            status,
+            BuildStatus::Good,
+            "Filtered verifier should succeed"
+        );
+        assert_eq!(result.searches_fallback, 0, "Should not have to fall back");
+
+        acornlib.close().unwrap();
     }
 }
