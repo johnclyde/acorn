@@ -101,7 +101,7 @@ async fn main() {
             println!("Error: --line requires a target module or file to be specified.");
             std::process::exit(1);
         };
-        let searcher = Searcher::new(current_dir, target, line);
+        let searcher = Searcher::new(current_dir, mode, target, line);
         if let Err(e) = searcher.run() {
             println!("{}", e);
             std::process::exit(1);

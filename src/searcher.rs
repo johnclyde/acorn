@@ -14,20 +14,24 @@ pub struct Searcher {
 
     /// The starting path to find the acorn library from.
     start_path: PathBuf,
+
+    /// The mode to use for the verifier.
+    mode: VerifierMode,
 }
 
 impl Searcher {
-    pub fn new(start_path: PathBuf, target: String, line_number: u32) -> Self {
+    pub fn new(start_path: PathBuf, mode: VerifierMode, target: String, line_number: u32) -> Self {
         Self {
             target,
             line_number,
             start_path,
+            mode,
         }
     }
 
     /// Runs the search and returns an error string if the search fails.
     pub fn run(&self) -> Result<(), String> {
-        let mut project = match Project::new_local(&self.start_path, VerifierMode::Full) {
+        let mut project = match Project::new_local(&self.start_path, self.mode) {
             Ok(p) => p,
             Err(e) => return Err(format!("Error: {}", e)),
         };
