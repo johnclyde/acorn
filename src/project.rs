@@ -419,22 +419,6 @@ impl Project {
         }
     }
 
-    // Turns a set of qualified premises from its serializable form into a plain hash set.
-    fn load_premises(
-        &self,
-        module_cache: &Option<ModuleCache>,
-        block_name: &str,
-    ) -> Option<HashMap<ModuleId, HashSet<String>>> {
-        let normalized = module_cache.as_ref()?.blocks.get(block_name)?;
-        let mut answer = HashMap::new();
-        for (module_name, premises) in normalized.iter() {
-            // A module could have been renamed, in which case the whole cache is borked.
-            let module_id = self.get_module_id_by_name(module_name)?;
-            answer.insert(module_id, premises.iter().cloned().collect());
-        }
-        Some(answer)
-    }
-
     // Turns a hash set of qualified premises into its serializable form.
     // If any premise is from an unimportable module, we return None.
     // This can happen when Acorn is running in "detached library" mode, where the current
@@ -463,14 +447,24 @@ impl Project {
         Some(answer)
     }
 
-    // Construct a prover with only the facts that are included in premises.
-    // node_index is the top level index of the node we are verifying.
+    // Construct a prover with only the facts that are included in the cached premises.
+    // Returns None if we don't have cached premises for this block.
+    // cursor points to the node we are verifying.
     fn make_filtered_prover(
         &self,
-        env: &Environment,
-        node_index: usize,
-        premises: HashMap<ModuleId, HashSet<String>>,
-    ) -> Prover {
+        cursor: &NodeCursor,
+        module_cache: &Option<ModuleCache>,
+    ) -> Option<Prover> {
+        let env = cursor.env();
+        let block_name = cursor.node().block_name();
+        // Load the premises from the cache
+        let normalized = module_cache.as_ref()?.blocks.get(&block_name)?;
+        let mut premises = HashMap::new();
+        for (module_name, premise_set) in normalized.iter() {
+            // A module could have been renamed, in which case the whole cache is borked.
+            let module_id = self.get_module_id_by_name(module_name)?;
+            premises.insert(module_id, premise_set.iter().cloned().collect());
+        }
         let mut prover = Prover::new(&self, false);
 
         // Add facts from the dependencies
@@ -487,7 +481,7 @@ impl Project {
 
         // Add facts from this file itself
         if let Some(local_premises) = premises.get(&env.module_id) {
-            for node in env.nodes.iter().take(node_index) {
+            for node in env.nodes.iter().take(cursor.top_index()) {
                 let name = match node.source_name() {
                     Some(name) => name,
                     None => continue,
@@ -500,7 +494,7 @@ impl Project {
             }
         }
 
-        prover
+        Some(prover)
     }
 
     // Verifies all goals within this module.
@@ -549,9 +543,10 @@ impl Project {
 
                     // If we have a cached set of premises, we use it to create a filtered prover.
                     // The filtered prover only contains the premises that we think it needs.
-                    let old_premises = self.load_premises(&old_module_cache, &block_name);
-                    let filtered_prover = old_premises
-                        .map(|ps| self.make_filtered_prover(env, cursor.top_index(), ps));
+                    let filtered_prover = self.make_filtered_prover(
+                        &cursor,
+                        &old_module_cache,
+                    );
 
                     // The premises we use while verifying this block.
                     let mut new_premises = HashSet::new();
