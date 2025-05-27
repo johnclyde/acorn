@@ -48,6 +48,7 @@ git push upstream master
 # This creates the release, and hopefully finishes before the Windows build.
 ./scripts/upload.sh
 
+set +x
 echo Check the Windows build here:      https://github.com/acornprover/acorn/actions
 echo Edit the release description here: https://github.com/acornprover/acorn/releases
 echo Publish the extension with:        ./scripts/publish.sh
