@@ -646,7 +646,23 @@ impl<'a> NodeCursor<'a> {
     // This includes imported facts.
     pub fn usable_facts(&self, project: &Project) -> Vec<Fact> {
         let mut facts = project.imported_facts(self.env().module_id, None);
-        for (env, i) in &self.annotated_path {
+        let (env, i) = &self.annotated_path[0];
+        for node in &env.nodes[0..*i] {
+            if let Some(fact) = node.get_fact() {
+                facts.push(fact);
+            }
+        }
+
+        facts.extend(self.block_facts());
+        facts
+    }
+
+    /// Get all facts that are inside the block of this cursor.
+    /// This does not include imported facts, and it does not include facts that
+    /// are top-level in the module.
+    pub fn block_facts(&self) -> Vec<Fact> {
+        let mut facts = vec![];
+        for (env, i) in self.annotated_path.iter().skip(1) {
             for node in &env.nodes[0..*i] {
                 if let Some(fact) = node.get_fact() {
                     facts.push(fact);
@@ -661,7 +677,6 @@ impl<'a> NodeCursor<'a> {
                 }
             }
         }
-
         facts
     }
 

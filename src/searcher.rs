@@ -74,8 +74,11 @@ impl Searcher {
 
             let block_name = cursor.block_name();
             match project.make_filtered_prover(env, &block_name, &module_cache) {
-                Some(filtered_prover) => {
+                Some(mut filtered_prover) => {
                     println!("using filtered prover");
+                    for fact in cursor.block_facts() {
+                        filtered_prover.add_fact(fact);
+                    }
                     filtered_prover
                 }
                 None => {
