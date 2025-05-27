@@ -34,10 +34,7 @@ impl fmt::Display for Fact {
                 if base_set.is_empty() {
                     write!(f, "{} extends nothing", tc.name)
                 } else {
-                    let mut names: Vec<String> = base_set
-                        .iter()
-                        .map(|t| t.name.clone())
-                        .collect();
+                    let mut names: Vec<String> = base_set.iter().map(|t| t.name.clone()).collect();
                     names.sort();
                     write!(f, "{} extends {}", tc.name, names.join(", "))
                 }

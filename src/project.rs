@@ -479,17 +479,27 @@ impl Project {
         }
 
         // Add facts from this file itself
-        if let Some(local_premises) = premises.get(&env.module_id) {
-            for node in env.nodes.iter().take(cursor.top_index()) {
-                let name = match node.source_name() {
-                    Some(name) => name,
-                    None => continue,
-                };
-                if local_premises.contains(&name) {
-                    if let Some(fact) = node.get_fact() {
-                        prover.add_fact(fact);
-                    }
-                }
+        let local_premises = premises.get(&env.module_id);
+        for node in env.nodes.iter().take(cursor.top_index()) {
+            let Some(fact) = node.get_fact() else {
+                continue;
+            };
+
+            // Always include extends and instance facts
+            if fact.is_extends() || fact.is_instance() {
+                prover.add_fact(fact);
+                continue;
+            }
+
+            let Some(name) = node.source_name() else {
+                continue;
+            };
+            let Some(local_premises) = local_premises else {
+                continue;
+            };
+
+            if local_premises.contains(&name) {
+                prover.add_fact(fact);
             }
         }
 
