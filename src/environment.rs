@@ -348,8 +348,9 @@ impl Environment {
                         DefinedName::Instance(instance_name) => {
                             // Instance definition - check against the instance class
                             if acorn_type != AcornType::Data(instance_name.class.clone(), vec![]) {
-                                return Err(type_expr
-                                    .error("numeric instance variables must be the instance class type"));
+                                return Err(type_expr.error(
+                                    "numeric instance variables must be the instance class type",
+                                ));
                             }
                         }
                     }
@@ -365,16 +366,12 @@ impl Environment {
                 (acorn_type, value)
             }
             None => {
-                // Type inference let: let name = value
-                if ls.name_token.token_type == TokenType::Numeral {
-                    return Err(ls
-                        .name_token
-                        .error("numeric literals require explicit type annotation"));
-                }
+                // Type inference, let name = value
                 if ls.value.is_axiom() {
-                    return Err(ls.value.first_token().error(
-                        "axiom constants require explicit type annotation"
-                    ));
+                    return Err(ls
+                        .value
+                        .first_token()
+                        .error("axiom constants require explicit type annotation"));
                 }
                 // Evaluate the value first to infer its type
                 let value = self.evaluator(project).evaluate_value(&ls.value, None)?;
@@ -1400,7 +1397,7 @@ impl Environment {
         };
         self.bindings
             .add_typeclass(typeclass_name, extends, &project, &ts.typeclass_name)?;
-        
+
         // For block syntax, we also need to bind the instance name
         let type_params = if let Some(instance_name_token) = &ts.instance_name {
             let instance_name = instance_name_token.text();
@@ -1521,7 +1518,8 @@ impl Environment {
                 );
                 let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
                 self.add_node(Node::structural(project, self, prop));
-                let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
+                let constant_name =
+                    ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
                 self.bindings.mark_as_theorem(&constant_name);
             }
         }
@@ -1570,7 +1568,7 @@ impl Environment {
 
         // Pairs contains (resolved constant, defined constant) for each attribute.
         let mut pairs = vec![];
-        
+
         // Process definitions if they exist (block syntax), otherwise skip (no-block syntax)
         if let Some(definitions) = &is.definitions {
             for substatement in &definitions.statements {
@@ -1578,7 +1576,11 @@ impl Environment {
                     StatementInfo::Let(ls) => {
                         self.add_let_statement(
                             project,
-                            DefinedName::instance(typeclass.clone(), &ls.name, instance_class.clone()),
+                            DefinedName::instance(
+                                typeclass.clone(),
+                                &ls.name,
+                                instance_class.clone(),
+                            ),
                             ls,
                             substatement.range(),
                             None,
@@ -1598,7 +1600,11 @@ impl Environment {
                         }
                         self.add_define_statement(
                             project,
-                            DefinedName::instance(typeclass.clone(), &ds.name, instance_class.clone()),
+                            DefinedName::instance(
+                                typeclass.clone(),
+                                &ds.name,
+                                instance_class.clone(),
+                            ),
                             Some(&instance_type),
                             None,
                             ds,
@@ -1614,8 +1620,9 @@ impl Environment {
                         )?);
                     }
                     _ => {
-                        return Err(substatement
-                            .error("only let and define statements are allowed in instance bodies"));
+                        return Err(substatement.error(
+                            "only let and define statements are allowed in instance bodies",
+                        ));
                     }
                 }
             }
