@@ -555,7 +555,8 @@ impl Project {
                     // If we have a cached set of premises, we use it to create a filtered prover.
                     // The filtered prover only contains the premises that we think it needs.
                     let block_name = cursor.block_name();
-                    let filtered_prover = self.make_filtered_prover(env, &block_name, &old_module_cache);
+                    let filtered_prover =
+                        self.make_filtered_prover(env, &block_name, &old_module_cache);
 
                     // The premises we use while verifying this block.
                     let mut new_premises = HashSet::new();
@@ -697,7 +698,7 @@ impl Project {
                 builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
                 return filtered_prover;
             }
-            // builder.log_proving_info(&goal_context, "fallback required");
+            builder.log_proving_info(&goal_context, "fallback required");
             builder.metrics.searches_fallback += 1;
         }
 
