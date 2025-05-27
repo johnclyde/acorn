@@ -1,6 +1,6 @@
 [package]
 name = "acorn"
-version = "0.0.33"
+version = "0.0.34"
 edition = "2021"
 default-run = "verify"
 
