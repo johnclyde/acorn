@@ -170,7 +170,7 @@ theorem simple_truth {
     fn test_verifier_with_acorn_toml_layout() {
         // Create a temporary directory with the new acorn.toml + src layout
         let temp = TempDir::new().unwrap();
-        let acornlib = temp.child("acornlib");
+        let acornlib = temp.child("altname");
         acornlib.create_dir_all().unwrap();
 
         // Create acorn.toml file

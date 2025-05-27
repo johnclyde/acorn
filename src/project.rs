@@ -124,10 +124,11 @@ impl Project {
         }
     }
 
-    // Finds a directory named acornlib, based on the provided path.
+    // Finds an acorn library directory, based on the provided path.
     // It can be either:
-    //   a parent directory of the provided path
-    //   a directory named "acornlib" next to one named "acorn"
+    //   - a parent directory named "acornlib"
+    //   - a parent directory containing "acorn.toml"
+    //   - a directory named "acornlib" next to one named "acorn"
     // Returns (library_root, cache_dir) where:
     //   - For new format (with acorn.toml): library_root is src/, cache_dir is build/
     //   - For old format: library_root is acornlib/, cache_dir is acornlib/build/
@@ -135,12 +136,17 @@ impl Project {
         let mut current = Some(start);
 
         while let Some(path) = current {
-            // Check if path is an acornlib
+            // Check if path is an acornlib directory
             if path.ends_with("acornlib") {
                 return Self::check_acornlib_layout(path);
             }
 
-            // Check if path has a sibling named acornlib
+            // Check if path contains acorn.toml (new format)
+            if path.join("acorn.toml").is_file() {
+                return Self::check_acornlib_layout(path);
+            }
+
+            // Check if path has a sibling named acornlib (only if current dir is "acorn")
             if path.ends_with("acorn") {
                 let library_path = path.with_file_name("acornlib");
                 if library_path.is_dir() {
