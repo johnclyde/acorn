@@ -324,21 +324,34 @@ impl Environment {
                 // Traditional let with explicit type: let name: Type = value
                 let acorn_type = self.evaluator(project).evaluate_type(type_expr)?;
                 if ls.name_token.token_type == TokenType::Numeral {
-                    let class_name = match defined_name.as_attribute() {
-                        Some((class_name, _)) => class_name.to_string(),
-                        _ => {
-                            return Err(ls
-                                .name_token
-                                .error("numeric literals must be class members"))
+                    // Check if this is a class attribute or instance definition
+                    match &defined_name {
+                        DefinedName::Constant(constant_name) => {
+                            // Regular class attribute
+                            let class_name = match constant_name.as_attribute() {
+                                Some((_, class_name, _)) => class_name.to_string(),
+                                _ => {
+                                    return Err(ls
+                                        .name_token
+                                        .error("numeric literals must be class members"))
+                                }
+                            };
+                            let class = Class {
+                                module_id: self.module_id,
+                                name: class_name,
+                            };
+                            if acorn_type != AcornType::Data(class, vec![]) {
+                                return Err(type_expr
+                                    .error("numeric class variables must be the class type"));
+                            }
                         }
-                    };
-                    let class = Class {
-                        module_id: self.module_id,
-                        name: class_name,
-                    };
-                    if acorn_type != AcornType::Data(class, vec![]) {
-                        return Err(type_expr
-                            .error("numeric class variables must be the class type"));
+                        DefinedName::Instance(instance_name) => {
+                            // Instance definition - check against the instance class
+                            if acorn_type != AcornType::Data(instance_name.class.clone(), vec![]) {
+                                return Err(type_expr
+                                    .error("numeric instance variables must be the instance class type"));
+                            }
+                        }
                     }
                 }
                 let value = if ls.value.is_axiom() {

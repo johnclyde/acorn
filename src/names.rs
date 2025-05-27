@@ -172,7 +172,9 @@ impl DefinedName {
                 let (_, entity, attr) = c.as_attribute()?;
                 Some((entity, attr))
             }
-            _ => None,
+            DefinedName::Instance(inst) => {
+                Some((&inst.typeclass.name, &inst.attribute))
+            }
         }
     }
 
