@@ -452,13 +452,12 @@ impl Project {
     // cursor points to the node we are verifying.
     pub fn make_filtered_prover(
         &self,
-        cursor: &NodeCursor,
+        env: &Environment,
+        block_name: &str,
         module_cache: &Option<ModuleCache>,
     ) -> Option<Prover> {
-        let env = cursor.env();
-        let block_name = cursor.block_name();
         // Load the premises from the cache
-        let normalized = module_cache.as_ref()?.blocks.get(&block_name)?;
+        let normalized = module_cache.as_ref()?.blocks.get(block_name)?;
         let mut premises = HashMap::new();
         for (module_name, premise_set) in normalized.iter() {
             // A module could have been renamed, in which case the whole cache is borked.
@@ -478,9 +477,12 @@ impl Project {
             }
         }
 
-        // Add facts from this file itself
+        // Find the index of the block with the given name
+        let block_index = env.get_block_index(block_name)?;
+
+        // Add facts from this file itself, but only up to the block we're proving
         let local_premises = premises.get(&env.module_id);
-        for node in env.nodes.iter().take(cursor.top_index()) {
+        for node in env.nodes.iter().take(block_index) {
             let Some(fact) = node.get_fact() else {
                 continue;
             };
@@ -552,7 +554,8 @@ impl Project {
 
                     // If we have a cached set of premises, we use it to create a filtered prover.
                     // The filtered prover only contains the premises that we think it needs.
-                    let filtered_prover = self.make_filtered_prover(&cursor, &old_module_cache);
+                    let block_name = cursor.block_name();
+                    let filtered_prover = self.make_filtered_prover(env, &block_name, &old_module_cache);
 
                     // The premises we use while verifying this block.
                     let mut new_premises = HashSet::new();

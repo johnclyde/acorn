@@ -513,6 +513,14 @@ impl Node {
         self.source()?.name()
     }
 
+    // Returns the block name for this node, using the same logic as NodeCursor::block_name
+    pub fn block_name(&self) -> String {
+        match self.good_block_name() {
+            Some(s) => s,
+            None => self.first_line().to_string(),
+        }
+    }
+
     // Returns the name and value, if this node is a theorem.
     pub fn as_theorem(&self) -> Option<(&str, &AcornValue)> {
         let prop = self.proposition()?;
@@ -578,7 +586,7 @@ impl<'a> NodeCursor<'a> {
         index
     }
 
-    // Get the top-level node (the node in the root environment)
+    // Get the top-level node above this cursor.
     fn top_node(&self) -> &'a Node {
         let (env, index) = self.annotated_path[0];
         &env.nodes[index]
@@ -587,11 +595,7 @@ impl<'a> NodeCursor<'a> {
     // The block name is used to describe the block when caching block -> premise dependencies.
     // This always returns the name of the top-level node, regardless of the current position.
     pub fn block_name(&self) -> String {
-        let node = self.top_node();
-        match node.good_block_name() {
-            Some(s) => s,
-            None => node.first_line().to_string(),
-        }
+        self.top_node().block_name()
     }
 
     // Can use this as an identifier for the iterator, to compare two of them

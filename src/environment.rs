@@ -2402,6 +2402,12 @@ impl Environment {
         cursor.descend(0);
         &cursor.env().bindings
     }
+
+    /// Find the index of a block by its name.
+    /// Uses the same logic as NodeCursor::block_name to determine the name.
+    pub fn get_block_index(&self, block_name: &str) -> Option<usize> {
+        self.nodes.iter().position(|node| node.block_name() == block_name)
+    }
 }
 
 /// Each line has a LineType, to handle line-based user interface.

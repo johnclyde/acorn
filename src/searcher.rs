@@ -72,7 +72,8 @@ impl Searcher {
                 .ok_or_else(|| format!("Module {} not found", module_id))?;
             let module_cache = project.get_module_cache(module_descriptor);
 
-            match project.make_filtered_prover(&cursor, &module_cache) {
+            let block_name = cursor.block_name();
+            match project.make_filtered_prover(env, &block_name, &module_cache) {
                 Some(filtered_prover) => {
                     println!("using filtered prover");
                     filtered_prover
@@ -81,7 +82,7 @@ impl Searcher {
                     return Err(format!(
                         "Cannot create filtered prover: no cached premises found for {} at line {}. \
                         Run verification in standard mode first to build the cache.",
-                        cursor.block_name(),
+                        block_name,
                         self.line_number
                     ));
                 }
