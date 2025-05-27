@@ -456,7 +456,7 @@ impl Project {
         module_cache: &Option<ModuleCache>,
     ) -> Option<Prover> {
         let env = cursor.env();
-        let block_name = cursor.node().block_name();
+        let block_name = cursor.block_name();
         // Load the premises from the cache
         let normalized = module_cache.as_ref()?.blocks.get(&block_name)?;
         let mut premises = HashMap::new();
@@ -521,7 +521,7 @@ impl Project {
         // Loop over all the nodes that are right below the top level.
         loop {
             if cursor.num_children() != 0 || cursor.node().has_goal() {
-                let block_name = cursor.node().block_name();
+                let block_name = cursor.block_name();
                 if self.check_hashes
                     && module_hash
                         .matches_through_line(&old_module_cache, cursor.node().last_line())
@@ -543,10 +543,7 @@ impl Project {
 
                     // If we have a cached set of premises, we use it to create a filtered prover.
                     // The filtered prover only contains the premises that we think it needs.
-                    let filtered_prover = self.make_filtered_prover(
-                        &cursor,
-                        &old_module_cache,
-                    );
+                    let filtered_prover = self.make_filtered_prover(&cursor, &old_module_cache);
 
                     // The premises we use while verifying this block.
                     let mut new_premises = HashSet::new();

@@ -477,7 +477,7 @@ impl Node {
 
     // The block name is used to describe the block when caching block -> premise dependencies.
     // good_block_name finds whether we have a comprehensible name.
-    fn good_block_name(&self) -> Option<String> {
+    pub fn good_block_name(&self) -> Option<String> {
         match &self.source()?.source_type {
             SourceType::Theorem(name) => match name {
                 Some(name) => Some(name.clone()),
@@ -489,14 +489,6 @@ impl Node {
             }
             SourceType::Instance(c, tc) => Some(format!("{}.{}", c, tc)),
             _ => None,
-        }
-    }
-
-    // block_name falls back to the line number if there is no good block name.
-    pub fn block_name(&self) -> String {
-        match self.good_block_name() {
-            Some(s) => s,
-            None => self.first_line().to_string(),
         }
     }
 
@@ -584,6 +576,22 @@ impl<'a> NodeCursor<'a> {
     pub fn top_index(&self) -> usize {
         let (_, index) = self.annotated_path[0];
         index
+    }
+
+    // Get the top-level node (the node in the root environment)
+    fn top_node(&self) -> &'a Node {
+        let (env, index) = self.annotated_path[0];
+        &env.nodes[index]
+    }
+
+    // The block name is used to describe the block when caching block -> premise dependencies.
+    // This always returns the name of the top-level node, regardless of the current position.
+    pub fn block_name(&self) -> String {
+        let node = self.top_node();
+        match node.good_block_name() {
+            Some(s) => s,
+            None => node.first_line().to_string(),
+        }
     }
 
     // Can use this as an identifier for the iterator, to compare two of them

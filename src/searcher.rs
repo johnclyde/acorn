@@ -47,25 +47,32 @@ impl Searcher {
             .get_env_by_id(module_id)
             .ok_or_else(|| format!("No environment found for module '{}'", self.target))?;
 
-        let path = env
-            .path_for_line(internal_line_number)
-            .map_err(|s| format!("no proposition for line {} in {}: {}", self.line_number, self.target, s))?;
+        let path = env.path_for_line(internal_line_number).map_err(|s| {
+            format!(
+                "no proposition for line {} in {}: {}",
+                self.line_number, self.target, s
+            )
+        })?;
 
-        let node = NodeCursor::from_path(env, &path);
-        let goal_context = node
-            .goal_context()
-            .map_err(|e| format!("Error getting goal at line {} in {}: {}", self.line_number, self.target, e))?;
+        let cursor = NodeCursor::from_path(env, &path);
+        let goal_context = cursor.goal_context().map_err(|e| {
+            format!(
+                "Error getting goal at line {} in {}: {}",
+                self.line_number, self.target, e
+            )
+        })?;
 
         println!("proving {} ...", goal_context.description);
-        
+
         let verbose = true;
         let mut prover = if self.mode == ProverMode::Filtered {
             // Try to use the filtered prover if we're in filtered mode
-            let module_descriptor = project.get_module_descriptor(module_id)
+            let module_descriptor = project
+                .get_module_descriptor(module_id)
                 .ok_or_else(|| format!("Module {} not found", module_id))?;
             let module_cache = project.get_module_cache(module_descriptor);
-            
-            match project.make_filtered_prover(&node, &module_cache) {
+
+            match project.make_filtered_prover(&cursor, &module_cache) {
                 Some(filtered_prover) => {
                     println!("using filtered prover");
                     filtered_prover
@@ -74,7 +81,7 @@ impl Searcher {
                     return Err(format!(
                         "Cannot create filtered prover: no cached premises found for {} at line {}. \
                         Run verification in standard mode first to build the cache.",
-                        node.node().block_name(),
+                        cursor.block_name(),
                         self.line_number
                     ));
                 }
@@ -82,12 +89,12 @@ impl Searcher {
         } else {
             // Use full prover in other modes
             let mut prover = Prover::new(&project, verbose);
-            for fact in node.usable_facts(&project) {
+            for fact in cursor.usable_facts(&project) {
                 prover.add_fact(fact);
             }
             prover
         };
-        
+
         prover.strict_codegen = true;
         prover.set_goal(&goal_context);
 

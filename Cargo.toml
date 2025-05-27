@@ -30,11 +30,11 @@ walkdir = "2.4.0"
 assert_fs = "1.1.2"
 
 [[bin]]
-name = "verify"
+name = "acorn"
 test = false
 
 [[bin]]
-name = "acorn"
+name = "verify"
 test = false
 
 [[bin]]
