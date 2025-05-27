@@ -31,12 +31,16 @@ impl fmt::Display for Fact {
         match self {
             Fact::Proposition(p) => write!(f, "prop: {}", p),
             Fact::Extends(tc, base_set, _) => {
-                let s = base_set
-                    .iter()
-                    .map(|t| t.name.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                write!(f, "{} extends {}", tc.name, s)
+                if base_set.is_empty() {
+                    write!(f, "{} extends nothing", tc.name)
+                } else {
+                    let mut names: Vec<String> = base_set
+                        .iter()
+                        .map(|t| t.name.clone())
+                        .collect();
+                    names.sort();
+                    write!(f, "{} extends {}", tc.name, names.join(", "))
+                }
             }
             Fact::Instance(class, typeclass, _) => {
                 write!(f, "{} is an instance of {}", class.name, typeclass.name)
