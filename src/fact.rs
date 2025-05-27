@@ -71,6 +71,13 @@ impl Fact {
         }
     }
 
+    pub fn is_extends(&self) -> bool {
+        match self {
+            Fact::Extends(..) => true,
+            _ => false,
+        }
+    }
+
     /// Returns Some(..) if this fact is an aliasing for an instance of a typeclass constant.
     /// I.e., it's part of an instance statement with "let _ = _" so that it's an alias of a previously
     /// defined constant.

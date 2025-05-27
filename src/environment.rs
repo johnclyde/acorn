@@ -2128,6 +2128,8 @@ impl Environment {
 
     /// Get all facts that can be imported into other modules from this one.
     /// If the filter is provided, we only return facts whose qualified name is in the filter.
+    /// However, extends and instance facts are always included regardless of filtering,
+    /// as they represent structural type system information that's always needed.
     pub fn importable_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert_eq!(self.depth, 0);
         let mut facts = vec![];
@@ -2135,13 +2137,20 @@ impl Environment {
             if !node.importable() {
                 continue;
             }
-            if let Some(filter) = filter {
-                let name = node.source_name().expect("importable fact has no name");
-                if !filter.contains(&name) {
+            if let Some(fact) = node.get_fact() {
+                // Always include extends and instance facts
+                if fact.is_extends() || fact.is_instance() {
+                    facts.push(fact);
                     continue;
                 }
-            }
-            if let Some(fact) = node.get_fact() {
+                
+                // For other facts, apply the filter if provided
+                if let Some(filter) = filter {
+                    let name = node.source_name().expect("importable fact has no name");
+                    if !filter.contains(&name) {
+                        continue;
+                    }
+                }
                 facts.push(fact);
             }
         }

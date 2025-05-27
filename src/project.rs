@@ -469,12 +469,11 @@ impl Project {
 
         // Add facts from the dependencies
         for module_id in self.all_dependencies(env.module_id) {
-            let module_premises = match premises.get(&module_id) {
-                Some(set) => set,
-                None => continue,
-            };
+            let module_premises = premises.get(&module_id);
             let module_env = self.get_env_by_id(module_id).unwrap();
-            for fact in module_env.importable_facts(Some(module_premises)) {
+            // importable_facts will always include extends and instance facts,
+            // even when a filter is provided
+            for fact in module_env.importable_facts(module_premises) {
                 prover.add_fact(fact);
             }
         }
