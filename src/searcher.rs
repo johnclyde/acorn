@@ -95,6 +95,7 @@ impl Searcher {
             prover
         };
 
+        prover.verbose = verbose;
         prover.strict_codegen = true;
         prover.set_goal(&goal_context);
 
