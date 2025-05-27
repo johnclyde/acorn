@@ -422,12 +422,13 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn log_proving_info(&mut self, goal_context: &GoalContext, message: &str) {
+    pub fn log_proving_info(&mut self, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(goal_context, message, DiagnosticSeverity::INFORMATION);
         (self.event_handler)(event);
     }
 
     // Logs a warning. Warnings can only happen during the proving phase.
+    // This will mark the build as "not good", so we won't cache it.
     fn log_proving_warning(&mut self, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(goal_context, message, DiagnosticSeverity::WARNING);
         (self.event_handler)(event);
@@ -445,5 +446,4 @@ impl<'a> Builder<'a> {
         self.current_module_good = false;
         self.status = BuildStatus::Error;
     }
-
 }

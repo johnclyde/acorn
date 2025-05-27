@@ -103,7 +103,12 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
 impl Project {
     // Create a new project.
     // Flags control whether we read the cache, and whether we write the cache.
-    pub fn new(library_root: PathBuf, cache_dir: PathBuf, read_cache: bool, write_cache: bool) -> Project {
+    pub fn new(
+        library_root: PathBuf,
+        cache_dir: PathBuf,
+        read_cache: bool,
+        write_cache: bool,
+    ) -> Project {
         // Check if the directory exists
         let build_cache = if read_cache && cache_dir.is_dir() {
             BuildCache::new(Some(cache_dir), write_cache)
@@ -166,7 +171,7 @@ impl Project {
     fn check_acornlib_layout(acornlib_path: &Path) -> Option<(PathBuf, PathBuf)> {
         let acorn_toml = acornlib_path.join("acorn.toml");
         let src_dir = acornlib_path.join("src");
-        
+
         if acorn_toml.is_file() && src_dir.is_dir() {
             // New format: library root is src/, cache dir is build/ at same level as src/
             let cache_dir = acornlib_path.join("build");
@@ -181,14 +186,15 @@ impl Project {
     // A Project based on the provided starting path.
     // Returns an error if we can't find an acorn library.
     pub fn new_local(start_path: &Path, use_cache: bool) -> Result<Project, LoadError> {
-        let (library_root, cache_dir) = Project::find_local_acorn_library(start_path).ok_or_else(|| {
-            LoadError(
-                "Could not find acornlib.\n\
+        let (library_root, cache_dir) =
+            Project::find_local_acorn_library(start_path).ok_or_else(|| {
+                LoadError(
+                    "Could not find acornlib.\n\
                 Please run this from within the acornlib directory.\n\
                 See https://github.com/acornprover/acornlib for details."
-                    .to_string(),
-            )
-        })?;
+                        .to_string(),
+                )
+            })?;
         Ok(Project::new(library_root, cache_dir, use_cache, use_cache))
     }
 
@@ -681,6 +687,7 @@ impl Project {
                 builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
                 return filtered_prover;
             }
+            // builder.log_proving_info(&goal_context, "fallback required");
             builder.metrics.searches_fallback += 1;
         }
 
@@ -1879,5 +1886,4 @@ mod tests {
         p.expect_ok("foo");
         p.expect_ok("main");
     }
-
 }

@@ -5,8 +5,14 @@ use crate::project::Project;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum VerifierMode {
+    /// Uses the cache, skipping modules entirely if they are already built.
+    /// This is the default mode.
     Standard,
+
+    /// Does not use the cache, and builds everything from scratch.
     Full,
+
+    /// Uses the cache, but only for filtering premise retrieval. Does not skip modules.
     Filtered,
 }
 
@@ -246,7 +252,10 @@ theorem simple_truth {
         // Check that the cache was used
         let (status2, metrics2) = result2.unwrap();
         assert_eq!(status2, BuildStatus::Good);
-        assert_eq!(metrics2.searches_total, 0, "Should use cache and perform no searches");
+        assert_eq!(
+            metrics2.searches_total, 0,
+            "Should use cache and perform no searches"
+        );
 
         temp.close().unwrap();
     }
