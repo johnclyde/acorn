@@ -388,14 +388,14 @@ struct Backend {
 
 // Finds the acorn library to use, given the root folder for the current workspace.
 // Falls back to the library bundled with the extension.
-// Also returns a flag for whether the library looks writable.
+// Returns (library_root, cache_dir, cache_writable).
 // Panics if we can't find either.
-fn find_acorn_library(args: &ServerArgs) -> (PathBuf, bool) {
+fn find_acorn_library(args: &ServerArgs) -> (PathBuf, PathBuf, bool) {
     // Check for a local library, near the code
     if let Some(workspace_root) = &args.workspace_root {
         let path = PathBuf::from(&workspace_root);
-        if let Some(library_root) = Project::find_local_acorn_library(&path) {
-            return (library_root, true);
+        if let Some((library_root, cache_dir)) = Project::find_local_acorn_library(&path) {
+            return (library_root, cache_dir, true);
         }
     }
 
@@ -407,7 +407,8 @@ fn find_acorn_library(args: &ServerArgs) -> (PathBuf, bool) {
             library_root.display()
         );
     }
-    (library_root, false)
+    let cache_dir = library_root.join("build");
+    (library_root, cache_dir, false)
 }
 
 impl Backend {
@@ -416,7 +417,7 @@ impl Backend {
     // If we can't find one in a logical location based on the editor, we use
     // the library bundled with the extension.
     fn new(client: Client, args: &ServerArgs) -> Backend {
-        let (library_root, cache_writable) = find_acorn_library(&args);
+        let (library_root, cache_dir, cache_writable) = find_acorn_library(&args);
 
         log(&format!(
             "using acorn library at {}",
@@ -424,7 +425,7 @@ impl Backend {
         ));
 
         // The cache is always readable, only sometimes writable.
-        let project = Project::new(library_root, true, cache_writable);
+        let project = Project::new(library_root, cache_dir, true, cache_writable);
         Backend {
             project: Arc::new(RwLock::new(project)),
             client,

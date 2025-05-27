@@ -103,9 +103,7 @@ fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
 impl Project {
     // Create a new project.
     // Flags control whether we read the cache, and whether we write the cache.
-    pub fn new(library_root: PathBuf, read_cache: bool, write_cache: bool) -> Project {
-        let cache_dir = library_root.join("build");
-
+    pub fn new(library_root: PathBuf, cache_dir: PathBuf, read_cache: bool, write_cache: bool) -> Project {
         // Check if the directory exists
         let build_cache = if read_cache && cache_dir.is_dir() {
             BuildCache::new(Some(cache_dir), write_cache)
@@ -130,9 +128,10 @@ impl Project {
     // It can be either:
     //   a parent directory of the provided path
     //   a directory named "acornlib" next to one named "acorn"
-    // If an acornlib directory contains both "acorn.toml" and "src" directory,
-    // returns the "src" directory instead.
-    pub fn find_local_acorn_library(start: &Path) -> Option<PathBuf> {
+    // Returns (library_root, cache_dir) where:
+    //   - For new format (with acorn.toml): library_root is src/, cache_dir is build/
+    //   - For old format: library_root is acornlib/, cache_dir is acornlib/build/
+    pub fn find_local_acorn_library(start: &Path) -> Option<(PathBuf, PathBuf)> {
         let mut current = Some(start);
 
         while let Some(path) = current {
@@ -156,23 +155,27 @@ impl Project {
     }
 
     // Helper function to check if an acornlib directory uses the new format
-    // with acorn.toml and src directory. If so, returns the src directory.
-    // Otherwise, returns the acornlib directory itself.
-    fn check_acornlib_layout(acornlib_path: &Path) -> Option<PathBuf> {
+    // with acorn.toml and src directory. If so, returns (src_dir, build_dir).
+    // Otherwise, returns (acornlib_dir, build_dir_within_acornlib).
+    fn check_acornlib_layout(acornlib_path: &Path) -> Option<(PathBuf, PathBuf)> {
         let acorn_toml = acornlib_path.join("acorn.toml");
         let src_dir = acornlib_path.join("src");
         
         if acorn_toml.is_file() && src_dir.is_dir() {
-            Some(src_dir)
+            // New format: library root is src/, cache dir is build/ at same level as src/
+            let cache_dir = acornlib_path.join("build");
+            Some((src_dir, cache_dir))
         } else {
-            Some(acornlib_path.to_path_buf())
+            // Old format: library root is acornlib/, cache dir is build/ within acornlib/
+            let cache_dir = acornlib_path.join("build");
+            Some((acornlib_path.to_path_buf(), cache_dir))
         }
     }
 
     // A Project based on the provided starting path.
     // Returns an error if we can't find an acorn library.
     pub fn new_local(start_path: &Path, use_cache: bool) -> Result<Project, LoadError> {
-        let library_root = Project::find_local_acorn_library(start_path).ok_or_else(|| {
+        let (library_root, cache_dir) = Project::find_local_acorn_library(start_path).ok_or_else(|| {
             LoadError(
                 "Could not find acornlib.\n\
                 Please run this from within the acornlib directory.\n\
@@ -180,13 +183,14 @@ impl Project {
                     .to_string(),
             )
         })?;
-        Ok(Project::new(library_root, use_cache, use_cache))
+        Ok(Project::new(library_root, cache_dir, use_cache, use_cache))
     }
 
     // Create a Project where nothing can be imported.
     pub fn new_mock() -> Project {
         let mock_dir = PathBuf::from("/mock");
-        let mut p = Project::new(mock_dir, false, false);
+        let cache_dir = mock_dir.join("build");
+        let mut p = Project::new(mock_dir, cache_dir, false, false);
         p.use_filesystem = false;
         p
     }
