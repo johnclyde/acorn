@@ -256,7 +256,7 @@ theorem simple_truth {
     }
 
     #[test]
-    fn test_verifier_filter_picks_up_extends() {
+    fn test_verifier_filter_picks_up_imported_extends() {
         let (acornlib, src, _) = setup();
 
         src.child("foo.ac")
@@ -285,6 +285,62 @@ theorem simple_truth {
             .write_str(
                 r#"
             from foo import Baz
+
+            // To prove this, we need to know that Baz extends Bar.
+            theorem baz_has_foo_property<B: Baz> {
+                B.foo_property
+            }
+        "#,
+            )
+            .unwrap();
+
+        let verifier1 = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Standard,
+            Some("main".to_string()),
+            false,
+        );
+        assert!(verifier1.run().is_ok(), "Verifier should run successfully");
+
+        let verifier2 = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Filtered,
+            Some("main".to_string()),
+            false,
+        );
+        let (status, result) = verifier2.run().unwrap();
+        assert_eq!(
+            status,
+            BuildStatus::Good,
+            "Filtered verifier should succeed"
+        );
+        assert_eq!(result.searches_fallback, 0, "Should not have to fall back");
+
+        acornlib.close().unwrap();
+    }
+
+    #[test]
+    fn test_verifier_filter_picks_up_local_extends() {
+        let (acornlib, src, _) = setup();
+
+        src.child("main.ac")
+            .write_str(
+                r#"
+            typeclass F: Foo {
+                foo_property: Bool
+            }
+
+            typeclass B: Bar extends Foo {
+                bar_property: Bool
+            }
+
+            axiom bar_has_foo_property<B: Bar> {
+                B.foo_property
+            }
+
+            typeclass Baz extends Bar {
+                baz_property: Bool
+            }
 
             // To prove this, we need to know that Baz extends Bar.
             theorem baz_has_foo_property<B: Baz> {
