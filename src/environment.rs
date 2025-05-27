@@ -2128,7 +2128,10 @@ impl Environment {
 
     /// Get all facts that can be imported into other modules from this one.
     /// If the filter is provided, we only return facts whose qualified name is in the filter.
-    /// However, extends and instance facts are always included regardless of filtering,
+    /// In particular, if you want to import only a minimal set of facts, you have to
+    /// provide an empty hash set as a filter.
+    ///
+    /// Extends and instance facts are always included regardless of filtering,
     /// as they represent structural type system information that's always needed.
     pub fn importable_facts(&self, filter: Option<&HashSet<String>>) -> Vec<Fact> {
         assert_eq!(self.depth, 0);
@@ -2143,7 +2146,7 @@ impl Environment {
                     facts.push(fact);
                     continue;
                 }
-                
+
                 // For other facts, apply the filter if provided
                 if let Some(filter) = filter {
                     let name = node.source_name().expect("importable fact has no name");
@@ -2406,7 +2409,9 @@ impl Environment {
     /// Find the index of a block by its name.
     /// Uses the same logic as NodeCursor::block_name to determine the name.
     pub fn get_block_index(&self, block_name: &str) -> Option<usize> {
-        self.nodes.iter().position(|node| node.block_name() == block_name)
+        self.nodes
+            .iter()
+            .position(|node| node.block_name() == block_name)
     }
 }
 

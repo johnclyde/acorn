@@ -29,7 +29,7 @@ pub enum Fact {
 impl fmt::Display for Fact {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Fact::Proposition(p) => write!(f, "prop: {}", p),
+            Fact::Proposition(p) => write!(f, "prop: {}", p.source.description()),
             Fact::Extends(tc, base_set, _) => {
                 if base_set.is_empty() {
                     write!(f, "{} extends nothing", tc.name)
@@ -42,7 +42,7 @@ impl fmt::Display for Fact {
             Fact::Instance(class, typeclass, _) => {
                 write!(f, "{} is an instance of {}", class.name, typeclass.name)
             }
-            Fact::Definition(name, _, _) => write!(f, "definition: {:?}", name),
+            Fact::Definition(_, _, source) => write!(f, "{}", source.description()),
         }
     }
 }

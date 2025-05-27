@@ -447,9 +447,9 @@ impl Project {
         Some(answer)
     }
 
-    // Construct a prover with only the facts that are included in the cached premises.
-    // Returns None if we don't have cached premises for this block.
-    // cursor points to the node we are verifying.
+    /// Construct a prover with only the facts that are included in the cached premises.
+    /// Returns None if we don't have cached premises for this block.
+    /// cursor points to the node we are verifying.
     pub fn make_filtered_prover(
         &self,
         env: &Environment,
@@ -467,12 +467,16 @@ impl Project {
         let mut prover = Prover::new(&self, false);
 
         // Add facts from the dependencies
+        let empty = HashSet::new();
         for module_id in self.all_dependencies(env.module_id) {
-            let module_premises = premises.get(&module_id);
+            let module_premises = match premises.get(&module_id) {
+                Some(p) => p,
+                None => &empty,
+            };
             let module_env = self.get_env_by_id(module_id).unwrap();
             // importable_facts will always include extends and instance facts,
             // even when a filter is provided
-            for fact in module_env.importable_facts(module_premises) {
+            for fact in module_env.importable_facts(Some(module_premises)) {
                 prover.add_fact(fact);
             }
         }
@@ -984,7 +988,8 @@ impl Project {
         }
     }
 
-    // All facts that the given module imports.
+    /// All facts that the given module imports.
+    /// If filter is provided, only facts that match the filter are returned.
     pub fn imported_facts(
         &self,
         module_id: ModuleId,
