@@ -477,7 +477,7 @@ impl Node {
 
     // The block name is used to describe the block when caching block -> premise dependencies.
     // good_block_name finds whether we have a comprehensible name.
-    pub fn good_block_name(&self) -> Option<String> {
+    fn good_block_name(&self) -> Option<String> {
         match &self.source()?.source_type {
             SourceType::Theorem(name) => match name {
                 Some(name) => Some(name.clone()),
