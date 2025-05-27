@@ -4,7 +4,7 @@ use crate::builder::{BuildMetrics, BuildStatus};
 use crate::project::Project;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum VerifierMode {
+pub enum ProverMode {
     /// Uses the cache, skipping modules entirely if they are already built.
     /// This is the default mode.
     Standard,
@@ -17,7 +17,7 @@ pub enum VerifierMode {
 }
 
 pub struct Verifier {
-    mode: VerifierMode,
+    mode: ProverMode,
 
     /// The target module to verify.
     /// If None, all modules are verified.
@@ -33,7 +33,7 @@ pub struct Verifier {
 impl Verifier {
     pub fn new(
         start_path: PathBuf,
-        mode: VerifierMode,
+        mode: ProverMode,
         target: Option<String>,
         create_dataset: bool,
     ) -> Self {
@@ -83,7 +83,7 @@ impl Verifier {
                 }
             }
         });
-        if self.mode == VerifierMode::Filtered {
+        if self.mode == ProverMode::Filtered {
             builder.log_when_slow = true;
         }
         if self.create_dataset {
@@ -100,7 +100,7 @@ impl Verifier {
             dataset.save();
         }
 
-        if self.mode == VerifierMode::Filtered && builder.metrics.searches_fallback > 0 {
+        if self.mode == ProverMode::Filtered && builder.metrics.searches_fallback > 0 {
             return Err(
                 "Warning: the filtered prover was not able to handle all goals.".to_string(),
             );
@@ -138,14 +138,14 @@ theorem simple_truth {
         // Create a verifier and test that it can run successfully
         let verifier = Verifier::new(
             acornlib.path().to_path_buf(),
-            VerifierMode::Standard,
+            ProverMode::Standard,
             Some("foo".to_string()),
             false,
         );
 
         // Test that the verifier was created successfully with the right parameters
         assert_eq!(verifier.start_path, acornlib.path());
-        assert_eq!(verifier.mode, VerifierMode::Standard);
+        assert_eq!(verifier.mode, ProverMode::Standard);
         assert_eq!(verifier.target, Some("foo".to_string()));
         assert_eq!(verifier.create_dataset, false);
 
@@ -202,7 +202,7 @@ theorem simple_truth {
         // The verifier should find the src directory and use it as the root
         let verifier = Verifier::new(
             acornlib.path().to_path_buf(),
-            VerifierMode::Standard,
+            ProverMode::Standard,
             Some("foo".to_string()),
             false,
         );
@@ -232,7 +232,7 @@ theorem simple_truth {
         // Create another verifier and run it - should use the cache
         let verifier2 = Verifier::new(
             acornlib.path().to_path_buf(),
-            VerifierMode::Standard,
+            ProverMode::Standard,
             Some("foo".to_string()),
             false,
         );

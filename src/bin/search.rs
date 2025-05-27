@@ -8,7 +8,7 @@
 const USAGE: &str = "cargo run --release --bin=search <module name> <line number>";
 
 use acorn::searcher::Searcher;
-use acorn::verifier::VerifierMode;
+use acorn::verifier::ProverMode;
 
 #[tokio::main]
 async fn main() {
@@ -25,7 +25,7 @@ async fn main() {
         }
     };
 
-    let searcher = Searcher::new(current_dir, VerifierMode::Full, module_name, line_number);
+    let searcher = Searcher::new(current_dir, ProverMode::Full, module_name, line_number);
     if let Err(e) = searcher.run() {
         eprintln!("{}", e);
         std::process::exit(1);

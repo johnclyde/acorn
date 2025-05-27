@@ -5,12 +5,12 @@
 //   samply record target/fastdev/profile_prover
 
 use acorn::project::Project;
-use acorn::verifier::VerifierMode;
+use acorn::verifier::ProverMode;
 
 fn main() {
     let current_dir = std::env::current_dir().unwrap();
     for _ in 0..10 {
-        let mut project = Project::new_local(&current_dir, VerifierMode::Full).unwrap();
+        let mut project = Project::new_local(&current_dir, ProverMode::Full).unwrap();
         assert!(project.add_target_by_name("nat"));
         assert!(project.add_target_by_name("nat_gcd"));
         assert!(project.add_target_by_name("int"));

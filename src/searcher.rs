@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::block::NodeCursor;
 use crate::project::Project;
 use crate::prover::{Outcome, Prover};
-use crate::verifier::VerifierMode;
+use crate::verifier::ProverMode;
 
 pub struct Searcher {
     /// The target module or file to search in.
@@ -16,11 +16,11 @@ pub struct Searcher {
     start_path: PathBuf,
 
     /// The mode to use for the verifier.
-    mode: VerifierMode,
+    mode: ProverMode,
 }
 
 impl Searcher {
-    pub fn new(start_path: PathBuf, mode: VerifierMode, target: String, line_number: u32) -> Self {
+    pub fn new(start_path: PathBuf, mode: ProverMode, target: String, line_number: u32) -> Self {
         Self {
             target,
             line_number,
@@ -59,12 +59,36 @@ impl Searcher {
         println!("proving {} ...", goal_context.description);
         
         let verbose = true;
-        let mut prover = Prover::new(&project, verbose);
-        prover.strict_codegen = true;
+        let mut prover = if self.mode == ProverMode::Filtered {
+            // Try to use the filtered prover if we're in filtered mode
+            let module_descriptor = project.get_module_descriptor(module_id)
+                .ok_or_else(|| format!("Module {} not found", module_id))?;
+            let module_cache = project.get_module_cache(module_descriptor);
+            
+            match project.make_filtered_prover(&node, &module_cache) {
+                Some(filtered_prover) => {
+                    println!("using filtered prover");
+                    filtered_prover
+                }
+                None => {
+                    return Err(format!(
+                        "Cannot create filtered prover: no cached premises found for {} at line {}. \
+                        Run verification in standard mode first to build the cache.",
+                        node.node().block_name(),
+                        self.line_number
+                    ));
+                }
+            }
+        } else {
+            // Use full prover in other modes
+            let mut prover = Prover::new(&project, verbose);
+            for fact in node.usable_facts(&project) {
+                prover.add_fact(fact);
+            }
+            prover
+        };
         
-        for fact in node.usable_facts(&project) {
-            prover.add_fact(fact);
-        }
+        prover.strict_codegen = true;
         prover.set_goal(&goal_context);
 
         loop {

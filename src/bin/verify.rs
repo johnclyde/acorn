@@ -8,7 +8,7 @@
 // Try:
 //   cargo build --release --bin=verify; time ~/acorn/target/release/verify
 
-use acorn::verifier::{Verifier, VerifierMode};
+use acorn::verifier::{Verifier, ProverMode};
 use clap::Parser;
 
 #[derive(Parser)]
@@ -41,11 +41,11 @@ async fn main() {
             println!("--full and --filtered are incompatible.");
             return;
         }
-        VerifierMode::Full
+        ProverMode::Full
     } else if args.filtered {
-        VerifierMode::Filtered
+        ProverMode::Filtered
     } else {
-        VerifierMode::Standard
+        ProverMode::Standard
     };
     
     let current_dir = match std::env::current_dir() {
