@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::builder::{BuildStatus, BuildMetrics};
+use crate::builder::{BuildMetrics, BuildStatus};
 use crate::project::Project;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -25,7 +25,12 @@ pub struct Verifier {
 }
 
 impl Verifier {
-    pub fn new(start_path: PathBuf, mode: VerifierMode, target: Option<String>, create_dataset: bool) -> Self {
+    pub fn new(
+        start_path: PathBuf,
+        mode: VerifierMode,
+        target: Option<String>,
+        create_dataset: bool,
+    ) -> Self {
         Self {
             mode,
             target,
@@ -95,9 +100,11 @@ impl Verifier {
         }
 
         if self.mode == VerifierMode::Filtered && builder.metrics.searches_fallback > 0 {
-            return Err("Warning: the filtered prover was not able to handle all goals.".to_string());
+            return Err(
+                "Warning: the filtered prover was not able to handle all goals.".to_string(),
+            );
         }
-        
+
         Ok((builder.status, builder.metrics))
     }
 }
@@ -114,40 +121,48 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let acornlib = temp.child("acornlib");
         acornlib.create_dir_all().unwrap();
-        
+
         // Create foo.ac with a simple theorem
         let foo_ac = acornlib.child("foo.ac");
-        foo_ac.write_str(r#"
+        foo_ac
+            .write_str(
+                r#"
 theorem simple_truth {
     true
 }
-"#).unwrap();
+"#,
+            )
+            .unwrap();
 
         // Create a verifier and test that it can run successfully
         let verifier = Verifier::new(
             acornlib.path().to_path_buf(),
             VerifierMode::Standard,
             Some("foo".to_string()),
-            false
+            false,
         );
-        
+
         // Test that the verifier was created successfully with the right parameters
         assert_eq!(verifier.start_path, acornlib.path());
         assert_eq!(verifier.mode, VerifierMode::Standard);
         assert_eq!(verifier.target, Some("foo".to_string()));
         assert_eq!(verifier.create_dataset, false);
-        
+
         // Test that the verifier can run successfully on our simple theorem
         let result = verifier.run();
-        assert!(result.is_ok(), "Verifier should successfully verify the simple theorem: {:?}", result);
-        
+        assert!(
+            result.is_ok(),
+            "Verifier should successfully verify the simple theorem: {:?}",
+            result
+        );
+
         // Check that we actually proved something
         let (status, metrics) = result.unwrap();
         assert_eq!(status, BuildStatus::Good);
         assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
         assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
         assert!(metrics.searches_total > 0); // Should have performed at least one search
-        
+
         temp.close().unwrap();
     }
 
@@ -157,22 +172,30 @@ theorem simple_truth {
         let temp = TempDir::new().unwrap();
         let acornlib = temp.child("acornlib");
         acornlib.create_dir_all().unwrap();
-        
+
         // Create acorn.toml file
         let acorn_toml = acornlib.child("acorn.toml");
         acorn_toml.write_str("").unwrap();
-        
+
         // Create src directory
         let src = acornlib.child("src");
         src.create_dir_all().unwrap();
-        
+
+        // Create build directory
+        let build = acornlib.child("build");
+        build.create_dir_all().unwrap();
+
         // Create foo.ac inside the src directory
         let foo_ac = src.child("foo.ac");
-        foo_ac.write_str(r#"
-theorem simple_truth {
-    true
-}
-"#).unwrap();
+        foo_ac
+            .write_str(
+                r#"
+                theorem simple_truth {
+                    true
+                }
+                "#,
+            )
+            .unwrap();
 
         // Create a verifier starting from the acornlib directory
         // The verifier should find the src directory and use it as the root
@@ -180,20 +203,31 @@ theorem simple_truth {
             acornlib.path().to_path_buf(),
             VerifierMode::Standard,
             Some("foo".to_string()),
-            false
+            false,
         );
-        
+
         // Test that the verifier can run successfully on our theorem in the src directory
         let result = verifier.run();
-        assert!(result.is_ok(), "Verifier should successfully verify the theorem in src directory: {:?}", result);
-        
+        assert!(
+            result.is_ok(),
+            "Verifier should successfully verify the theorem in src directory: {:?}",
+            result
+        );
+
         // Check that we actually proved something
         let (status, metrics) = result.unwrap();
         assert_eq!(status, BuildStatus::Good);
         assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
         assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
         assert!(metrics.searches_total > 0); // Should have performed at least one search
-        
+
+        // Check that we created a file in the build directory
+        let build_file = build.child("foo.yaml");
+        assert!(
+            build_file.exists(),
+            "Build file should exist in build directory"
+        );
+
         temp.close().unwrap();
     }
 }
