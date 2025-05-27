@@ -228,6 +228,26 @@ theorem simple_truth {
             "Build file should exist in build directory"
         );
 
+        // Create another verifier and run it - should use the cache
+        let verifier2 = Verifier::new(
+            acornlib.path().to_path_buf(),
+            VerifierMode::Standard,
+            Some("foo".to_string()),
+            false,
+        );
+
+        let result2 = verifier2.run();
+        assert!(
+            result2.is_ok(),
+            "Second verifier should successfully run: {:?}",
+            result2
+        );
+
+        // Check that the cache was used
+        let (status2, metrics2) = result2.unwrap();
+        assert_eq!(status2, BuildStatus::Good);
+        assert_eq!(metrics2.searches_total, 0, "Should use cache and perform no searches");
+
         temp.close().unwrap();
     }
 }
