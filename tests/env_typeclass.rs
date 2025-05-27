@@ -903,3 +903,23 @@ fn test_env_typeclass_with_numeral_attributes() {
         "#,
     );
 }
+
+#[test]
+fn test_env_numerals_in_typeclasses() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                0: F
+            }
+
+            inductive Bar {
+                bar
+            }
+
+            instance Bar: Foo {
+                let 0: Bar = Bar.bar
+            }
+        "#,
+    );
+}
