@@ -1,6 +1,7 @@
 // The Acorn CLI.
 // You can run a language server, verify a file, or verify the whole project.
 
+use acorn::searcher::Searcher;
 use acorn::server::{run_server, ServerArgs};
 use acorn::verifier::{Verifier, VerifierMode};
 use clap::Parser;
@@ -42,6 +43,11 @@ struct Args {
     // Incompatible with --full.
     #[clap(long)]
     filtered: bool,
+
+    // Search for a proof at a specific line number.
+    // Only applies in CLI mode when a target is provided.
+    #[clap(long)]
+    line: Option<u32>,
 }
 
 #[tokio::main]
@@ -69,7 +75,6 @@ async fn main() {
         std::process::exit(1);
     }
 
-    // Run the verifier.
     let mode = if args.full {
         if args.filtered {
             println!("--full and --filtered are incompatible.");
@@ -81,7 +86,7 @@ async fn main() {
     } else {
         VerifierMode::Standard
     };
-    
+
     let current_dir = match std::env::current_dir() {
         Ok(dir) => dir,
         Err(e) => {
@@ -89,7 +94,22 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    
+
+    // Check if we should run the searcher.
+    if let Some(line) = args.line {
+        let Some(target) = args.target else {
+            println!("Error: --line requires a target module or file to be specified.");
+            std::process::exit(1);
+        };
+        let searcher = Searcher::new(current_dir, target, line);
+        if let Err(e) = searcher.run() {
+            println!("{}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // Run the verifier.
     let verifier = Verifier::new(current_dir, mode, args.target, args.dataset);
     if let Err(e) = verifier.run() {
         println!("{}", e);
