@@ -10,6 +10,7 @@ const USAGE: &str = "cargo run --release --bin=search <module name> <line number
 use acorn::block::NodeCursor;
 use acorn::project::Project;
 use acorn::prover::{Outcome, Prover};
+use acorn::verifier::VerifierMode;
 
 #[tokio::main]
 async fn main() {
@@ -20,7 +21,7 @@ async fn main() {
     let internal_line_number = external_line_number - 1;
 
     let current_dir = std::env::current_dir().unwrap();
-    let mut project = Project::new_local(&current_dir, false).unwrap();
+    let mut project = Project::new_local(&current_dir, VerifierMode::Full).unwrap();
     let module_id = project.load_module_by_name(&module_name).unwrap();
     let env = project.get_env_by_id(module_id).unwrap();
     let path = match env.path_for_line(internal_line_number) {

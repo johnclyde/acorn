@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::builder::{BuildMetrics, BuildStatus};
 use crate::project::Project;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum VerifierMode {
     /// Uses the cache, skipping modules entirely if they are already built.
     /// This is the default mode.
@@ -47,15 +47,10 @@ impl Verifier {
 
     /// Returns (BuildStatus, BuildMetrics) on success, or an error string if verification fails.
     pub fn run(&self) -> Result<(BuildStatus, BuildMetrics), String> {
-        let use_cache = self.mode != VerifierMode::Full;
-
-        let mut project = match Project::new_local(&self.start_path, use_cache) {
+        let mut project = match Project::new_local(&self.start_path, self.mode) {
             Ok(p) => p,
             Err(e) => return Err(format!("Error: {}", e)),
         };
-        if self.mode == VerifierMode::Filtered {
-            project.check_hashes = false;
-        }
 
         if let Some(target) = &self.target {
             if target.ends_with(".ac") {

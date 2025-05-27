@@ -20,6 +20,7 @@ use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL}
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
+use crate::verifier::VerifierMode;
 
 // The Project is responsible for importing different files and assigning them module ids.
 pub struct Project {
@@ -185,7 +186,7 @@ impl Project {
 
     // A Project based on the provided starting path.
     // Returns an error if we can't find an acorn library.
-    pub fn new_local(start_path: &Path, use_cache: bool) -> Result<Project, LoadError> {
+    pub fn new_local(start_path: &Path, mode: VerifierMode) -> Result<Project, LoadError> {
         let (library_root, cache_dir) =
             Project::find_local_acorn_library(start_path).ok_or_else(|| {
                 LoadError(
@@ -195,7 +196,12 @@ impl Project {
                         .to_string(),
                 )
             })?;
-        Ok(Project::new(library_root, cache_dir, use_cache, use_cache))
+        let use_cache = mode != VerifierMode::Full;
+        let mut project = Project::new(library_root, cache_dir, use_cache, use_cache);
+        if mode == VerifierMode::Filtered {
+            project.check_hashes = false;
+        }
+        Ok(project)
     }
 
     // Create a Project where nothing can be imported.
