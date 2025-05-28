@@ -61,19 +61,7 @@ impl BuildMetrics {
 
     pub fn print(&self, status: BuildStatus) {
         println!();
-        match status {
-            BuildStatus::Error => {
-                println!("Compilation failed.");
-                return;
-            }
-            BuildStatus::Warning => {
-                println!("Verification failed.");
-            }
-            BuildStatus::Good => {
-                println!("Verification succeeded.");
-            }
-        }
-        println!("{}/{} OK", self.goals_success, self.goals_total);
+
         println!(
             "{} searches performed ({} full, {} filtered, {} fallback)",
             self.searches_total, self.searches_full, self.searches_filtered, self.searches_fallback
@@ -90,6 +78,18 @@ impl BuildMetrics {
             println!("{:.2} average clauses", num_clauses);
             let proving_time_ms = 1000.0 * self.proving_time / self.searches_total as f64;
             println!("{:.1} ms average proving time", proving_time_ms);
+        }
+        println!("{}/{} OK", self.goals_success, self.goals_total);
+        match status {
+            BuildStatus::Error => {
+                println!("Compilation failed.");
+            }
+            BuildStatus::Warning => {
+                println!("Verification failed.");
+            }
+            BuildStatus::Good => {
+                println!("Verification succeeded.");
+            }
         }
     }
 }
