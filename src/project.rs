@@ -702,7 +702,6 @@ impl Project {
                 builder.search_finished(&filtered_prover, goal_context, outcome, start.elapsed());
                 return filtered_prover;
             }
-            builder.log_proving_info(&goal_context, "fallback required");
             builder.metrics.searches_fallback += 1;
         }
 

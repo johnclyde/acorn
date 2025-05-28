@@ -14,43 +14,43 @@ use crate::prover::{Outcome, Prover};
 
 static NEXT_BUILD_ID: AtomicU32 = AtomicU32::new(1);
 
-// Metrics collected during a build.
+/// Metrics collected during a build.
 #[derive(Debug, Default)]
 pub struct BuildMetrics {
-    // The total number of goals to be verified.
+    /// The total number of goals to be verified.
     pub goals_total: i32,
 
-    // The number of goals that we have processed in the build.
+    /// The number of goals that we have processed in the build.
     pub goals_done: i32,
 
-    // The number of goals that were successfully proven.
+    /// The number of goals that were successfully proven.
     pub goals_success: i32,
 
-    // How many proof searches we did.
+    /// How many proof searches we did.
     pub searches_total: i32,
 
-    // Number of proof searches that ended in success.
+    /// Number of proof searches that ended in success.
     pub searches_success: i32,
 
-    // The number of searches that we ran the full prover on.
+    /// The number of searches that we ran the full prover on.
     pub searches_full: i32,
 
-    // The number of searches that we ran the filtered prover on.
+    /// The number of searches that we ran the filtered prover on.
     pub searches_filtered: i32,
 
-    // The number of searches where we had to do a fallback.
+    /// The number of searches where we had to do a fallback.
     pub searches_fallback: i32,
 
-    // The total number of clauses activated.
+    /// The total number of clauses activated.
     pub clauses_activated: i32,
 
-    // Total sum of square num_activated.
+    /// Total sum of square num_activated.
     pub clauses_sum_square_activated: u64,
 
-    // Total number of clauses scored, both active and passive.
+    /// Total number of clauses scored, both active and passive.
     pub clauses_total: i32,
 
-    // The total amount of time spent proving, in seconds.
+    /// The total amount of time spent proving, in seconds.
     pub proving_time: f64,
 }
 
@@ -94,40 +94,40 @@ impl BuildMetrics {
     }
 }
 
-// A "build" is when we verify a set of goals, determined by a Project.
-// For each build, we report many  build events.
+/// A "build" is when we verify a set of goals, determined by a Project.
+/// For each build, we report many  build events.
 #[derive(Debug)]
 pub struct BuildEvent {
-    // Which build this is an event for.
+    /// Which build this is an event for.
     pub build_id: u32,
 
-    // Current progress is done / total.
-    // This is across all modules.
+    /// Current progress is done / total.
+    /// This is across all modules.
     pub progress: Option<(i32, i32)>,
 
-    // Human-readable
+    /// Human-readable
     pub log_message: Option<String>,
 
-    // The module that the build event is coming from.
+    /// The module that the build event is coming from.
     pub module: ModuleDescriptor,
 
-    // Whenever we run into a problem, report a diagnostic.
+    /// Whenever we run into a problem, report a diagnostic.
     pub diagnostic: Option<Diagnostic>,
 
-    // Whenever we verify a goal, report the lines that the goal covers.
-    // Note that this is only the final goal. Subgoals might have failed to verify.
+    /// Whenever we verify a goal, report the lines that the goal covers.
+    /// Note that this is only the final goal. Subgoals might have failed to verify.
     pub verified: Option<(u32, u32)>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BuildStatus {
-    // No problems of any kind
+    /// No problems of any kind
     Good,
 
-    // Warnings indicate code that parses okay but can't be verified
+    /// Warnings indicate code that parses okay but can't be verified
     Warning,
 
-    // Errors indicate either the user entered bad code, or we ran into a bug in the build process
+    /// Errors indicate either the user entered bad code, or we ran into a bug in the build process
     Error,
 }
 
@@ -161,36 +161,36 @@ impl BuildStatus {
     }
 }
 
-// The Builder contains all the mutable state for a single build.
-// This is separate from the Project because you can read information from the Project from other
-// threads while a build is ongoing, but a Builder is only used by the build itself.
+/// The Builder contains all the mutable state for a single build.
+/// This is separate from the Project because you can read information from the Project from other
+/// threads while a build is ongoing, but a Builder is only used by the build itself.
 pub struct Builder<'a> {
-    // A single event handler is used across all modules.
+    /// A single event handler is used across all modules.
     event_handler: Box<dyn FnMut(BuildEvent) + 'a>,
 
     pub status: BuildStatus,
 
-    // A unique id for each build.
+    /// A unique id for each build.
     pub id: u32,
 
-    // Build metrics collected during verification.
+    /// Build metrics collected during verification.
     pub metrics: BuildMetrics,
 
-    // When this flag is set, we emit build events when a goal is slow.
+    /// When this flag is set, we emit build events when a goal is slow.
     pub log_when_slow: bool,
 
-    // When this flag is set, we emit build events for secondary errors.
-    // I.e., errors that happen when you try to import a module that itself has an error.
+    /// When this flag is set, we emit build events for secondary errors.
+    /// I.e., errors that happen when you try to import a module that itself has an error.
     pub log_secondary_errors: bool,
 
-    // The current module we are proving.
+    /// The current module we are proving.
     current_module: Option<ModuleDescriptor>,
 
-    // Whether the current module has neither errors nor warnings.
-    // I guess if there is no current module, it's vacuously good.
+    /// Whether the current module has neither errors nor warnings.
+    /// I guess if there is no current module, it's vacuously good.
     current_module_good: bool,
 
-    // If dataset is not None, we are gathering data for training.
+    /// If dataset is not None, we are gathering data for training.
     pub dataset: Option<Dataset>,
 }
 
@@ -221,7 +221,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // Returns Anonymous while loading
+    /// Returns Anonymous while loading
     fn module(&self) -> ModuleDescriptor {
         match &self.current_module {
             None => ModuleDescriptor::Anonymous,
@@ -229,19 +229,19 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // Called when a single module is loaded successfully.
+    /// Called when a single module is loaded successfully.
     pub fn module_loaded(&mut self, env: &Environment) {
         self.metrics.goals_total += env.iter_goals().count() as i32;
     }
 
-    // When create_dataset is called, that tells the Builder to gather data for training.
-    // Only call this before the build starts.
+    /// When create_dataset is called, that tells the Builder to gather data for training.
+    /// Only call this before the build starts.
     pub fn create_dataset(&mut self) {
         assert_eq!(self.metrics.goals_done, 0);
         self.dataset = Some(Dataset::new());
     }
 
-    // Called when the entire loading phase is done.
+    /// Called when the entire loading phase is done.
     pub fn loading_phase_complete(&mut self) {
         let event = BuildEvent {
             progress: Some((0, self.metrics.goals_total)),
@@ -250,7 +250,7 @@ impl<'a> Builder<'a> {
         (self.event_handler)(event);
     }
 
-    // Logs an informational message that doesn't change build status.
+    /// Logs an informational message that doesn't change build status.
     pub fn log_info(&mut self, message: String) {
         let event = BuildEvent {
             log_message: Some(message),
@@ -259,7 +259,7 @@ impl<'a> Builder<'a> {
         (self.event_handler)(event);
     }
 
-    // Logs an error during the loading phase, that can be localized to a particular place.
+    /// Logs an error during the loading phase, that can be localized to a particular place.
     pub fn log_loading_error(&mut self, descriptor: &ModuleDescriptor, error: &Error) {
         let diagnostic = Diagnostic {
             range: error.range(),
@@ -277,13 +277,13 @@ impl<'a> Builder<'a> {
         self.status = BuildStatus::Error;
     }
 
-    // Called when we start proving a module.
+    /// Called when we start proving a module.
     pub fn module_proving_started(&mut self, descriptor: ModuleDescriptor) {
         self.current_module = Some(descriptor);
         self.current_module_good = true;
     }
 
-    // Returns whether the module completed without any errors or warnings.
+    /// Returns whether the module completed without any errors or warnings.
     pub fn module_proving_complete(&mut self, module: &ModuleDescriptor) -> bool {
         assert_eq!(&self.module(), module);
         let answer = self.current_module_good;
@@ -292,8 +292,8 @@ impl<'a> Builder<'a> {
         answer
     }
 
-    // Called when a single proof search completes.
-    // Statistics are tracked here.
+    /// Called when a single proof search completes.
+    /// Statistics are tracked here.
     pub fn search_finished(
         &mut self,
         prover: &Prover,
@@ -366,7 +366,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // Logs a successful proof.
+    /// Logs a successful proof.
     fn log_proving_success(&mut self, goal_context: &GoalContext) {
         let line_pair = (goal_context.first_line, goal_context.last_line);
         let event = BuildEvent {
@@ -377,8 +377,8 @@ impl<'a> Builder<'a> {
         (self.event_handler)(event);
     }
 
-    // Logs a cache hit for this node and every child of it.
-    // Returns the cursor to its initial state when done.
+    /// Logs a cache hit for this node and every child of it.
+    /// Returns the cursor to its initial state when done.
     pub fn log_proving_cache_hit(&mut self, node: &mut NodeCursor) {
         if node.num_children() > 0 {
             node.descend(0);
@@ -400,7 +400,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // Create a build event for a proof that was other than successful.
+    /// Create a build event for a proof that was other than successful.
     fn make_event(
         &mut self,
         goal_context: &GoalContext,
@@ -422,13 +422,14 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// Note that this will blue-squiggle in VS Code, so don't just use this willy-nilly.
     pub fn log_proving_info(&mut self, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(goal_context, message, DiagnosticSeverity::INFORMATION);
         (self.event_handler)(event);
     }
 
-    // Logs a warning. Warnings can only happen during the proving phase.
-    // This will mark the build as "not good", so we won't cache it.
+    /// Logs a warning. Warnings can only happen during the proving phase.
+    /// This will mark the build as "not good", so we won't cache it.
     fn log_proving_warning(&mut self, goal_context: &GoalContext, message: &str) {
         let event = self.make_event(goal_context, message, DiagnosticSeverity::WARNING);
         (self.event_handler)(event);
@@ -436,7 +437,7 @@ impl<'a> Builder<'a> {
         self.status.warn();
     }
 
-    // Logs an error during the proving phase.
+    /// Logs an error during the proving phase.
     fn log_proving_error(&mut self, goal_context: &GoalContext, message: &str) {
         let mut event = self.make_event(goal_context, message, DiagnosticSeverity::WARNING);
 
