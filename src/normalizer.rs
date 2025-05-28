@@ -381,12 +381,9 @@ impl Normalizer {
         // Check if this looks like an aliasing.
         if let Some((ci, name, constant_type)) = fact.as_instance_alias() {
             let local = fact.source().truthiness() != Truthiness::Factual;
-            self.normalization_map.alias_monomorph(
-                ci,
-                name,
-                &constant_type,
-                local,
-            );
+            self.normalization_map
+                .alias_monomorph(ci, name, &constant_type, local);
+            return Ok(());
         }
 
         self.monomorphizer.add_fact(fact);
@@ -493,14 +490,8 @@ impl Normalizer {
     pub fn atom_str(&self, atom: &Atom) -> String {
         match atom {
             Atom::True => "true".to_string(),
-            Atom::GlobalConstant(i) => self
-                .normalization_map
-                .name_for_global_id(*i)
-                .to_string(),
-            Atom::LocalConstant(i) => self
-                .normalization_map
-                .name_for_local_id(*i)
-                .to_string(),
+            Atom::GlobalConstant(i) => self.normalization_map.name_for_global_id(*i).to_string(),
+            Atom::LocalConstant(i) => self.normalization_map.name_for_local_id(*i).to_string(),
             Atom::Monomorph(i) => {
                 format!("{}", self.normalization_map.get_monomorph(*i))
             }
