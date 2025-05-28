@@ -8,16 +8,16 @@ use crate::potential_value::PotentialValue;
 use crate::proposition::Proposition;
 use crate::source::Source;
 
-// A fact is a statement that we are assuming to be true in a particular context.
+/// A fact is a statement that we are assuming to be true in a particular context.
 #[derive(Clone, Debug)]
 pub enum Fact {
-    // A true statement representable as a boolean value.
+    /// A true statement representable as a boolean value.
     Proposition(Proposition),
 
-    // The first typeclass extends this set of typeclasses.
+    /// The first typeclass extends this set of typeclasses.
     Extends(Typeclass, HashSet<Typeclass>, Source),
 
-    // The fact that this class is an instance of this typeclass.
+    /// The fact that this class is an instance of this typeclass.
     Instance(Class, Typeclass, Source),
 
     /// A defined constant.
@@ -67,7 +67,7 @@ impl Fact {
         match self {
             Fact::Instance(..) => true,
             Fact::Extends(..) => true,
-            _ => false,
+            _ => self.as_instance_alias().is_some(),
         }
     }
 
