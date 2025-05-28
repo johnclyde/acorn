@@ -101,9 +101,7 @@ impl Verifier {
         }
 
         if self.mode == ProverMode::Filtered && builder.metrics.searches_fallback > 0 {
-            return Err(
-                "Warning: the filtered prover was not able to handle all goals.".to_string(),
-            );
+            println!("Warning: the filtered prover was not able to handle all goals.");
         }
 
         Ok((builder.status, builder.metrics))
