@@ -61,15 +61,11 @@ impl Fact {
         }
     }
 
-    pub fn is_instance(&self) -> bool {
+    /// A fact that is used is normalization means that we still need it, even if it isn't used by
+    /// the prover.
+    pub fn used_in_normalization(&self) -> bool {
         match self {
             Fact::Instance(..) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_extends(&self) -> bool {
-        match self {
             Fact::Extends(..) => true,
             _ => false,
         }

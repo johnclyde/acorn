@@ -2141,8 +2141,7 @@ impl Environment {
                 continue;
             }
             if let Some(fact) = node.get_fact() {
-                // Always include extends and instance facts
-                if fact.is_extends() || fact.is_instance() {
+                if fact.used_in_normalization() {
                     facts.push(fact);
                     continue;
                 }

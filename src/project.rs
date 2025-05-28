@@ -491,8 +491,8 @@ impl Project {
                 continue;
             };
 
-            // Always include extends and instance facts
-            if fact.is_extends() || fact.is_instance() {
+            // Always include facts that are used in normalization.
+            if fact.used_in_normalization() {
                 prover.add_fact(fact);
                 continue;
             }
