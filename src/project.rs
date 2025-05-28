@@ -63,36 +63,64 @@ pub struct Project {
     pub check_hashes: bool,
 }
 
-// An error found while importing a module.
-// Not an error in the code of the module itself.
+// General project-level errors (file operations, setup, etc.)
 #[derive(Debug)]
-pub struct LoadError(pub String);
+pub struct ProjectError(pub String);
 
-impl From<io::Error> for LoadError {
+impl From<io::Error> for ProjectError {
     fn from(error: io::Error) -> Self {
-        LoadError(format!("{}", error))
+        ProjectError(format!("{}", error))
     }
 }
 
-impl fmt::Display for LoadError {
+impl fmt::Display for ProjectError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), LoadError> {
+// Errors specific to importing modules
+#[derive(Debug)]
+pub enum ImportError {
+    // The module file doesn't exist (e.g., typo in import statement)
+    NotFound(String),
+    
+    // There's a circular dependency
+    Circular(String),
+    
+    // The module exists but has compilation errors
+    ModuleError(String),
+}
+
+impl From<io::Error> for ImportError {
+    fn from(error: io::Error) -> Self {
+        ImportError::NotFound(format!("{}", error))
+    }
+}
+
+impl fmt::Display for ImportError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ImportError::NotFound(msg) => write!(f, "{}", msg),
+            ImportError::Circular(module) => write!(f, "circular import of {}", module),
+            ImportError::ModuleError(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), ImportError> {
     if s.is_empty() {
-        return Err(LoadError(format!("empty module part: {}", error_name)));
+        return Err(ImportError::NotFound(format!("empty module part: {}", error_name)));
     }
     if !s.chars().next().unwrap().is_ascii_lowercase() {
-        return Err(LoadError(format!(
+        return Err(ImportError::NotFound(format!(
             "module parts must start with a lowercase letter: {}",
             error_name
         )));
     }
     for char in s.chars() {
         if !char.is_ascii_alphanumeric() && char != '_' {
-            return Err(LoadError(format!(
+            return Err(ImportError::NotFound(format!(
                 "invalid character in module name: '{}' in {}",
                 char, error_name
             )));
@@ -186,10 +214,10 @@ impl Project {
 
     // A Project based on the provided starting path.
     // Returns an error if we can't find an acorn library.
-    pub fn new_local(start_path: &Path, mode: ProverMode) -> Result<Project, LoadError> {
+    pub fn new_local(start_path: &Path, mode: ProverMode) -> Result<Project, ProjectError> {
         let (library_root, cache_dir) =
             Project::find_local_acorn_library(start_path).ok_or_else(|| {
-                LoadError(
+                ProjectError(
                     "Could not find acornlib.\n\
                 Please run this from within the acornlib directory.\n\
                 See https://github.com/acornprover/acornlib for details."
@@ -311,7 +339,7 @@ impl Project {
         path: PathBuf,
         content: &str,
         version: i32,
-    ) -> Result<(), LoadError> {
+    ) -> Result<(), ImportError> {
         if self.has_version(&path, version) {
             // No need to do anything
             return Ok(());
@@ -335,7 +363,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn close_file(&mut self, path: PathBuf) -> Result<(), LoadError> {
+    pub fn close_file(&mut self, path: PathBuf) -> Result<(), ImportError> {
         if !self.open_files.contains_key(&path) {
             // No need to do anything
             return Ok(());
@@ -793,16 +821,16 @@ impl Project {
         errors
     }
 
-    fn read_file(&mut self, path: &PathBuf) -> Result<String, LoadError> {
+    fn read_file(&mut self, path: &PathBuf) -> Result<String, ProjectError> {
         if let Some((content, _)) = self.open_files.get(path) {
             return Ok(content.clone());
         }
         if !self.use_filesystem {
-            return Err(LoadError(format!("no mocked file for: {}", path.display())));
+            return Err(ProjectError(format!("no mocked file for: {}", path.display())));
         }
         match std::fs::read_to_string(&path) {
             Ok(s) => Ok(s),
-            Err(e) => Err(LoadError(format!(
+            Err(e) => Err(ProjectError(format!(
                 "error loading {}: {}",
                 path.display(),
                 e
@@ -812,7 +840,7 @@ impl Project {
 
     // Returns the canonical descriptor for a path.
     // Returns a load error if this isn't a valid path for an acorn file.
-    pub fn descriptor_from_path(&self, path: &Path) -> Result<ModuleDescriptor, LoadError> {
+    pub fn descriptor_from_path(&self, path: &Path) -> Result<ModuleDescriptor, ImportError> {
         let relative = match path.strip_prefix(&self.library_root) {
             Ok(relative) => relative,
             Err(_) => return Ok(ModuleDescriptor::File(path.to_path_buf())),
@@ -825,7 +853,7 @@ impl Project {
         for (i, component) in components.iter().enumerate() {
             let part = if i + 1 == components.len() {
                 if !component.ends_with(".ac") {
-                    return Err(LoadError(format!(
+                    return Err(ImportError::NotFound(format!(
                         "path {} does not end with .ac",
                         path.display()
                     )));
@@ -844,7 +872,7 @@ impl Project {
         Ok(ModuleDescriptor::Name(name))
     }
 
-    pub fn path_from_module_name(&self, module_name: &str) -> Result<PathBuf, LoadError> {
+    pub fn path_from_module_name(&self, module_name: &str) -> Result<PathBuf, ImportError> {
         let mut path = self.library_root.clone();
         let parts: Vec<&str> = module_name.split('.').collect();
 
@@ -900,22 +928,22 @@ impl Project {
     // If there is an error in the file, the load will return a module id, but the module
     // for the id will have an error.
     // If "open" is passed, then we cache this file's content in open files.
-    fn load_module(&mut self, descriptor: &ModuleDescriptor) -> Result<ModuleId, LoadError> {
+    fn load_module(&mut self, descriptor: &ModuleDescriptor) -> Result<ModuleId, ImportError> {
         if let Some(module_id) = self.module_map.get(&descriptor) {
             if *module_id < FIRST_NORMAL {
                 panic!("module {} should not be loadable", module_id);
             }
             if let LoadState::Loading = self.get_module_by_id(*module_id) {
-                return Err(LoadError(format!("circular import of {}", descriptor)));
+                return Err(ImportError::Circular(descriptor.to_string()));
             }
             return Ok(*module_id);
         }
 
         let path = match self.path_from_descriptor(descriptor) {
             Some(path) => path,
-            None => return Err(LoadError(format!("unloadable module: {:?}", descriptor))),
+            None => return Err(ImportError::NotFound(format!("unloadable module: {:?}", descriptor))),
         };
-        let text = self.read_file(&path)?;
+        let text = self.read_file(&path).map_err(|e| ImportError::NotFound(e.to_string()))?;
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
@@ -941,7 +969,7 @@ impl Project {
         Ok(module_id)
     }
 
-    pub fn load_module_by_name(&mut self, module_name: &str) -> Result<ModuleId, LoadError> {
+    pub fn load_module_by_name(&mut self, module_name: &str) -> Result<ModuleId, ImportError> {
         let descriptor = ModuleDescriptor::Name(module_name.to_string());
         self.load_module(&descriptor)
     }

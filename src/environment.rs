@@ -14,7 +14,7 @@ use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::names::{ConstantName, DefinedName};
 use crate::potential_value::PotentialValue;
-use crate::project::{LoadError, Project};
+use crate::project::Project;
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::stack::Stack;
@@ -1855,9 +1855,9 @@ impl Environment {
         let full_name = is.components.join(".");
         let module_id = match project.load_module_by_name(&full_name) {
             Ok(module_id) => module_id,
-            Err(LoadError(s)) => {
+            Err(e) => {
                 // The error is with the import statement itself, like a circular import.
-                return Err(statement.error(&format!("import error: {}", s)));
+                return Err(statement.error(&format!("import error: {}", e)));
             }
         };
         match project.get_bindings(module_id) {
