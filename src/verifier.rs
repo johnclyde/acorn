@@ -18,6 +18,13 @@ pub struct VerifierOutput {
     pub events: Vec<BuildEvent>,
 }
 
+impl VerifierOutput {
+    /// How many verification events were collected.
+    pub fn num_verified(&self) -> usize {
+        self.events.iter().filter(|e| e.verified.is_some()).count()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ProverMode {
     /// Uses the cache, skipping modules entirely if they are already built.
@@ -206,19 +213,8 @@ mod tests {
         assert_eq!(output.metrics.goals_total, 1); // Should have 1 theorem to prove
         assert_eq!(output.metrics.goals_success, 1); // Should have successfully proven 1 theorem
         assert!(output.metrics.searches_total > 0); // Should have performed at least one search
-
-        // Check that events were collected
-        assert!(
-            !output.events.is_empty(),
-            "Should have collected build events"
-        );
-
-        // Check for a verified event
-        let has_verified_event = output.events.iter().any(|e| e.verified.is_some());
-        assert!(
-            has_verified_event,
-            "Should have at least one verified event"
-        );
+        assert!(!output.events.is_empty());
+        assert!(output.num_verified() > 0);
 
         temp.close().unwrap();
     }
@@ -266,10 +262,7 @@ mod tests {
 
         // Check that we created a file in the build directory
         let build_file = build.child("foo.yaml");
-        assert!(
-            build_file.exists(),
-            "Build file should exist in build directory"
-        );
+        assert!(build_file.exists(),);
 
         // Verify again - should use the cache
         let result2 = verifier.run();
@@ -344,15 +337,8 @@ mod tests {
             false,
         );
         let output = verifier2.run().unwrap();
-        assert_eq!(
-            output.status,
-            BuildStatus::Good,
-            "Filtered verifier should succeed"
-        );
-        assert_eq!(
-            output.metrics.searches_fallback, 0,
-            "Should not have to fall back"
-        );
+        assert_eq!(output.status, BuildStatus::Good,);
+        assert_eq!(output.metrics.searches_fallback, 0,);
 
         acornlib.close().unwrap();
     }
@@ -403,15 +389,11 @@ mod tests {
             false,
         );
         let output = verifier2.run().unwrap();
-        assert_eq!(
-            output.status,
-            BuildStatus::Good,
-            "Filtered verifier should succeed"
-        );
-        assert_eq!(
-            output.metrics.searches_fallback, 0,
-            "Should not have to fall back"
-        );
+        assert_eq!(output.status, BuildStatus::Good,);
+        assert_eq!(output.metrics.searches_fallback, 0,);
+
+        // Each block should have a verification event
+        // assert_eq!(output.num_verified(), 5);
 
         acornlib.close().unwrap();
     }
