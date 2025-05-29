@@ -66,36 +66,36 @@ pub enum BlockParams<'a> {
         AcornValue,
     ),
 
-    // The assumption to be used by the block, and the range of this assumption.
+    /// The assumption to be used by the block, and the range of this assumption.
     Conditional(&'a AcornValue, Range),
 
-    // The expression to solve for, and the range of the "solve <target>" component.
+    /// The expression to solve for, and the range of the "solve <target>" component.
     Solve(AcornValue, Range),
 
-    // (unbound goal, function return type, range of condition)
-    // This goal has one more unbound variable than the block args account for.
-    // The last one, we are trying to prove there exists a variable that satisfies the goal.
+    /// (unbound goal, function return type, range of condition)
+    /// This goal has one more unbound variable than the block args account for.
+    /// The last one, we are trying to prove there exists a variable that satisfies the goal.
     FunctionSatisfy(AcornValue, AcornType, Range),
 
-    // MatchCase represents a single case within a match statement.
-    // The scrutinee, the constructor, the pattern arguments, and the range of the pattern.
+    /// MatchCase represents a single case within a match statement.
+    /// The scrutinee, the constructor, the pattern arguments, and the range of the pattern.
     MatchCase(AcornValue, AcornValue, Vec<(String, AcornType)>, Range),
 
-    // A block that is required by the type system.
-    // This can either be proving that a constrained type is inhabited, or proving
-    // that a type obeys a typeclass relationship.
-    // Either way, there is some value that needs to be proved, that's synthetic in the sense
-    // that nothing like it explicitly appears in the code.
-    // The range tells us what to squiggle if this block fails.
+    /// A block that is required by the type system.
+    /// This can either be proving that a constrained type is inhabited, or proving
+    /// that a type obeys a typeclass relationship.
+    /// Either way, there is some value that needs to be proved, that's synthetic in the sense
+    /// that nothing like it explicitly appears in the code.
+    /// The range tells us what to squiggle if this block fails.
     TypeRequirement(AcornValue, Range),
 
-    // No special params needed
+    /// No special params needed
     ForAll,
     Problem,
 }
 
 impl Block {
-    // Creates a new block, as a direct child of the given environment.
+    /// Creates a new block, as a direct child of the given environment.
     pub fn new(
         project: &mut Project,
         env: &Environment,
@@ -240,7 +240,7 @@ impl Block {
         })
     }
 
-    // Convert a boolean value from the block's environment to a value in the outer environment.
+    /// Convert a boolean value from the block's environment to a value in the outer environment.
     fn externalize_bool(&self, outer_env: &Environment, inner_value: &AcornValue) -> AcornValue {
         // The constants that were block arguments will export as "forall" variables.
         let mut forall_names: Vec<String> = vec![];
@@ -298,8 +298,8 @@ impl Block {
         AcornValue::forall(forall_types, AcornValue::exists(exists_types, replaced))
     }
 
-    // Returns a claim usable in the outer environment, and a range where it comes from.
-    // Note that this will not generalize arbitrary types.
+    /// Returns a claim usable in the outer environment, and a range where it comes from.
+    /// Note that this will not generalize arbitrary types.
     pub fn externalize_last_claim(
         &self,
         outer_env: &Environment,
@@ -320,10 +320,10 @@ impl Block {
         Ok((outer_claim, prop.source.range))
     }
 
-    // Checks if this block solves for the given target.
-    // If it does, returns an externalized proposition with the solution, and the range where it
-    // occurs.
-    // "Externalized" means that it is valid in the environment outside the block.
+    /// Checks if this block solves for the given target.
+    /// If it does, returns an externalized proposition with the solution, and the range where it
+    /// occurs.
+    /// "Externalized" means that it is valid in the environment outside the block.
     pub fn solves(
         &self,
         outer_env: &Environment,
@@ -393,7 +393,7 @@ impl Node {
         Node::Claim(prop)
     }
 
-    // This does not expand theorems. I can imagine this coming up, but it would be weird.
+    /// This does not expand theorems. I can imagine this coming up, but it would be weird.
     pub fn definition(constant: PotentialValue, definition: AcornValue, source: Source) -> Node {
         let fact = Fact::Definition(constant, definition, source);
         Node::Structural(fact)
@@ -423,7 +423,7 @@ impl Node {
         }
     }
 
-    // Whether this node corresponds to a goal that needs to be proved.
+    /// Whether this node corresponds to a goal that needs to be proved.
     pub fn has_goal(&self) -> bool {
         match self {
             Node::Structural(_) => false,
@@ -455,7 +455,7 @@ impl Node {
         }
     }
 
-    // The source of this node, if there is one.
+    /// The source of this node, if there is one.
     pub fn source(&self) -> Option<&Source> {
         match self {
             Node::Structural(f) => Some(f.source()),
@@ -465,7 +465,7 @@ impl Node {
         }
     }
 
-    // The proposition at this node, if there is one.
+    /// The proposition at this node, if there is one.
     pub fn proposition(&self) -> Option<&Proposition> {
         match self {
             Node::Structural(Fact::Proposition(p)) => Some(p),
@@ -475,8 +475,8 @@ impl Node {
         }
     }
 
-    // The block name is used to describe the block when caching block -> premise dependencies.
-    // good_block_name finds whether we have a comprehensible name.
+    /// The block name is used to describe the block when caching block -> premise dependencies.
+    /// good_block_name finds whether we have a comprehensible name.
     fn good_block_name(&self) -> Option<String> {
         match &self.source()?.source_type {
             SourceType::Theorem(name) => match name {
@@ -492,12 +492,12 @@ impl Node {
         }
     }
 
-    // Whether the fact at this node is importable.
+    /// Whether the fact at this node is importable.
     pub fn importable(&self) -> bool {
         self.source().map_or(false, |s| s.importable)
     }
 
-    // Returns the fact at this node, if there is one.
+    /// Returns the fact at this node, if there is one.
     pub fn get_fact(&self) -> Option<Fact> {
         match self {
             Node::Structural(f) => Some(f.clone()),
@@ -507,13 +507,13 @@ impl Node {
         }
     }
 
-    // The source name is used to describe the premise when caching block -> premise dependencies.
-    // All importable facts should have a source name.
+    /// The source name is used to describe the premise when caching block -> premise dependencies.
+    /// All importable facts should have a source name.
     pub fn source_name(&self) -> Option<String> {
         self.source()?.name()
     }
 
-    // Returns the block name for this node, using the same logic as NodeCursor::block_name
+    /// Returns the block name for this node, using the same logic as NodeCursor::block_name
     pub fn block_name(&self) -> String {
         match self.good_block_name() {
             Some(s) => s,
@@ -521,7 +521,7 @@ impl Node {
         }
     }
 
-    // Returns the name and value, if this node is a theorem.
+    /// Returns the name and value, if this node is a theorem.
     pub fn as_theorem(&self) -> Option<(&str, &AcornValue)> {
         let prop = self.proposition()?;
         if let Some(theorem_name) = prop.theorem_name() {
@@ -536,12 +536,12 @@ impl Node {
     }
 }
 
-// A NodeCursor points at a node. It is used to traverse the nodes in an environment.
+/// A NodeCursor points at a node. It is used to traverse the nodes in an environment.
 #[derive(Clone)]
 pub struct NodeCursor<'a> {
-    // All the environments that surround this node.
-    // (env, index) pairs tell you that the node env.nodes[index] to get to
-    // the next environment.
+    /// All the environments that surround this node.
+    /// (env, index) pairs tell you that the node env.nodes[index] to get to
+    /// the next environment.
     annotated_path: Vec<(&'a Environment, usize)>,
 }
 
@@ -561,8 +561,8 @@ impl<'a> NodeCursor<'a> {
         iter
     }
 
-    // Only call this on a module level environment.
-    // Returns None if there are no nodes in the environment.
+    /// Only call this on a module level environment.
+    /// Returns None if there are no nodes in the environment.
     pub fn new(env: &'a Environment, index: usize) -> Self {
         assert_eq!(env.depth, 0);
         assert!(env.nodes.len() > index);
@@ -571,7 +571,7 @@ impl<'a> NodeCursor<'a> {
         }
     }
 
-    // The environment that contains the current node.
+    /// The environment that contains the current node.
     pub fn env(&self) -> &'a Environment {
         self.annotated_path.last().unwrap().0
     }
@@ -586,19 +586,19 @@ impl<'a> NodeCursor<'a> {
         index
     }
 
-    // Get the top-level node above this cursor.
+    /// Get the top-level node above this cursor.
     fn top_node(&self) -> &'a Node {
         let (env, index) = self.annotated_path[0];
         &env.nodes[index]
     }
 
-    // The block name is used to describe the block when caching block -> premise dependencies.
-    // This always returns the name of the top-level node, regardless of the current position.
+    /// The block name is used to describe the block when caching block -> premise dependencies.
+    /// This always returns the name of the top-level node, regardless of the current position.
     pub fn block_name(&self) -> String {
         self.top_node().block_name()
     }
 
-    // Can use this as an identifier for the iterator, to compare two of them
+    /// Can use this as an identifier for the iterator, to compare two of them
     pub fn path(&self) -> Vec<usize> {
         self.annotated_path.iter().map(|(_, i)| *i).collect()
     }
@@ -610,7 +610,13 @@ impl<'a> NodeCursor<'a> {
         }
     }
 
-    // child_index must be less than num_children
+    /// A node requires verification if it has a goal itself, or if it might have a goal
+    /// in its children.
+    pub fn requires_verification(&self) -> bool {
+        self.node().has_goal() || self.num_children() > 0
+    }
+
+    /// child_index must be less than num_children
     pub fn descend(&mut self, child_index: usize) {
         let new_env = match &self.node().get_block() {
             Some(b) => &b.env,
@@ -620,13 +626,13 @@ impl<'a> NodeCursor<'a> {
         self.annotated_path.push((new_env, child_index));
     }
 
-    // Whether we can advance to the next sibling, keeping environment the same.
+    /// Whether we can advance to the next sibling, keeping environment the same.
     pub fn has_next(&self) -> bool {
         let (env, index) = self.annotated_path.last().unwrap();
         index + 1 < env.nodes.len()
     }
 
-    // Advances to the next sibling, keeping environment the same.
+    /// Advances to the next sibling, keeping environment the same.
     pub fn next(&mut self) {
         let (env, index) = self.annotated_path.last_mut().unwrap();
         assert!(*index + 1 < env.nodes.len());
@@ -642,8 +648,8 @@ impl<'a> NodeCursor<'a> {
         self.annotated_path.pop();
     }
 
-    // All facts that can be used to prove the current node.
-    // This includes imported facts.
+    /// All facts that can be used to prove the current node.
+    /// This includes imported facts.
     pub fn usable_facts(&self, project: &Project) -> Vec<Fact> {
         let mut facts = project.imported_facts(self.env().module_id, None);
         let (env, i) = &self.annotated_path[0];
@@ -680,7 +686,7 @@ impl<'a> NodeCursor<'a> {
         facts
     }
 
-    // Get a goal context for the current node.
+    /// Get a goal context for the current node.
     pub fn goal_context(&self) -> Result<GoalContext, String> {
         let node = self.node();
         if let Node::Structural(_) = node {
@@ -718,7 +724,7 @@ impl<'a> NodeCursor<'a> {
         }
     }
 
-    // Does a postorder traversal of everything with a goal, at and below this node
+    /// Does a postorder traversal of everything with a goal, at and below this node
     pub fn find_goals(&mut self, output: &mut Vec<NodeCursor<'a>>) {
         for i in 0..self.num_children() {
             self.descend(i);

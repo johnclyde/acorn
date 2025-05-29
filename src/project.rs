@@ -572,7 +572,7 @@ impl Project {
 
         // Loop over all the nodes that are right below the top level.
         loop {
-            if cursor.num_children() != 0 || cursor.node().has_goal() {
+            if cursor.requires_verification() {
                 let block_name = cursor.block_name();
                 if self.check_hashes
                     && module_hash
@@ -668,8 +668,7 @@ impl Project {
         new_premises: &mut HashSet<(ModuleId, String)>,
         builder: &mut Builder,
     ) {
-        if cursor.num_children() == 0 && !cursor.node().has_goal() {
-            // There's nothing to do here
+        if !cursor.requires_verification() {
             return;
         }
 
