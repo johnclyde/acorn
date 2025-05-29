@@ -6,14 +6,12 @@ use acorn::server::{run_server, ServerArgs};
 use acorn::verifier::{ProverMode, Verifier};
 use clap::Parser;
 
-const VERSION: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/VERSION"));
-
 #[derive(Parser)]
 #[clap(
     name = "acorn",
     about = "A theorem prover and programming language",
     long_about = "Acorn is a theorem prover and programming language.\n\nYou can:\n- Run a language server for IDE integration\n- Verify theorems and proofs\n- Search for proofs at specific locations",
-    version = VERSION
+    version = env!("CARGO_PKG_VERSION")
 )]
 struct Args {
     /// The root folder the user has open (language server mode only)

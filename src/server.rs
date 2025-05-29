@@ -420,6 +420,10 @@ impl Backend {
         let (library_root, cache_dir, cache_writable) = find_acorn_library(&args);
 
         log(&format!(
+            "using acorn server version {}",
+            env!("CARGO_PKG_VERSION")
+        ));
+        log(&format!(
             "using acorn library at {}",
             library_root.display()
         ));
