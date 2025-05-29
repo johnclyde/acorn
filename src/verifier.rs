@@ -1,7 +1,22 @@
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
-use crate::builder::{BuildMetrics, BuildStatus};
+use crate::builder::{BuildEvent, BuildMetrics, BuildStatus};
 use crate::project::Project;
+
+/// Output from running the verifier
+#[derive(Debug)]
+pub struct VerifierOutput {
+    /// The overall build status
+    pub status: BuildStatus,
+
+    /// Build metrics collected during verification
+    pub metrics: BuildMetrics,
+
+    /// All build events collected during verification
+    pub events: Vec<BuildEvent>,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ProverMode {
@@ -45,8 +60,8 @@ impl Verifier {
         }
     }
 
-    /// Returns (BuildStatus, BuildMetrics) on success, or an error string if verification fails.
-    pub fn run(&self) -> Result<(BuildStatus, BuildMetrics), String> {
+    /// Returns VerifierOutput on success, or an error string if verification fails.
+    pub fn run(&self) -> Result<VerifierOutput, String> {
         let mut project = match Project::new_local(&self.start_path, self.mode) {
             Ok(p) => p,
             Err(e) => return Err(format!("Error: {}", e)),
@@ -68,10 +83,15 @@ impl Verifier {
             project.add_all_targets();
         }
 
+        // Create a vector to collect events
+        let events = Rc::new(RefCell::new(Vec::new()));
+        let events_clone = events.clone();
+
         // Set up the builder
-        let mut builder = project.builder(|event| {
-            if let Some(m) = event.log_message {
-                if let Some(diagnostic) = event.diagnostic {
+        let mut builder = project.builder(move |event| {
+            // Also print log messages as before
+            if let Some(m) = &event.log_message {
+                if let Some(diagnostic) = &event.diagnostic {
                     println!(
                         "{}, line {}: {}",
                         event.module,
@@ -82,7 +102,11 @@ impl Verifier {
                     println!("{}", m);
                 }
             }
+
+            // Store the event
+            events_clone.borrow_mut().push(event);
         });
+
         if self.mode == ProverMode::Filtered {
             builder.log_when_slow = true;
         }
@@ -104,7 +128,14 @@ impl Verifier {
             println!("Warning: the filtered prover was not able to handle all goals.");
         }
 
-        Ok((builder.status, builder.metrics))
+        // Create the output
+        let output = VerifierOutput {
+            status: builder.status,
+            metrics: builder.metrics,
+            events: events.take(),
+        };
+
+        Ok(output)
     }
 }
 
@@ -170,11 +201,24 @@ theorem simple_truth {
         );
 
         // Check that we actually proved something
-        let (status, metrics) = result.unwrap();
-        assert_eq!(status, BuildStatus::Good);
-        assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
-        assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
-        assert!(metrics.searches_total > 0); // Should have performed at least one search
+        let output = result.unwrap();
+        assert_eq!(output.status, BuildStatus::Good);
+        assert_eq!(output.metrics.goals_total, 1); // Should have 1 theorem to prove
+        assert_eq!(output.metrics.goals_success, 1); // Should have successfully proven 1 theorem
+        assert!(output.metrics.searches_total > 0); // Should have performed at least one search
+
+        // Check that events were collected
+        assert!(
+            !output.events.is_empty(),
+            "Should have collected build events"
+        );
+
+        // Check for a verified event
+        let has_verified_event = output.events.iter().any(|e| e.verified.is_some());
+        assert!(
+            has_verified_event,
+            "Should have at least one verified event"
+        );
 
         temp.close().unwrap();
     }
@@ -214,11 +258,11 @@ theorem simple_truth {
         );
 
         // Check that we actually proved something
-        let (status, metrics) = result.unwrap();
-        assert_eq!(status, BuildStatus::Good);
-        assert_eq!(metrics.goals_total, 1); // Should have 1 theorem to prove
-        assert_eq!(metrics.goals_success, 1); // Should have successfully proven 1 theorem
-        assert!(metrics.searches_total > 0); // Should have performed at least one search
+        let output = result.unwrap();
+        assert_eq!(output.status, BuildStatus::Good);
+        assert_eq!(output.metrics.goals_total, 1); // Should have 1 theorem to prove
+        assert_eq!(output.metrics.goals_success, 1); // Should have successfully proven 1 theorem
+        assert!(output.metrics.searches_total > 0); // Should have performed at least one search
 
         // Check that we created a file in the build directory
         let build_file = build.child("foo.yaml");
@@ -243,10 +287,10 @@ theorem simple_truth {
         );
 
         // Check that the cache was used
-        let (status2, metrics2) = result2.unwrap();
-        assert_eq!(status2, BuildStatus::Good);
+        let output2 = result2.unwrap();
+        assert_eq!(output2.status, BuildStatus::Good);
         assert_eq!(
-            metrics2.searches_total, 0,
+            output2.metrics.searches_total, 0,
             "Should use cache and perform no searches"
         );
 
@@ -306,13 +350,16 @@ theorem simple_truth {
             Some("main".to_string()),
             false,
         );
-        let (status, result) = verifier2.run().unwrap();
+        let output = verifier2.run().unwrap();
         assert_eq!(
-            status,
+            output.status,
             BuildStatus::Good,
             "Filtered verifier should succeed"
         );
-        assert_eq!(result.searches_fallback, 0, "Should not have to fall back");
+        assert_eq!(
+            output.metrics.searches_fallback, 0,
+            "Should not have to fall back"
+        );
 
         acornlib.close().unwrap();
     }
@@ -362,13 +409,16 @@ theorem simple_truth {
             Some("main".to_string()),
             false,
         );
-        let (status, result) = verifier2.run().unwrap();
+        let output = verifier2.run().unwrap();
         assert_eq!(
-            status,
+            output.status,
             BuildStatus::Good,
             "Filtered verifier should succeed"
         );
-        assert_eq!(result.searches_fallback, 0, "Should not have to fall back");
+        assert_eq!(
+            output.metrics.searches_fallback, 0,
+            "Should not have to fall back"
+        );
 
         acornlib.close().unwrap();
     }

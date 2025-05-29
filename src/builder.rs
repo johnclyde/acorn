@@ -96,7 +96,7 @@ impl BuildMetrics {
 
 /// A "build" is when we verify a set of goals, determined by a Project.
 /// For each build, we report many  build events.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BuildEvent {
     /// Which build this is an event for.
     pub build_id: u32,
