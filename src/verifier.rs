@@ -380,7 +380,8 @@ mod tests {
             Some("main".to_string()),
             false,
         );
-        assert!(verifier1.run().is_ok(), "Verifier should run successfully");
+        let output = verifier1.run().unwrap();
+        assert_eq!(output.num_verified(), 5);
 
         let verifier2 = Verifier::new(
             acornlib.path().to_path_buf(),
@@ -391,8 +392,6 @@ mod tests {
         let output = verifier2.run().unwrap();
         assert_eq!(output.status, BuildStatus::Good,);
         assert_eq!(output.metrics.searches_fallback, 0,);
-
-        // Each block should have a verification event
         assert_eq!(output.num_verified(), 5);
 
         acornlib.close().unwrap();
