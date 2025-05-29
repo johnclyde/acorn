@@ -14,7 +14,7 @@ use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::names::{ConstantName, DefinedName};
 use crate::potential_value::PotentialValue;
-use crate::project::Project;
+use crate::project::{ImportError, Project};
 use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::stack::Stack;
@@ -1855,15 +1855,32 @@ impl Environment {
         let full_name = is.components.join(".");
         let module_id = match project.load_module_by_name(&full_name) {
             Ok(module_id) => module_id,
-            Err(e) => {
-                // The error is with the import statement itself, like a circular import.
-                return Err(statement.error(&format!("import error: {}", e)));
+            Err(ImportError::NotFound(message)) => {
+                // The error is with the import statement itself, like a typo.
+                return Err(statement.error(&message));
+            }
+            Err(ImportError::ModuleError(message)) => {
+                // The error is with the other module, not this one.
+                return Err(Error::indirect(
+                    &statement.first_token,
+                    &statement.last_token,
+                    &format!("error in '{}' module: {}", full_name, message),
+                ));
+            }
+            Err(ImportError::Circular(message)) => {
+                // Circular imports kind of count everywhere.
+                return Err(Error::circular(
+                    &statement.first_token,
+                    &statement.last_token,
+                    &format!("error in '{}' module: {}", full_name, message),
+                ));
             }
         };
         match project.get_bindings(module_id) {
             None => {
+                // Does this case actually occur?
                 // The fundamental error is in the other module, not this one.
-                return Err(Error::secondary(
+                return Err(Error::indirect(
                     &statement.first_token,
                     &statement.last_token,
                     &format!("error in '{}' module", full_name),

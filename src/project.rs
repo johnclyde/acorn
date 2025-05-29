@@ -79,15 +79,16 @@ impl fmt::Display for ProjectError {
     }
 }
 
-// Errors specific to importing modules
+// Errors specific to importing modules.
+// Each string is a human-readable error message.
 #[derive(Debug)]
 pub enum ImportError {
     // The module file doesn't exist (e.g., typo in import statement)
     NotFound(String),
-    
-    // There's a circular dependency
+
+    // There's a circular dependency.
     Circular(String),
-    
+
     // The module exists but has compilation errors
     ModuleError(String),
 }
@@ -102,7 +103,7 @@ impl fmt::Display for ImportError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ImportError::NotFound(msg) => write!(f, "{}", msg),
-            ImportError::Circular(module) => write!(f, "circular import of {}", module),
+            ImportError::Circular(msg) => write!(f, "{}", msg),
             ImportError::ModuleError(msg) => write!(f, "{}", msg),
         }
     }
@@ -110,7 +111,10 @@ impl fmt::Display for ImportError {
 
 fn check_valid_module_part(s: &str, error_name: &str) -> Result<(), ImportError> {
     if s.is_empty() {
-        return Err(ImportError::NotFound(format!("empty module part: {}", error_name)));
+        return Err(ImportError::NotFound(format!(
+            "empty module part: {}",
+            error_name
+        )));
     }
     if !s.chars().next().unwrap().is_ascii_lowercase() {
         return Err(ImportError::NotFound(format!(
@@ -410,7 +414,7 @@ impl Project {
                     envs.push(env);
                 }
                 LoadState::Error(e) => {
-                    if e.secondary {
+                    if e.indirect {
                         if builder.log_secondary_errors {
                             // The real problem is in a different module.
                             // So we don't want to locate the error in this module.
@@ -826,7 +830,10 @@ impl Project {
             return Ok(content.clone());
         }
         if !self.use_filesystem {
-            return Err(ProjectError(format!("no mocked file for: {}", path.display())));
+            return Err(ProjectError(format!(
+                "no mocked file for: {}",
+                path.display()
+            )));
         }
         match std::fs::read_to_string(&path) {
             Ok(s) => Ok(s),
@@ -934,16 +941,26 @@ impl Project {
                 panic!("module {} should not be loadable", module_id);
             }
             if let LoadState::Loading = self.get_module_by_id(*module_id) {
-                return Err(ImportError::Circular(descriptor.to_string()));
+                return Err(ImportError::Circular(format!(
+                    "circular import of {}",
+                    descriptor
+                )));
             }
             return Ok(*module_id);
         }
 
         let path = match self.path_from_descriptor(descriptor) {
             Some(path) => path,
-            None => return Err(ImportError::NotFound(format!("unloadable module: {:?}", descriptor))),
+            None => {
+                return Err(ImportError::NotFound(format!(
+                    "unloadable module: {:?}",
+                    descriptor
+                )))
+            }
         };
-        let text = self.read_file(&path).map_err(|e| ImportError::NotFound(e.to_string()))?;
+        let text = self
+            .read_file(&path)
+            .map_err(|e| ImportError::NotFound(e.to_string()))?;
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = self.modules.len() as ModuleId;
@@ -953,6 +970,11 @@ impl Project {
         let mut env = Environment::new(module_id);
         let tokens = Token::scan(&text);
         if let Err(e) = env.add_tokens(self, tokens) {
+            if e.circular {
+                let err = Err(ImportError::Circular(e.to_string()));
+                self.modules[module_id as usize].load_error(e);
+                return err;
+            }
             self.modules[module_id as usize].load_error(e);
             return Ok(module_id);
         }

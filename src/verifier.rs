@@ -373,27 +373,31 @@ theorem simple_truth {
         acornlib.close().unwrap();
     }
 
-    // #[test]
-    // fn test_verifier_fails_on_circular_import() {
-    //     let (acornlib, src, _) = setup();
+    #[test]
+    fn test_verifier_fails_on_circular_import() {
+        let (acornlib, src, _) = setup();
 
-    //     src.child("foo.ac").write_str("import bar").unwrap();
-    //     src.child("bar.ac").write_str("import foo").unwrap();
+        src.child("foo.ac").write_str("import bar").unwrap();
+        src.child("bar.ac").write_str("import foo").unwrap();
 
-    //     let verifier = Verifier::new(
-    //         acornlib.path().to_path_buf(),
-    //         ProverMode::Standard,
-    //         Some("foo".to_string()),
-    //         false,
-    //     );
+        let verifier = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Standard,
+            Some("foo".to_string()),
+            false,
+        );
 
-    //     let result = verifier.run();
-    //     assert!(
-    //         result.is_err(),
-    //         "Verifier should fail on circular import: {:?}",
-    //         result
-    //     );
+        let result = verifier.run();
+        let Err(err) = result else {
+            panic!("Verifier should fail on circular import: {:?}", result);
+        };
 
-    //     acornlib.close().unwrap();
-    // }
+        assert!(
+            err.contains("circular"),
+            "Expected circular import error, got: {}",
+            err
+        );
+
+        acornlib.close().unwrap();
+    }
 }

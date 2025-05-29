@@ -90,7 +90,6 @@ pub enum LoadState {
     None,
 
     // The module is in the process of being loaded.
-    // Modules that fail on circular import will be in this state forever.
     Loading,
 
     // The module has been loaded, but there is an error in its code

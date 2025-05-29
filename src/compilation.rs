@@ -14,11 +14,13 @@ pub struct Error {
 
     message: String,
 
-    // When you try to import a module that itself had a compilation error, that is a "secondary error".
+    // When you try to import a module that itself had a compilation error, that is an "indirect error".
     // We may or may not want to report these.
-    // If the primary location is visible, there's no point in also reporting the secondary.
-    // But if the primary location is inaccessible, we should report it at the secondary location.
-    pub secondary: bool,
+    pub indirect: bool,
+
+    // A circular import error. Sort of like an indirect error, but there's no real location.
+    // It's generally helpful to report these.
+    pub circular: bool,
 }
 
 impl fmt::Display for Error {
@@ -54,16 +56,28 @@ impl Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
             message: message.to_string(),
-            secondary: false,
+            indirect: false,
+            circular: false,
         }
     }
 
-    pub fn secondary(first_token: &Token, last_token: &Token, message: &str) -> Self {
+    pub fn indirect(first_token: &Token, last_token: &Token, message: &str) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
             message: message.to_string(),
-            secondary: true,
+            indirect: true,
+            circular: false,
+        }
+    }
+
+    pub fn circular(first_token: &Token, last_token: &Token, message: &str) -> Self {
+        Error {
+            first_token: first_token.clone(),
+            last_token: last_token.clone(),
+            message: message.to_string(),
+            indirect: false,
+            circular: true,
         }
     }
 
