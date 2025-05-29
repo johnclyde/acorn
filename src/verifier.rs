@@ -398,6 +398,13 @@ theorem simple_truth {
             err
         );
 
+        if err.lines().map(|l| l.contains("^^^^^")).count() != 1 {
+            panic!(
+                "Expected exactly one ^^^^^^ line in the error message, got:\n{}",
+                err
+            );
+        }
+
         acornlib.close().unwrap();
     }
 }

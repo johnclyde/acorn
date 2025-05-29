@@ -2,6 +2,7 @@ use std::fmt;
 
 use tower_lsp::lsp_types::Range;
 
+use crate::module::ModuleId;
 use crate::token::Token;
 
 // Errors that happen during compilation.
@@ -18,9 +19,10 @@ pub struct Error {
     // We may or may not want to report these.
     pub indirect: bool,
 
-    // A circular import error. Sort of like an indirect error, but there's no real location.
-    // It's generally helpful to report these.
-    pub circular: bool,
+    // When this is not None, it's a circular import error, when importing the given module.
+    // Sort of like an indirect error, but there's no single canonical location.
+    // We generally want to report these, they are just hard to describe.
+    pub circular: Option<ModuleId>,
 }
 
 impl fmt::Display for Error {
@@ -57,7 +59,7 @@ impl Error {
             last_token: last_token.clone(),
             message: message.to_string(),
             indirect: false,
-            circular: false,
+            circular: None,
         }
     }
 
@@ -67,17 +69,22 @@ impl Error {
             last_token: last_token.clone(),
             message: message.to_string(),
             indirect: true,
-            circular: false,
+            circular: None,
         }
     }
 
-    pub fn circular(first_token: &Token, last_token: &Token, message: &str) -> Self {
+    pub fn circular(
+        module_id: ModuleId,
+        first_token: &Token,
+        last_token: &Token,
+        message: &str,
+    ) -> Self {
         Error {
             first_token: first_token.clone(),
             last_token: last_token.clone(),
             message: message.to_string(),
             indirect: false,
-            circular: true,
+            circular: Some(module_id),
         }
     }
 

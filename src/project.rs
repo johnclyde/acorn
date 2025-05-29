@@ -87,7 +87,8 @@ pub enum ImportError {
     NotFound(String),
 
     // There's a circular dependency.
-    Circular(String),
+    // The module id is the module that the error occurs in, not the one we're trying to import.
+    Circular(ModuleId),
 }
 
 impl From<io::Error> for ImportError {
@@ -99,8 +100,10 @@ impl From<io::Error> for ImportError {
 impl fmt::Display for ImportError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ImportError::NotFound(msg) => write!(f, "{}", msg),
-            ImportError::Circular(msg) => write!(f, "{}", msg),
+            ImportError::NotFound(message) => write!(f, "{}", message),
+            ImportError::Circular(module_id) => {
+                write!(f, "circular import of module {}", module_id)
+            }
         }
     }
 }
@@ -943,10 +946,7 @@ impl Project {
                 panic!("module {} should not be loadable", module_id);
             }
             if let LoadState::Loading = self.get_module_by_id(*module_id) {
-                return Err(ImportError::Circular(format!(
-                    "circular import of {}",
-                    descriptor
-                )));
+                return Err(ImportError::Circular(*module_id));
             }
             return Ok(*module_id);
         }
@@ -972,8 +972,8 @@ impl Project {
         let mut env = Environment::new(module_id);
         let tokens = Token::scan(&text);
         if let Err(e) = env.add_tokens(self, tokens) {
-            if e.circular {
-                let err = Err(ImportError::Circular(e.to_string()));
+            if e.circular.is_some() {
+                let err = Err(ImportError::Circular(module_id));
                 self.modules[module_id as usize].load_error(e);
                 return err;
             }

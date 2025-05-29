@@ -1859,12 +1859,13 @@ impl Environment {
                 // The error is with the import statement itself, like a typo.
                 return Err(statement.error(&message));
             }
-            Err(ImportError::Circular(message)) => {
+            Err(ImportError::Circular(module_id)) => {
                 // Circular imports kind of count everywhere.
                 return Err(Error::circular(
+                    module_id,
                     &statement.first_token,
                     &statement.last_token,
-                    &format!("circular import of '{}' module: {}", full_name, message),
+                    &format!("circular import of '{}' module", full_name),
                 ));
             }
         };
