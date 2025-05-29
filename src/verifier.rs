@@ -171,10 +171,10 @@ mod tests {
         foo_ac
             .write_str(
                 r#"
-theorem simple_truth {
-    true
-}
-"#,
+                theorem simple_truth {
+                    true
+                }
+                "#,
             )
             .unwrap();
 
@@ -271,15 +271,8 @@ theorem simple_truth {
             "Build file should exist in build directory"
         );
 
-        // Create another verifier and run it - should use the cache
-        let verifier2 = Verifier::new(
-            acornlib.path().to_path_buf(),
-            ProverMode::Standard,
-            Some("foo".to_string()),
-            false,
-        );
-
-        let result2 = verifier2.run();
+        // Verify again - should use the cache
+        let result2 = verifier.run();
         assert!(
             result2.is_ok(),
             "Second verifier should successfully run: {:?}",
