@@ -1,0 +1,175 @@
+use std::collections::BTreeMap;
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TokenKey {
+    pub line_number: u32,
+    pub start: u32,
+    pub len: u32,
+}
+
+impl TokenKey {
+    pub fn new(line_number: u32, start: u32, len: u32) -> Self {
+        TokenKey {
+            line_number,
+            start,
+            len,
+        }
+    }
+
+    pub fn contains(&self, line_number: u32, position: u32) -> bool {
+        self.line_number == line_number
+            && position >= self.start
+            && position < self.start + self.len
+    }
+}
+
+/// A map from tokens to values of type T.
+///
+/// This assumes that tokens do not overlap - each position in the source
+/// can belong to at most one token.
+/// It doesn't enforce this, though.
+pub struct TokenMap<T> {
+    map: BTreeMap<TokenKey, T>,
+}
+
+impl<T> TokenMap<T> {
+    pub fn new() -> Self {
+        TokenMap {
+            map: BTreeMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, key: TokenKey, value: T) {
+        self.map.insert(key, value);
+    }
+
+    /// Get the token that contains the given position, if any.
+    ///
+    /// This uses the fact that if a token contains (line_number, position),
+    /// it must be the last token that starts at or before that position on that line.
+    pub fn get(&self, line_number: u32, position: u32) -> Option<(&TokenKey, &T)> {
+        // Create a key representing the position we're looking for
+        let search_key = TokenKey::new(line_number, position + 1, 0);
+
+        // Find the last entry with key < search_key
+        // This gives us the last token that starts at or before the position
+        let range = self.map.range(..search_key);
+        if let Some((key, value)) = range.last() {
+            // Check if this token actually contains the position
+            if key.contains(line_number, position) {
+                return Some((key, value));
+            }
+        }
+
+        None
+    }
+}
+
+impl<T> Default for TokenMap<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_map_lookups() {
+        let mut map = TokenMap::new();
+        
+        // Add some tokens with various positions
+        // Line 1: tokens at positions 0-3, 5-8, 10-12
+        map.insert(TokenKey::new(1, 0, 3), "first");
+        map.insert(TokenKey::new(1, 5, 3), "second");
+        map.insert(TokenKey::new(1, 10, 2), "third");
+        
+        // Line 2: tokens at positions 2-7, 8-9, 15-20
+        map.insert(TokenKey::new(2, 2, 5), "fourth");
+        map.insert(TokenKey::new(2, 8, 1), "fifth");
+        map.insert(TokenKey::new(2, 15, 5), "sixth");
+        
+        // Line 5: tokens at positions 0-10, 12-15
+        map.insert(TokenKey::new(5, 0, 10), "seventh");
+        map.insert(TokenKey::new(5, 12, 3), "eighth");
+        
+        // Line 10: single token at 5-8
+        map.insert(TokenKey::new(10, 5, 3), "ninth");
+        
+        // Line 15: token at position 0-1
+        map.insert(TokenKey::new(15, 0, 1), "tenth");
+        
+        // Test lookups that should find tokens
+        assert_eq!(map.get(1, 0).map(|(_, v)| *v), Some("first"));
+        assert_eq!(map.get(1, 2).map(|(_, v)| *v), Some("first"));
+        assert_eq!(map.get(1, 5).map(|(_, v)| *v), Some("second"));
+        assert_eq!(map.get(1, 7).map(|(_, v)| *v), Some("second"));
+        assert_eq!(map.get(1, 10).map(|(_, v)| *v), Some("third"));
+        assert_eq!(map.get(1, 11).map(|(_, v)| *v), Some("third"));
+        
+        assert_eq!(map.get(2, 3).map(|(_, v)| *v), Some("fourth"));
+        assert_eq!(map.get(2, 6).map(|(_, v)| *v), Some("fourth"));
+        assert_eq!(map.get(2, 8).map(|(_, v)| *v), Some("fifth"));
+        assert_eq!(map.get(2, 17).map(|(_, v)| *v), Some("sixth"));
+        
+        assert_eq!(map.get(5, 0).map(|(_, v)| *v), Some("seventh"));
+        assert_eq!(map.get(5, 9).map(|(_, v)| *v), Some("seventh"));
+        assert_eq!(map.get(5, 12).map(|(_, v)| *v), Some("eighth"));
+        assert_eq!(map.get(5, 14).map(|(_, v)| *v), Some("eighth"));
+        
+        assert_eq!(map.get(10, 6).map(|(_, v)| *v), Some("ninth"));
+        assert_eq!(map.get(15, 0).map(|(_, v)| *v), Some("tenth"));
+        
+        // Test lookups that should not find tokens (gaps between tokens)
+        assert_eq!(map.get(1, 3), None);
+        assert_eq!(map.get(1, 4), None);
+        assert_eq!(map.get(1, 8), None);
+        assert_eq!(map.get(1, 9), None);
+        assert_eq!(map.get(1, 12), None);
+        
+        assert_eq!(map.get(2, 0), None);
+        assert_eq!(map.get(2, 1), None);
+        assert_eq!(map.get(2, 7), None);
+        assert_eq!(map.get(2, 9), None);
+        assert_eq!(map.get(2, 10), None);
+        assert_eq!(map.get(2, 14), None);
+        assert_eq!(map.get(2, 20), None);
+        
+        assert_eq!(map.get(5, 10), None);
+        assert_eq!(map.get(5, 11), None);
+        assert_eq!(map.get(5, 15), None);
+        
+        assert_eq!(map.get(10, 0), None);
+        assert_eq!(map.get(10, 4), None);
+        assert_eq!(map.get(10, 8), None);
+        
+        assert_eq!(map.get(15, 1), None);
+        
+        // Test lookups on lines with no tokens
+        assert_eq!(map.get(3, 0), None);
+        assert_eq!(map.get(3, 10), None);
+        assert_eq!(map.get(4, 5), None);
+        assert_eq!(map.get(20, 0), None);
+    }
+    
+    #[test]
+    fn test_token_key_ordering() {
+        // Verify that TokenKey ordering works as expected
+        let key1 = TokenKey::new(1, 0, 5);
+        let key2 = TokenKey::new(1, 5, 3);
+        let key3 = TokenKey::new(1, 10, 2);
+        let key4 = TokenKey::new(2, 0, 5);
+        let key5 = TokenKey::new(2, 5, 3);
+        
+        assert!(key1 < key2);
+        assert!(key2 < key3);
+        assert!(key3 < key4);
+        assert!(key4 < key5);
+        
+        // Same line and start, different lengths
+        let key_a = TokenKey::new(1, 5, 3);
+        let key_b = TokenKey::new(1, 5, 5);
+        assert!(key_a < key_b);
+    }
+}

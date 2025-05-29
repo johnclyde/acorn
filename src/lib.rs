@@ -51,6 +51,7 @@ pub mod term;
 pub mod term_graph;
 pub mod termination_checker;
 pub mod token;
+pub mod token_map;
 pub mod type_unifier;
 pub mod unifier;
 pub mod unresolved_constant;
