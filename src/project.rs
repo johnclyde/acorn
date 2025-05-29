@@ -88,9 +88,6 @@ pub enum ImportError {
 
     // There's a circular dependency.
     Circular(String),
-
-    // The module exists but has compilation errors
-    ModuleError(String),
 }
 
 impl From<io::Error> for ImportError {
@@ -104,7 +101,6 @@ impl fmt::Display for ImportError {
         match self {
             ImportError::NotFound(msg) => write!(f, "{}", msg),
             ImportError::Circular(msg) => write!(f, "{}", msg),
-            ImportError::ModuleError(msg) => write!(f, "{}", msg),
         }
     }
 }

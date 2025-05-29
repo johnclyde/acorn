@@ -1859,14 +1859,6 @@ impl Environment {
                 // The error is with the import statement itself, like a typo.
                 return Err(statement.error(&message));
             }
-            Err(ImportError::ModuleError(message)) => {
-                // The error is with the other module, not this one.
-                return Err(Error::indirect(
-                    &statement.first_token,
-                    &statement.last_token,
-                    &format!("error in '{}' module: {}", full_name, message),
-                ));
-            }
             Err(ImportError::Circular(message)) => {
                 // Circular imports kind of count everywhere.
                 return Err(Error::circular(
@@ -1878,7 +1870,6 @@ impl Environment {
         };
         match project.get_bindings(module_id) {
             None => {
-                // Does this case actually occur?
                 // The fundamental error is in the other module, not this one.
                 return Err(Error::indirect(
                     &statement.first_token,
