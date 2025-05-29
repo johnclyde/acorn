@@ -330,7 +330,7 @@ impl<'a> Builder<'a> {
                         if self.log_when_slow && elapsed_f64 > 0.1 {
                             self.log_proving_info(&goal_context, &format!("took {}", elapsed_str));
                         } else {
-                            self.log_proving_success(goal_context);
+                            self.log_verified(goal_context.first_line, goal_context.last_line);
                         }
                     }
 
@@ -367,11 +367,10 @@ impl<'a> Builder<'a> {
     }
 
     /// Logs a successful proof.
-    fn log_proving_success(&mut self, goal_context: &GoalContext) {
-        let line_pair = (goal_context.first_line, goal_context.last_line);
+    fn log_verified(&mut self, first_line: u32, last_line: u32) {
         let event = BuildEvent {
             progress: Some((self.metrics.goals_done, self.metrics.goals_total)),
-            verified: Some(line_pair),
+            verified: Some((first_line, last_line)),
             ..self.default_event()
         };
         (self.event_handler)(event);
@@ -396,7 +395,7 @@ impl<'a> Builder<'a> {
             let goal_context = node.goal_context().unwrap();
             self.metrics.goals_done += 1;
             self.metrics.goals_success += 1;
-            self.log_proving_success(&goal_context);
+            self.log_verified(goal_context.first_line, goal_context.last_line);
         }
     }
 
