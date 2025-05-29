@@ -393,7 +393,7 @@ mod tests {
         assert_eq!(output.metrics.searches_fallback, 0,);
 
         // Each block should have a verification event
-        // assert_eq!(output.num_verified(), 5);
+        assert_eq!(output.num_verified(), 5);
 
         acornlib.close().unwrap();
     }

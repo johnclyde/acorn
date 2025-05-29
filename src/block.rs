@@ -581,11 +581,6 @@ impl<'a> NodeCursor<'a> {
         &env.nodes[*index]
     }
 
-    pub fn top_index(&self) -> usize {
-        let (_, index) = self.annotated_path[0];
-        index
-    }
-
     /// Get the top-level node above this cursor.
     fn top_node(&self) -> &'a Node {
         let (env, index) = self.annotated_path[0];

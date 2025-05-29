@@ -366,8 +366,9 @@ impl<'a> Builder<'a> {
         }
     }
 
-    /// Logs a successful proof.
-    fn log_verified(&mut self, first_line: u32, last_line: u32) {
+    /// Logs a successful verification.
+    /// This can either be a proof, or something that doesn't require proving.
+    pub fn log_verified(&mut self, first_line: u32, last_line: u32) {
         let event = BuildEvent {
             progress: Some((self.metrics.goals_done, self.metrics.goals_total)),
             verified: Some((first_line, last_line)),

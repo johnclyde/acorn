@@ -630,6 +630,8 @@ impl Project {
                         }
                     }
                 }
+            } else {
+                builder.log_verified(cursor.node().first_line(), cursor.node().last_line());
             }
             if !cursor.has_next() {
                 break;
