@@ -3,62 +3,62 @@
 
 use acorn::searcher::Searcher;
 use acorn::server::{run_server, ServerArgs};
-use acorn::verifier::{Verifier, ProverMode};
+use acorn::verifier::{ProverMode, Verifier};
 use clap::Parser;
 
 const VERSION: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/VERSION"));
 
 #[derive(Parser)]
+#[clap(
+    name = "acorn",
+    about = "A theorem prover and programming language",
+    long_about = "Acorn is a theorem prover and programming language.\n\nYou can:\n- Run a language server for IDE integration\n- Verify theorems and proofs\n- Search for proofs at specific locations",
+    version = VERSION
+)]
 struct Args {
-    // When set, print the version and exit.
-    #[clap(long, short)]
-    version: bool,
-
-    // The root folder the user has open.
-    // Only relevant in language server mode.
-    #[clap(long)]
+    /// The root folder the user has open (language server mode only)
+    #[clap(long, hide = true)]
     workspace_root: Option<String>,
 
-    // The root folder of the extension.
-    // Presence of this flag indicates that we should run in language server mode.
-    #[clap(long)]
+    /// The root folder of the extension (enables language server mode)
+    #[clap(long, hide = true)]
     extension_root: Option<String>,
 
-    // The following flags only apply in CLI mode.
-
-    // Verify a single module.
-    // Can be either a filename or a module name.
-    #[clap()]
+    /// Target module or file to verify (can be a filename or module name)
+    #[clap(
+        value_name = "TARGET",
+        help = "Module or filename to verify. If not provided, verifies all files in the library."
+    )]
     target: Option<String>,
 
-    // Create a dataset from the prover logs.
-    #[clap(long)]
+    /// Create a dataset from the prover logs
+    #[clap(long, help = "Create a dataset from the prover logs.")]
     dataset: bool,
 
-    // If --full is set, ignore the cache and do a full reverify.
-    #[clap(long)]
+    /// Ignore the cache and do a full reverify
+    #[clap(long, help = "Ignore the cache and do a full reverify.")]
     full: bool,
 
-    // Use the cache, but only for the filtered prover, not for hash checking.
-    // Incompatible with --full.
-    #[clap(long)]
+    /// Use the cache only for the filtered prover, not for hash checking
+    #[clap(
+        long,
+        help = "Use the cache only for the filtered prover, not for hash checking.",
+        conflicts_with = "full"
+    )]
     filtered: bool,
 
-    // Search for a proof at a specific line number.
-    // Only applies in CLI mode when a target is provided.
-    #[clap(long)]
+    /// Search for a proof at a specific line number (requires target)
+    #[clap(
+        long,
+        help = "Search for a proof at a specific line number.",
+        value_name = "LINE"
+    )]
     line: Option<u32>,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-
-    // Print the version and exit.
-    if args.version {
-        println!("{}", VERSION);
-        return;
-    }
 
     // Check for language server mode.
     if let Some(extension_root) = args.extension_root {
