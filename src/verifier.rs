@@ -56,12 +56,12 @@ impl Verifier {
             if target.ends_with(".ac") {
                 // Looks like a filename
                 let path = PathBuf::from(&target);
-                if !project.add_target_by_path(&path) {
-                    return Err(format!("File not found: {}", target));
+                if let Err(e) = project.add_target_by_path(&path) {
+                    return Err(format!("{}", e));
                 }
             } else {
-                if !project.add_target_by_name(&target) {
-                    return Err(format!("Module not found: {}", target));
+                if let Err(e) = project.add_target_by_name(&target) {
+                    return Err(format!("{}", e));
                 }
             }
         } else {

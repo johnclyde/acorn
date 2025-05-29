@@ -268,22 +268,25 @@ impl Project {
         self.build_stopped = Arc::new(AtomicBool::new(false));
     }
 
-    // Returns whether it loaded okay.
+    // Returns Ok(()) if the module loaded successfully, or an ImportError if not.
     // Either way, it's still added as a target.
-    fn add_target_by_descriptor(&mut self, descriptor: &ModuleDescriptor) -> bool {
-        let answer = self.load_module(descriptor).is_ok();
+    fn add_target_by_descriptor(
+        &mut self,
+        descriptor: &ModuleDescriptor,
+    ) -> Result<(), ImportError> {
+        let result = self.load_module(descriptor);
         self.targets.insert(descriptor.clone());
-        answer
+        result.map(|_| ())
     }
 
-    // Returns whether it loaded okay.
-    pub fn add_target_by_name(&mut self, module_name: &str) -> bool {
+    // Returns Ok(()) if the module loaded successfully, or an ImportError if not.
+    pub fn add_target_by_name(&mut self, module_name: &str) -> Result<(), ImportError> {
         self.add_target_by_descriptor(&ModuleDescriptor::Name(module_name.to_string()))
     }
 
-    // Returns whether it loaded okay.
-    pub fn add_target_by_path(&mut self, path: &Path) -> bool {
-        let descriptor = self.descriptor_from_path(path).unwrap();
+    // Returns Ok(()) if the module loaded successfully, or an ImportError if not.
+    pub fn add_target_by_path(&mut self, path: &Path) -> Result<(), ImportError> {
+        let descriptor = self.descriptor_from_path(path)?;
         self.add_target_by_descriptor(&descriptor)
     }
 
@@ -306,7 +309,8 @@ impl Project {
                 }
 
                 if path.extension() == Some(std::ffi::OsStr::new("ac")) {
-                    self.add_target_by_path(path);
+                    // Ignore errors when adding all targets
+                    let _ = self.add_target_by_path(path);
                 }
             }
         }
@@ -358,7 +362,8 @@ impl Project {
         }
         self.open_files.insert(path, (content.to_string(), version));
         for descriptor in &reload_modules {
-            self.add_target_by_descriptor(descriptor);
+            // Ignore errors when reloading
+            let _ = self.add_target_by_descriptor(descriptor);
         }
         Ok(())
     }
@@ -374,7 +379,8 @@ impl Project {
         self.targets.remove(&descriptor);
         let targets = self.targets.clone();
         for target in targets {
-            self.add_target_by_descriptor(&target);
+            // Ignore errors when reloading
+            let _ = self.add_target_by_descriptor(&target);
         }
         Ok(())
     }
@@ -1337,8 +1343,10 @@ mod tests {
         );
         p.load_module_by_name("foo").expect("loading foo failed");
         p.load_module_by_name("main").expect("loading main failed");
-        p.add_target_by_name("foo");
-        p.add_target_by_name("main");
+        p.add_target_by_name("foo")
+            .expect("adding foo target failed");
+        p.add_target_by_name("main")
+            .expect("adding main target failed");
         p.expect_build_ok();
     }
 
@@ -1347,7 +1355,8 @@ mod tests {
         let mut p = Project::new_mock();
         let outside_path = "/outside/foo.ac";
         p.mock(outside_path, FOO_AC);
-        p.add_target_by_path(&PathBuf::from(outside_path));
+        p.add_target_by_path(&PathBuf::from(outside_path))
+            .expect("adding outside target failed");
         p.expect_build_ok();
     }
 

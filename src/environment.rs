@@ -1864,7 +1864,7 @@ impl Environment {
                 return Err(Error::circular(
                     &statement.first_token,
                     &statement.last_token,
-                    &format!("error in '{}' module: {}", full_name, message),
+                    &format!("circular import of '{}' module: {}", full_name, message),
                 ));
             }
         };
