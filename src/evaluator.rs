@@ -38,6 +38,19 @@ impl<'a> Evaluator<'a> {
         }
     }
 
+    /// Creates a new evaluator that saves tokens it finds to the token map.
+    pub fn with_token_map(
+        bindings: &'a BindingMap,
+        project: &'a Project,
+        token_map: &'a mut TokenMap,
+    ) -> Self {
+        Self {
+            project,
+            bindings,
+            token_map: Some(token_map),
+        }
+    }
+
     // Gets the bindings from the project, except uses the one we already have if it's correct.
     // This is useful while we're still analyzing the module, because in that case, the project
     // won't have access to it yet.
