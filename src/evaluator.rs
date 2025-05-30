@@ -246,8 +246,7 @@ impl<'a> Evaluator<'a> {
                 if !uc.name.is_attribute_of(&class) {
                     return Err(pattern.error(&format!(
                         "pattern {} is not an attribute of {}",
-                        &uc.name,
-                        class.name
+                        &uc.name, class.name
                     )));
                 }
                 uc.resolve(pattern, params.clone())?
@@ -421,10 +420,10 @@ impl<'a> Evaluator<'a> {
         namespace: Option<NamedEntity>,
     ) -> compilation::Result<NamedEntity> {
         let name = name_token.text();
-        match namespace {
+        let entity = match namespace {
             Some(NamedEntity::Value(instance)) => {
                 let value = self.evaluate_value_attribute(instance, name, name_token)?;
-                Ok(NamedEntity::Value(value))
+                NamedEntity::Value(value)
             }
             Some(NamedEntity::Type(t)) => {
                 match &t {
@@ -435,25 +434,26 @@ impl<'a> Evaluator<'a> {
                                 &class,
                                 name_token.text(),
                             )?;
-                            return Ok(NamedEntity::Value(value));
-                        }
-                        match self.evaluate_type_attribute(class, name, name_token)? {
-                            PotentialValue::Resolved(value) => {
-                                if !params.is_empty() {
-                                    return Err(
-                                        name_token.error("unexpected double type resolution")
-                                    );
+                            NamedEntity::Value(value)
+                        } else {
+                            match self.evaluate_type_attribute(class, name, name_token)? {
+                                PotentialValue::Resolved(value) => {
+                                    if !params.is_empty() {
+                                        return Err(
+                                            name_token.error("unexpected double type resolution")
+                                        );
+                                    }
+                                    NamedEntity::Value(value)
                                 }
-                                Ok(NamedEntity::Value(value))
-                            }
-                            PotentialValue::Unresolved(u) => {
-                                if params.is_empty() {
-                                    // Leave it unresolved
-                                    Ok(NamedEntity::UnresolvedValue(u))
-                                } else {
-                                    // Resolve it with the params from the class name
-                                    let value = u.resolve(name_token, params.clone())?;
-                                    Ok(NamedEntity::Value(value))
+                                PotentialValue::Unresolved(u) => {
+                                    if params.is_empty() {
+                                        // Leave it unresolved
+                                        NamedEntity::UnresolvedValue(u)
+                                    } else {
+                                        // Resolve it with the params from the class name
+                                        let value = u.resolve(name_token, params.clone())?;
+                                        NamedEntity::Value(value)
+                                    }
                                 }
                             }
                         }
@@ -461,37 +461,37 @@ impl<'a> Evaluator<'a> {
                     AcornType::Arbitrary(param) if param.typeclass.is_some() => {
                         let typeclass = param.typeclass.as_ref().unwrap();
                         match self.evaluate_typeclass_attribute(&typeclass, name, name_token)? {
-                            PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
+                            PotentialValue::Resolved(value) => NamedEntity::Value(value),
                             PotentialValue::Unresolved(u) => {
                                 // Resolve it with the arbitrary type itself
                                 let value = u.resolve(name_token, vec![t.clone()])?;
-                                Ok(NamedEntity::Value(value))
+                                NamedEntity::Value(value)
                             }
                         }
                     }
-                    _ => Err(name_token.error("this type cannot have attributes")),
+                    _ => return Err(name_token.error("this type cannot have attributes")),
                 }
             }
             Some(NamedEntity::Module(module)) => {
                 if let Some(bindings) = self.project.get_bindings(module) {
-                    Evaluator::new(bindings, self.project).evaluate_name(name_token, stack, None)
+                    Evaluator::new(bindings, self.project).evaluate_name(name_token, stack, None)?
                 } else {
-                    Err(name_token.error("could not load bindings for module"))
+                    return Err(name_token.error("could not load bindings for module"));
                 }
             }
             Some(NamedEntity::Typeclass(tc)) => {
                 match self.evaluate_typeclass_attribute(&tc, name, name_token)? {
-                    PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
-                    PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
+                    PotentialValue::Resolved(value) => NamedEntity::Value(value),
+                    PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }
             }
             Some(NamedEntity::UnresolvedValue(_)) => {
-                Err(name_token.error("cannot access members of unresolved types"))
+                return Err(name_token.error("cannot access members of unresolved types"));
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
                 match self.evaluate_type_attribute(&ut.class, name, name_token)? {
-                    PotentialValue::Resolved(value) => Ok(NamedEntity::Value(value)),
-                    PotentialValue::Unresolved(u) => Ok(NamedEntity::UnresolvedValue(u)),
+                    PotentialValue::Resolved(value) => NamedEntity::Value(value),
+                    PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }
             }
             None => {
@@ -499,32 +499,30 @@ impl<'a> Evaluator<'a> {
                     TokenType::Identifier => {
                         if self.bindings.is_module(name) {
                             match self.bindings.get_module_id_for_name(name) {
-                                Some(module) => Ok(NamedEntity::Module(module)),
-                                None => Err(name_token.error("unknown module")),
+                                Some(module) => NamedEntity::Module(module),
+                                None => return Err(name_token.error("unknown module")),
                             }
                         } else if self.bindings.has_typename(name) {
                             match self.bindings.get_type_for_typename(name) {
-                                Some(PotentialType::Resolved(t)) => {
-                                    Ok(NamedEntity::Type(t.clone()))
-                                }
+                                Some(PotentialType::Resolved(t)) => NamedEntity::Type(t.clone()),
                                 Some(PotentialType::Unresolved(ut)) => {
-                                    Ok(NamedEntity::UnresolvedType(ut.clone()))
+                                    NamedEntity::UnresolvedType(ut.clone())
                                 }
-                                _ => Err(name_token.error("unknown type")),
+                                _ => return Err(name_token.error("unknown type")),
                             }
                         } else if self.bindings.has_typeclass_name(name) {
                             let tc = self.bindings.get_typeclass_for_name(name).unwrap();
-                            Ok(NamedEntity::Typeclass(tc.clone()))
+                            NamedEntity::Typeclass(tc.clone())
                         } else if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
-                            Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
+                            NamedEntity::Value(AcornValue::Variable(*i, t.clone()))
                         } else {
                             let constant_name =
                                 DefinedName::unqualified(self.bindings.module_id(), name);
-                            Ok(NamedEntity::new(
+                            NamedEntity::new(
                                 self.bindings
                                     .get_constant_value(&constant_name, name_token)?,
-                            ))
+                            )
                         }
                     }
                     TokenType::Numeral => {
@@ -537,20 +535,24 @@ impl<'a> Evaluator<'a> {
                         };
                         let value =
                             self.evaluate_number_with_class(name_token, class, name_token.text())?;
-                        Ok(NamedEntity::Value(value))
+                        NamedEntity::Value(value)
                     }
                     TokenType::SelfToken => {
                         if let Some((i, t)) = stack.get(name) {
                             // This is a stack variable
-                            Ok(NamedEntity::Value(AcornValue::Variable(*i, t.clone())))
+                            NamedEntity::Value(AcornValue::Variable(*i, t.clone()))
                         } else {
-                            Err(name_token.error("unexpected location for 'self'"))
+                            return Err(name_token.error("unexpected location for 'self'"));
                         }
                     }
-                    t => Err(name_token.error(&format!("unexpected {:?} token", t))),
+                    t => return Err(name_token.error(&format!("unexpected {:?} token", t))),
                 }
             }
-        }
+        };
+
+        // TODO: track token information for entity at this point.
+
+        Ok(entity)
     }
 
     /// Evaluates a single dot operator.
@@ -913,13 +915,20 @@ impl<'a> Evaluator<'a> {
                 let cond =
                     self.evaluate_value_with_stack(stack, cond_exp, Some(&AcornType::Bool))?;
                 let if_value = self.evaluate_value_with_stack(stack, if_exp, expected_type)?;
-                
+
                 match else_exp {
                     Some(else_exp) => {
                         // Traditional if-then-else
-                        let else_value =
-                            self.evaluate_value_with_stack(stack, else_exp, Some(&if_value.get_type()))?;
-                        AcornValue::IfThenElse(Box::new(cond), Box::new(if_value), Box::new(else_value))
+                        let else_value = self.evaluate_value_with_stack(
+                            stack,
+                            else_exp,
+                            Some(&if_value.get_type()),
+                        )?;
+                        AcornValue::IfThenElse(
+                            Box::new(cond),
+                            Box::new(if_value),
+                            Box::new(else_value),
+                        )
                     }
                     None => {
                         // If without else - convert to implies if if_value is boolean
