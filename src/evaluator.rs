@@ -10,7 +10,7 @@ use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
 use crate::token::{Token, TokenType};
-use crate::token_map::TokenMap;
+use crate::token_map::{TokenInfo, TokenMap};
 use crate::type_unifier::TypeUnifier;
 
 /// The Evaluator turns expressions into types and values, and other things of that nature.
@@ -25,7 +25,7 @@ pub struct Evaluator<'a> {
     /// semantics of a token.
     /// The token map should only be provided when we are evaluating tokens that are local
     /// to the bindings.
-    token_map: Option<&'a TokenMap>,
+    token_map: Option<&'a mut TokenMap>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -54,7 +54,7 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Evaluates an expression that represents a type.
-    pub fn evaluate_type(&self, expression: &Expression) -> compilation::Result<AcornType> {
+    pub fn evaluate_type(&mut self, expression: &Expression) -> compilation::Result<AcornType> {
         let potential = self.evaluate_potential_type(expression)?;
         match potential {
             PotentialType::Resolved(t) => Ok(t),
@@ -66,7 +66,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluates an expression that either represents a type, or represents a type that still needs params.
     pub fn evaluate_potential_type(
-        &self,
+        &mut self,
         expression: &Expression,
     ) -> compilation::Result<PotentialType> {
         match expression {
@@ -130,7 +130,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluates a list of types.
     pub fn evaluate_type_list(
-        &self,
+        &mut self,
         expression: &Expression,
         output: &mut Vec<AcornType>,
     ) -> compilation::Result<()> {
@@ -150,7 +150,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates a variable declaration in this context.
     /// "self" declarations should be handled externally.
     pub fn evaluate_declaration(
-        &self,
+        &mut self,
         declaration: &Declaration,
     ) -> compilation::Result<(String, AcornType)> {
         match declaration {
@@ -167,7 +167,7 @@ impl<'a> Evaluator<'a> {
     /// Parses a list of named argument declarations and adds them to the stack.
     /// class_type should be provided if these are the arguments of a new member function.
     pub fn bind_args<'b, I>(
-        &self,
+        &mut self,
         stack: &mut Stack,
         declarations: I,
         class_type: Option<&AcornType>,
@@ -212,7 +212,7 @@ impl<'a> Evaluator<'a> {
     /// Errors if the value is not a constructor of the expected type.
     /// Returns the index of which constructor this is, and the total number of constructors.
     fn expect_constructor(
-        &self,
+        &mut self,
         expected_type: &AcornType,
         value: &AcornValue,
         source: &dyn ErrorSource,
@@ -236,7 +236,7 @@ impl<'a> Evaluator<'a> {
     ///   the index of which constructor this is
     ///   the total number of constructors
     pub fn evaluate_pattern(
-        &self,
+        &mut self,
         expected_type: &AcornType,
         pattern: &Expression,
     ) -> compilation::Result<(AcornValue, Vec<(String, AcornType)>, usize, usize)> {
@@ -308,7 +308,7 @@ impl<'a> Evaluator<'a> {
     /// token is the token to report errors with.
     /// s is the string to parse.
     fn evaluate_number_with_class(
-        &self,
+        &mut self,
         token: &Token,
         class: &Class,
         s: &str,
@@ -342,7 +342,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluates a name scoped by a type name, like Nat.range
     fn evaluate_type_attribute(
-        &self,
+        &mut self,
         class: &Class,
         attr_name: &str,
         source: &dyn ErrorSource,
@@ -358,7 +358,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
     fn evaluate_typeclass_attribute(
-        &self,
+        &mut self,
         typeclass: &Typeclass,
         attr_name: &str,
         source: &dyn ErrorSource,
@@ -382,7 +382,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.
     pub fn evaluate_value(
-        &self,
+        &mut self,
         expression: &Expression,
         expected_type: Option<&AcornType>,
     ) -> compilation::Result<AcornValue> {
@@ -392,7 +392,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates an attribute of a value, like foo.bar.
     /// token is used for reporting errors but may not correspond to anything in particular.
     fn evaluate_value_attribute(
-        &self,
+        &mut self,
         receiver: AcornValue,
         attr_name: &str,
         source: &dyn ErrorSource,
@@ -428,7 +428,7 @@ impl<'a> Evaluator<'a> {
     /// In this situation, we don't know what sort of thing we expect the name to represent.
     /// We have the entity described by a chain of names, and we're adding one more name to the chain.
     pub fn evaluate_name(
-        &self,
+        &mut self,
         name_token: &Token,
         stack: &Stack,
         namespace: Option<NamedEntity>,
@@ -566,12 +566,20 @@ impl<'a> Evaluator<'a> {
 
         // TODO: track token information for entity at this point.
 
+        if let Some(token_map) = self.token_map.as_mut() {
+            let info = TokenInfo {
+                text: name_token.text().to_string(),
+                entity: entity.clone(),
+            };
+            token_map.insert(&name_token, info);
+        }
+
         Ok(entity)
     }
 
     /// Evaluates a single dot operator.
     fn evaluate_dot_expression(
-        &self,
+        &mut self,
         stack: &mut Stack,
         left: &Expression,
         right: &Expression,
@@ -587,7 +595,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluate a string of names separated by dots.
     /// Creates fake tokens to be used for error reporting.
     /// Chain must not be empty.
-    pub fn evaluate_name_chain(&self, chain: &[&str]) -> Option<NamedEntity> {
+    pub fn evaluate_name_chain(&mut self, chain: &[&str]) -> Option<NamedEntity> {
         let mut answer: Option<NamedEntity> = None;
         for name in chain {
             let token = TokenType::Identifier.new_token(name);
@@ -599,7 +607,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates an expression that could represent any sort of named entity.
     /// It could be a type, a value, or a module.
     fn evaluate_entity(
-        &self,
+        &mut self,
         stack: &mut Stack,
         expression: &Expression,
     ) -> compilation::Result<NamedEntity> {
@@ -628,7 +636,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates an infix operator.
     /// name is the special alphanumeric name that corresponds to the operator, like "+" expands to "add".
     fn evaluate_infix(
-        &self,
+        &mut self,
         stack: &mut Stack,
         expression: &Expression,
         left: &Expression,
@@ -671,7 +679,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates an expression that describes a value, with a stack given as context.
     /// This must resolve to a completed value, with all types inferred.
     pub fn evaluate_value_with_stack(
-        &self,
+        &mut self,
         stack: &mut Stack,
         expression: &Expression,
         expected_type: Option<&AcornType>,
@@ -683,7 +691,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates an expression that could describe a value, but could also describe
     /// a constant with an unresolved type.
     fn evaluate_potential_value(
-        &self,
+        &mut self,
         stack: &mut Stack,
         expression: &Expression,
         expected_type: Option<&AcornType>,
@@ -1000,7 +1008,10 @@ impl<'a> Evaluator<'a> {
         Ok(PotentialValue::Resolved(value))
     }
 
-    pub fn evaluate_typeclass(&self, expression: &Expression) -> compilation::Result<Typeclass> {
+    pub fn evaluate_typeclass(
+        &mut self,
+        expression: &Expression,
+    ) -> compilation::Result<Typeclass> {
         let entity = self.evaluate_entity(&mut Stack::new(), expression)?;
         match entity {
             NamedEntity::Typeclass(tc) => Ok(tc),
@@ -1011,7 +1022,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates a list of type parameter expressions.
     /// This does not bind them into the environment.
     pub fn evaluate_type_params(
-        &self,
+        &mut self,
         exprs: &[TypeParamExpr],
     ) -> compilation::Result<Vec<TypeParam>> {
         let mut answer: Vec<TypeParam> = vec![];
@@ -1044,7 +1055,7 @@ mod tests {
     use super::*;
 
     impl Evaluator<'_> {
-        fn str_to_type(&self, input: &str) -> AcornType {
+        fn str_to_type(&mut self, input: &str) -> AcornType {
             let tokens = Token::scan(input);
             let mut tokens = TokenIter::new(tokens);
             let (expression, _) =
@@ -1055,7 +1066,7 @@ mod tests {
             }
         }
 
-        fn assert_type_ok(&self, input_code: &str) {
+        fn assert_type_ok(&mut self, input_code: &str) {
             let acorn_type = self.str_to_type(input_code);
             let type_expr = CodeGenerator::new(&self.bindings)
                 .type_to_expr(&acorn_type)

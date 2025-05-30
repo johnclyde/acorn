@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
-use crate::named_entity::NamedEntity;
+use crate::{named_entity::NamedEntity, token::Token};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TokenKey {
@@ -18,7 +19,7 @@ impl TokenKey {
         }
     }
 
-    pub fn contains(&self, line_number: u32, position: u32) -> bool {
+    fn contains(&self, line_number: u32, position: u32) -> bool {
         self.line_number == line_number
             && position >= self.start
             && position < self.start + self.len
@@ -52,7 +53,8 @@ impl TokenMap {
         }
     }
 
-    pub fn insert(&mut self, key: TokenKey, value: TokenInfo) {
+    pub fn insert(&mut self, token: &Token, value: TokenInfo) {
+        let key = TokenKey::new(token.line_number, token.start, token.len);
         self.map.insert(key, value);
     }
 
@@ -87,8 +89,8 @@ impl Default for TokenMap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::named_entity::NamedEntity;
     use crate::acorn_value::AcornValue;
+    use crate::named_entity::NamedEntity;
 
     fn test_token_info(text: &str) -> TokenInfo {
         TokenInfo {
@@ -97,59 +99,117 @@ mod tests {
         }
     }
 
+    fn test_token(line_number: u32, start: u32, len: u32) -> Token {
+        Token {
+            token_type: crate::token::TokenType::Identifier,
+            line: Arc::new("test line".to_string()),
+            line_number,
+            start,
+            len,
+        }
+    }
+
     #[test]
     fn test_token_map_lookups() {
         let mut map = TokenMap::new();
-        
+
         // Add some tokens with various positions
         // Line 1: tokens at positions 0-3, 5-8, 10-12
-        map.insert(TokenKey::new(1, 0, 3), test_token_info("first"));
-        map.insert(TokenKey::new(1, 5, 3), test_token_info("second"));
-        map.insert(TokenKey::new(1, 10, 2), test_token_info("third"));
-        
+        map.insert(&test_token(1, 0, 3), test_token_info("first"));
+        map.insert(&test_token(1, 5, 3), test_token_info("second"));
+        map.insert(&test_token(1, 10, 2), test_token_info("third"));
+
         // Line 2: tokens at positions 2-7, 8-9, 15-20
-        map.insert(TokenKey::new(2, 2, 5), test_token_info("fourth"));
-        map.insert(TokenKey::new(2, 8, 1), test_token_info("fifth"));
-        map.insert(TokenKey::new(2, 15, 5), test_token_info("sixth"));
-        
+        map.insert(&test_token(2, 2, 5), test_token_info("fourth"));
+        map.insert(&test_token(2, 8, 1), test_token_info("fifth"));
+        map.insert(&test_token(2, 15, 5), test_token_info("sixth"));
+
         // Line 5: tokens at positions 0-10, 12-15
-        map.insert(TokenKey::new(5, 0, 10), test_token_info("seventh"));
-        map.insert(TokenKey::new(5, 12, 3), test_token_info("eighth"));
-        
+        map.insert(&test_token(5, 0, 10), test_token_info("seventh"));
+        map.insert(&test_token(5, 12, 3), test_token_info("eighth"));
+
         // Line 10: single token at 5-8
-        map.insert(TokenKey::new(10, 5, 3), test_token_info("ninth"));
-        
+        map.insert(&test_token(10, 5, 3), test_token_info("ninth"));
+
         // Line 15: token at position 0-1
-        map.insert(TokenKey::new(15, 0, 1), test_token_info("tenth"));
-        
+        map.insert(&test_token(15, 0, 1), test_token_info("tenth"));
+
         // Test lookups that should find tokens
-        assert_eq!(map.get(1, 0).map(|(_, v)| &v.text), Some(&"first".to_string()));
-        assert_eq!(map.get(1, 2).map(|(_, v)| &v.text), Some(&"first".to_string()));
-        assert_eq!(map.get(1, 5).map(|(_, v)| &v.text), Some(&"second".to_string()));
-        assert_eq!(map.get(1, 7).map(|(_, v)| &v.text), Some(&"second".to_string()));
-        assert_eq!(map.get(1, 10).map(|(_, v)| &v.text), Some(&"third".to_string()));
-        assert_eq!(map.get(1, 11).map(|(_, v)| &v.text), Some(&"third".to_string()));
-        
-        assert_eq!(map.get(2, 3).map(|(_, v)| &v.text), Some(&"fourth".to_string()));
-        assert_eq!(map.get(2, 6).map(|(_, v)| &v.text), Some(&"fourth".to_string()));
-        assert_eq!(map.get(2, 8).map(|(_, v)| &v.text), Some(&"fifth".to_string()));
-        assert_eq!(map.get(2, 17).map(|(_, v)| &v.text), Some(&"sixth".to_string()));
-        
-        assert_eq!(map.get(5, 0).map(|(_, v)| &v.text), Some(&"seventh".to_string()));
-        assert_eq!(map.get(5, 9).map(|(_, v)| &v.text), Some(&"seventh".to_string()));
-        assert_eq!(map.get(5, 12).map(|(_, v)| &v.text), Some(&"eighth".to_string()));
-        assert_eq!(map.get(5, 14).map(|(_, v)| &v.text), Some(&"eighth".to_string()));
-        
-        assert_eq!(map.get(10, 6).map(|(_, v)| &v.text), Some(&"ninth".to_string()));
-        assert_eq!(map.get(15, 0).map(|(_, v)| &v.text), Some(&"tenth".to_string()));
-        
+        assert_eq!(
+            map.get(1, 0).map(|(_, v)| &v.text),
+            Some(&"first".to_string())
+        );
+        assert_eq!(
+            map.get(1, 2).map(|(_, v)| &v.text),
+            Some(&"first".to_string())
+        );
+        assert_eq!(
+            map.get(1, 5).map(|(_, v)| &v.text),
+            Some(&"second".to_string())
+        );
+        assert_eq!(
+            map.get(1, 7).map(|(_, v)| &v.text),
+            Some(&"second".to_string())
+        );
+        assert_eq!(
+            map.get(1, 10).map(|(_, v)| &v.text),
+            Some(&"third".to_string())
+        );
+        assert_eq!(
+            map.get(1, 11).map(|(_, v)| &v.text),
+            Some(&"third".to_string())
+        );
+
+        assert_eq!(
+            map.get(2, 3).map(|(_, v)| &v.text),
+            Some(&"fourth".to_string())
+        );
+        assert_eq!(
+            map.get(2, 6).map(|(_, v)| &v.text),
+            Some(&"fourth".to_string())
+        );
+        assert_eq!(
+            map.get(2, 8).map(|(_, v)| &v.text),
+            Some(&"fifth".to_string())
+        );
+        assert_eq!(
+            map.get(2, 17).map(|(_, v)| &v.text),
+            Some(&"sixth".to_string())
+        );
+
+        assert_eq!(
+            map.get(5, 0).map(|(_, v)| &v.text),
+            Some(&"seventh".to_string())
+        );
+        assert_eq!(
+            map.get(5, 9).map(|(_, v)| &v.text),
+            Some(&"seventh".to_string())
+        );
+        assert_eq!(
+            map.get(5, 12).map(|(_, v)| &v.text),
+            Some(&"eighth".to_string())
+        );
+        assert_eq!(
+            map.get(5, 14).map(|(_, v)| &v.text),
+            Some(&"eighth".to_string())
+        );
+
+        assert_eq!(
+            map.get(10, 6).map(|(_, v)| &v.text),
+            Some(&"ninth".to_string())
+        );
+        assert_eq!(
+            map.get(15, 0).map(|(_, v)| &v.text),
+            Some(&"tenth".to_string())
+        );
+
         // Test lookups that should not find tokens (gaps between tokens)
         assert_eq!(map.get(1, 3), None);
         assert_eq!(map.get(1, 4), None);
         assert_eq!(map.get(1, 8), None);
         assert_eq!(map.get(1, 9), None);
         assert_eq!(map.get(1, 12), None);
-        
+
         assert_eq!(map.get(2, 0), None);
         assert_eq!(map.get(2, 1), None);
         assert_eq!(map.get(2, 7), None);
@@ -157,24 +217,24 @@ mod tests {
         assert_eq!(map.get(2, 10), None);
         assert_eq!(map.get(2, 14), None);
         assert_eq!(map.get(2, 20), None);
-        
+
         assert_eq!(map.get(5, 10), None);
         assert_eq!(map.get(5, 11), None);
         assert_eq!(map.get(5, 15), None);
-        
+
         assert_eq!(map.get(10, 0), None);
         assert_eq!(map.get(10, 4), None);
         assert_eq!(map.get(10, 8), None);
-        
+
         assert_eq!(map.get(15, 1), None);
-        
+
         // Test lookups on lines with no tokens
         assert_eq!(map.get(3, 0), None);
         assert_eq!(map.get(3, 10), None);
         assert_eq!(map.get(4, 5), None);
         assert_eq!(map.get(20, 0), None);
     }
-    
+
     #[test]
     fn test_token_key_ordering() {
         // Verify that TokenKey ordering works as expected
@@ -183,12 +243,12 @@ mod tests {
         let key3 = TokenKey::new(1, 10, 2);
         let key4 = TokenKey::new(2, 0, 5);
         let key5 = TokenKey::new(2, 5, 3);
-        
+
         assert!(key1 < key2);
         assert!(key2 < key3);
         assert!(key3 < key4);
         assert!(key4 < key5);
-        
+
         // Same line and start, different lengths
         let key_a = TokenKey::new(1, 5, 3);
         let key_b = TokenKey::new(1, 5, 5);

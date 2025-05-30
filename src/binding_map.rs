@@ -18,7 +18,7 @@ use crate::proposition::Proposition;
 use crate::stack::Stack;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token};
-use crate::token_map::{TokenInfo, TokenKey, TokenMap};
+use crate::token_map::{TokenInfo, TokenMap};
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
@@ -1143,7 +1143,7 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         // Evaluate the arguments
         let mut args = vec![];
-        let evaluator = Evaluator::new(self, project);
+        let mut evaluator = Evaluator::new(self, project);
         for arg_expr in &arg_exprs {
             let arg = evaluator.evaluate_value_with_stack(stack, arg_expr, None)?;
             args.push(arg);
@@ -1251,7 +1251,7 @@ impl BindingMap {
             self.add_arbitrary_type(param.clone());
         }
         let mut stack = Stack::new();
-        let evaluator = Evaluator::new(self, project);
+        let mut evaluator = Evaluator::new(self, project);
         let (arg_names, internal_arg_types) = evaluator.bind_args(&mut stack, args, class_type)?;
 
         // Figure out types.
@@ -1429,15 +1429,11 @@ impl BindingMap {
         proposition.with_value(value)
     }
 
-    /// Insert token information for the given token.
-    pub fn insert_token_info(&mut self, token: &Token, info: TokenInfo) {
-        let key = TokenKey::new(token.line_number, token.start, token.len);
-        self.token_info.insert(key, info);
-    }
-
     /// Get token information for the token containing the given position.
     pub fn get_token_info(&self, line_number: u32, position: u32) -> Option<&TokenInfo> {
-        self.token_info.get(line_number, position).map(|(_, info)| info)
+        self.token_info
+            .get(line_number, position)
+            .map(|(_, info)| info)
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -1613,4 +1609,3 @@ impl TypeclassRegistry for BindingMap {
         }
     }
 }
-
