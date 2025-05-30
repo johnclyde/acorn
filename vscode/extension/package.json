@@ -59,6 +59,12 @@
         "command": "acornprover.toggleAssistant",
         "title": "Toggle Assistant",
         "description": "Toggle whether the Acorn Assistant is displayed."
+      },
+      {
+        "category": "Acorn",
+        "command": "acornprover.showServerLogs",
+        "title": "Show Server Logs",
+        "description": "Show the Acorn Language Server output panel."
       }
     ],
     "keybindings": [

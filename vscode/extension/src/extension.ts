@@ -323,6 +323,15 @@ async function registerCommands(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(clearBinaryCache);
+
+  // Show server logs
+  let showServerLogs = vscode.commands.registerCommand(
+    "acornprover.showServerLogs",
+    () => {
+      client.outputChannel.show(true);
+    }
+  );
+  context.subscriptions.push(showServerLogs);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
