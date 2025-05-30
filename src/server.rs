@@ -400,15 +400,18 @@ fn find_acorn_library(args: &ServerArgs) -> (PathBuf, PathBuf, bool) {
     }
 
     // Use the bundled library.
-    let library_root = PathBuf::from(&args.extension_root).join("acornlib");
-    if !library_root.exists() {
+    let path = PathBuf::from(&args.extension_root).join("acornlib");
+    if !path.exists() {
+        panic!("packaging error: no acorn library at {}", path.display());
+    }
+    if let Some((library_root, cache_dir)) = Project::find_local_acorn_library(&path) {
+        (library_root, cache_dir, false)
+    } else {
         panic!(
-            "packaging error: no acorn library at {}",
-            library_root.display()
+            "packaging error: find_local_acorn_library failed for {}",
+            path.display()
         );
     }
-    let cache_dir = library_root.join("build");
-    (library_root, cache_dir, false)
 }
 
 impl Backend {
