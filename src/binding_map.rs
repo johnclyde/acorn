@@ -18,6 +18,7 @@ use crate::proposition::Proposition;
 use crate::stack::Stack;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token};
+use crate::token_map::{TokenKey, TokenMap};
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
@@ -79,6 +80,9 @@ pub struct BindingMap {
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
     /// is going to need to see them in their parametrized form.
     instance_definitions: HashMap<InstanceName, AcornValue>,
+
+    /// Maps token positions to information about those tokens.
+    token_info: TokenMap<TokenInfo>,
 }
 
 impl BindingMap {
@@ -98,6 +102,7 @@ impl BindingMap {
             numerals: None,
             instance_definitions: HashMap::new(),
             class_info: HashMap::new(),
+            token_info: TokenMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -1424,6 +1429,17 @@ impl BindingMap {
         proposition.with_value(value)
     }
 
+    /// Insert token information for the given token.
+    pub fn insert_token_info(&mut self, token: &Token, info: TokenInfo) {
+        let key = TokenKey::new(token.line_number, token.start, token.len);
+        self.token_info.insert(key, info);
+    }
+
+    /// Get token information for the token containing the given position.
+    pub fn get_token_info(&self, line_number: u32, position: u32) -> Option<&TokenInfo> {
+        self.token_info.get(line_number, position).map(|(_, info)| info)
+    }
+
     ////////////////////////////////////////////////////////////////////////////////
     // Tools for testing.
     ////////////////////////////////////////////////////////////////////////////////
@@ -1599,6 +1615,7 @@ impl TypeclassRegistry for BindingMap {
 }
 
 /// Information stored about a token in the source code.
+#[derive(Clone)]
 pub struct TokenInfo {
     /// The text of the actual token.
     pub text: String,

@@ -28,6 +28,7 @@ impl TokenKey {
 /// This assumes that tokens do not overlap - each position in the source
 /// can belong to at most one token.
 /// It doesn't enforce this, though.
+#[derive(Clone)]
 pub struct TokenMap<T> {
     map: BTreeMap<TokenKey, T>,
 }
