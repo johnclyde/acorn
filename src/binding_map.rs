@@ -18,7 +18,7 @@ use crate::proposition::Proposition;
 use crate::stack::Stack;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token};
-use crate::token_map::{TokenKey, TokenMap};
+use crate::token_map::{TokenInfo, TokenKey, TokenMap};
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
@@ -82,7 +82,7 @@ pub struct BindingMap {
     instance_definitions: HashMap<InstanceName, AcornValue>,
 
     /// Maps token positions to information about those tokens.
-    token_info: TokenMap<TokenInfo>,
+    token_info: TokenMap,
 }
 
 impl BindingMap {
@@ -1614,12 +1614,3 @@ impl TypeclassRegistry for BindingMap {
     }
 }
 
-/// Information stored about a token in the source code.
-#[derive(Clone)]
-pub struct TokenInfo {
-    /// The text of the actual token.
-    pub text: String,
-
-    /// The entity that this token refers to.
-    pub entity: NamedEntity,
-}

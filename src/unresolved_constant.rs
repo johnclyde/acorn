@@ -5,7 +5,7 @@ use crate::names::ConstantName;
 
 /// A generic constant that we don't know the type of yet.
 /// It's more of a "constant with unresolved type" than an "unresolved constant".
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UnresolvedConstant {
     /// The global name of the constant.
     pub name: ConstantName,

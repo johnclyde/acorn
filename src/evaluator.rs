@@ -10,18 +10,32 @@ use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
 use crate::token::{Token, TokenType};
+use crate::token_map::TokenMap;
 use crate::type_unifier::TypeUnifier;
 
 /// The Evaluator turns expressions into types and values, and other things of that nature.
 pub struct Evaluator<'a> {
+    /// The bindings to use for evaluation.
     bindings: &'a BindingMap,
+
+    /// The overall project.
     project: &'a Project,
+
+    /// If the token map is provided, we update it whenever we first determine the
+    /// semantics of a token.
+    /// The token map should only be provided when we are evaluating tokens that are local
+    /// to the bindings.
+    token_map: Option<&'a TokenMap>,
 }
 
 impl<'a> Evaluator<'a> {
     /// Creates a new evaluator.
     pub fn new(bindings: &'a BindingMap, project: &'a Project) -> Self {
-        Self { project, bindings }
+        Self {
+            project,
+            bindings,
+            token_map: None,
+        }
     }
 
     // Gets the bindings from the project, except uses the one we already have if it's correct.

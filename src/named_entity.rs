@@ -6,7 +6,7 @@ use crate::potential_value::PotentialValue;
 use crate::unresolved_constant::UnresolvedConstant;
 
 // A name can refer to any of these things.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NamedEntity {
     Value(AcornValue),
     Type(AcornType),
