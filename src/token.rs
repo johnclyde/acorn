@@ -696,6 +696,19 @@ impl Token {
         }
         Ok(())
     }
+
+    /// Creates a test token with the specified position information.
+    /// Primarily used for testing token mapping functionality.
+    #[cfg(test)]
+    pub fn test_token(line_number: u32, start: u32, len: u32) -> Self {
+        Token {
+            token_type: TokenType::Identifier,
+            line: Arc::new("test line".to_string()),
+            line_number,
+            start,
+            len,
+        }
+    }
 }
 
 pub struct TokenIter {

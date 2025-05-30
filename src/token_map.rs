@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use crate::{named_entity::NamedEntity, token::Token};
 
@@ -99,15 +98,6 @@ mod tests {
         }
     }
 
-    fn test_token(line_number: u32, start: u32, len: u32) -> Token {
-        Token {
-            token_type: crate::token::TokenType::Identifier,
-            line: Arc::new("test line".to_string()),
-            line_number,
-            start,
-            len,
-        }
-    }
 
     #[test]
     fn test_token_map_lookups() {
@@ -115,24 +105,24 @@ mod tests {
 
         // Add some tokens with various positions
         // Line 1: tokens at positions 0-3, 5-8, 10-12
-        map.insert(&test_token(1, 0, 3), test_token_info("first"));
-        map.insert(&test_token(1, 5, 3), test_token_info("second"));
-        map.insert(&test_token(1, 10, 2), test_token_info("third"));
+        map.insert(&Token::test_token(1, 0, 3), test_token_info("first"));
+        map.insert(&Token::test_token(1, 5, 3), test_token_info("second"));
+        map.insert(&Token::test_token(1, 10, 2), test_token_info("third"));
 
         // Line 2: tokens at positions 2-7, 8-9, 15-20
-        map.insert(&test_token(2, 2, 5), test_token_info("fourth"));
-        map.insert(&test_token(2, 8, 1), test_token_info("fifth"));
-        map.insert(&test_token(2, 15, 5), test_token_info("sixth"));
+        map.insert(&Token::test_token(2, 2, 5), test_token_info("fourth"));
+        map.insert(&Token::test_token(2, 8, 1), test_token_info("fifth"));
+        map.insert(&Token::test_token(2, 15, 5), test_token_info("sixth"));
 
         // Line 5: tokens at positions 0-10, 12-15
-        map.insert(&test_token(5, 0, 10), test_token_info("seventh"));
-        map.insert(&test_token(5, 12, 3), test_token_info("eighth"));
+        map.insert(&Token::test_token(5, 0, 10), test_token_info("seventh"));
+        map.insert(&Token::test_token(5, 12, 3), test_token_info("eighth"));
 
         // Line 10: single token at 5-8
-        map.insert(&test_token(10, 5, 3), test_token_info("ninth"));
+        map.insert(&Token::test_token(10, 5, 3), test_token_info("ninth"));
 
         // Line 15: token at position 0-1
-        map.insert(&test_token(15, 0, 1), test_token_info("tenth"));
+        map.insert(&Token::test_token(15, 0, 1), test_token_info("tenth"));
 
         // Test lookups that should find tokens
         assert_eq!(
