@@ -107,7 +107,6 @@ impl BindingMap {
         self.module_id
     }
 
-
     /// Returns the default data type for numeric literals, if set.
     pub fn numerals(&self) -> Option<&Class> {
         self.numerals.as_ref()
@@ -225,12 +224,10 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         match name {
-            DefinedName::Constant(constant_name) => {
-                match self.constant_info.get(constant_name) {
-                    Some(info) => Ok(info.value.clone()),
-                    None => Err(source.error(&format!("local constant {} not found", name))),
-                }
-            }
+            DefinedName::Constant(constant_name) => match self.constant_info.get(constant_name) {
+                Some(info) => Ok(info.value.clone()),
+                None => Err(source.error(&format!("local constant {} not found", name))),
+            },
             DefinedName::Instance(instance_name) => {
                 let definition = self
                     .instance_definitions
@@ -1357,8 +1354,7 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.name.module_id() == self.module_id
-                    && !self.constant_info.contains_key(&c.name)
+                if c.name.module_id() == self.module_id && !self.constant_info.contains_key(&c.name)
                 {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.to_string(), c.instance_type.clone());
@@ -1600,4 +1596,13 @@ impl TypeclassRegistry for BindingMap {
             false
         }
     }
+}
+
+/// Information stored about a token in the source code.
+pub struct TokenInfo {
+    /// The text of the actual token.
+    pub text: String,
+
+    /// The entity that this token refers to.
+    pub entity: NamedEntity,
 }
