@@ -1,5 +1,6 @@
 use acorn::environment::{Environment, LineType};
 use acorn::project::Project;
+use indoc::indoc;
 
 #[test]
 fn test_fn_equality() {
@@ -2356,4 +2357,18 @@ fn test_newline_in_define_args() {
         }
         "#,
     );
+}
+
+#[test]
+fn test_token_info() {
+    let mut env = Environment::test();
+    env.add(indoc! {r#"
+        inductive Nat {                // line 0
+            0                          // line 1
+            suc(Nat)                   // line 2
+        }                              // line 3
+        let one: Nat = Nat.suc(Nat.0)  // line 4
+        let two: Nat = Nat.suc(one)    // line 5
+        "#});
+    assert!(env.get_token_info(4, 19).is_some());
 }
