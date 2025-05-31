@@ -29,8 +29,15 @@ walkdir = "2.4.0"
 [dev-dependencies]
 assert_fs = "1.1.2"
 
+[lib]
+doctest = false
+
 [[bin]]
 name = "acorn"
+test = false
+
+[[bin]]
+name = "search"
 test = false
 
 [[bin]]
