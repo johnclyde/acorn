@@ -800,6 +800,7 @@ impl LanguageServer for Backend {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(sync_options),
                 completion_provider: Some(CompletionOptions::default()),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 ..ServerCapabilities::default()
             },
         })
@@ -888,6 +889,41 @@ impl LanguageServer for Backend {
             }
             None => Ok(None),
         }
+    }
+
+    async fn hover(&self, params: HoverParams) -> jsonrpc::Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let pos = params.text_document_position_params.position;
+        
+        let doc = match self.documents.get(&uri) {
+            Some(doc) => doc,
+            None => return Ok(None),
+        };
+        let doc = doc.read().await;
+        
+        // Get the environment for this line
+        let env_line = doc.get_env_line(pos.line);
+        let project = self.project.read().await;
+        let path = to_path(&uri);
+        
+        // Get the environment for this module
+        if let Some(path) = path {
+            if let Ok(descriptor) = project.descriptor_from_path(&path) {
+                if let Some(env) = project.get_env(&descriptor) {
+                    let env = env.env_for_line(env_line);
+                    // Look up token info at this position
+                    if let Some(token_info) = env.get_token_info(pos.line, pos.character) {
+                        let hover_text = format!("{}", token_info.entity);
+                        return Ok(Some(Hover {
+                            contents: HoverContents::Scalar(MarkedString::String(hover_text)),
+                            range: None,
+                        }));
+                    }
+                }
+            }
+        }
+        
+        Ok(None)
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {

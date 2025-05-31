@@ -206,6 +206,12 @@ impl Environment {
         self.bindings.get_definition(name)
     }
 
+    /// Get token information for a specific position in the source.
+    /// Returns TokenInfo if there's a token at the given line and character position.
+    pub fn get_token_info(&self, line_number: u32, character: u32) -> Option<&crate::token_map::TokenInfo> {
+        self.token_map.get(line_number, character).map(|(_, token_info)| token_info)
+    }
+
     /// Returns an error if you are not allowed to add attributes to this type.
     fn check_can_add_attributes<'a>(
         &self,
