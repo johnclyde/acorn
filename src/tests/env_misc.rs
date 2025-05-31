@@ -1,5 +1,5 @@
-use acorn::environment::{Environment, LineType};
-use acorn::project::Project;
+use crate::environment::{Environment, LineType};
+use crate::project::Project;
 use indoc::indoc;
 
 #[test]
@@ -982,20 +982,6 @@ fn test_operator_codegen() {
     env.bindings.expect_good_code("-0.suc");
     env.bindings.expect_good_code("(-0).suc");
 }
-
-// We started allowing this.
-// #[test]
-// fn test_no_magic_names_for_constants() {
-//     let mut env = Environment::test();
-//     env.add("type Nat: axiom");
-//     env.bad(
-//         r#"
-//         class Nat {
-//             let add: Nat = axiom
-//         }
-//     "#,
-//     );
-// }
 
 #[test]
 fn test_no_magic_names_for_struct_fields() {

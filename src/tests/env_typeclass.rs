@@ -1,4 +1,4 @@
-use acorn::environment::Environment;
+use crate::environment::Environment;
 
 #[test]
 fn test_env_with_typeclass() {

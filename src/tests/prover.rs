@@ -1,9 +1,7 @@
-mod common;
-
 use std::collections::HashSet;
-use acorn::project::Project;
-use acorn::prover::Outcome;
-use common::*;
+use crate::project::Project;
+use crate::prover::Outcome;
+use super::common::*;
 
 #[test]
 fn test_specialization() {
@@ -65,16 +63,6 @@ fn test_composition() {
             "#;
     assert_eq!(prove_thing(text, "goal"), Outcome::Success);
 }
-
-// #[test]
-// fn test_composition_can_fail() {
-//     let text = r#"
-//         axiom f_t: f(t)
-//         axiom g_id(x: Thing): g(x, x) = x
-//         theorem goal { f(g(t, t2)) }
-//         "#;
-//     assert_eq!(prove_thing(text, "goal"), Outcome::Exhausted);
-// }
 
 #[test]
 fn test_negative_rewriting() {

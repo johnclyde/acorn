@@ -56,3 +56,6 @@ pub mod type_unifier;
 pub mod unifier;
 pub mod unresolved_constant;
 pub mod verifier;
+
+#[cfg(test)]
+mod tests;

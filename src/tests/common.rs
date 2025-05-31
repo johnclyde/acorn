@@ -1,7 +1,7 @@
-use acorn::code_generator::Error;
-use acorn::module::LoadState;
-use acorn::project::Project;
-use acorn::prover::{Outcome, Prover};
+use crate::code_generator::Error;
+use crate::module::LoadState;
+use crate::project::Project;
+use crate::prover::{Outcome, Prover};
 
 // Tries to prove one thing from the project.
 // If the proof is successful, try to generate the code.
@@ -131,13 +131,6 @@ pub fn expect_proof_in(text: &str, goal_name: &str, expected: &[&[&str]]) {
     }
     panic!("as vec: {:?}", actual);
 }
-
-// Expects the prover to find a proof but then fail to generate code.
-// pub fn expect_code_gen_error(text: &str, goal_name: &str, expected: &str) {
-//     let (outcome, code) = prove_as_main(text, goal_name);
-//     assert_eq!(outcome, Outcome::Success);
-//     assert_eq!(code.unwrap_err().error_type(), expected);
-// }
 
 pub const THING: &str = r#"
     type Thing: axiom
