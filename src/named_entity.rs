@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::acorn_type::{AcornType, PotentialType, Typeclass, UnresolvedType};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
@@ -76,6 +78,19 @@ impl NamedEntity {
             NamedEntity::UnresolvedValue(_) => {
                 Err(source.error("name refers to an unresolved value but we expected a type"))
             }
+        }
+    }
+}
+
+impl fmt::Display for NamedEntity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NamedEntity::Value(value) => write!(f, "{}", value),
+            NamedEntity::Type(typ) => write!(f, "{}", typ),
+            NamedEntity::Module(module_id) => write!(f, "module_{}", module_id),
+            NamedEntity::Typeclass(typeclass) => write!(f, "{:?}", typeclass),
+            NamedEntity::UnresolvedValue(unresolved) => write!(f, "{:?}", unresolved),
+            NamedEntity::UnresolvedType(unresolved) => write!(f, "{:?}", unresolved),
         }
     }
 }
