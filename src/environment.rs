@@ -165,9 +165,7 @@ impl Environment {
     /// Adds a node to represent the definition of the provided
     /// constant.
     pub fn add_definition(&mut self, defined_name: &DefinedName) {
-        let definition = if let Some(d) = self.bindings.get_definition(defined_name) {
-            d.clone()
-        } else {
+        let Some(definition) = self.bindings.get_definition(defined_name) else {
             return;
         };
 
@@ -186,7 +184,7 @@ impl Environment {
             &name,
         );
 
-        self.add_node(Node::definition(potential, definition, source));
+        self.add_node(Node::definition(potential, definition.clone(), source));
     }
 
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
