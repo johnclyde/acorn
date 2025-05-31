@@ -26,6 +26,7 @@ use crate::statement::{
     VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
+use crate::token_map::TokenMap;
 use crate::type_unifier::TypeclassRegistry;
 
 /// The Environment takes Statements as input and processes them.
@@ -64,6 +65,11 @@ pub struct Environment {
     /// The root environment for a module has depth zero.
     /// Each child node has a depth of one plus its parent.
     pub depth: u32,
+
+    /// A map from tokens to information about them.
+    /// This is not copied for child environments.
+    /// You need to find the nearest enclosing environment to look up a token.
+    token_map: TokenMap,
 }
 
 impl Environment {
@@ -78,6 +84,7 @@ impl Environment {
             line_types: Vec::new(),
             implicit: false,
             depth: 0,
+            token_map: TokenMap::new(),
         }
     }
 
@@ -94,6 +101,7 @@ impl Environment {
             line_types: Vec::new(),
             implicit,
             depth: self.depth + 1,
+            token_map: TokenMap::new(),
         }
     }
 
@@ -149,8 +157,9 @@ impl Environment {
         self.nodes.len() - 1
     }
 
-    fn evaluator<'a>(&'a self, project: &'a Project) -> Evaluator<'a> {
-        Evaluator::new(&self.bindings, project)
+    /// Returns an evaluator that modifies the token map.
+    fn evaluator<'a>(&'a mut self, project: &'a Project) -> Evaluator<'a> {
+        Evaluator::with_token_map(&self.bindings, project, &mut self.token_map)
     }
 
     /// Adds a node to represent the definition of the provided

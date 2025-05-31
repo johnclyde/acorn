@@ -23,8 +23,7 @@ pub struct Evaluator<'a> {
 
     /// If the token map is provided, we update it whenever we first determine the
     /// semantics of a token.
-    /// The token map should only be provided when we are evaluating tokens that are local
-    /// to the bindings.
+    /// This may not be from the same module as the bindings, so we need to be careful.
     token_map: Option<&'a mut TokenMap>,
 }
 
@@ -501,6 +500,8 @@ impl<'a> Evaluator<'a> {
             }
             Some(NamedEntity::Module(module)) => {
                 if let Some(bindings) = self.project.get_bindings(module) {
+                    // Funny case where the bindings aren't in the same module as the token.
+                    // Be careful not to track the token map here.
                     Evaluator::new(bindings, self.project).evaluate_name(name_token, stack, None)?
                 } else {
                     return Err(name_token.error("could not load bindings for module"));
