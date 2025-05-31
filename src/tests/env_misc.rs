@@ -2349,12 +2349,18 @@ fn test_newline_in_define_args() {
 fn test_token_info() {
     let mut env = Environment::test();
     env.add(indoc! {r#"
-        inductive Nat {                // line 0
-            0                          // line 1
-            suc(Nat)                   // line 2
-        }                              // line 3
-        let one: Nat = Nat.suc(Nat.0)  // line 4
-        let two: Nat = Nat.suc(one)    // line 5
+        inductive Nat {                  // line 0
+            0                            // line 1
+            suc(Nat)                     // line 2
+        }
+        // A marker to count columns.    
+        // 3456789012345678901234567890
+        let one: Nat = Nat.suc(Nat.0)    // line 6
+        let two: Nat = Nat.suc(one)      // line 7
         "#});
-    assert!(env.get_token_info(4, 19).is_some());
+    assert!(env.get_token_info(6, 19).is_some()); // suc
+    assert!(env.get_token_info(6, 24).is_some()); // Nat
+    assert!(env.get_token_info(6, 26).is_none()); // .
+    assert!(env.get_token_info(6, 27).is_some()); // 0
+    assert!(env.get_token_info(6, 30).is_none()); // past end of line
 }
