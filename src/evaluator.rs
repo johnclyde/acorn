@@ -10,7 +10,7 @@ use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
 use crate::token::{Token, TokenType};
-use crate::token_map::{TokenInfo, TokenMap};
+use crate::token_map::TokenMap;
 use crate::type_unifier::TypeUnifier;
 
 /// The Evaluator turns expressions into types and values, and other things of that nature.
@@ -68,11 +68,7 @@ impl<'a> Evaluator<'a> {
     /// Tracks token information for the given entity.
     fn track_token(&mut self, token: &Token, entity: &NamedEntity) {
         if let Some(token_map) = self.token_map.as_mut() {
-            let info = TokenInfo {
-                text: token.text().to_string(),
-                entity: entity.clone(),
-            };
-            token_map.insert(&token, info);
+            token_map.track_token(token, entity);
         }
     }
 

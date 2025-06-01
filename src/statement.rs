@@ -172,8 +172,8 @@ pub struct InductiveStatement {
 }
 
 pub struct ImportStatement {
-    /// The full path to the module, like in "foo.bar.baz" the module would be ["foo", "bar", "baz"]
-    pub components: Vec<String>,
+    /// The tokens for each component in the module path, like in "foo.bar.baz" would be [foo, bar, baz]
+    pub components: Vec<Token>,
 
     /// What names to import from the module.
     /// If this is empty, we just import the module itself.
@@ -777,15 +777,15 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
 
 /// Parses a module component list, like "foo.bar.baz".
 /// Expects to consume a terminator token at the end.
-/// Returns the strings, along with the token right before the terminator.
+/// Returns the component tokens, along with the token right before the terminator.
 fn parse_module_components(
     tokens: &mut TokenIter,
     terminator: TokenType,
-) -> Result<(Vec<String>, Token)> {
+) -> Result<(Vec<Token>, Token)> {
     let mut components = Vec::new();
     let last_token = loop {
         let token = tokens.expect_type(TokenType::Identifier)?;
-        components.push(token.text().to_string());
+        components.push(token);
         let token = tokens.expect_token()?;
         if token.token_type == terminator {
             break token;
@@ -1349,15 +1349,17 @@ impl Statement {
 
             StatementInfo::Import(is) => {
                 if is.names.is_empty() {
-                    write!(f, "import {}", is.components.join("."))
+                    let module_path = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
+                    write!(f, "import {}", module_path)
                 } else {
+                    let module_path = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
                     let names = is
                         .names
                         .iter()
                         .map(|t| t.text())
                         .collect::<Vec<_>>()
                         .join(", ");
-                    write!(f, "from {} import {}", is.components.join("."), names)
+                    write!(f, "from {} import {}", module_path, names)
                 }
             }
 

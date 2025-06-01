@@ -75,6 +75,15 @@ impl TokenMap {
         self.map.insert(key, value);
     }
 
+    /// Track a token with its associated entity.
+    pub fn track_token(&mut self, token: &Token, entity: &NamedEntity) {
+        let info = TokenInfo {
+            text: token.text().to_string(),
+            entity: entity.clone(),
+        };
+        self.insert(token, info);
+    }
+
     /// Get the token that contains the given position, if any.
     ///
     /// This uses the fact that if a token contains (line_number, position),

@@ -1986,7 +1986,7 @@ mod tests {
         );
         let desc = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&desc).expect("no env for main");
-        assert!(env.get_token_info(0, 2).is_none()); // from
-                                                     // assert!(env.get_token_info(0, 7).is_some()); // foo
+        assert!(env.get_token_info(1, 2).is_none()); // from
+        assert!(env.get_token_info(1, 7).is_some()); // foo
     }
 }

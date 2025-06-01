@@ -12,6 +12,7 @@ use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::fact::Fact;
 use crate::module::ModuleId;
+use crate::named_entity::NamedEntity;
 use crate::names::{ConstantName, DefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::{ImportError, Project};
@@ -1859,10 +1860,10 @@ impl Environment {
         self.add_other_lines(statement);
 
         // Give a local name to the imported module
-        let local_name = is.components.last().unwrap();
+        let local_name = is.components.last().unwrap().text();
         self.bindings
             .check_unqualified_name_available(local_name, statement)?;
-        let full_name = is.components.join(".");
+        let full_name = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
         let module_id = match project.load_module_by_name(&full_name) {
             Ok(module_id) => module_id,
             Err(ImportError::NotFound(message)) => {
@@ -1892,6 +1893,11 @@ impl Environment {
                 self.bindings
                     .import_module(local_name, &bindings, &statement.first_token)?;
             }
+        }
+
+        // Track token for the module (only the last component represents the module)
+        if let Some(last_component) = is.components.last() {
+            self.token_map.track_token(last_component, &NamedEntity::Module(module_id));
         }
 
         // Bring the imported names into this environment
