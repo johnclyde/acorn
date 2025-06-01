@@ -949,7 +949,7 @@ impl BindingMap {
             }
             let mut name_chain = prefix.split('.').collect::<Vec<&str>>();
             let partial = name_chain.pop()?;
-            let namespace = Evaluator::new(self, project).evaluate_name_chain(&name_chain)?;
+            let namespace = Evaluator::new(self, project, None).evaluate_name_chain(&name_chain)?;
             match namespace {
                 NamedEntity::Module(module) => {
                     let bindings = project.get_bindings(module)?;
@@ -1065,8 +1065,11 @@ impl BindingMap {
                 )
             }
         };
-        let entity =
-            Evaluator::new(bindings, project).evaluate_name(name_token, &Stack::new(), None)?;
+        let entity = Evaluator::new(bindings, project, None).evaluate_name(
+            name_token,
+            &Stack::new(),
+            None,
+        )?;
 
         match &entity {
             NamedEntity::Value(value) => {
@@ -1139,7 +1142,7 @@ impl BindingMap {
     ) -> compilation::Result<AcornValue> {
         // Evaluate the arguments
         let mut args = vec![];
-        let mut evaluator = Evaluator::new(self, project);
+        let mut evaluator = Evaluator::new(self, project, None);
         for arg_expr in &arg_exprs {
             let arg = evaluator.evaluate_value_with_stack(stack, arg_expr, None)?;
             args.push(arg);
@@ -1243,15 +1246,13 @@ impl BindingMap {
         AcornType,
     )> {
         // Bind all the type parameters and arguments
-        let type_params = Evaluator::new(self, project).evaluate_type_params(&type_param_exprs)?;
+        let type_params =
+            Evaluator::new(self, project, None).evaluate_type_params(&type_param_exprs)?;
         for param in &type_params {
             self.add_arbitrary_type(param.clone());
         }
         let mut stack = Stack::new();
-        let mut evaluator = match token_map {
-            Some(tm) => Evaluator::with_token_map(self, project, tm),
-            None => Evaluator::new(self, project),
-        };
+        let mut evaluator = Evaluator::new(self, project, token_map);
         let (arg_names, internal_arg_types) = evaluator.bind_args(&mut stack, args, class_type)?;
 
         // Figure out types.
@@ -1272,7 +1273,8 @@ impl BindingMap {
         let internal_value = if value_expr.is_axiom() {
             None
         } else {
-            let value = Evaluator::new(self, project).evaluate_value_with_stack(
+            let mut evaluator = Evaluator::new(self, project, None);
+            let value = evaluator.evaluate_value_with_stack(
                 &mut stack,
                 value_expr,
                 Some(&internal_value_type),
@@ -1447,7 +1449,7 @@ impl BindingMap {
     pub fn expect_good_code(&self, input_code: &str) {
         let project = Project::new_mock();
         let expression = Expression::expect_value(input_code);
-        let value = Evaluator::new(self, &project)
+        let value = Evaluator::new(self, &project, None)
             .evaluate_value(&expression, None)
             .expect("evaluate_value failed");
         let output_code = CodeGenerator::new(self)

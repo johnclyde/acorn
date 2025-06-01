@@ -160,7 +160,7 @@ impl Environment {
 
     /// Returns an evaluator that modifies the token map.
     fn evaluator<'a>(&'a mut self, project: &'a Project) -> Evaluator<'a> {
-        Evaluator::with_token_map(&self.bindings, project, &mut self.token_map)
+        Evaluator::new(&self.bindings, project, Some(&mut self.token_map))
     }
 
     /// Adds a node to represent the definition of the provided
@@ -664,7 +664,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         // We need to prove the general existence claim
         let mut stack = Stack::new();
-        let mut no_token_evaluator = Evaluator::new(&self.bindings, project);
+        let mut no_token_evaluator = Evaluator::new(&self.bindings, project, None);
         let (quant_names, quant_types) = no_token_evaluator.bind_args(&mut stack, &vss.declarations, None)?;
         let general_claim_value = no_token_evaluator.evaluate_value_with_stack(
             &mut stack,

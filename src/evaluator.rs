@@ -29,24 +29,15 @@ pub struct Evaluator<'a> {
 
 impl<'a> Evaluator<'a> {
     /// Creates a new evaluator.
-    pub fn new(bindings: &'a BindingMap, project: &'a Project) -> Self {
-        Self {
-            project,
-            bindings,
-            token_map: None,
-        }
-    }
-
-    /// Creates a new evaluator that saves tokens it finds to the token map.
-    pub fn with_token_map(
+    pub fn new(
         bindings: &'a BindingMap,
         project: &'a Project,
-        token_map: &'a mut TokenMap,
+        token_map: Option<&'a mut TokenMap>,
     ) -> Self {
         Self {
             project,
             bindings,
-            token_map: Some(token_map),
+            token_map,
         }
     }
 
@@ -265,14 +256,14 @@ impl<'a> Evaluator<'a> {
             Expression::Concatenation(function, args) if !args.is_type() => (function, args),
             _ => {
                 // This can only be a no-argument constructor.
-                let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
+                let mut no_token_evaluator = Evaluator::new(self.bindings, self.project, None);
                 let constructor =
                     no_token_evaluator.evaluate_value(pattern, Some(expected_type))?;
                 let (i, total) = self.expect_constructor(expected_type, &constructor, pattern)?;
                 return Ok((constructor, vec![], i, total));
             }
         };
-        let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
+        let mut no_token_evaluator = Evaluator::new(self.bindings, self.project, None);
         let potential_constructor =
             no_token_evaluator.evaluate_potential_value(&mut Stack::new(), fn_exp, None)?;
         let constructor = match potential_constructor {
@@ -514,7 +505,7 @@ impl<'a> Evaluator<'a> {
                 if let Some(bindings) = self.project.get_bindings(module) {
                     // Funny case where the bindings aren't in the same module as the token.
                     // Be careful not to track the token map here.
-                    Evaluator::new(bindings, self.project).evaluate_name(name_token, stack, None)?
+                    Evaluator::new(bindings, self.project, None).evaluate_name(name_token, stack, None)?
                 } else {
                     return Err(name_token.error("could not load bindings for module"));
                 }
@@ -1113,7 +1104,7 @@ mod tests {
     fn test_evaluator_types() {
         let p = Project::new_mock();
         let bindings = BindingMap::new(Module::FIRST_NORMAL);
-        let mut e = Evaluator::new(&bindings, &p);
+        let mut e = Evaluator::new(&bindings, &p, None);
         e.assert_type_ok("Bool");
         e.assert_type_ok("Bool -> Bool");
         e.assert_type_ok("Bool -> (Bool -> Bool)");
