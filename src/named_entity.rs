@@ -82,6 +82,15 @@ impl NamedEntity {
     }
 }
 
+impl From<PotentialType> for NamedEntity {
+    fn from(potential_type: PotentialType) -> Self {
+        match potential_type {
+            PotentialType::Resolved(acorn_type) => NamedEntity::Type(acorn_type),
+            PotentialType::Unresolved(unresolved_type) => NamedEntity::UnresolvedType(unresolved_type),
+        }
+    }
+}
+
 impl fmt::Display for NamedEntity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

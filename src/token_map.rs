@@ -57,6 +57,10 @@ impl TokenMap {
         
         #[cfg(test)]
         {
+            // INTENTIONAL: This duplicate detection is deliberate and should NOT be removed.
+            // We want tests to fail when the same token is tracked multiple times,
+            // as this indicates a bug in the token tracking logic.
+            // DO NOT add logic to silently skip duplicates - fix the root cause instead.
             if let Some(existing) = self.map.get(&key) {
                 panic!(
                     "Duplicate token insertion detected!\n\

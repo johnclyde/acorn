@@ -65,6 +65,17 @@ impl<'a> Evaluator<'a> {
         self.bindings.unifier()
     }
 
+    /// Tracks token information for the given entity.
+    fn track_token(&mut self, token: &Token, entity: &NamedEntity) {
+        if let Some(token_map) = self.token_map.as_mut() {
+            let info = TokenInfo {
+                text: token.text().to_string(),
+                entity: entity.clone(),
+            };
+            token_map.insert(&token, info);
+        }
+    }
+
     /// Evaluates an expression that represents a type.
     pub fn evaluate_type(&mut self, expression: &Expression) -> compilation::Result<AcornType> {
         let potential = self.evaluate_potential_type(expression)?;
@@ -87,7 +98,8 @@ impl<'a> Evaluator<'a> {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
                 if let Some(t) = self.bindings.get_type_for_typename(token.text()) {
-                    // TODO: track the token here
+                    let entity = NamedEntity::from(t.clone());
+                    self.track_token(token, &entity);
                     Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))
@@ -205,7 +217,8 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            let (name, acorn_type) = self.evaluate_declaration(declaration)?;
+            let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
+            let (name, acorn_type) = no_token_evaluator.evaluate_declaration(declaration)?;
             self.bindings
                 .check_unqualified_name_available(&name, declaration.token())?;
             if names.contains(&name) {
@@ -582,14 +595,7 @@ impl<'a> Evaluator<'a> {
             }
         };
 
-        // Track token information for this entity.
-        if let Some(token_map) = self.token_map.as_mut() {
-            let info = TokenInfo {
-                text: name_token.text().to_string(),
-                entity: entity.clone(),
-            };
-            token_map.insert(&name_token, info);
-        }
+        self.track_token(name_token, &entity);
 
         Ok(entity)
     }
