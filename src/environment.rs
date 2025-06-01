@@ -2349,7 +2349,9 @@ impl Environment {
     /// Adds a possibly multi-line statement to the environment.
     /// Panics on failure.
     pub fn add(&mut self, input: &str) {
-        let tokens = Token::scan(input);
+        let start_line = self.next_line();
+        let tokens = Token::scan_with_start_line(input, start_line);
+        
         if let Err(e) = self.add_tokens(&mut Project::new_mock(), tokens) {
             panic!("error in add_tokens: {}", e);
         }

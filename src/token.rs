@@ -557,9 +557,13 @@ impl Token {
     // If there is an error in scanning, there will be one or more InvalidToken in the result.
     // scanning always puts a NewLine token at the end of the input.
     pub fn scan(input: &str) -> Vec<Token> {
+        Self::scan_with_start_line(input, 0)
+    }
+
+    pub fn scan_with_start_line(input: &str, start_line: u32) -> Vec<Token> {
         let mut tokens = Vec::new();
-        for (line_number, line) in input.lines().enumerate() {
-            let line_number = line_number as u32;
+        for (line_offset, line) in input.lines().enumerate() {
+            let line_number = start_line + line_offset as u32;
             let rc_line = Arc::new(line.to_string());
             let mut char_indices = line.char_indices().peekable();
             while let Some((char_index, ch)) = char_indices.next() {
