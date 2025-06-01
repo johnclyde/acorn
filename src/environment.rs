@@ -2384,6 +2384,8 @@ impl Environment {
                 input
             );
         }
+        // Clear the token map to prevent duplicate token insertion errors in subsequent tests
+        self.token_map = TokenMap::new();
     }
 
     /// Check that the given name actually does have this type in the environment.
