@@ -18,6 +18,7 @@ use crate::proposition::Proposition;
 use crate::stack::Stack;
 use crate::termination_checker::TerminationChecker;
 use crate::token::{self, Token};
+use crate::token_map::TokenMap;
 use crate::type_unifier::{TypeUnifier, TypeclassRegistry};
 use crate::unresolved_constant::UnresolvedConstant;
 
@@ -1233,6 +1234,7 @@ impl BindingMap {
         class_type: Option<&AcornType>,
         function_name: Option<&ConstantName>,
         project: &Project,
+        token_map: Option<&mut TokenMap>,
     ) -> compilation::Result<(
         Vec<TypeParam>,
         Vec<String>,
@@ -1246,7 +1248,10 @@ impl BindingMap {
             self.add_arbitrary_type(param.clone());
         }
         let mut stack = Stack::new();
-        let mut evaluator = Evaluator::new(self, project);
+        let mut evaluator = match token_map {
+            Some(tm) => Evaluator::with_token_map(self, project, tm),
+            None => Evaluator::new(self, project),
+        };
         let (arg_names, internal_arg_types) = evaluator.bind_args(&mut stack, args, class_type)?;
 
         // Figure out types.

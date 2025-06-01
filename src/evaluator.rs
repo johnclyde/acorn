@@ -213,8 +213,7 @@ impl<'a> Evaluator<'a> {
                     }
                 }
             }
-            let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
-            let (name, acorn_type) = no_token_evaluator.evaluate_declaration(declaration)?;
+            let (name, acorn_type) = self.evaluate_declaration(declaration)?;
             self.bindings
                 .check_unqualified_name_available(&name, declaration.token())?;
             if names.contains(&name) {

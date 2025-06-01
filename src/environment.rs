@@ -486,6 +486,7 @@ impl Environment {
                 self_type,
                 defined_name.as_constant(),
                 project,
+                Some(&mut self.token_map),
             )?;
 
         if let Some(class_type) = self_type {
@@ -563,6 +564,7 @@ impl Environment {
             None,
             None,
             project,
+            Some(&mut self.token_map),
         )?;
 
         let unbound_claim = value.ok_or_else(|| ts.claim.error("theorems must have values"))?;
@@ -728,6 +730,7 @@ impl Environment {
             None,
             None,
             project,
+            Some(&mut self.token_map),
         )?;
 
         let unbound_condition = condition.ok_or_else(|| statement.error("missing condition"))?;
@@ -1496,6 +1499,7 @@ impl Environment {
                         None,
                         None,
                         project,
+                        Some(&mut self.token_map),
                     )?;
                 if !bad_params.is_empty() {
                     return Err(condition.name.error("type parameters are not allowed here"));
