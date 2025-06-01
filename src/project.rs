@@ -1965,4 +1965,28 @@ mod tests {
         p.expect_ok("foo");
         p.expect_ok("main");
     }
+
+    #[test]
+    fn test_project_level_token_map() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/foo.ac",
+            indoc::indoc! {r"
+            inductive Foo {
+                foo
+            }
+            "},
+        );
+        p.mock(
+            "/mock/main.ac",
+            indoc::indoc! {r#"
+            // 3456789012345678901234567890  For making columns easier to read
+            from foo import Foo              // line 1
+            "#},
+        );
+        let desc = ModuleDescriptor::Name("main".to_string());
+        let env = p.get_env(&desc).expect("no env for main");
+        assert!(env.get_token_info(0, 2).is_none()); // from
+                                                     // assert!(env.get_token_info(0, 7).is_some()); // foo
+    }
 }
