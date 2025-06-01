@@ -2356,7 +2356,7 @@ fn test_token_info() {
         // A marker to count columns.    
         // 3456789012345678901234567890
         let one: Nat = Nat.suc(Nat.0)         // line 6
-        define make_nat(odd: Bool) -> Nat {
+        define make_nat(odd: Bool) -> Nat {   // line 7
             if odd {
                 one
             } else {
@@ -2370,4 +2370,6 @@ fn test_token_info() {
     assert!(env.get_token_info(6, 26).is_none()); // .
     assert!(env.get_token_info(6, 27).is_some()); // 0
     assert!(env.get_token_info(6, 30).is_none()); // past end of line
+    assert!(env.get_token_info(7, 22).is_some()); // Bool
+                                                  // assert!(env.get_token_info(7, 30).is_some()); // Nat
 }
