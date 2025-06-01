@@ -54,6 +54,20 @@ impl TokenMap {
 
     pub fn insert(&mut self, token: &Token, value: TokenInfo) {
         let key = TokenKey::new(token.line_number, token.start, token.len);
+        
+        #[cfg(test)]
+        {
+            if let Some(existing) = self.map.get(&key) {
+                panic!(
+                    "Duplicate token insertion detected!\n\
+                     Token: '{}' at line {}, start {}, len {}\n\
+                     Existing: {:?}\n\
+                     New: {:?}",
+                    value.text, key.line_number, key.start, key.len, existing, value
+                );
+            }
+        }
+        
         self.map.insert(key, value);
     }
 
