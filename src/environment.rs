@@ -661,10 +661,9 @@ impl Environment {
     ) -> compilation::Result<()> {
         // We need to prove the general existence claim
         let mut stack = Stack::new();
-        let (quant_names, quant_types) =
-            self.evaluator(project)
-                .bind_args(&mut stack, &vss.declarations, None)?;
-        let general_claim_value = self.evaluator(project).evaluate_value_with_stack(
+        let mut evaluator = Evaluator::new(&self.bindings, project);
+        let (quant_names, quant_types) = evaluator.bind_args(&mut stack, &vss.declarations, None)?;
+        let general_claim_value = evaluator.evaluate_value_with_stack(
             &mut stack,
             &vss.condition,
             Some(&AcornType::Bool),
@@ -687,9 +686,7 @@ impl Environment {
         }
 
         // We can then assume the specific existence claim with the named constants
-        let specific_claim = self
-            .evaluator(project)
-            .evaluate_value(&vss.condition, Some(&AcornType::Bool))?;
+        let specific_claim = self.evaluator(project).evaluate_value(&vss.condition, Some(&AcornType::Bool))?;
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
         let specific_prop = Proposition::monomorphic(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
