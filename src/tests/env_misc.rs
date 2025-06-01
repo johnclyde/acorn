@@ -2371,5 +2371,5 @@ fn test_token_info() {
     assert!(env.get_token_info(6, 27).is_some()); // 0
     assert!(env.get_token_info(6, 30).is_none()); // past end of line
     assert!(env.get_token_info(7, 22).is_some()); // Bool
-                                                  // assert!(env.get_token_info(7, 30).is_some()); // Nat
+    assert!(env.get_token_info(7, 30).is_some()); // Nat
 }
