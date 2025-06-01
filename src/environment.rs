@@ -1902,7 +1902,8 @@ impl Environment {
 
         // Bring the imported names into this environment
         for name in &is.names {
-            self.bindings.import_name(project, module_id, name)?;
+            let entity = self.bindings.import_name(project, module_id, name)?;
+            self.token_map.track_token(name, &entity);
         }
 
         Ok(())

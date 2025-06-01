@@ -1048,7 +1048,7 @@ impl BindingMap {
         project: &Project,
         module: ModuleId,
         name_token: &Token,
-    ) -> compilation::Result<()> {
+    ) -> compilation::Result<NamedEntity> {
         // Check if this name is lowercase
         let name = name_token.text();
         if name.chars().next().map(char::is_lowercase).unwrap_or(false) {
@@ -1067,43 +1067,43 @@ impl BindingMap {
         let entity =
             Evaluator::new(bindings, project).evaluate_name(name_token, &Stack::new(), None)?;
 
-        match entity {
+        match &entity {
             NamedEntity::Value(value) => {
                 // Add a local alias that mirrors this constant's name in the imported module.
                 if let Some(constant_name) = value.as_simple_constant() {
                     self.add_constant_alias(
                         ConstantName::unqualified(self.module_id, name),
                         constant_name.clone(),
-                        PotentialValue::Resolved(value),
+                        PotentialValue::Resolved(value.clone()),
                     );
-                    Ok(())
+                    Ok(entity)
                 } else {
                     // I don't see how this branch can be reached.
                     return Err(name_token.error("cannot import non-constant values"));
                 }
             }
             NamedEntity::Type(acorn_type) => {
-                self.add_type_alias(&name, PotentialType::Resolved(acorn_type));
-                Ok(())
+                self.add_type_alias(&name, PotentialType::Resolved(acorn_type.clone()));
+                Ok(entity)
             }
             NamedEntity::Module(_) => Err(name_token.error("cannot import modules indirectly")),
             NamedEntity::Typeclass(tc) => {
-                self.add_typeclass_name(&name, tc);
-                Ok(())
+                self.add_typeclass_name(&name, tc.clone());
+                Ok(entity)
             }
 
             NamedEntity::UnresolvedValue(uc) => {
                 self.add_constant_alias(
                     ConstantName::unqualified(self.module_id, name),
                     uc.name.clone(),
-                    PotentialValue::Unresolved(uc),
+                    PotentialValue::Unresolved(uc.clone()),
                 );
-                Ok(())
+                Ok(entity)
             }
 
             NamedEntity::UnresolvedType(u) => {
-                self.add_type_alias(&name, PotentialType::Unresolved(u));
-                Ok(())
+                self.add_type_alias(&name, PotentialType::Unresolved(u.clone()));
+                Ok(entity)
             }
         }
     }
