@@ -256,13 +256,15 @@ impl<'a> Evaluator<'a> {
             Expression::Concatenation(function, args) if !args.is_type() => (function, args),
             _ => {
                 // This can only be a no-argument constructor.
-                let constructor = self.evaluate_value(pattern, Some(expected_type))?;
+                let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
+                let constructor = no_token_evaluator.evaluate_value(pattern, Some(expected_type))?;
                 let (i, total) = self.expect_constructor(expected_type, &constructor, pattern)?;
                 return Ok((constructor, vec![], i, total));
             }
         };
+        let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
         let potential_constructor =
-            self.evaluate_potential_value(&mut Stack::new(), fn_exp, None)?;
+            no_token_evaluator.evaluate_potential_value(&mut Stack::new(), fn_exp, None)?;
         let constructor = match potential_constructor {
             PotentialValue::Resolved(v) => v,
             PotentialValue::Unresolved(uc) => {

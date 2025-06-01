@@ -661,9 +661,9 @@ impl Environment {
     ) -> compilation::Result<()> {
         // We need to prove the general existence claim
         let mut stack = Stack::new();
-        let mut evaluator = Evaluator::new(&self.bindings, project);
-        let (quant_names, quant_types) = evaluator.bind_args(&mut stack, &vss.declarations, None)?;
-        let general_claim_value = evaluator.evaluate_value_with_stack(
+        let mut no_token_evaluator = Evaluator::new(&self.bindings, project);
+        let (quant_names, quant_types) = no_token_evaluator.bind_args(&mut stack, &vss.declarations, None)?;
+        let general_claim_value = no_token_evaluator.evaluate_value_with_stack(
             &mut stack,
             &vss.condition,
             Some(&AcornType::Bool),
