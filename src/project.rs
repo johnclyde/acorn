@@ -1988,5 +1988,7 @@ mod tests {
         let env = p.get_env(&desc).expect("no env for main");
         assert!(env.get_token_info(1, 2).is_none()); // from
         assert!(env.get_token_info(1, 7).is_some()); // foo
+        assert!(env.get_token_info(1, 10).is_none()); // import
+        assert!(env.get_token_info(1, 17).is_some()); // Foo
     }
 }
