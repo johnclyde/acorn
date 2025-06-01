@@ -1237,7 +1237,7 @@ impl BindingMap {
         class_type: Option<&AcornType>,
         function_name: Option<&ConstantName>,
         project: &Project,
-        token_map: Option<&mut TokenMap>,
+        mut token_map: Option<&mut TokenMap>,
     ) -> compilation::Result<(
         Vec<TypeParam>,
         Vec<String>,
@@ -1252,7 +1252,7 @@ impl BindingMap {
             self.add_arbitrary_type(param.clone());
         }
         let mut stack = Stack::new();
-        let mut evaluator = Evaluator::new(self, project, token_map);
+        let mut evaluator = Evaluator::new(self, project, token_map.as_deref_mut());
         let (arg_names, internal_arg_types) = evaluator.bind_args(&mut stack, args, class_type)?;
 
         // Figure out types.
@@ -1273,7 +1273,7 @@ impl BindingMap {
         let internal_value = if value_expr.is_axiom() {
             None
         } else {
-            let mut evaluator = Evaluator::new(self, project, None);
+            let mut evaluator = Evaluator::new(self, project, token_map);
             let value = evaluator.evaluate_value_with_stack(
                 &mut stack,
                 value_expr,
