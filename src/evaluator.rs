@@ -87,6 +87,7 @@ impl<'a> Evaluator<'a> {
                     return Err(token.error("axiomatic types can only be created at the top level"));
                 }
                 if let Some(t) = self.bindings.get_type_for_typename(token.text()) {
+                    // TODO: track the token here
                     Ok(t.clone())
                 } else {
                     Err(token.error("expected type name"))
@@ -257,7 +258,8 @@ impl<'a> Evaluator<'a> {
             _ => {
                 // This can only be a no-argument constructor.
                 let mut no_token_evaluator = Evaluator::new(self.bindings, self.project);
-                let constructor = no_token_evaluator.evaluate_value(pattern, Some(expected_type))?;
+                let constructor =
+                    no_token_evaluator.evaluate_value(pattern, Some(expected_type))?;
                 let (i, total) = self.expect_constructor(expected_type, &constructor, pattern)?;
                 return Ok((constructor, vec![], i, total));
             }
@@ -580,8 +582,7 @@ impl<'a> Evaluator<'a> {
             }
         };
 
-        // TODO: track token information for entity at this point.
-
+        // Track token information for this entity.
         if let Some(token_map) = self.token_map.as_mut() {
             let info = TokenInfo {
                 text: name_token.text().to_string(),

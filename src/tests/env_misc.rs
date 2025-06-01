@@ -2364,7 +2364,7 @@ fn test_token_info() {
             }
         }
         "#});
-    // assert!(env.get_token_info(6, 9).is_some()); // Nat
+    assert!(env.get_token_info(6, 9).is_some()); // Nat
     assert!(env.get_token_info(6, 19).is_some()); // suc
     assert!(env.get_token_info(6, 24).is_some()); // Nat
     assert!(env.get_token_info(6, 26).is_none()); // .
