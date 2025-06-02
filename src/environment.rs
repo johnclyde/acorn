@@ -2387,7 +2387,11 @@ impl Environment {
 
     /// Expects the given line to be bad
     pub fn bad(&mut self, input: &str) {
-        if let Ok(statement) = Statement::parse_str(input) {
+        let start_line = self.next_line();
+        let tokens = Token::scan_with_start_line(input, start_line);
+        let mut tokens = TokenIter::new(tokens);
+        
+        if let Ok((Some(statement), _)) = Statement::parse(&mut tokens, false) {
             assert!(
                 self.add_statement(&mut Project::new_mock(), &statement)
                     .is_err(),
