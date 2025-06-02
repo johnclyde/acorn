@@ -828,7 +828,7 @@ impl Project {
         let (env, key, info) = env.find_token(line_number, character)?;
         let mut gen = CodeGenerator::new(&env.bindings);
         let contents = match &info.entity {
-            NamedEntity::Type(t) => HoverContents::Scalar(gen.type_to_marked(t)?),
+            NamedEntity::Type(t) => HoverContents::Scalar(gen.type_to_marked(t)),
             e => HoverContents::Scalar(MarkedString::String(e.to_string())),
         };
         Some(Hover {

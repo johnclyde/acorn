@@ -27,11 +27,21 @@ pub struct CodeGenerator<'a> {
     var_names: Vec<String>,
 }
 
-fn marked(code: String) -> MarkedString {
-    MarkedString::LanguageString(LanguageString {
-        language: "acorn".to_string(),
-        value: code.to_string(),
-    })
+fn marked(code: Result<String>) -> MarkedString {
+    #[cfg(test)]
+    {
+        if let Err(e) = &code {
+            panic!("code generation error: {}", e);
+        }
+    }
+
+    match code {
+        Ok(code) => MarkedString::LanguageString(LanguageString {
+            language: "acorn".to_string(),
+            value: code.to_string(),
+        }),
+        Err(e) => MarkedString::String(format!("hover error: {} ({})", e, e.error_type())),
+    }
 }
 
 impl CodeGenerator<'_> {
@@ -132,16 +142,19 @@ impl CodeGenerator<'_> {
 
     /// Returns None rather than an error if the value cannot be expressed in code.
     /// Intended for UI use.
-    pub fn value_to_marked(&mut self, value: &AcornValue) -> Option<MarkedString> {
-        let code = self.value_to_code(value).ok()?;
-        Some(marked(code))
+    pub fn value_to_marked(&mut self, value: &AcornValue) -> MarkedString {
+        marked(self.value_to_code(value))
+    }
+
+    fn type_to_code(&mut self, acorn_type: &AcornType) -> Result<String> {
+        let expr = self.type_to_expr(acorn_type)?;
+        Ok(expr.to_string())
     }
 
     /// Returns None rather than an error if the type cannot be expressed in code.
     /// Intended for UI use.
-    pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> Option<MarkedString> {
-        let expr = self.type_to_expr(acorn_type).ok()?;
-        Some(marked(expr.to_string()))
+    pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> MarkedString {
+        marked(self.type_to_code(acorn_type))
     }
 
     /// Given a constant instance, find an expression that refers to it.
