@@ -913,17 +913,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        // Look up token info at this position.
-        // We don't log if there's no token here because that should happen a lot.
-        if let Some((_, token_info)) = env.find_token(pos.line, pos.character) {
-            let hover_text = format!("{}", token_info.entity);
-            return Ok(Some(Hover {
-                contents: HoverContents::Scalar(MarkedString::String(hover_text)),
-                range: None,
-            }));
-        }
-
-        Ok(None)
+        Ok(env.hover(pos.line, pos.character))
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {

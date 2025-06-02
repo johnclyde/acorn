@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::vec;
 
-use tower_lsp::lsp_types::Range;
+use tower_lsp::lsp_types::{Hover, Range};
 
 use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
@@ -28,7 +28,7 @@ use crate::statement::{
     VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
-use crate::token_map::{TokenInfo, TokenMap};
+use crate::token_map::{TokenInfo, TokenKey, TokenMap};
 use crate::type_unifier::TypeclassRegistry;
 
 /// The Environment takes Statements as input and processes them.
@@ -213,15 +213,23 @@ impl Environment {
         &self,
         line_number: u32,
         character: u32,
-    ) -> Option<(&Environment, &TokenInfo)> {
-        if let Some((_, token_info)) = self.token_map.get(line_number, character) {
-            return Some((&self, &token_info));
+    ) -> Option<(&Environment, &TokenKey, &TokenInfo)> {
+        if let Some((key, token_info)) = self.token_map.get(line_number, character) {
+            return Some((&self, &key, &token_info));
         }
 
         if let Some(child_env) = self.env_for_line_step(line_number) {
             return child_env.find_token(line_number, character);
         }
         None
+    }
+
+    pub fn hover(&self, line_number: u32, character: u32) -> Option<Hover> {
+        let (_env, key, info) = self.find_token(line_number, character)?;
+        Some(Hover {
+            contents: info.hover_contents(),
+            range: Some(key.range()),
+        })
     }
 
     /// Returns an error if you are not allowed to add attributes to this type.

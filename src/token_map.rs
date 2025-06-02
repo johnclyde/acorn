@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::{named_entity::NamedEntity, token::Token};
+use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Range};
+
+use crate::named_entity::NamedEntity;
+use crate::token::Token;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TokenKey {
@@ -23,6 +26,19 @@ impl TokenKey {
             && position >= self.start
             && position < self.start + self.len
     }
+
+    pub fn range(&self) -> Range {
+        Range {
+            start: Position {
+                line: self.line_number as u32,
+                character: self.start,
+            },
+            end: Position {
+                line: self.line_number as u32,
+                character: self.start + self.len,
+            },
+        }
+    }
 }
 
 /// Information stored about a token in the source code.
@@ -33,6 +49,13 @@ pub struct TokenInfo {
 
     /// The entity that this token refers to.
     pub entity: NamedEntity,
+}
+
+impl TokenInfo {
+    pub fn hover_contents(&self) -> HoverContents {
+        let hover_text = format!("{}", self.entity);
+        HoverContents::Scalar(MarkedString::String(hover_text))
+    }
 }
 
 /// A map from tokens to TokenInfo values.
@@ -54,7 +77,7 @@ impl TokenMap {
 
     pub fn insert(&mut self, token: &Token, value: TokenInfo) {
         let key = TokenKey::new(token.line_number, token.start, token.len);
-        
+
         #[cfg(test)]
         {
             // INTENTIONAL: This duplicate detection is deliberate and should NOT be removed.
@@ -71,7 +94,7 @@ impl TokenMap {
                 );
             }
         }
-        
+
         self.map.insert(key, value);
     }
 
@@ -124,7 +147,6 @@ mod tests {
             entity: NamedEntity::Value(AcornValue::Bool(true)),
         }
     }
-
 
     #[test]
     fn test_token_map_lookups() {
