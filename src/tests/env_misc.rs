@@ -2359,8 +2359,8 @@ fn test_token_info() {
         define make_nat(odd: Bool) -> Nat {   // line 7
             if odd {                          // line 8
                 one                           // line 9
-            } else {
-                Nat.suc(one)
+            } else {                          // line 10
+                Nat.suc(one)                  // line 11
             }
         }
         "#});
@@ -2374,4 +2374,7 @@ fn test_token_info() {
     assert!(env.get_token_info(7, 30).is_some()); // Nat
     assert!(env.get_token_info(8, 9).is_some()); // odd
     assert!(env.get_token_info(9, 9).is_some()); // one
+    assert!(env.get_token_info(11, 9).is_some()); // Nat
+    assert!(env.get_token_info(11, 13).is_some()); // suc
+    assert!(env.get_token_info(11, 17).is_some()); // one
 }
