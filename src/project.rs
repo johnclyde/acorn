@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use regex::Regex;
-use tower_lsp::lsp_types::{CompletionItem, Url};
+use tower_lsp::lsp_types::{CompletionItem, Hover, Url};
 use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
@@ -811,14 +811,23 @@ impl Project {
         }
     }
 
-    // You have to use the canonical descriptor, here. You can't use the path for a module
-    // that can also be referenced by name.
+    /// You have to use the canonical descriptor, here. You can't use the path for a module
+    /// that can also be referenced by name.
     pub fn get_env(&self, descriptor: &ModuleDescriptor) -> Option<&Environment> {
         if let Some(module_id) = self.module_map.get(&descriptor) {
             self.get_env_by_id(*module_id)
         } else {
             None
         }
+    }
+
+    /// Figure out the hover information to display.
+    pub fn hover(&self, env: &Environment, line_number: u32, character: u32) -> Option<Hover> {
+        let (_env, key, info) = env.find_token(line_number, character)?;
+        Some(Hover {
+            contents: info.hover_contents(),
+            range: Some(key.range()),
+        })
     }
 
     pub fn errors(&self) -> Vec<(ModuleId, &compilation::Error)> {
@@ -1968,7 +1977,69 @@ mod tests {
     }
 
     #[test]
-    fn test_project_hover() {
+    fn test_hover_basic() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            indoc::indoc! {r#"
+        inductive Nat {                       // line 0
+            0                                 // line 1
+            suc(Nat)                          // line 2
+        }
+        // A marker to count columns.    
+        // 3456789012345678901234567890
+        let one: Nat = Nat.suc(Nat.0)         // line 6
+        define make_nat(odd: Bool) -> Nat {   // line 7
+            if odd {                          // line 8
+                one                           // line 9
+            } else {
+                Nat.suc(one)                  // line 11
+            }
+        }
+        typeclass Z: HasZero {
+            0: Z
+        }
+        // 34567890123456789012345678901
+        instance Nat: HasZero {               // line 18
+            let 0 = Nat.0                     // line 19
+        }
+        theorem eq_zero<Z: HasZero>(a: Z) {   // line 21
+            a = Z.0                           // line 22
+        } by {
+            let b: Z = a                      // line 24
+        }
+        "#},
+        );
+        let desc = ModuleDescriptor::Name("main".to_string());
+        let env = p.get_env(&desc).expect("no env for main");
+        assert!(p.hover(&env, 6, 9).is_some()); // Nat
+        assert!(p.hover(&env, 6, 19).is_some()); // suc
+        assert!(p.hover(&env, 6, 24).is_some()); // Nat
+        assert!(p.hover(&env, 6, 26).is_none()); // .
+        assert!(p.hover(&env, 6, 27).is_some()); // 0
+        assert!(p.hover(&env, 6, 30).is_none()); // past end of line
+        assert!(p.hover(&env, 7, 22).is_some()); // Bool
+        assert!(p.hover(&env, 7, 30).is_some()); // Nat
+        assert!(p.hover(&env, 8, 9).is_some()); // odd
+        assert!(p.hover(&env, 9, 9).is_some()); // one
+        assert!(p.hover(&env, 11, 9).is_some()); // Nat
+        assert!(p.hover(&env, 11, 13).is_some()); // suc
+        assert!(p.hover(&env, 11, 17).is_some()); // one
+        assert!(p.hover(&env, 18, 9).is_some()); // Nat
+        assert!(p.hover(&env, 18, 14).is_some()); // HasZero
+        assert!(p.hover(&env, 19, 12).is_some()); // Nat
+        assert!(p.hover(&env, 19, 16).is_some()); // 0
+        assert!(p.hover(&env, 21, 19).is_some()); // HasZero
+        assert!(p.hover(&env, 21, 31).is_some()); // Z
+        assert!(p.hover(&env, 22, 4).is_some()); // a
+        assert!(p.hover(&env, 22, 8).is_some()); // Z
+        assert!(p.hover(&env, 22, 10).is_some()); // 0
+        assert!(p.hover(&env, 24, 11).is_some()); // Z
+        assert!(p.hover(&env, 24, 15).is_some()); // a
+    }
+
+    #[test]
+    fn test_hover_with_imports() {
         let mut p = Project::new_mock();
         p.mock(
             "/mock/foo.ac",
@@ -1987,9 +2058,9 @@ mod tests {
         );
         let desc = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&desc).expect("no env for main");
-        assert!(env.hover(1, 2).is_none()); // from
-        assert!(env.hover(1, 7).is_some()); // foo
-        assert!(env.hover(1, 10).is_none()); // import
-        assert!(env.hover(1, 17).is_some()); // Foo
+        assert!(p.hover(&env, 1, 2).is_none()); // from
+        assert!(p.hover(&env, 1, 7).is_some()); // foo
+        assert!(p.hover(&env, 1, 10).is_none()); // import
+        assert!(p.hover(&env, 1, 17).is_some()); // Foo
     }
 }

@@ -1,6 +1,5 @@
 use crate::environment::{Environment, LineType};
 use crate::project::Project;
-use indoc::indoc;
 
 #[test]
 fn test_fn_equality() {
@@ -2343,61 +2342,4 @@ fn test_newline_in_define_args() {
         }
         "#,
     );
-}
-
-#[test]
-fn test_env_hover() {
-    let mut env = Environment::test();
-    env.add(indoc! {r#"
-        inductive Nat {                       // line 0
-            0                                 // line 1
-            suc(Nat)                          // line 2
-        }
-        // A marker to count columns.    
-        // 3456789012345678901234567890
-        let one: Nat = Nat.suc(Nat.0)         // line 6
-        define make_nat(odd: Bool) -> Nat {   // line 7
-            if odd {                          // line 8
-                one                           // line 9
-            } else {
-                Nat.suc(one)                  // line 11
-            }
-        }
-        typeclass Z: HasZero {
-            0: Z
-        }
-        // 34567890123456789012345678901
-        instance Nat: HasZero {               // line 18
-            let 0 = Nat.0                     // line 19
-        }
-        theorem eq_zero<Z: HasZero>(a: Z) {   // line 21
-            a = Z.0                           // line 22
-        } by {
-            let b: Z = a                      // line 24
-        }
-        "#});
-    assert!(env.hover(6, 9).is_some()); // Nat
-    assert!(env.hover(6, 19).is_some()); // suc
-    assert!(env.hover(6, 24).is_some()); // Nat
-    assert!(env.hover(6, 26).is_none()); // .
-    assert!(env.hover(6, 27).is_some()); // 0
-    assert!(env.hover(6, 30).is_none()); // past end of line
-    assert!(env.hover(7, 22).is_some()); // Bool
-    assert!(env.hover(7, 30).is_some()); // Nat
-    assert!(env.hover(8, 9).is_some()); // odd
-    assert!(env.hover(9, 9).is_some()); // one
-    assert!(env.hover(11, 9).is_some()); // Nat
-    assert!(env.hover(11, 13).is_some()); // suc
-    assert!(env.hover(11, 17).is_some()); // one
-    assert!(env.hover(18, 9).is_some()); // Nat
-    assert!(env.hover(18, 14).is_some()); // HasZero
-    assert!(env.hover(19, 12).is_some()); // Nat
-    assert!(env.hover(19, 16).is_some()); // 0
-    assert!(env.hover(21, 19).is_some()); // HasZero
-    assert!(env.hover(21, 31).is_some()); // Z
-    assert!(env.hover(22, 4).is_some()); // a
-    assert!(env.hover(22, 8).is_some()); // Z
-    assert!(env.hover(22, 10).is_some()); // 0
-    assert!(env.hover(24, 11).is_some()); // Z
-    assert!(env.hover(24, 15).is_some()); // a
 }

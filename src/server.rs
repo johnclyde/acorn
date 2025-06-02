@@ -913,7 +913,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        Ok(env.hover(pos.line, pos.character))
+        Ok(project.hover(&env, pos.line, pos.character))
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
