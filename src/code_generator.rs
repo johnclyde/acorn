@@ -139,7 +139,10 @@ impl CodeGenerator<'_> {
     /// Intended for UI use.
     pub fn type_to_hover(&mut self, acorn_type: &AcornType) -> Result<HoverContents> {
         let code = self.type_to_code(acorn_type)?;
-        Ok(HoverContents::Scalar(Self::marked(code)))
+        Ok(HoverContents::Scalar(Self::marked(format!(
+            "type {}",
+            code
+        ))))
     }
 
     /// Given a constant instance, find an expression that refers to it.

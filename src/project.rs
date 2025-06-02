@@ -2072,7 +2072,7 @@ mod tests {
         assert!(p.hover(&env, 24, 11).is_some()); // Z
         assert!(p.hover(&env, 24, 15).is_some()); // a
         assert!(p.hover(&env, 26, 20).is_some()); // T
-                                                  // assert!(p.hover(&env, 29, 20).is_some()); // Nat
+        assert!(p.hover(&env, 29, 20).is_some()); // Nat
     }
 
     #[test]
