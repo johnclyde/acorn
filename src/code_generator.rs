@@ -1,5 +1,7 @@
 use std::fmt;
 
+use tower_lsp::lsp_types::{LanguageString, MarkedString};
+
 use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
@@ -23,6 +25,13 @@ pub struct CodeGenerator<'a> {
 
     /// The names we have assigned to indexed variables so far.
     var_names: Vec<String>,
+}
+
+fn marked(code: String) -> MarkedString {
+    MarkedString::LanguageString(LanguageString {
+        language: "acorn".to_string(),
+        value: code.to_string(),
+    })
 }
 
 impl CodeGenerator<'_> {
@@ -119,6 +128,20 @@ impl CodeGenerator<'_> {
     pub fn value_to_code(&mut self, value: &AcornValue) -> Result<String> {
         let expr = self.value_to_expr(value, false)?;
         Ok(expr.to_string())
+    }
+
+    /// Returns None rather than an error if the value cannot be expressed in code.
+    /// Intended for UI use.
+    pub fn value_to_marked(&mut self, value: &AcornValue) -> Option<MarkedString> {
+        let code = self.value_to_code(value).ok()?;
+        Some(marked(code))
+    }
+
+    /// Returns None rather than an error if the type cannot be expressed in code.
+    /// Intended for UI use.
+    pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> Option<MarkedString> {
+        let expr = self.type_to_expr(acorn_type).ok()?;
+        Some(marked(expr.to_string()))
     }
 
     /// Given a constant instance, find an expression that refers to it.

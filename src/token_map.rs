@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Range};
+use tower_lsp::lsp_types::{Position, Range};
 
 use crate::named_entity::NamedEntity;
 use crate::token::Token;
@@ -49,13 +49,6 @@ pub struct TokenInfo {
 
     /// The entity that this token refers to.
     pub entity: NamedEntity,
-}
-
-impl TokenInfo {
-    pub fn hover_contents(&self) -> HoverContents {
-        let hover_text = format!("{}", self.entity);
-        HoverContents::Scalar(MarkedString::String(hover_text))
-    }
 }
 
 /// A map from tokens to TokenInfo values.

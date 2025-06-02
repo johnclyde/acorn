@@ -5,19 +5,21 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use regex::Regex;
-use tower_lsp::lsp_types::{CompletionItem, Hover, Url};
+use tower_lsp::lsp_types::{CompletionItem, Hover, HoverContents, MarkedString, Url};
 use walkdir::WalkDir;
 
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::build_cache::BuildCache;
 use crate::builder::{BuildEvent, BuildStatus, Builder};
+use crate::code_generator::CodeGenerator;
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
 use crate::module_cache::{ModuleCache, ModuleHash};
+use crate::named_entity::NamedEntity;
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
 use crate::verifier::ProverMode;
@@ -823,9 +825,14 @@ impl Project {
 
     /// Figure out the hover information to display.
     pub fn hover(&self, env: &Environment, line_number: u32, character: u32) -> Option<Hover> {
-        let (_env, key, info) = env.find_token(line_number, character)?;
+        let (env, key, info) = env.find_token(line_number, character)?;
+        let mut gen = CodeGenerator::new(&env.bindings);
+        let contents = match &info.entity {
+            NamedEntity::Type(t) => HoverContents::Scalar(gen.type_to_marked(t)?),
+            e => HoverContents::Scalar(MarkedString::String(e.to_string())),
+        };
         Some(Hover {
-            contents: info.hover_contents(),
+            contents,
             range: Some(key.range()),
         })
     }
