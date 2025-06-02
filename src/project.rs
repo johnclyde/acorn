@@ -2012,34 +2012,39 @@ mod tests {
         p.mock(
             "/mock/main.ac",
             indoc::indoc! {r#"
-        inductive Nat {                       // line 0
-            0                                 // line 1
-            suc(Nat)                          // line 2
+        inductive Nat {                           // line 0
+            0                                     // line 1
+            suc(Nat)                              // line 2
         }
         // A marker to count columns.    
         // 3456789012345678901234567890
-        let one: Nat = Nat.suc(Nat.0)         // line 6
-        define make_nat(odd: Bool) -> Nat {   // line 7
-            if odd {                          // line 8
-                one                           // line 9
+        let one: Nat = Nat.suc(Nat.0)             // line 6
+        define make_nat(odd: Bool) -> Nat {       // line 7
+            if odd {                              // line 8
+                one                               // line 9
             } else {
-                Nat.suc(one)                  // line 11
+                Nat.suc(one)                      // line 11
             }
         }
         typeclass Z: HasZero {
             0: Z
         }
         // 34567890123456789012345678901
-        instance Nat: HasZero {               // line 18
-            let 0 = Nat.0                     // line 19
+        instance Nat: HasZero {                   // line 18
+            let 0 = Nat.0                         // line 19
         }
-        theorem eq_zero<Z: HasZero>(a: Z) {   // line 21
-            a = Z.0                           // line 22
+        theorem eq_zero<Z: HasZero>(a: Z) {       // line 21
+            a = Z.0                               // line 22
         } by {
-            let b: Z = a                      // line 24
+            let b: Z = a                          // line 24
         }
+        define equals<T>(x: T, y: T) -> Bool {    // line 26
+            x = y                             
+        }
+        let z_eq_z = equals(Nat.0, Nat.0)         // line 29
         "#},
         );
+        p.expect_ok("main");
         let desc = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&desc).expect("no env for main");
         assert!(p.hover(&env, 6, 9).is_some()); // Nat
@@ -2066,6 +2071,8 @@ mod tests {
         assert!(p.hover(&env, 22, 10).is_some()); // 0
         assert!(p.hover(&env, 24, 11).is_some()); // Z
         assert!(p.hover(&env, 24, 15).is_some()); // a
+        assert!(p.hover(&env, 26, 20).is_some()); // T
+                                                  // assert!(p.hover(&env, 29, 20).is_some()); // Nat
     }
 
     #[test]
