@@ -12,7 +12,7 @@ use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::build_cache::BuildCache;
 use crate::builder::{BuildEvent, BuildStatus, Builder};
-use crate::code_generator::CodeGenerator;
+use crate::code_generator::{self, CodeGenerator};
 use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
@@ -22,6 +22,7 @@ use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::named_entity::NamedEntity;
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
+use crate::token_map::TokenInfo;
 use crate::verifier::ProverMode;
 
 // The Project is responsible for importing different files and assigning them module ids.
@@ -823,13 +824,35 @@ impl Project {
         }
     }
 
-    /// Figure out the hover information to display.
-    pub fn hover(&self, env: &Environment, line_number: u32, character: u32) -> Option<Hover> {
-        let (env, key, info) = env.find_token(line_number, character)?;
+    /// env should be the environment in which the token was evaluated.
+    fn hover_for_info(
+        &self,
+        env: &Environment,
+        info: &TokenInfo,
+    ) -> code_generator::Result<HoverContents> {
         let mut gen = CodeGenerator::new(&env.bindings);
         let contents = match &info.entity {
-            NamedEntity::Type(t) => HoverContents::Scalar(gen.type_to_marked(t)),
+            NamedEntity::Type(t) => gen.type_to_hover(&t)?,
             e => HoverContents::Scalar(MarkedString::String(e.to_string())),
+        };
+        Ok(contents)
+    }
+
+    /// Figure out the hover information to display.
+    /// If we should be able to generate hover information but can't, we return an error message.
+    pub fn hover(&self, env: &Environment, line_number: u32, character: u32) -> Option<Hover> {
+        let (env, key, info) = env.find_token(line_number, character)?;
+        let contents = match self.hover_for_info(env, info) {
+            Ok(contents) => contents,
+            Err(e) => {
+                if cfg!(test) {
+                    panic!("code generation error: {}", e);
+                }
+
+                // If we can't generate hover info, just return an error message.
+                let message = format!("hover error: {} ({})", e, e.error_type());
+                HoverContents::Scalar(CodeGenerator::marked(message))
+            }
         };
         Some(Hover {
             contents,

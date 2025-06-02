@@ -1,6 +1,6 @@
 use std::fmt;
 
-use tower_lsp::lsp_types::{LanguageString, MarkedString};
+use tower_lsp::lsp_types::{HoverContents, LanguageString, MarkedString};
 
 use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
@@ -27,23 +27,6 @@ pub struct CodeGenerator<'a> {
     var_names: Vec<String>,
 }
 
-fn marked(code: Result<String>) -> MarkedString {
-    #[cfg(test)]
-    {
-        if let Err(e) = &code {
-            panic!("code generation error: {}", e);
-        }
-    }
-
-    match code {
-        Ok(code) => MarkedString::LanguageString(LanguageString {
-            language: "acorn".to_string(),
-            value: code.to_string(),
-        }),
-        Err(e) => MarkedString::String(format!("hover error: {} ({})", e, e.error_type())),
-    }
-}
-
 impl CodeGenerator<'_> {
     /// Creates a new code generator.
     pub fn new(bindings: &BindingMap) -> CodeGenerator {
@@ -53,6 +36,13 @@ impl CodeGenerator<'_> {
             next_k: 0,
             var_names: vec![],
         }
+    }
+
+    pub fn marked(code: String) -> MarkedString {
+        MarkedString::LanguageString(LanguageString {
+            language: "acorn".to_string(),
+            value: code.to_string(),
+        })
     }
 
     fn class_to_expr(&self, class: &Class) -> Result<Expression> {
@@ -140,12 +130,6 @@ impl CodeGenerator<'_> {
         Ok(expr.to_string())
     }
 
-    /// Returns None rather than an error if the value cannot be expressed in code.
-    /// Intended for UI use.
-    pub fn value_to_marked(&mut self, value: &AcornValue) -> MarkedString {
-        marked(self.value_to_code(value))
-    }
-
     fn type_to_code(&mut self, acorn_type: &AcornType) -> Result<String> {
         let expr = self.type_to_expr(acorn_type)?;
         Ok(expr.to_string())
@@ -153,8 +137,9 @@ impl CodeGenerator<'_> {
 
     /// Returns None rather than an error if the type cannot be expressed in code.
     /// Intended for UI use.
-    pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> MarkedString {
-        marked(self.type_to_code(acorn_type))
+    pub fn type_to_hover(&mut self, acorn_type: &AcornType) -> Result<HoverContents> {
+        let code = self.type_to_code(acorn_type)?;
+        Ok(HoverContents::Scalar(Self::marked(code)))
     }
 
     /// Given a constant instance, find an expression that refers to it.
