@@ -28,7 +28,7 @@ use crate::statement::{
     VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
-use crate::token_map::TokenMap;
+use crate::token_map::{TokenInfo, TokenMap};
 use crate::type_unifier::TypeclassRegistry;
 
 /// The Environment takes Statements as input and processes them.
@@ -205,6 +205,23 @@ impl Environment {
 
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         self.bindings.get_definition(name)
+    }
+
+    /// Finds the token at the given line and character position, along with the environment that
+    /// it should be evaluated in.
+    pub fn find_token(
+        &self,
+        line_number: u32,
+        character: u32,
+    ) -> Option<(&Environment, &TokenInfo)> {
+        if let Some((_, token_info)) = self.token_map.get(line_number, character) {
+            return Some((&self, &token_info));
+        }
+
+        if let Some(child_env) = self.env_for_line_step(line_number) {
+            return child_env.find_token(line_number, character);
+        }
+        None
     }
 
     /// Get token information for a specific position in the source.
