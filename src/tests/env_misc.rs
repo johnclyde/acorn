@@ -2398,6 +2398,6 @@ fn test_token_info() {
     assert!(env.find_token(22, 4).is_some()); // a
     assert!(env.find_token(22, 8).is_some()); // Z
     assert!(env.find_token(22, 10).is_some()); // 0
-                                               // assert!(env.find_token(24, 11).is_some()); // Z
-                                               // assert!(env.find_token(24, 15).is_some()); // a
+    assert!(env.find_token(24, 11).is_some()); // Z
+    assert!(env.find_token(24, 15).is_some()); // a
 }
