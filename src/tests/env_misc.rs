@@ -2359,9 +2359,19 @@ fn test_token_info() {
         define make_nat(odd: Bool) -> Nat {   // line 7
             if odd {                          // line 8
                 one                           // line 9
-            } else {                          // line 10
+            } else {
                 Nat.suc(one)                  // line 11
             }
+        }
+        typeclass Z: HasZero {
+            0: Z
+        }
+        // 3456789012345678901234567890
+        instance Nat: HasZero {               // line 18
+            let 0 = Nat.0                     // line 19
+        }
+        theorem eq_zero<Z: HasZero>(a: Z) {   // line 21
+            a = Z.0                           // line 22
         }
         "#});
     assert!(env.get_token_info(6, 9).is_some()); // Nat
@@ -2377,4 +2387,5 @@ fn test_token_info() {
     assert!(env.get_token_info(11, 9).is_some()); // Nat
     assert!(env.get_token_info(11, 13).is_some()); // suc
     assert!(env.get_token_info(11, 17).is_some()); // one
+    assert!(env.get_token_info(18, 9).is_some()); // Nat
 }
