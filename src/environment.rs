@@ -70,7 +70,6 @@ pub struct Environment {
 
     /// A map from tokens to information about them.
     /// This is not copied for child environments.
-    /// You need to find the nearest enclosing environment to look up a token.
     token_map: TokenMap,
 }
 
@@ -210,8 +209,14 @@ impl Environment {
 
     /// Get token information for a specific position in the source.
     /// Returns TokenInfo if there's a token at the given line and character position.
-    pub fn get_token_info(&self, line_number: u32, character: u32) -> Option<&crate::token_map::TokenInfo> {
-        self.token_map.get(line_number, character).map(|(_, token_info)| token_info)
+    pub fn get_token_info(
+        &self,
+        line_number: u32,
+        character: u32,
+    ) -> Option<&crate::token_map::TokenInfo> {
+        self.token_map
+            .get(line_number, character)
+            .map(|(_, token_info)| token_info)
     }
 
     /// Returns an error if you are not allowed to add attributes to this type.
@@ -666,7 +671,8 @@ impl Environment {
         // We need to prove the general existence claim
         let mut stack = Stack::new();
         let mut no_token_evaluator = Evaluator::new(&self.bindings, project, None);
-        let (quant_names, quant_types) = no_token_evaluator.bind_args(&mut stack, &vss.declarations, None)?;
+        let (quant_names, quant_types) =
+            no_token_evaluator.bind_args(&mut stack, &vss.declarations, None)?;
         let general_claim_value = no_token_evaluator.evaluate_value_with_stack(
             &mut stack,
             &vss.condition,
@@ -690,7 +696,9 @@ impl Environment {
         }
 
         // We can then assume the specific existence claim with the named constants
-        let specific_claim = self.evaluator(project).evaluate_value(&vss.condition, Some(&AcornType::Bool))?;
+        let specific_claim = self
+            .evaluator(project)
+            .evaluate_value(&vss.condition, Some(&AcornType::Bool))?;
         let source = Source::anonymous(self.module_id, statement.range(), self.depth);
         let specific_prop = Proposition::monomorphic(specific_claim, source);
         self.add_node(Node::structural(project, self, specific_prop));
@@ -1859,7 +1867,12 @@ impl Environment {
         let local_name = is.components.last().unwrap().text();
         self.bindings
             .check_unqualified_name_available(local_name, statement)?;
-        let full_name = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
+        let full_name = is
+            .components
+            .iter()
+            .map(|t| t.text())
+            .collect::<Vec<_>>()
+            .join(".");
         let module_id = match project.load_module_by_name(&full_name) {
             Ok(module_id) => module_id,
             Err(ImportError::NotFound(message)) => {
@@ -1893,7 +1906,8 @@ impl Environment {
 
         // Track token for the module (only the last component represents the module)
         if let Some(last_component) = is.components.last() {
-            self.token_map.track_token(last_component, &NamedEntity::Module(module_id));
+            self.token_map
+                .track_token(last_component, &NamedEntity::Module(module_id));
         }
 
         // Bring the imported names into this environment
@@ -2351,7 +2365,7 @@ impl Environment {
     pub fn add(&mut self, input: &str) {
         let start_line = self.next_line();
         let tokens = Token::scan_with_start_line(input, start_line);
-        
+
         if let Err(e) = self.add_tokens(&mut Project::new_mock(), tokens) {
             panic!("error in add_tokens: {}", e);
         }
@@ -2382,7 +2396,7 @@ impl Environment {
         let start_line = self.next_line();
         let tokens = Token::scan_with_start_line(input, start_line);
         let mut tokens = TokenIter::new(tokens);
-        
+
         if let Ok((Some(statement), _)) = Statement::parse(&mut tokens, false) {
             assert!(
                 self.add_statement(&mut Project::new_mock(), &statement)

@@ -2366,7 +2366,7 @@ fn test_token_info() {
         typeclass Z: HasZero {
             0: Z
         }
-        // 3456789012345678901234567890
+        // 34567890123456789012345678901
         instance Nat: HasZero {               // line 18
             let 0 = Nat.0                     // line 19
         }
@@ -2388,4 +2388,7 @@ fn test_token_info() {
     assert!(env.get_token_info(11, 13).is_some()); // suc
     assert!(env.get_token_info(11, 17).is_some()); // one
     assert!(env.get_token_info(18, 9).is_some()); // Nat
+    assert!(env.get_token_info(18, 14).is_some()); // HasZero
+    assert!(env.get_token_info(19, 12).is_some()); // Nat
+    assert!(env.get_token_info(19, 16).is_some()); // 0
 }
