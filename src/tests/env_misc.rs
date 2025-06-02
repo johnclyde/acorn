@@ -2346,7 +2346,7 @@ fn test_newline_in_define_args() {
 }
 
 #[test]
-fn test_token_info() {
+fn test_env_hover() {
     let mut env = Environment::test();
     env.add(indoc! {r#"
         inductive Nat {                       // line 0
@@ -2376,28 +2376,28 @@ fn test_token_info() {
             let b: Z = a                      // line 24
         }
         "#});
-    assert!(env.find_token(6, 9).is_some()); // Nat
-    assert!(env.find_token(6, 19).is_some()); // suc
-    assert!(env.find_token(6, 24).is_some()); // Nat
-    assert!(env.find_token(6, 26).is_none()); // .
-    assert!(env.find_token(6, 27).is_some()); // 0
-    assert!(env.find_token(6, 30).is_none()); // past end of line
-    assert!(env.find_token(7, 22).is_some()); // Bool
-    assert!(env.find_token(7, 30).is_some()); // Nat
-    assert!(env.find_token(8, 9).is_some()); // odd
-    assert!(env.find_token(9, 9).is_some()); // one
-    assert!(env.find_token(11, 9).is_some()); // Nat
-    assert!(env.find_token(11, 13).is_some()); // suc
-    assert!(env.find_token(11, 17).is_some()); // one
-    assert!(env.find_token(18, 9).is_some()); // Nat
-    assert!(env.find_token(18, 14).is_some()); // HasZero
-    assert!(env.find_token(19, 12).is_some()); // Nat
-    assert!(env.find_token(19, 16).is_some()); // 0
-    assert!(env.find_token(21, 19).is_some()); // HasZero
-    assert!(env.find_token(21, 31).is_some()); // Z
-    assert!(env.find_token(22, 4).is_some()); // a
-    assert!(env.find_token(22, 8).is_some()); // Z
-    assert!(env.find_token(22, 10).is_some()); // 0
-    assert!(env.find_token(24, 11).is_some()); // Z
-    assert!(env.find_token(24, 15).is_some()); // a
+    assert!(env.hover(6, 9).is_some()); // Nat
+    assert!(env.hover(6, 19).is_some()); // suc
+    assert!(env.hover(6, 24).is_some()); // Nat
+    assert!(env.hover(6, 26).is_none()); // .
+    assert!(env.hover(6, 27).is_some()); // 0
+    assert!(env.hover(6, 30).is_none()); // past end of line
+    assert!(env.hover(7, 22).is_some()); // Bool
+    assert!(env.hover(7, 30).is_some()); // Nat
+    assert!(env.hover(8, 9).is_some()); // odd
+    assert!(env.hover(9, 9).is_some()); // one
+    assert!(env.hover(11, 9).is_some()); // Nat
+    assert!(env.hover(11, 13).is_some()); // suc
+    assert!(env.hover(11, 17).is_some()); // one
+    assert!(env.hover(18, 9).is_some()); // Nat
+    assert!(env.hover(18, 14).is_some()); // HasZero
+    assert!(env.hover(19, 12).is_some()); // Nat
+    assert!(env.hover(19, 16).is_some()); // 0
+    assert!(env.hover(21, 19).is_some()); // HasZero
+    assert!(env.hover(21, 31).is_some()); // Z
+    assert!(env.hover(22, 4).is_some()); // a
+    assert!(env.hover(22, 8).is_some()); // Z
+    assert!(env.hover(22, 10).is_some()); // 0
+    assert!(env.hover(24, 11).is_some()); // Z
+    assert!(env.hover(24, 15).is_some()); // a
 }

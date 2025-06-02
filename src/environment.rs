@@ -209,7 +209,7 @@ impl Environment {
 
     /// Finds the token at the given line and character position, along with the environment that
     /// it should be evaluated in.
-    pub fn find_token(
+    fn find_token(
         &self,
         line_number: u32,
         character: u32,

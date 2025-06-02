@@ -1968,7 +1968,7 @@ mod tests {
     }
 
     #[test]
-    fn test_project_level_token_map() {
+    fn test_project_hover() {
         let mut p = Project::new_mock();
         p.mock(
             "/mock/foo.ac",
@@ -1987,9 +1987,9 @@ mod tests {
         );
         let desc = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&desc).expect("no env for main");
-        assert!(env.find_token(1, 2).is_none()); // from
-        assert!(env.find_token(1, 7).is_some()); // foo
-        assert!(env.find_token(1, 10).is_none()); // import
-        assert!(env.find_token(1, 17).is_some()); // Foo
+        assert!(env.hover(1, 2).is_none()); // from
+        assert!(env.hover(1, 7).is_some()); // foo
+        assert!(env.hover(1, 10).is_none()); // import
+        assert!(env.hover(1, 17).is_some()); // Foo
     }
 }
