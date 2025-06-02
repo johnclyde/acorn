@@ -1246,8 +1246,8 @@ impl BindingMap {
         AcornType,
     )> {
         // Bind all the type parameters and arguments
-        let type_params =
-            Evaluator::new(self, project, None).evaluate_type_params(&type_param_exprs)?;
+        let mut evaluator = Evaluator::new(self, project, token_map.as_deref_mut());
+        let type_params = evaluator.evaluate_type_params(&type_param_exprs)?;
         for param in &type_params {
             self.add_arbitrary_type(param.clone());
         }
