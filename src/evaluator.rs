@@ -898,6 +898,7 @@ impl<'a> Evaluator<'a> {
                         expected_type,
                         &self.project,
                         expression,
+                        self.token_map.as_deref_mut(),
                     )?,
                     PotentialValue::Resolved(function) => {
                         // Simple, no-type-inference-necessary construction

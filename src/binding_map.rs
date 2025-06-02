@@ -1139,10 +1139,11 @@ impl BindingMap {
         expected_type: Option<&AcornType>,
         project: &Project,
         source: &dyn ErrorSource,
+        token_map: Option<&mut TokenMap>,
     ) -> compilation::Result<AcornValue> {
         // Evaluate the arguments
         let mut args = vec![];
-        let mut evaluator = Evaluator::new(self, project, None);
+        let mut evaluator = Evaluator::new(self, project, token_map);
         for arg_expr in &arg_exprs {
             let arg = evaluator.evaluate_value_with_stack(stack, arg_expr, None)?;
             args.push(arg);
