@@ -71,6 +71,10 @@ pub struct Environment {
     /// A map from tokens to information about them.
     /// This is not copied for child environments.
     token_map: TokenMap,
+
+    /// Used during statement parsing. Cleared whenever they are attached to something.
+    /// Each line is one entry.
+    doc_comments: Vec<String>,
 }
 
 impl Environment {
@@ -86,6 +90,7 @@ impl Environment {
             implicit: false,
             depth: 0,
             token_map: TokenMap::new(),
+            doc_comments: Vec::new(),
         }
     }
 
@@ -103,6 +108,7 @@ impl Environment {
             implicit,
             depth: self.depth + 1,
             token_map: TokenMap::new(),
+            doc_comments: Vec::new(),
         }
     }
 
@@ -2143,6 +2149,11 @@ impl Environment {
             StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
 
             StatementInfo::Instance(is) => self.add_instance_statement(project, statement, is),
+
+            StatementInfo::DocComment(s) => {
+                self.doc_comments.push(s.clone());
+                Ok(())
+            }
         }
     }
 

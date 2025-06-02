@@ -295,6 +295,10 @@ pub enum StatementInfo {
     Match(MatchStatement),
     Typeclass(TypeclassStatement),
     Instance(InstanceStatement),
+
+    /// A doc comment is not actually a statement, but it is treated like one in the parser.
+    /// Has the leading /// along with leading and trailing whitespace stripped.
+    DocComment(String),
 }
 
 const ONE_INDENT: &str = "    ";
@@ -1349,10 +1353,20 @@ impl Statement {
 
             StatementInfo::Import(is) => {
                 if is.names.is_empty() {
-                    let module_path = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
+                    let module_path = is
+                        .components
+                        .iter()
+                        .map(|t| t.text())
+                        .collect::<Vec<_>>()
+                        .join(".");
                     write!(f, "import {}", module_path)
                 } else {
-                    let module_path = is.components.iter().map(|t| t.text()).collect::<Vec<_>>().join(".");
+                    let module_path = is
+                        .components
+                        .iter()
+                        .map(|t| t.text())
+                        .collect::<Vec<_>>()
+                        .join(".");
                     let names = is
                         .names
                         .iter()
@@ -1444,6 +1458,10 @@ impl Statement {
                 } else {
                     Ok(())
                 }
+            }
+
+            StatementInfo::DocComment(s) => {
+                write!(f, "/// {}", s)
             }
         }
     }
@@ -2230,5 +2248,10 @@ mod tests {
     fn test_parsing_instance_statement_no_block_syntax() {
         ok("instance Nat: Trivial");
         ok("instance String: Show");
+    }
+
+    #[test]
+    fn test_parsing_doc_comment_pseudo_statement() {
+        ok("/// This is a doc comment");
     }
 }

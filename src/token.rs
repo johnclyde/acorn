@@ -66,6 +66,7 @@ pub enum TokenType {
     Typeclass,
     Instance,
     Extends,
+    DocComment,
 }
 
 // Add a new token here if there's an alphabetical name for it.
@@ -371,6 +372,7 @@ impl TokenType {
             TokenType::Typeclass => "typeclass",
             TokenType::Instance => "instance",
             TokenType::Extends => "extends",
+            TokenType::DocComment => "///",
         }
     }
 
@@ -524,13 +526,15 @@ impl Token {
             | TokenType::Extends => Some(SemanticTokenType::KEYWORD),
 
             TokenType::NewLine => {
-                // Comments are encoded as newlines because syntactically they act like newlines.
+                // Regular comments are encoded as newlines because they act like newlines.
                 if self.len > 1 {
                     Some(SemanticTokenType::COMMENT)
                 } else {
                     None
                 }
             }
+
+            TokenType::DocComment => Some(SemanticTokenType::COMMENT),
 
             TokenType::Numeral => Some(SemanticTokenType::NUMBER),
 
@@ -565,6 +569,7 @@ impl Token {
         for (line_offset, line) in input.lines().enumerate() {
             let line_number = start_line + line_offset as u32;
             let rc_line = Arc::new(line.to_string());
+            let mut line_all_whitespace_so_far = true;
             let mut char_indices = line.char_indices().peekable();
             while let Some((char_index, ch)) = char_indices.next() {
                 let token_type = match ch {
@@ -601,12 +606,18 @@ impl Token {
                     '/' => match char_indices.next_if_eq(&(char_index + 1, '/')) {
                         Some(_) => {
                             // Advance to the end of the line
+                            let doc_comment =
+                                char_indices.next_if_eq(&(char_index + 2, '/')).is_some();
                             while let Some((_, ch)) = char_indices.next() {
                                 if ch == '\n' {
                                     break;
                                 }
                             }
-                            TokenType::NewLine
+                            if doc_comment && line_all_whitespace_so_far {
+                                TokenType::DocComment
+                            } else {
+                                TokenType::NewLine
+                            }
                         }
                         None => TokenType::Slash,
                     },
@@ -639,6 +650,7 @@ impl Token {
                     }
                     _ => TokenType::Invalid,
                 };
+                line_all_whitespace_so_far = false;
                 let end = if let Some((pos, _)) = char_indices.peek() {
                     *pos
                 } else {
