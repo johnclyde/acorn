@@ -3,13 +3,14 @@ use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, ConstructorInfo};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
+use crate::expression::Expression;
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
@@ -1552,18 +1553,9 @@ impl Environment {
         statement: &Statement,
         is: &InstanceStatement,
     ) -> compilation::Result<()> {
-        let instance_name = is.type_name.text();
-        let instance_type = match self.bindings.get_type_for_typename(&instance_name) {
-            Some(PotentialType::Resolved(t)) => t.clone(),
-            Some(_) => {
-                return Err(is.type_name.error("parametrized types cannot be used here"));
-            }
-            None => {
-                return Err(is
-                    .type_name
-                    .error(&format!("undefined type name '{}'", instance_name)));
-            }
-        };
+        // Create an expression from the type name token and evaluate it to track the token
+        let type_expr = Expression::Singleton(is.type_name.clone());
+        let instance_type = self.evaluator(project).evaluate_type(&type_expr)?;
         let instance_class = self.check_can_add_attributes(&is.type_name, &instance_type)?;
         let typeclass = self.evaluator(project).evaluate_typeclass(&is.typeclass)?;
 
@@ -1692,7 +1684,7 @@ impl Environment {
             module_id: self.module_id,
             range: statement.range(),
             source_type: SourceType::Instance(
-                instance_name.to_string(),
+                is.type_name.text().to_string(),
                 typeclass.name.to_string(),
             ),
             importable: true,
