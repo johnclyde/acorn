@@ -2373,5 +2373,5 @@ fn test_token_info() {
     assert!(env.get_token_info(7, 22).is_some()); // Bool
     assert!(env.get_token_info(7, 30).is_some()); // Nat
     assert!(env.get_token_info(8, 9).is_some()); // odd
-                                                 // assert!(env.get_token_info(9, 9).is_some()); // one
+    assert!(env.get_token_info(9, 9).is_some()); // one
 }
