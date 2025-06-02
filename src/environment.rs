@@ -2332,22 +2332,21 @@ impl Environment {
         true
     }
 
+    /// Finds an environment one step deeper if there is one that covers the given line.
+    fn env_for_line_step(&self, line: u32) -> Option<&Environment> {
+        if let Some(LineType::Node(i)) = self.get_line_type(line) {
+            if let Some(block) = self.nodes[i].get_block() {
+                return Some(&block.env);
+            }
+        }
+        None
+    }
+
     /// Finds the narrowest environment that covers the given line.
     pub fn env_for_line(&self, line: u32) -> &Environment {
-        loop {
-            match self.get_line_type(line) {
-                Some(LineType::Node(i)) => {
-                    if let Some(block) = self.nodes[i].get_block() {
-                        return block.env.env_for_line(line);
-                    }
-                    return self;
-                }
-                Some(LineType::Opening)
-                | Some(LineType::Closing)
-                | Some(LineType::Other)
-                | Some(LineType::Empty)
-                | None => return self,
-            }
+        match self.env_for_line_step(line) {
+            Some(env) => env.env_for_line(line),
+            None => self,
         }
     }
 }
