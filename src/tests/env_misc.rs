@@ -2372,6 +2372,8 @@ fn test_token_info() {
         }
         theorem eq_zero<Z: HasZero>(a: Z) {   // line 21
             a = Z.0                           // line 22
+        } by {
+            let b: Z = a                      // line 24
         }
         "#});
     assert!(env.get_token_info(6, 9).is_some()); // Nat
