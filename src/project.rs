@@ -1160,10 +1160,11 @@ impl Project {
         let module_id = self.expect_ok(module_name);
         let expression = Expression::expect_value(input);
         let env = self.get_env_by_id(module_id).expect("no env");
-        let value = match Evaluator::new(&env.bindings, self, None).evaluate_value(&expression, None) {
-            Ok(value) => value,
-            Err(e) => panic!("evaluation error: {}", e),
-        };
+        let value =
+            match Evaluator::new(&env.bindings, self, None).evaluate_value(&expression, None) {
+                Ok(value) => value,
+                Err(e) => panic!("evaluation error: {}", e),
+            };
         CodeGenerator::expect(&env.bindings, input, &value, expected);
     }
 
@@ -1986,9 +1987,9 @@ mod tests {
         );
         let desc = ModuleDescriptor::Name("main".to_string());
         let env = p.get_env(&desc).expect("no env for main");
-        assert!(env.get_token_info(1, 2).is_none()); // from
-        assert!(env.get_token_info(1, 7).is_some()); // foo
-        assert!(env.get_token_info(1, 10).is_none()); // import
-        assert!(env.get_token_info(1, 17).is_some()); // Foo
+        assert!(env.find_token(1, 2).is_none()); // from
+        assert!(env.find_token(1, 7).is_some()); // foo
+        assert!(env.find_token(1, 10).is_none()); // import
+        assert!(env.find_token(1, 17).is_some()); // Foo
     }
 }
