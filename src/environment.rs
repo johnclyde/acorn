@@ -10,7 +10,7 @@ use crate::binding_map::{BindingMap, ConstructorInfo};
 use crate::block::{Block, BlockParams, Node, NodeCursor};
 use crate::compilation::{self, Error, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
-use crate::expression::Expression;
+use crate::expression::{Declaration, Expression};
 use crate::fact::Fact;
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
@@ -693,6 +693,13 @@ impl Environment {
         statement: &Statement,
         vss: &VariableSatisfyStatement,
     ) -> compilation::Result<()> {
+        // First, evaluate the type expressions with token tracking
+        for declaration in &vss.declarations {
+            if let Declaration::Typed(_, type_expr) = declaration {
+                self.evaluator(project).evaluate_type(type_expr)?;
+            }
+        }
+
         // We need to prove the general existence claim
         let mut stack = Stack::new();
         let mut no_token_evaluator = Evaluator::new(&self.bindings, project, None);
