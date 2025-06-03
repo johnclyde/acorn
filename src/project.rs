@@ -8,6 +8,7 @@ use regex::Regex;
 use tower_lsp::lsp_types::{CompletionItem, Hover, HoverContents, MarkedString, Url};
 use walkdir::WalkDir;
 
+use crate::acorn_type::AcornType;
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::build_cache::BuildCache;
@@ -852,14 +853,40 @@ impl Project {
             NamedEntity::UnresolvedValue(unresolved) => {
                 env.bindings.get_constant_doc_comments(&unresolved.name)
             }
+            NamedEntity::Type(_) | NamedEntity::UnresolvedType(_) => {
+                // For types, we'll handle doc comments separately below
+                None
+            }
             _ => None,
         };
 
         // Add doc comments if we have them
-        if let Some(comments) = doc_comments {
-            if !comments.is_empty() {
-                let doc_string = comments.join("\n");
-                parts.push(MarkedString::String(doc_string));
+        match doc_comments {
+            Some(comments) => {
+                if !comments.is_empty() {
+                    let doc_string = comments.join("\n");
+                    parts.push(MarkedString::String(doc_string));
+                }
+            }
+            None => {
+                // For types, check if we have a class doc comment
+                if let NamedEntity::Type(acorn_type) = &info.entity {
+                    if let AcornType::Data(class, _) = acorn_type {
+                        if let Some(doc_comments) = env.bindings.get_class_doc_comment(class) {
+                            if !doc_comments.is_empty() {
+                                let doc_string = doc_comments.join("\n");
+                                parts.push(MarkedString::String(doc_string));
+                            }
+                        }
+                    }
+                } else if let NamedEntity::UnresolvedType(unresolved_type) = &info.entity {
+                    if let Some(doc_comments) = env.bindings.get_class_doc_comment(&unresolved_type.class) {
+                        if !doc_comments.is_empty() {
+                            let doc_string = doc_comments.join("\n");
+                            parts.push(MarkedString::String(doc_string));
+                        }
+                    }
+                }
             }
         }
 

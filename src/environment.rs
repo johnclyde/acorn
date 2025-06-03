@@ -911,7 +911,8 @@ impl Environment {
             name: ss.name.clone(),
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
-        let potential_type = self.bindings.add_potential_type(&ss.name, typeclasses);
+        let doc_comments = self.take_doc_comments();
+        let potential_type = self.bindings.add_potential_type(&ss.name, typeclasses, doc_comments);
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
@@ -936,7 +937,6 @@ impl Environment {
             index: 0,
             total: 1,
         };
-        let doc_comments = self.take_doc_comments();
         let new_fn = self.bindings.add_class_attribute(
             &class,
             "new",
@@ -944,7 +944,7 @@ impl Environment {
             new_fn_type.genericize(&type_params),
             None,
             Some(constructor_info),
-            doc_comments,
+            vec![],
         );
 
         // Each object of this new type has certain properties.
@@ -1091,7 +1091,8 @@ impl Environment {
             arbitrary_params.push(self.bindings.add_arbitrary_type(type_param.clone()));
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
-        let potential_type = self.bindings.add_potential_type(&is.name, typeclasses);
+        let doc_comments = self.take_doc_comments();
+        let potential_type = self.bindings.add_potential_type(&is.name, typeclasses, doc_comments);
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
@@ -1331,7 +1332,6 @@ impl Environment {
         let name = ConstantName::class_attr(class.clone(), "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
-        let doc_comments = self.take_doc_comments();
         self.bindings.add_class_attribute(
             &class,
             "induction",
@@ -1339,7 +1339,7 @@ impl Environment {
             gen_lambda_claim.get_type(),
             Some(gen_lambda_claim),
             None,
-            doc_comments,
+            vec![],
         );
         self.bindings.mark_as_theorem(&name);
 
@@ -1775,7 +1775,8 @@ impl Environment {
         self.bindings
             .check_typename_available(&ts.name, statement)?;
         if ts.type_expr.is_axiom() {
-            self.bindings.add_potential_type(&ts.name, vec![]);
+            let doc_comments = self.take_doc_comments();
+            self.bindings.add_potential_type(&ts.name, vec![], doc_comments);
         } else {
             let potential = self
                 .evaluator(project)

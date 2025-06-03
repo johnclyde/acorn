@@ -400,11 +400,19 @@ impl BindingMap {
 
     /// Adds a new data type to the binding map.
     /// Panics if the name is already bound.
-    pub fn add_data_type(&mut self, name: &str) -> AcornType {
+    pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>) -> AcornType {
         let class = Class {
             module_id: self.module_id,
             name: name.to_string(),
         };
+        // Store the doc comments for this class
+        if !doc_comments.is_empty() {
+            let info = self
+                .class_info
+                .entry(class.clone())
+                .or_insert_with(ClassInfo::new);
+            info.doc_comments = Some(doc_comments);
+        }
         let t = AcornType::Data(class, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
@@ -415,14 +423,23 @@ impl BindingMap {
         &mut self,
         name: &str,
         params: Vec<Option<Typeclass>>,
+        doc_comments: Vec<String>,
     ) -> PotentialType {
         if params.len() == 0 {
-            return PotentialType::Resolved(self.add_data_type(name));
+            return PotentialType::Resolved(self.add_data_type(name, doc_comments));
         }
         let class = Class {
             module_id: self.module_id,
             name: name.to_string(),
         };
+        // Store the doc comments for this class
+        if !doc_comments.is_empty() {
+            let info = self
+                .class_info
+                .entry(class.clone())
+                .or_insert_with(ClassInfo::new);
+            info.doc_comments = Some(doc_comments);
+        }
         let ut = UnresolvedType { class, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
@@ -823,9 +840,14 @@ impl BindingMap {
 
     /// Get the doc comments for a constant.
     pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
-        self.constant_info
-            .get(name)
-            .map(|info| &info.doc_comments)
+        self.constant_info.get(name).map(|info| &info.doc_comments)
+    }
+
+    /// Get the doc comment for a class.
+    pub fn get_class_doc_comment(&self, class: &Class) -> Option<&Vec<String>> {
+        self.class_info
+            .get(class)
+            .and_then(|info| info.doc_comments.as_ref())
     }
 
     /// Type variables and arbitrary variables should get removed when they go out of scope.
@@ -1502,6 +1524,9 @@ struct ClassInfo {
 
     /// The preferred local name for this class.
     alias: Option<String>,
+
+    /// The doc comment for this class.
+    doc_comments: Option<Vec<String>>,
 }
 
 impl ClassInfo {
@@ -1510,6 +1535,7 @@ impl ClassInfo {
             attributes: BTreeMap::new(),
             typeclasses: HashMap::new(),
             alias: None,
+            doc_comments: None,
         }
     }
 
