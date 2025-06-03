@@ -841,52 +841,32 @@ impl Project {
         };
         parts.push(main_content);
 
-        // Check if we have doc comments to add
+        // Get doc comments based on entity type
         let doc_comments = match &info.entity {
-            NamedEntity::Value(value) => {
-                if let Some(constant_name) = value.as_simple_constant() {
-                    env.bindings.get_constant_doc_comments(constant_name)
+            NamedEntity::Value(value) => value
+                .as_simple_constant()
+                .and_then(|name| env.bindings.get_constant_doc_comments(name)),
+            NamedEntity::UnresolvedValue(unresolved) => {
+                env.bindings.get_constant_doc_comments(&unresolved.name)
+            }
+            NamedEntity::Type(acorn_type) => {
+                if let AcornType::Data(class, _) = acorn_type {
+                    env.bindings.get_class_doc_comment(class)
                 } else {
                     None
                 }
             }
-            NamedEntity::UnresolvedValue(unresolved) => {
-                env.bindings.get_constant_doc_comments(&unresolved.name)
-            }
-            NamedEntity::Type(_) | NamedEntity::UnresolvedType(_) => {
-                // For types, we'll handle doc comments separately below
-                None
+            NamedEntity::UnresolvedType(unresolved_type) => {
+                env.bindings.get_class_doc_comment(&unresolved_type.class)
             }
             _ => None,
         };
 
         // Add doc comments if we have them
-        match doc_comments {
-            Some(comments) => {
-                if !comments.is_empty() {
-                    let doc_string = comments.join("\n");
-                    parts.push(MarkedString::String(doc_string));
-                }
-            }
-            None => {
-                // For types, check if we have a class doc comment
-                if let NamedEntity::Type(acorn_type) = &info.entity {
-                    if let AcornType::Data(class, _) = acorn_type {
-                        if let Some(doc_comments) = env.bindings.get_class_doc_comment(class) {
-                            if !doc_comments.is_empty() {
-                                let doc_string = doc_comments.join("\n");
-                                parts.push(MarkedString::String(doc_string));
-                            }
-                        }
-                    }
-                } else if let NamedEntity::UnresolvedType(unresolved_type) = &info.entity {
-                    if let Some(doc_comments) = env.bindings.get_class_doc_comment(&unresolved_type.class) {
-                        if !doc_comments.is_empty() {
-                            let doc_string = doc_comments.join("\n");
-                            parts.push(MarkedString::String(doc_string));
-                        }
-                    }
-                }
+        if let Some(comments) = doc_comments {
+            if !comments.is_empty() {
+                let doc_string = comments.join("\n");
+                parts.push(MarkedString::String(doc_string));
             }
         }
 
