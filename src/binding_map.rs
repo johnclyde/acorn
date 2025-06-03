@@ -406,13 +406,11 @@ impl BindingMap {
             name: name.to_string(),
         };
         // Store the doc comments for this class
-        if !doc_comments.is_empty() {
-            let info = self
-                .class_info
-                .entry(class.clone())
-                .or_insert_with(ClassInfo::new);
-            info.doc_comments = Some(doc_comments);
-        }
+        let info = self
+            .class_info
+            .entry(class.clone())
+            .or_insert_with(ClassInfo::new);
+        info.doc_comments = doc_comments;
         let t = AcornType::Data(class, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
@@ -433,13 +431,11 @@ impl BindingMap {
             name: name.to_string(),
         };
         // Store the doc comments for this class
-        if !doc_comments.is_empty() {
-            let info = self
-                .class_info
-                .entry(class.clone())
-                .or_insert_with(ClassInfo::new);
-            info.doc_comments = Some(doc_comments);
-        }
+        let info = self
+            .class_info
+            .entry(class.clone())
+            .or_insert_with(ClassInfo::new);
+        info.doc_comments = doc_comments;
         let ut = UnresolvedType { class, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
@@ -483,10 +479,12 @@ impl BindingMap {
         &mut self,
         name: &str,
         extends: Vec<Typeclass>,
+        doc_comments: Vec<String>,
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         let mut info = TypeclassInfo::new();
+        info.doc_comments = doc_comments;
         for base in extends {
             info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
@@ -840,14 +838,35 @@ impl BindingMap {
 
     /// Get the doc comments for a constant.
     pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
-        self.constant_info.get(name).map(|info| &info.doc_comments)
+        self.constant_info.get(name).and_then(|info| {
+            if info.doc_comments.is_empty() {
+                None
+            } else {
+                Some(&info.doc_comments)
+            }
+        })
     }
 
     /// Get the doc comment for a class.
     pub fn get_class_doc_comment(&self, class: &Class) -> Option<&Vec<String>> {
-        self.class_info
-            .get(class)
-            .and_then(|info| info.doc_comments.as_ref())
+        self.class_info.get(class).and_then(|info| {
+            if info.doc_comments.is_empty() {
+                None
+            } else {
+                Some(&info.doc_comments)
+            }
+        })
+    }
+
+    /// Get the doc comment for a typeclass.
+    pub fn get_typeclass_doc_comment(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
+        self.typeclass_info.get(typeclass).and_then(|info| {
+            if info.doc_comments.is_empty() {
+                None
+            } else {
+                Some(&info.doc_comments)
+            }
+        })
     }
 
     /// Type variables and arbitrary variables should get removed when they go out of scope.
@@ -1526,7 +1545,7 @@ struct ClassInfo {
     alias: Option<String>,
 
     /// The doc comment for this class.
-    doc_comments: Option<Vec<String>>,
+    doc_comments: Vec<String>,
 }
 
 impl ClassInfo {
@@ -1535,7 +1554,7 @@ impl ClassInfo {
             attributes: BTreeMap::new(),
             typeclasses: HashMap::new(),
             alias: None,
-            doc_comments: None,
+            doc_comments: Vec::new(),
         }
     }
 
@@ -1587,6 +1606,9 @@ struct TypeclassInfo {
 
     /// The preferred local name for this typeclass.
     alias: Option<String>,
+
+    /// The documentation comments for this typeclass.
+    doc_comments: Vec<String>,
 }
 
 impl TypeclassInfo {
@@ -1595,6 +1617,7 @@ impl TypeclassInfo {
             attributes: BTreeMap::new(),
             extends: HashSet::new(),
             alias: None,
+            doc_comments: vec![],
         }
     }
 }

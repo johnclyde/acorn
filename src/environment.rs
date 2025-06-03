@@ -1446,8 +1446,9 @@ impl Environment {
             module_id: self.module_id,
             name: typeclass_name.to_string(),
         };
+        let doc_comments = self.take_doc_comments();
         self.bindings
-            .add_typeclass(typeclass_name, extends, &project, &ts.typeclass_name)?;
+            .add_typeclass(typeclass_name, extends, doc_comments, &project, &ts.typeclass_name)?;
 
         // For block syntax, we also need to bind the instance name
         let type_params = if let Some(instance_name_token) = &ts.instance_name {

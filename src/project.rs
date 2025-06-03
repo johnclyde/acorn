@@ -859,6 +859,9 @@ impl Project {
             NamedEntity::UnresolvedType(unresolved_type) => {
                 env.bindings.get_class_doc_comment(&unresolved_type.class)
             }
+            NamedEntity::Typeclass(typeclass) => {
+                env.bindings.get_typeclass_doc_comment(typeclass)
+            }
             _ => None,
         };
 
