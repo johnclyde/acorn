@@ -2026,22 +2026,32 @@ mod tests {
                 Nat.suc(one)                      // line 11
             }
         }
+        /// HasZero_doc_comment                   // line 14
         typeclass Z: HasZero {
             0: Z
         }
         // 34567890123456789012345678901
-        instance Nat: HasZero {                   // line 18
-            let 0 = Nat.0                         // line 19
+        instance Nat: HasZero {                   // line 19
+            let 0 = Nat.0                         // line 20
         }
-        theorem eq_zero<Z: HasZero>(a: Z) {       // line 21
-            a = Z.0                               // line 22
+        theorem eq_zero<Z: HasZero>(a: Z) {       // line 22
+            a = Z.0                               // line 23
         } by {
-            let b: Z = a                          // line 24
+            let b: Z = a                          // line 25
         }
-        define equals<T>(x: T, y: T) -> Bool {    // line 26
+        /// equals_doc_comment
+        define equals<T>(x: T, y: T) -> Bool {    // line 28
             x = y                             
         }
-        let z_eq_z = equals(Nat.0, Nat.0)         // line 29
+        let z_eq_z = equals(Nat.0, Nat.0)         // line 31
+        /// num_doc_comment
+        let num: Nat = make_nat(true)             // line 33
+        /// List_doc_comment
+        inductive List<T> {                       // line 35
+            nil
+            cons(T, List<T>)
+        }
+        let l = List.cons(num, List.nil<Nat>)     // line 39
         "#},
         );
         p.expect_ok("main");
@@ -2060,19 +2070,19 @@ mod tests {
         assert!(p.hover(&env, 11, 9).is_some()); // Nat
         assert!(p.hover(&env, 11, 13).is_some()); // suc
         assert!(p.hover(&env, 11, 17).is_some()); // one
-        assert!(p.hover(&env, 18, 9).is_some()); // Nat
-        assert!(p.hover(&env, 18, 14).is_some()); // HasZero
-        assert!(p.hover(&env, 19, 12).is_some()); // Nat
-        assert!(p.hover(&env, 19, 16).is_some()); // 0
-        assert!(p.hover(&env, 21, 19).is_some()); // HasZero
-        assert!(p.hover(&env, 21, 31).is_some()); // Z
-        assert!(p.hover(&env, 22, 4).is_some()); // a
-        assert!(p.hover(&env, 22, 8).is_some()); // Z
-        assert!(p.hover(&env, 22, 10).is_some()); // 0
-        assert!(p.hover(&env, 24, 11).is_some()); // Z
-        assert!(p.hover(&env, 24, 15).is_some()); // a
-        assert!(p.hover(&env, 26, 20).is_some()); // T
-        assert!(p.hover(&env, 29, 20).is_some()); // Nat
+        assert!(p.hover(&env, 19, 9).is_some()); // Nat
+        assert!(p.hover(&env, 19, 14).is_some()); // HasZero
+        assert!(p.hover(&env, 20, 12).is_some()); // Nat
+        assert!(p.hover(&env, 20, 16).is_some()); // 0
+        assert!(p.hover(&env, 22, 19).is_some()); // HasZero
+        assert!(p.hover(&env, 22, 31).is_some()); // Z
+        assert!(p.hover(&env, 23, 4).is_some()); // a
+        assert!(p.hover(&env, 23, 8).is_some()); // Z
+        assert!(p.hover(&env, 23, 10).is_some()); // 0
+        assert!(p.hover(&env, 25, 11).is_some()); // Z
+        assert!(p.hover(&env, 25, 15).is_some()); // a
+        assert!(p.hover(&env, 28, 20).is_some()); // T
+        assert!(p.hover(&env, 31, 20).is_some()); // Nat
     }
 
     #[test]
