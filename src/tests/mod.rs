@@ -8,7 +8,7 @@ mod env_parsing;
 mod env_typeclass;
 
 #[cfg(test)]
-mod prover;
+mod prover_test;
 
 #[cfg(test)]
 mod common;
