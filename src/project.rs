@@ -831,11 +831,39 @@ impl Project {
         info: &TokenInfo,
     ) -> code_generator::Result<HoverContents> {
         let mut gen = CodeGenerator::new(&env.bindings);
-        let contents = match &info.entity {
-            NamedEntity::Type(t) => gen.type_to_hover(&t)?,
-            e => HoverContents::Scalar(MarkedString::String(e.to_string())),
+        let mut parts = vec![];
+        
+        // First add the main hover content
+        let main_content = match &info.entity {
+            NamedEntity::Type(t) => gen.type_to_marked(&t)?,
+            e => MarkedString::String(e.to_string()),
         };
-        Ok(contents)
+        parts.push(main_content);
+        
+        // Check if we have doc comments to add
+        let doc_comments = match &info.entity {
+            NamedEntity::Value(value) => {
+                if let Some(constant_name) = value.as_simple_constant() {
+                    env.bindings.get_constant_doc_comments(constant_name)
+                } else {
+                    None
+                }
+            }
+            NamedEntity::UnresolvedValue(unresolved) => {
+                env.bindings.get_constant_doc_comments(&unresolved.name)
+            }
+            _ => None,
+        };
+        
+        // Add doc comments if we have them
+        if let Some(comments) = doc_comments {
+            if !comments.is_empty() {
+                let doc_string = comments.join("\n");
+                parts.push(MarkedString::String(doc_string));
+            }
+        }
+        
+        Ok(HoverContents::Array(parts))
     }
 
     /// Figure out the hover information to display.

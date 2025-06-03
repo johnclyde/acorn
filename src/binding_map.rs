@@ -821,6 +821,13 @@ impl BindingMap {
             .map_or(false, |info| info.theorem)
     }
 
+    /// Get the doc comments for a constant.
+    pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
+        self.constant_info
+            .get(name)
+            .map(|info| &info.doc_comments)
+    }
+
     /// Type variables and arbitrary variables should get removed when they go out of scope.
     /// Other sorts of types shouldn't be getting removed.
     pub fn remove_type(&mut self, name: &str) {

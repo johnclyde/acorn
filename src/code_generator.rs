@@ -1,6 +1,6 @@
 use std::fmt;
 
-use tower_lsp::lsp_types::{HoverContents, LanguageString, MarkedString};
+use tower_lsp::lsp_types::{LanguageString, MarkedString};
 
 use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
@@ -137,12 +137,9 @@ impl CodeGenerator<'_> {
 
     /// Returns None rather than an error if the type cannot be expressed in code.
     /// Intended for UI use.
-    pub fn type_to_hover(&mut self, acorn_type: &AcornType) -> Result<HoverContents> {
+    pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> Result<MarkedString> {
         let code = self.type_to_code(acorn_type)?;
-        Ok(HoverContents::Scalar(Self::marked(format!(
-            "type {}",
-            code
-        ))))
+        Ok(Self::marked(format!("type {}", code)))
     }
 
     /// Given a constant instance, find an expression that refers to it.
