@@ -505,7 +505,8 @@ impl<'a> Evaluator<'a> {
                 if let Some(bindings) = self.project.get_bindings(module) {
                     // Funny case where the bindings aren't in the same module as the token.
                     // Be careful not to track the token map here.
-                    Evaluator::new(bindings, self.project, None).evaluate_name(name_token, stack, None)?
+                    Evaluator::new(bindings, self.project, None)
+                        .evaluate_name(name_token, stack, None)?
                 } else {
                     return Err(name_token.error("could not load bindings for module"));
                 }
@@ -1059,7 +1060,6 @@ impl<'a> Evaluator<'a> {
 mod tests {
     use crate::code_generator::CodeGenerator;
     use crate::expression::Terminator;
-    use crate::module::Module;
     use crate::token::TokenIter;
 
     use super::*;
@@ -1104,7 +1104,7 @@ mod tests {
     #[test]
     fn test_evaluator_types() {
         let p = Project::new_mock();
-        let bindings = BindingMap::new(Module::FIRST_NORMAL);
+        let bindings = BindingMap::new(ModuleId::FIRST_NORMAL);
         let mut e = Evaluator::new(&bindings, &p, None);
         e.assert_type_ok("Bool");
         e.assert_type_ok("Bool -> Bool");

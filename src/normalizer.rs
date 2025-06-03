@@ -4,7 +4,7 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::fact::Fact;
 use crate::literal::Literal;
-use crate::module::SKOLEM;
+use crate::module::ModuleId;
 use crate::monomorphizer::Monomorphizer;
 use crate::names::ConstantName;
 use crate::normalization_map::NormalizationMap;
@@ -74,7 +74,7 @@ impl Normalizer {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
         // Hacky. Turn the int into an s-name
-        let name = ConstantName::unqualified(SKOLEM, &format!("s{}", skolem_index));
+        let name = ConstantName::unqualified(ModuleId::SKOLEM, &format!("s{}", skolem_index));
         AcornValue::constant(name, vec![], acorn_type)
     }
 
@@ -197,7 +197,7 @@ impl Normalizer {
                 if c.params.is_empty() {
                     check_normalized_type(&c.instance_type)?;
                     let type_id = self.normalization_map.add_type(&c.instance_type);
-                    let constant_atom = if c.name.module_id() == SKOLEM {
+                    let constant_atom = if c.name.module_id() == ModuleId::SKOLEM {
                         // Hacky. Turn the s-name back to an int
                         Atom::Skolem(c.name.to_string()[1..].parse().unwrap())
                     } else {
@@ -439,7 +439,7 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let name = ConstantName::unqualified(SKOLEM, &format!("s{}", i));
+                let name = ConstantName::unqualified(ModuleId::SKOLEM, &format!("s{}", i));
                 AcornValue::constant(name, vec![], acorn_type)
             }
         }

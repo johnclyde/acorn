@@ -9,7 +9,7 @@ use crate::code_generator::CodeGenerator;
 use crate::compilation::{self, ErrorSource, PanicOnError};
 use crate::evaluator::Evaluator;
 use crate::expression::{Declaration, Expression, TypeParamExpr};
-use crate::module::{Module, ModuleId};
+use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
 use crate::names::{ConstantName, DefinedName, InstanceName};
 use crate::potential_value::PotentialValue;
@@ -84,7 +84,7 @@ pub struct BindingMap {
 
 impl BindingMap {
     pub fn new(module: ModuleId) -> Self {
-        assert!(module >= Module::FIRST_NORMAL);
+        assert!(module >= ModuleId::FIRST_NORMAL);
         let mut answer = BindingMap {
             module_id: module,
             constant_info: HashMap::new(),

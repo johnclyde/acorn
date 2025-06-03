@@ -6,7 +6,7 @@ use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
-use crate::module::{Module, ModuleId};
+use crate::module::ModuleId;
 use crate::names::ConstantName;
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
@@ -153,7 +153,7 @@ impl CodeGenerator<'_> {
     /// This does *not* include the parameters.
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
         // We can't do skolems
-        if ci.name.module_id() == Module::SKOLEM {
+        if ci.name.module_id() == ModuleId::SKOLEM {
             return Err(Error::skolem(&ci.name.to_string()));
         }
 

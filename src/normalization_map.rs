@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::acorn_type::AcornType;
 use crate::acorn_value::ConstantInstance;
 use crate::atom::{Atom, AtomId};
-use crate::module::SKOLEM;
+use crate::module::ModuleId;
 use crate::names::ConstantName;
 use crate::term::{Term, TypeId};
 
@@ -61,7 +61,7 @@ impl NormalizationMap {
     /// Assigns an id to this (module, name) pair if it doesn't already have one.
     /// local determines whether the constant will be represented as a local or global atom.
     pub fn add_constant(&mut self, name: ConstantName, local: bool) -> Atom {
-        if name.module_id() == SKOLEM {
+        if name.module_id() == ModuleId::SKOLEM {
             panic!("skolem constants should not be stored in the ConstantMap");
         }
         if let Some(&atom) = self.name_to_atom.get(&name) {

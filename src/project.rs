@@ -18,7 +18,7 @@ use crate::compilation;
 use crate::environment::Environment;
 use crate::fact::Fact;
 use crate::goal::GoalContext;
-use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId, FIRST_NORMAL};
+use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::named_entity::NamedEntity;
 use crate::prover::{Outcome, Prover};
@@ -339,7 +339,7 @@ impl Project {
 
     // The ModuleHash corresponding to the current build, *not* the known-good build.
     pub fn get_hash(&self, module_id: ModuleId) -> Option<&ModuleHash> {
-        self.modules[module_id as usize].hash.as_ref()
+        self.modules[module_id.get() as usize].hash.as_ref()
     }
 
     // Updating a file makes us treat it as "open". When a file is open, we use the
@@ -781,7 +781,7 @@ impl Project {
     }
 
     pub fn get_module_by_id(&self, module_id: ModuleId) -> &LoadState {
-        match self.modules.get(module_id as usize) {
+        match self.modules.get(module_id.get() as usize) {
             Some(module) => &module.state,
             None => &LoadState::None,
         }
@@ -795,7 +795,7 @@ impl Project {
     }
 
     pub fn get_module_name_by_id(&self, module_id: ModuleId) -> Option<&str> {
-        match self.modules.get(module_id as usize) {
+        match self.modules.get(module_id.get() as usize) {
             Some(module) => module.name(),
             None => None,
         }
@@ -922,7 +922,7 @@ impl Project {
         let mut errors = vec![];
         for (module_id, module) in self.modules.iter().enumerate() {
             if let LoadState::Error(e) = &module.state {
-                errors.push((module_id as ModuleId, e));
+                errors.push((ModuleId(module_id as u16), e));
             }
         }
         errors
@@ -1018,11 +1018,13 @@ impl Project {
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
-        self.path_from_descriptor(&self.modules[module_id as usize].descriptor)
+        self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor)
     }
 
     pub fn get_module_descriptor(&self, module_id: ModuleId) -> Option<&ModuleDescriptor> {
-        self.modules.get(module_id as usize).map(|m| &m.descriptor)
+        self.modules
+            .get(module_id.get() as usize)
+            .map(|m| &m.descriptor)
     }
 
     pub fn get_module_cache(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
@@ -1040,7 +1042,7 @@ impl Project {
     // If "open" is passed, then we cache this file's content in open files.
     fn load_module(&mut self, descriptor: &ModuleDescriptor) -> Result<ModuleId, ImportError> {
         if let Some(module_id) = self.module_map.get(&descriptor) {
-            if *module_id < FIRST_NORMAL {
+            if *module_id < ModuleId::FIRST_NORMAL {
                 panic!("module {} should not be loadable", module_id);
             }
             if let LoadState::Loading = self.get_module_by_id(*module_id) {
@@ -1063,7 +1065,7 @@ impl Project {
             .map_err(|e| ImportError::NotFound(e.to_string()))?;
 
         // Give this module an id before parsing it, so that we can catch circular imports.
-        let module_id = self.modules.len() as ModuleId;
+        let module_id = ModuleId(self.modules.len() as u16);
         self.modules.push(Module::new(descriptor.clone()));
         self.module_map.insert(descriptor.clone(), module_id);
 
@@ -1072,10 +1074,10 @@ impl Project {
         if let Err(e) = env.add_tokens(self, tokens) {
             if e.circular.is_some() {
                 let err = Err(ImportError::Circular(module_id));
-                self.modules[module_id as usize].load_error(e);
+                self.modules[module_id.get() as usize].load_error(e);
                 return err;
             }
-            self.modules[module_id as usize].load_error(e);
+            self.modules[module_id.get() as usize].load_error(e);
             return Ok(module_id);
         }
 
@@ -1085,9 +1087,9 @@ impl Project {
             env.bindings
                 .direct_dependencies()
                 .iter()
-                .map(|dep_id| &self.modules[*dep_id as usize]),
+                .map(|dep_id| &self.modules[dep_id.get() as usize]),
         );
-        self.modules[module_id as usize].load_ok(env, module_hash);
+        self.modules[module_id.get() as usize].load_ok(env, module_hash);
         Ok(module_id)
     }
 

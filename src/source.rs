@@ -184,7 +184,7 @@ impl Source {
     /// Just for testing.
     pub fn mock() -> Source {
         Source {
-            module_id: 0,
+            module_id: ModuleId(0),
             range: Range::default(),
             source_type: SourceType::Anonymous,
             importable: true,

@@ -209,8 +209,14 @@ impl Environment {
         range: Range,
     ) {
         let doc_comments = self.take_doc_comments();
-        self.bindings
-            .add_defined_name(&name, params, constant_type, definition, None, doc_comments);
+        self.bindings.add_defined_name(
+            &name,
+            params,
+            constant_type,
+            definition,
+            None,
+            doc_comments,
+        );
         self.definition_ranges.insert(name.clone(), range);
         self.add_definition(&name);
     }
@@ -912,7 +918,9 @@ impl Environment {
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
-        let potential_type = self.bindings.add_potential_type(&ss.name, typeclasses, doc_comments);
+        let potential_type = self
+            .bindings
+            .add_potential_type(&ss.name, typeclasses, doc_comments);
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
@@ -1092,7 +1100,9 @@ impl Environment {
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
-        let potential_type = self.bindings.add_potential_type(&is.name, typeclasses, doc_comments);
+        let potential_type = self
+            .bindings
+            .add_potential_type(&is.name, typeclasses, doc_comments);
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
@@ -1447,8 +1457,13 @@ impl Environment {
             name: typeclass_name.to_string(),
         };
         let doc_comments = self.take_doc_comments();
-        self.bindings
-            .add_typeclass(typeclass_name, extends, doc_comments, &project, &ts.typeclass_name)?;
+        self.bindings.add_typeclass(
+            typeclass_name,
+            extends,
+            doc_comments,
+            &project,
+            &ts.typeclass_name,
+        )?;
 
         // For block syntax, we also need to bind the instance name
         let type_params = if let Some(instance_name_token) = &ts.instance_name {
@@ -1777,7 +1792,8 @@ impl Environment {
             .check_typename_available(&ts.name, statement)?;
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
-            self.bindings.add_potential_type(&ts.name, vec![], doc_comments);
+            self.bindings
+                .add_potential_type(&ts.name, vec![], doc_comments);
         } else {
             let potential = self
                 .evaluator(project)
@@ -2176,12 +2192,12 @@ impl Environment {
                 Ok(())
             }
         };
-        
+
         // Clear doc comments after any non-doc-comment statement
         if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
             self.doc_comments.clear();
         }
-        
+
         result
     }
 
@@ -2399,8 +2415,7 @@ impl Environment {
 impl Environment {
     /// Create a test version of the environment.
     pub fn test() -> Self {
-        use crate::module::FIRST_NORMAL;
-        Environment::new(FIRST_NORMAL)
+        Environment::new(ModuleId::FIRST_NORMAL)
     }
 
     /// Adds a possibly multi-line statement to the environment.
