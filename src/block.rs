@@ -129,6 +129,7 @@ impl Block {
                 specific_arg_type,
                 None,
                 None,
+                vec![],
             );
             internal_args.push(potential.force_value());
         }
@@ -192,6 +193,7 @@ impl Block {
                         arg_type,
                         None,
                         None,
+                        vec![],
                     );
                     arg_values.push(potential.force_value());
                 }

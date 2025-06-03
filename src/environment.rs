@@ -194,6 +194,11 @@ impl Environment {
         self.add_node(Node::definition(potential, definition.clone(), source));
     }
 
+    /// Takes the currently collected doc comments and returns them, clearing the collection.
+    fn take_doc_comments(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.doc_comments)
+    }
+
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
     fn define_constant(
         &mut self,
@@ -203,8 +208,9 @@ impl Environment {
         definition: Option<AcornValue>,
         range: Range,
     ) {
+        let doc_comments = self.take_doc_comments();
         self.bindings
-            .add_defined_name(&name, params, constant_type, definition, None);
+            .add_defined_name(&name, params, constant_type, definition, None, doc_comments);
         self.definition_ranges.insert(name.clone(), range);
         self.add_definition(&name);
     }
@@ -627,12 +633,14 @@ impl Environment {
         let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
+            let doc_comments = self.take_doc_comments();
             self.bindings.add_unqualified_constant(
                 name,
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
                 None,
+                doc_comments,
             );
         }
 
@@ -703,6 +711,7 @@ impl Environment {
                 quant_type.clone(),
                 None,
                 None,
+                vec![],
             );
         }
 
@@ -786,12 +795,14 @@ impl Environment {
 
         // We define this function not with an equality, but via the condition.
         let function_type = AcornType::functional(arg_types.clone(), return_type);
+        let doc_comments = self.take_doc_comments();
         self.bindings.add_unqualified_constant(
             &fss.name,
             vec![],
             function_type.clone(),
             None,
             None,
+            doc_comments,
         );
         let const_name = ConstantName::unqualified(self.module_id, &fss.name);
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
@@ -913,6 +924,7 @@ impl Environment {
                 member_fn_type.genericize(&type_params),
                 None,
                 None,
+                vec![],
             );
             member_fns.push(potential);
         }
@@ -924,6 +936,7 @@ impl Environment {
             index: 0,
             total: 1,
         };
+        let doc_comments = self.take_doc_comments();
         let new_fn = self.bindings.add_class_attribute(
             &class,
             "new",
@@ -931,6 +944,7 @@ impl Environment {
             new_fn_type.genericize(&type_params),
             None,
             Some(constructor_info),
+            doc_comments,
         );
 
         // Each object of this new type has certain properties.
@@ -1129,6 +1143,7 @@ impl Environment {
                 gen_constructor_type,
                 None,
                 Some(constructor_info),
+                vec![],
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
@@ -1316,6 +1331,7 @@ impl Environment {
         let name = ConstantName::class_attr(class.clone(), "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
+        let doc_comments = self.take_doc_comments();
         self.bindings.add_class_attribute(
             &class,
             "induction",
@@ -1323,6 +1339,7 @@ impl Environment {
             gen_lambda_claim.get_type(),
             Some(gen_lambda_claim),
             None,
+            doc_comments,
         );
         self.bindings.mark_as_theorem(&name);
 
@@ -1488,6 +1505,7 @@ impl Environment {
                     var_type,
                     None,
                     None,
+                    vec![],
                 );
             }
         }
@@ -1541,6 +1559,7 @@ impl Environment {
                     theorem_type.clone(),
                     Some(lambda_claim),
                     None,
+                    vec![],
                 );
 
                 let source = Source::theorem(

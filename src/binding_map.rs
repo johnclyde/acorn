@@ -595,6 +595,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
+        doc_comments: Vec<String>,
     ) -> PotentialValue {
         match defined_name {
             DefinedName::Constant(constant_name) => self.add_constant_name(
@@ -603,6 +604,7 @@ impl BindingMap {
                 constant_type,
                 definition,
                 constructor,
+                doc_comments,
             ),
             DefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
@@ -629,6 +631,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
+        doc_comments: Vec<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::class_attr(class.clone(), attr);
         self.add_constant_name(
@@ -637,6 +640,7 @@ impl BindingMap {
             constant_type,
             definition,
             constructor,
+            doc_comments,
         )
     }
 
@@ -648,6 +652,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
+        doc_comments: Vec<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::typeclass_attr(typeclass.clone(), attr);
         self.add_constant_name(
@@ -656,6 +661,7 @@ impl BindingMap {
             constant_type,
             definition,
             constructor,
+            doc_comments,
         )
     }
 
@@ -667,6 +673,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
+        doc_comments: Vec<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::unqualified(self.module_id, name);
         self.add_constant_name(
@@ -675,6 +682,7 @@ impl BindingMap {
             constant_type,
             definition,
             constructor,
+            doc_comments,
         )
     }
 
@@ -690,6 +698,7 @@ impl BindingMap {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
+        doc_comments: Vec<String>,
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
@@ -730,7 +739,7 @@ impl BindingMap {
             definition,
             theorem: false,
             constructor,
-            doc_comments: vec![],
+            doc_comments,
         };
 
         self.add_constant_info(constant_name.clone(), info);
@@ -1269,7 +1278,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant_name(function_name, vec![], fn_type, None, None);
+            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![]);
         }
 
         // Evaluate the internal value using our modified bindings
