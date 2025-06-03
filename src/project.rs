@@ -2119,6 +2119,12 @@ mod tests {
         assert!(p.hover(&env, 28, 20).is_some()); // T
         assert!(p.hover(&env, 31, 20).is_some()); // Nat
 
+        let nat_hover = format!("{:?}", p.hover(&env, 6, 11));
+        assert!(nat_hover.contains("Nat_doc_comment"));
+
+        let has_zero_hover = format!("{:?}", p.hover(&env, 19, 19));
+        assert!(has_zero_hover.contains("HasZero_doc_comment"));
+
         let equals_hover = format!("{:?}", p.hover(&env, 31, 14));
         assert!(equals_hover.contains("equals_doc_comment"));
 
