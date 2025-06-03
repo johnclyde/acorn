@@ -2012,11 +2012,11 @@ mod tests {
         p.mock(
             "/mock/main.ac",
             indoc::indoc! {r#"
-        inductive Nat {                           // line 0
-            0                                     // line 1
-            suc(Nat)                              // line 2
+        /// Nat_doc_comment
+        inductive Nat {                           // line 1
+            0                                     // line 2
+            suc(Nat)                              // line 3
         }
-        // A marker to count columns.    
         // 3456789012345678901234567890
         let one: Nat = Nat.suc(Nat.0)             // line 6
         define make_nat(odd: Bool) -> Nat {       // line 7

@@ -730,6 +730,7 @@ impl BindingMap {
             definition,
             theorem: false,
             constructor,
+            doc_comments: vec![],
         };
 
         self.add_constant_info(constant_name.clone(), info);
@@ -793,6 +794,7 @@ impl BindingMap {
             theorem: false,
             definition: None,
             constructor: None,
+            doc_comments: vec![],
         };
         self.add_constant_info(alias, info);
     }
@@ -1578,6 +1580,9 @@ struct ConstantInfo {
     ///   how many total constructors there are
     /// Not included for aliases.
     constructor: Option<ConstructorInfo>,
+
+    /// The doc comments by the definition of this constant.
+    doc_comments: Vec<String>,
 }
 
 /// Helper for autocomplete.
