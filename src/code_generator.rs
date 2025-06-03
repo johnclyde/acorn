@@ -135,8 +135,15 @@ impl CodeGenerator<'_> {
         Ok(expr.to_string())
     }
 
-    /// Returns None rather than an error if the type cannot be expressed in code.
-    /// Intended for UI use.
+    /// Create a marked-up string to display information for this value.
+    pub fn value_to_marked(&mut self, value: &AcornValue) -> Result<MarkedString> {
+        let value_code = self.value_to_code(value)?;
+        let type_code = self.type_to_code(&value.get_type())?;
+        let code = format!("{}: {}", value_code, type_code);
+        Ok(Self::marked(code))
+    }
+
+    /// Create a marked-up string to display information for this type.
     pub fn type_to_marked(&mut self, acorn_type: &AcornType) -> Result<MarkedString> {
         let code = self.type_to_code(acorn_type)?;
         Ok(Self::marked(format!("type {}", code)))
@@ -284,9 +291,17 @@ impl CodeGenerator<'_> {
     /// we don't need top level parameters.
     fn value_to_expr(&mut self, value: &AcornValue, inferrable: bool) -> Result<Expression> {
         match value {
-            AcornValue::Variable(i, _) => Ok(Expression::generate_identifier(
-                &self.var_names[*i as usize],
-            )),
+            AcornValue::Variable(i, _) => {
+                if *i >= self.var_names.len() as u16 {
+                    // This is definitely wrong.
+                    // We use this for the hover, but it would be better to fix it.
+                    Ok(Expression::generate_identifier(&format!("v{}", i)))
+                } else {
+                    Ok(Expression::generate_identifier(
+                        &self.var_names[*i as usize],
+                    ))
+                }
+            }
             AcornValue::Application(fa) => {
                 let mut args = vec![];
                 for arg in &fa.args {

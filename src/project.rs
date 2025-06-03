@@ -836,8 +836,27 @@ impl Project {
 
         // First add the main hover content
         let main_content = match &info.entity {
+            NamedEntity::Value(value) => gen.value_to_marked(&value)?,
+            NamedEntity::UnresolvedValue(unresolved) => {
+                let generic = unresolved.clone().to_generic_value();
+                gen.value_to_marked(&generic)?
+            }
+
             NamedEntity::Type(t) => gen.type_to_marked(&t)?,
-            e => MarkedString::String(e.to_string()),
+            NamedEntity::UnresolvedType(unresolved_type) => {
+                let display = unresolved_type.to_display_type();
+                gen.type_to_marked(&display)?
+            }
+
+            NamedEntity::Typeclass(typeclass) => {
+                CodeGenerator::marked(format!("typeclass: {}", typeclass.name))
+            }
+            NamedEntity::Module(module_id) => {
+                let name = self
+                    .get_module_name_by_id(*module_id)
+                    .unwrap_or("__module__");
+                CodeGenerator::marked(name.to_string())
+            }
         };
         parts.push(main_content);
 
@@ -849,6 +868,7 @@ impl Project {
             NamedEntity::UnresolvedValue(unresolved) => {
                 env.bindings.get_constant_doc_comments(&unresolved.name)
             }
+
             NamedEntity::Type(acorn_type) => {
                 if let AcornType::Data(class, _) = acorn_type {
                     env.bindings.get_class_doc_comment(class)
@@ -859,10 +879,10 @@ impl Project {
             NamedEntity::UnresolvedType(unresolved_type) => {
                 env.bindings.get_class_doc_comment(&unresolved_type.class)
             }
-            NamedEntity::Typeclass(typeclass) => {
-                env.bindings.get_typeclass_doc_comment(typeclass)
-            }
-            _ => None,
+
+            NamedEntity::Typeclass(typeclass) => env.bindings.get_typeclass_doc_comment(typeclass),
+
+            NamedEntity::Module(..) => None,
         };
 
         // Add doc comments if we have them
