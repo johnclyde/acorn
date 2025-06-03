@@ -808,6 +808,10 @@ fn test_hover_basic() {
         cons(T, List<T>)
     }
     let l = List.cons(num, List.nil<Nat>)     // line 39
+    // 34567890123456789012345678901
+    let m: Nat satisfy {                      // line 41
+        m = m
+    }
     "#},
     );
     p.expect_ok("main");
@@ -839,6 +843,7 @@ fn test_hover_basic() {
     assert!(p.hover(&env, 25, 15).is_some()); // a
     assert!(p.hover(&env, 28, 20).is_some()); // T
     assert!(p.hover(&env, 31, 20).is_some()); // Nat
+    assert!(p.hover(&env, 41, 8).is_some()); // Nat
 
     let nat_hover = format!("{:?}", p.hover(&env, 6, 11));
     assert!(nat_hover.contains("Nat_doc_comment"));
@@ -862,6 +867,9 @@ fn test_hover_with_imports() {
     p.mock(
         "/mock/foo.ac",
         indoc! {r"
+        /// module_doc_comment
+        
+        /// type_doc_comment
         inductive Foo {
             foo
         }
