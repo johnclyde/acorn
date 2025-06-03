@@ -11,4 +11,7 @@ mod env_typeclass;
 mod prover_test;
 
 #[cfg(test)]
+mod project_test;
+
+#[cfg(test)]
 mod common;
