@@ -2107,7 +2107,7 @@ impl Environment {
                 statement.error("an explicit 'false' may not be followed by other statements")
             );
         }
-        match &statement.statement {
+        let result = match &statement.statement {
             StatementInfo::Type(ts) => self.add_type_statement(project, statement, ts),
 
             StatementInfo::Let(ls) => {
@@ -2173,7 +2173,14 @@ impl Environment {
                 self.doc_comments.push(s.clone());
                 Ok(())
             }
+        };
+        
+        // Clear doc comments after any non-doc-comment statement
+        if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
+            self.doc_comments.clear();
         }
+        
+        result
     }
 
     /// Parse these tokens and add them to the environment.
