@@ -1600,6 +1600,23 @@ impl Statement {
                         let s = parse_instance_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
+                    TokenType::DocComment => {
+                        let doc_token = tokens.next().unwrap();
+                        // Extract the content from the doc comment token
+                        // The token's text includes "///" at the start
+                        let text = doc_token.text();
+                        let content = if text.starts_with("///") {
+                            text[3..].trim().to_string()
+                        } else {
+                            text.to_string()
+                        };
+                        let s = Statement {
+                            first_token: doc_token.clone(),
+                            last_token: doc_token,
+                            statement: StatementInfo::DocComment(content),
+                        };
+                        return Ok((Some(s), None));
+                    }
                     _ => {
                         if !in_block {
                             return Err(token.error("unexpected token at the top level"));
