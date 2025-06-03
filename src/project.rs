@@ -832,14 +832,14 @@ impl Project {
     ) -> code_generator::Result<HoverContents> {
         let mut gen = CodeGenerator::new(&env.bindings);
         let mut parts = vec![];
-        
+
         // First add the main hover content
         let main_content = match &info.entity {
             NamedEntity::Type(t) => gen.type_to_marked(&t)?,
             e => MarkedString::String(e.to_string()),
         };
         parts.push(main_content);
-        
+
         // Check if we have doc comments to add
         let doc_comments = match &info.entity {
             NamedEntity::Value(value) => {
@@ -854,7 +854,7 @@ impl Project {
             }
             _ => None,
         };
-        
+
         // Add doc comments if we have them
         if let Some(comments) = doc_comments {
             if !comments.is_empty() {
@@ -862,7 +862,7 @@ impl Project {
                 parts.push(MarkedString::String(doc_string));
             }
         }
-        
+
         Ok(HoverContents::Array(parts))
     }
 
@@ -2111,6 +2111,15 @@ mod tests {
         assert!(p.hover(&env, 25, 15).is_some()); // a
         assert!(p.hover(&env, 28, 20).is_some()); // T
         assert!(p.hover(&env, 31, 20).is_some()); // Nat
+
+        let equals_hover = format!("{:?}", p.hover(&env, 31, 14));
+        assert!(equals_hover.contains("equals_doc_comment"));
+
+        let num_hover = format!("{:?}", p.hover(&env, 39, 18));
+        assert!(num_hover.contains("num_doc_comment"));
+
+        let list_hover = format!("{:?}", p.hover(&env, 39, 23));
+        assert!(list_hover.contains("List_doc_comment"));
     }
 
     #[test]
