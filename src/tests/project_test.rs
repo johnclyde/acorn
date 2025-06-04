@@ -845,6 +845,8 @@ fn test_hover_basic() {
     assert!(p.hover(&env, 31, 20).is_some()); // Nat
     assert!(p.hover(&env, 41, 8).is_some()); // Nat
 
+    // Check hovers
+
     let nat_hover = format!("{:?}", p.hover(&env, 6, 11));
     assert!(nat_hover.contains("Nat_doc_comment"));
 
@@ -870,7 +872,7 @@ fn test_hover_with_imports() {
         /// module_doc_comment
         
         /// type_doc_comment
-        inductive Foo {
+        inductive Foo {               // line 3
             foo
         }
         "},
@@ -888,4 +890,14 @@ fn test_hover_with_imports() {
     assert!(p.hover(&env, 1, 7).is_some()); // foo
     assert!(p.hover(&env, 1, 10).is_none()); // import
     assert!(p.hover(&env, 1, 17).is_some()); // Foo
+
+    // Check hovers
+
+    let module_hover = format!("{:?}", p.hover(&env, 1, 7));
+    assert!(module_hover.contains("module_doc_comment"));
+    assert!(!module_hover.contains("type_doc_comment"));
+
+    let type_hover = format!("{:?}", p.hover(&env, 1, 17));
+    assert!(!type_hover.contains("module_doc_comment"));
+    // assert!(type_hover.contains("type_doc_comment"));
 }

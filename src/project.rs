@@ -895,7 +895,19 @@ impl Project {
 
             NamedEntity::Typeclass(typeclass) => env.bindings.get_typeclass_doc_comment(typeclass),
 
-            NamedEntity::Module(..) => None,
+            NamedEntity::Module(module_id) => {
+                // Get the environment for this module to access its documentation
+                if let Some(module_env) = self.get_env_by_id(*module_id) {
+                    let doc_comments = module_env.get_module_doc_comments();
+                    if doc_comments.is_empty() {
+                        None
+                    } else {
+                        Some(doc_comments)
+                    }
+                } else {
+                    None
+                }
+            },
         };
 
         // Add doc comments if we have them

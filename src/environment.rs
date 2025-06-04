@@ -75,6 +75,15 @@ pub struct Environment {
     /// Used during statement parsing. Cleared whenever they are attached to something.
     /// Each line is one entry.
     doc_comments: Vec<String>,
+
+    /// Module-level documentation from doc comments at the top of the file.
+    module_doc_comments: Vec<String>,
+
+    /// Whether we're still at the beginning of the file and can collect module doc comments.
+    at_module_beginning: bool,
+
+    /// The line number of the last statement we processed (for detecting blank lines).
+    last_statement_line: Option<u32>,
 }
 
 impl Environment {
@@ -91,6 +100,9 @@ impl Environment {
             depth: 0,
             token_map: TokenMap::new(),
             doc_comments: Vec::new(),
+            module_doc_comments: Vec::new(),
+            at_module_beginning: true,
+            last_statement_line: None,
         }
     }
 
@@ -109,6 +121,9 @@ impl Environment {
             depth: self.depth + 1,
             token_map: TokenMap::new(),
             doc_comments: Vec::new(),
+            module_doc_comments: Vec::new(), // Child environments don't inherit module doc comments
+            at_module_beginning: false, // Child environments are never at module beginning
+            last_statement_line: None,
         }
     }
 
@@ -197,6 +212,11 @@ impl Environment {
     /// Takes the currently collected doc comments and returns them, clearing the collection.
     fn take_doc_comments(&mut self) -> Vec<String> {
         std::mem::take(&mut self.doc_comments)
+    }
+
+    /// Returns the module documentation.
+    pub fn get_module_doc_comments(&self) -> &Vec<String> {
+        &self.module_doc_comments
     }
 
     /// Defines a new constant, adding a node for its definition and also tracking its definition range.
@@ -2132,6 +2152,24 @@ impl Environment {
                 statement.error("an explicit 'false' may not be followed by other statements")
             );
         }
+        
+        // Handle module doc collection logic before processing the statement
+        if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
+            let current_line = statement.first_line();
+            
+            // Check if this is the first non-doc statement and there was a gap
+            if self.at_module_beginning {
+                if let Some(last_line) = self.last_statement_line {
+                    if current_line > last_line + 1 {
+                        // There was a gap between last doc comment and this statement
+                        // Move accumulated doc comments to module documentation
+                        self.module_doc_comments.extend(self.doc_comments.drain(..));
+                    }
+                }
+                self.at_module_beginning = false;
+            }
+        }
+        
         let result = match &statement.statement {
             StatementInfo::Type(ts) => self.add_type_statement(project, statement, ts),
 
@@ -2195,14 +2233,30 @@ impl Environment {
             StatementInfo::Instance(is) => self.add_instance_statement(project, statement, is),
 
             StatementInfo::DocComment(s) => {
+                let current_line = statement.first_line();
+                
+                // Check if there's a gap before this doc comment
+                if self.at_module_beginning {
+                    if let Some(last_line) = self.last_statement_line {
+                        if current_line > last_line + 1 {
+                            // There was a gap before this doc comment
+                            // Move any accumulated doc comments to module documentation
+                            self.module_doc_comments.extend(self.doc_comments.drain(..));
+                            self.at_module_beginning = false;
+                        }
+                    }
+                }
+                
                 self.doc_comments.push(s.clone());
+                self.last_statement_line = Some(current_line);
                 Ok(())
             }
         };
 
-        // Clear doc comments after any non-doc-comment statement
+        // Clear doc comments after any non-doc-comment statement  
         if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
             self.doc_comments.clear();
+            self.last_statement_line = Some(statement.first_line());
         }
 
         result
