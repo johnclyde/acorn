@@ -657,6 +657,12 @@ impl Environment {
         let theorem_type = lambda_claim.get_type();
         if let Some(name) = &ts.name {
             let doc_comments = self.take_doc_comments();
+            // Use the name token range if available, otherwise fall back to statement range
+            let name_range = if let Some(name_token) = &ts.name_token {
+                name_token.range()
+            } else {
+                range.clone()
+            };
             self.bindings.add_unqualified_constant(
                 name,
                 type_params.clone(),
@@ -664,7 +670,7 @@ impl Environment {
                 Some(lambda_claim.clone()),
                 None,
                 doc_comments,
-                Some(range.clone()),
+                Some(name_range),
             );
         }
 
@@ -833,7 +839,7 @@ impl Environment {
             None,
             None,
             doc_comments,
-            Some(definition_range.clone()),
+            Some(fss.name_token.range()),
         );
         let const_name = ConstantName::unqualified(self.module_id, &fss.name);
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
@@ -945,7 +951,7 @@ impl Environment {
         let doc_comments = self.take_doc_comments();
         let potential_type = self
             .bindings
-            .add_potential_type(&ss.name, typeclasses, doc_comments, Some(statement.range()));
+            .add_potential_type(&ss.name, typeclasses, doc_comments, Some(ss.name_token.range()));
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
@@ -1127,7 +1133,7 @@ impl Environment {
         let doc_comments = self.take_doc_comments();
         let potential_type = self
             .bindings
-            .add_potential_type(&is.name, typeclasses, doc_comments, Some(statement.range()));
+            .add_potential_type(&is.name, typeclasses, doc_comments, Some(is.name_token.range()));
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
@@ -1432,7 +1438,7 @@ impl Environment {
                         project,
                         DefinedName::class_attr(class, &ls.name),
                         ls,
-                        substatement.range(),
+                        ls.name_token.range(),
                         Some(&type_params),
                     )?;
                 }
@@ -1443,7 +1449,7 @@ impl Environment {
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
-                        substatement.range(),
+                        ds.name_token.range(),
                     )?;
                 }
                 _ => {
@@ -1486,7 +1492,7 @@ impl Environment {
             typeclass_name,
             extends,
             doc_comments,
-            Some(statement.range()),
+            Some(ts.typeclass_name.range()),
             &project,
             &ts.typeclass_name,
         )?;
@@ -1668,7 +1674,7 @@ impl Environment {
                                 instance_class.clone(),
                             ),
                             ls,
-                            substatement.range(),
+                            ls.name_token.range(),
                             None,
                         )?;
 
@@ -1694,7 +1700,7 @@ impl Environment {
                             Some(&instance_type),
                             None,
                             ds,
-                            substatement.range(),
+                            ds.name_token.range(),
                         )?;
 
                         pairs.push(self.bindings.check_instance_attribute(
@@ -1818,7 +1824,7 @@ impl Environment {
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
             self.bindings
-                .add_potential_type(&ts.name, vec![], doc_comments, Some(statement.range()));
+                .add_potential_type(&ts.name, vec![], doc_comments, Some(ts.name_token.range()));
         } else {
             let potential = self
                 .evaluator(project)
@@ -2177,7 +2183,7 @@ impl Environment {
                     project,
                     DefinedName::unqualified(self.module_id, &ls.name),
                     ls,
-                    statement.range(),
+                    ls.name_token.range(),
                     None,
                 )
             }
@@ -2190,7 +2196,7 @@ impl Environment {
                     None,
                     None,
                     ds,
-                    statement.range(),
+                    ds.name_token.range(),
                 )
             }
 

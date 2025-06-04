@@ -66,6 +66,7 @@ pub struct DefineStatement {
 pub struct TheoremStatement {
     pub axiomatic: bool,
     pub name: Option<String>,
+    pub name_token: Option<Token>,
     pub type_params: Vec<TypeParamExpr>,
     pub args: Vec<Declaration>,
     pub claim: Expression,
@@ -83,6 +84,7 @@ pub struct ClaimStatement {
 /// Type statements declare a name as an alias to a type expression.
 pub struct TypeStatement {
     pub name: String,
+    pub name_token: Token,
     pub type_expr: Expression,
 }
 
@@ -408,9 +410,12 @@ fn parse_theorem_statement(
     tokens: &mut TokenIter,
     axiomatic: bool,
 ) -> Result<Statement> {
-    let name = match tokens.peek_type() {
-        Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => None,
-        _ => Some(tokens.expect_variable_name(false)?.text().to_string()),
+    let (name, name_token) = match tokens.peek_type() {
+        Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => (None, None),
+        _ => {
+            let token = tokens.expect_variable_name(false)?;
+            (Some(token.text().to_string()), Some(token))
+        }
     };
     let type_params = TypeParamExpr::parse_list(tokens)?;
     let (args, _) = parse_args(tokens, TokenType::LeftBrace)?;
@@ -422,6 +427,7 @@ fn parse_theorem_statement(
     let ts = TheoremStatement {
         axiomatic,
         name,
+        name_token,
         type_params,
         args,
         claim,
@@ -577,6 +583,7 @@ fn parse_type_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     let last_token = type_expr.last_token().clone();
     let ts = TypeStatement {
         name: name_token.to_string(),
+        name_token: name_token.clone(),
         type_expr,
     };
     let statement = Statement {
