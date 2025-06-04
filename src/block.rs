@@ -130,6 +130,7 @@ impl Block {
                 None,
                 None,
                 vec![],
+                None,
             );
             internal_args.push(potential.force_value());
         }
@@ -194,6 +195,7 @@ impl Block {
                         None,
                         None,
                         vec![],
+                        None,
                     );
                     arg_values.push(potential.force_value());
                 }

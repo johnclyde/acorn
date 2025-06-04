@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::vec;
 
 use tower_lsp::lsp_types::Range;
@@ -46,9 +46,6 @@ pub struct Environment {
     /// Each node depends only on the nodes before it.
     pub nodes: Vec<Node>,
 
-    /// The region in the source document where a name was defined
-    definition_ranges: HashMap<DefinedName, Range>,
-
     /// Whether a plain "false" is anywhere in this environment.
     /// This indicates that the environment is supposed to have contradictory facts.
     pub includes_explicit_false: bool,
@@ -92,7 +89,6 @@ impl Environment {
             module_id,
             bindings: BindingMap::new(module_id),
             nodes: Vec::new(),
-            definition_ranges: HashMap::new(),
             includes_explicit_false: false,
             first_line: 0,
             line_types: Vec::new(),
@@ -113,7 +109,6 @@ impl Environment {
             module_id: self.module_id,
             bindings: self.bindings.clone(),
             nodes: Vec::new(),
-            definition_ranges: self.definition_ranges.clone(),
             includes_explicit_false: false,
             first_line,
             line_types: Vec::new(),
@@ -122,7 +117,7 @@ impl Environment {
             token_map: TokenMap::new(),
             doc_comments: Vec::new(),
             module_doc_comments: Vec::new(), // Child environments don't inherit module doc comments
-            at_module_beginning: false, // Child environments are never at module beginning
+            at_module_beginning: false,      // Child environments are never at module beginning
             last_statement_line: None,
         }
     }
@@ -196,7 +191,11 @@ impl Environment {
             .bindings
             .get_constant_value(defined_name, &PanicOnError)
             .expect("bad add_definition call");
-        let range = self.definition_ranges.get(defined_name).unwrap().clone();
+        let range = self
+            .bindings
+            .get_definition_range(defined_name)
+            .unwrap()
+            .clone();
         let name = defined_name.to_string();
         let source = Source::constant_definition(
             self.module_id,
@@ -236,8 +235,8 @@ impl Environment {
             definition,
             None,
             doc_comments,
+            Some(range.clone()),
         );
-        self.definition_ranges.insert(name.clone(), range);
         self.add_definition(&name);
     }
 
@@ -601,8 +600,6 @@ impl Environment {
         if let Some(name) = &ts.name {
             self.bindings
                 .check_unqualified_name_available(&name, &statement.first_token)?;
-            let name = DefinedName::unqualified(self.module_id, name);
-            self.definition_ranges.insert(name, range.clone());
         }
 
         let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
@@ -667,6 +664,7 @@ impl Environment {
                 Some(lambda_claim.clone()),
                 None,
                 doc_comments,
+                Some(range.clone()),
             );
         }
 
@@ -745,6 +743,7 @@ impl Environment {
                 None,
                 None,
                 vec![],
+                None,
             );
         }
 
@@ -781,8 +780,6 @@ impl Environment {
             start: statement.first_token.start_pos(),
             end: fss.satisfy_token.end_pos(),
         };
-        let name = DefinedName::unqualified(self.module_id, &fss.name);
-        self.definition_ranges.insert(name, definition_range);
 
         let (_, mut arg_names, mut arg_types, condition, _) = self.bindings.evaluate_scoped_value(
             &[],
@@ -836,6 +833,7 @@ impl Environment {
             None,
             None,
             doc_comments,
+            Some(definition_range.clone()),
         );
         let const_name = ConstantName::unqualified(self.module_id, &fss.name);
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
@@ -1569,7 +1567,6 @@ impl Environment {
                 let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
                 self.bindings
                     .check_defined_name_available(&defined_name, &condition.name)?;
-                self.definition_ranges.insert(defined_name.clone(), range);
 
                 let (bad_params, _, arg_types, unbound_claim, _) =
                     self.bindings.evaluate_scoped_value(
@@ -2152,11 +2149,11 @@ impl Environment {
                 statement.error("an explicit 'false' may not be followed by other statements")
             );
         }
-        
+
         // Handle module doc collection logic before processing the statement
         if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
             let current_line = statement.first_line();
-            
+
             // Check if this is the first non-doc statement and there was a gap
             if self.at_module_beginning {
                 if let Some(last_line) = self.last_statement_line {
@@ -2169,7 +2166,7 @@ impl Environment {
                 self.at_module_beginning = false;
             }
         }
-        
+
         let result = match &statement.statement {
             StatementInfo::Type(ts) => self.add_type_statement(project, statement, ts),
 
@@ -2234,7 +2231,7 @@ impl Environment {
 
             StatementInfo::DocComment(s) => {
                 let current_line = statement.first_line();
-                
+
                 // Check if there's a gap before this doc comment
                 if self.at_module_beginning {
                     if let Some(last_line) = self.last_statement_line {
@@ -2246,14 +2243,14 @@ impl Environment {
                         }
                     }
                 }
-                
+
                 self.doc_comments.push(s.clone());
                 self.last_statement_line = Some(current_line);
                 Ok(())
             }
         };
 
-        // Clear doc comments after any non-doc-comment statement  
+        // Clear doc comments after any non-doc-comment statement
         if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
             self.doc_comments.clear();
             self.last_statement_line = Some(statement.first_line());

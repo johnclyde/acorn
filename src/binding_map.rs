@@ -1,7 +1,7 @@
 use core::panic;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Range};
 
 use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass, UnresolvedType};
 use crate::acorn_value::AcornValue;
@@ -289,6 +289,19 @@ impl BindingMap {
                 .instance_attr_defs
                 .get(instance_name)
                 .map(|def| &def.value),
+        }
+    }
+
+    /// Returns the range where this name was defined, if available.
+    pub fn get_definition_range(&self, name: &DefinedName) -> Option<&Range> {
+        match name {
+            DefinedName::Constant(constant_name) => {
+                self.constant_defs.get(constant_name)?.range.as_ref()
+            }
+            DefinedName::Instance(instance_name) => self
+                .instance_attr_defs
+                .get(instance_name)
+                .and_then(|def| def.range.as_ref()),
         }
     }
 
@@ -614,6 +627,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
+        range: Option<Range>,
     ) -> PotentialValue {
         match defined_name {
             DefinedName::Constant(constant_name) => self.add_constant_name(
@@ -623,6 +637,7 @@ impl BindingMap {
                 definition,
                 constructor,
                 doc_comments,
+                range,
             ),
             DefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
@@ -634,7 +649,10 @@ impl BindingMap {
                 }
                 self.instance_attr_defs.insert(
                     instance_name.clone(),
-                    InstanceAttributeDefinition { value: definition },
+                    InstanceAttributeDefinition {
+                        value: definition,
+                        range,
+                    },
                 );
                 let value = AcornValue::instance_constant(instance_name.clone(), constant_type);
                 PotentialValue::Resolved(value)
@@ -661,6 +679,7 @@ impl BindingMap {
             definition,
             constructor,
             doc_comments,
+            None,
         )
     }
 
@@ -682,6 +701,7 @@ impl BindingMap {
             definition,
             constructor,
             doc_comments,
+            None,
         )
     }
 
@@ -694,6 +714,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
+        range: Option<Range>,
     ) -> PotentialValue {
         let constant_name = ConstantName::unqualified(self.module_id, name);
         self.add_constant_name(
@@ -703,6 +724,7 @@ impl BindingMap {
             definition,
             constructor,
             doc_comments,
+            range,
         )
     }
 
@@ -719,6 +741,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
+        range: Option<Range>,
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
@@ -760,6 +783,7 @@ impl BindingMap {
             theorem: false,
             constructor,
             doc_comments,
+            range,
         };
 
         self.add_constant_def(constant_name.clone(), info);
@@ -824,6 +848,7 @@ impl BindingMap {
             definition: None,
             constructor: None,
             doc_comments: vec![],
+            range: None,
         };
         self.add_constant_def(alias, info);
     }
@@ -1331,7 +1356,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![]);
+            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![], None);
         }
 
         // Evaluate the internal value using our modified bindings
@@ -1653,6 +1678,9 @@ struct ConstantDefinition {
 
     /// The doc comments by the definition of this constant.
     doc_comments: Vec<String>,
+    
+    /// The range in the source code where this constant was defined.
+    range: Option<Range>,
 }
 
 /// The way that a typeclass attribute has been defined for a particular instance of a typeclass.
@@ -1660,6 +1688,9 @@ struct ConstantDefinition {
 struct InstanceAttributeDefinition {
     /// How the attribute is defined.
     value: AcornValue,
+    
+    /// The range in the source code where this instance attribute was defined.
+    range: Option<Range>,
 }
 
 /// Helper for autocomplete.
