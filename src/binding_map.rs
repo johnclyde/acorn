@@ -31,11 +31,11 @@ pub struct BindingMap {
     /// The module all these names are in.
     module_id: ModuleId,
 
-    /// Maps the name of a constant defined in this scope to information about it.
+    /// Maps the name of a constant defined in this scope to information about its definition.
     /// Doesn't handle variables defined on the stack, only ones that will be in scope for the
     /// entirety of this environment.
     /// This also includes aliases.
-    constant_info: HashMap<ConstantName, ConstantInfo>,
+    constant_defs: HashMap<ConstantName, ConstantDefinition>,
 
     /// Maps the name of a type to the type object.
     /// Includes unresolved names like List that don't have enough information
@@ -45,15 +45,15 @@ pub struct BindingMap {
     /// Maps the type object to its name in this environment.
     type_to_typename: HashMap<PotentialType, String>,
 
-    /// Stores information about every class accessible from this module.
-    class_info: HashMap<Class, ClassInfo>,
+    /// Stores definition information about every class accessible from this module.
+    class_defs: HashMap<Class, ClassDefinition>,
 
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
     name_to_typeclass: BTreeMap<String, Typeclass>,
 
-    /// Stores information about every typeclass accessible from this module.
-    typeclass_info: HashMap<Typeclass, TypeclassInfo>,
+    /// Stores definition information about every typeclass accessible from this module.
+    typeclass_defs: HashMap<Typeclass, TypeclassDefinition>,
 
     /// A map whose keys are the unqualified constants in this module.
     /// Used for completion.
@@ -79,7 +79,7 @@ pub struct BindingMap {
     /// The definitions of the instance attributes defined in this module.
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
     /// is going to need to see them in their parametrized form.
-    instance_definitions: HashMap<InstanceName, AcornValue>,
+    instance_attr_defs: HashMap<InstanceName, AcornValue>,
 }
 
 impl BindingMap {
@@ -87,18 +87,18 @@ impl BindingMap {
         assert!(module >= ModuleId::FIRST_NORMAL);
         let mut answer = BindingMap {
             module_id: module,
-            constant_info: HashMap::new(),
+            constant_defs: HashMap::new(),
             typename_to_type: BTreeMap::new(),
             type_to_typename: HashMap::new(),
             name_to_typeclass: BTreeMap::new(),
-            typeclass_info: HashMap::new(),
+            typeclass_defs: HashMap::new(),
             unqualified: BTreeMap::new(),
             constant_to_alias: HashMap::new(),
             name_to_module: BTreeMap::new(),
             module_to_name: HashMap::new(),
             numerals: None,
-            instance_definitions: HashMap::new(),
-            class_info: HashMap::new(),
+            instance_attr_defs: HashMap::new(),
+            class_defs: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -115,7 +115,7 @@ impl BindingMap {
 
     /// Whether this type has this attribute in the current context.
     pub fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
-        self.class_info
+        self.class_defs
             .get(class)
             .map_or(false, |info| info.attributes.contains_key(var_name))
     }
@@ -128,7 +128,7 @@ impl BindingMap {
         typeclass: &Typeclass,
         attr: &str,
     ) -> Option<&Typeclass> {
-        self.typeclass_info.get(typeclass)?.attributes.get(attr)
+        self.typeclass_defs.get(typeclass)?.attributes.get(attr)
     }
 
     /// Gets the local alias to use for a given constant.
@@ -138,25 +138,26 @@ impl BindingMap {
 
     /// Gets the local alias to use for a given class.
     pub fn class_alias(&self, class: &Class) -> Option<&String> {
-        self.class_info.get(class)?.alias.as_ref()
+        self.class_defs.get(class)?.alias.as_ref()
     }
 
     fn add_class_alias(&mut self, class: &Class, alias: &str) {
-        if !self.class_info.contains_key(class) {
-            self.class_info.insert(class.clone(), ClassInfo::new());
+        if !self.class_defs.contains_key(class) {
+            self.class_defs
+                .insert(class.clone(), ClassDefinition::new());
         }
-        let info = self.class_info.get_mut(class).unwrap();
+        let info = self.class_defs.get_mut(class).unwrap();
         if info.alias.is_none() {
             info.alias = Some(alias.to_string());
         }
     }
 
     fn add_typeclass_alias(&mut self, typeclass: &Typeclass, alias: &str) {
-        if !self.typeclass_info.contains_key(typeclass) {
-            self.typeclass_info
-                .insert(typeclass.clone(), TypeclassInfo::new());
+        if !self.typeclass_defs.contains_key(typeclass) {
+            self.typeclass_defs
+                .insert(typeclass.clone(), TypeclassDefinition::new());
         }
-        let info = self.typeclass_info.get_mut(typeclass).unwrap();
+        let info = self.typeclass_defs.get_mut(typeclass).unwrap();
         if info.alias.is_none() {
             info.alias = Some(alias.to_string());
         }
@@ -164,7 +165,7 @@ impl BindingMap {
 
     /// Gets the local alias to use for a given typeclass.
     pub fn typeclass_alias(&self, typeclass: &Typeclass) -> Option<&String> {
-        self.typeclass_info.get(typeclass)?.alias.as_ref()
+        self.typeclass_defs.get(typeclass)?.alias.as_ref()
     }
 
     pub fn check_defined_name_available(
@@ -182,7 +183,7 @@ impl BindingMap {
     pub fn constant_name_in_use(&self, name: &DefinedName) -> bool {
         match name {
             DefinedName::Constant(constant_name) => {
-                if self.constant_info.contains_key(constant_name) {
+                if self.constant_defs.contains_key(constant_name) {
                     return true;
                 }
                 match constant_name {
@@ -200,7 +201,7 @@ impl BindingMap {
                 }
             }
             DefinedName::Instance(instance_name) => {
-                self.instance_definitions.contains_key(instance_name)
+                self.instance_attr_defs.contains_key(instance_name)
             }
         }
     }
@@ -209,7 +210,7 @@ impl BindingMap {
     /// This is the transitive closure, ie when A extends B and B extends C, A's set
     /// will include both B and C.
     pub fn get_extends_set(&self, typeclass: &Typeclass) -> Option<&HashSet<Typeclass>> {
-        Some(&self.typeclass_info.get(typeclass)?.extends)
+        Some(&self.typeclass_defs.get(typeclass)?.extends)
     }
 
     pub fn unifier(&self) -> TypeUnifier {
@@ -225,17 +226,14 @@ impl BindingMap {
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         match name {
-            DefinedName::Constant(constant_name) => match self.constant_info.get(constant_name) {
+            DefinedName::Constant(constant_name) => match self.constant_defs.get(constant_name) {
                 Some(info) => Ok(info.value.clone()),
                 None => Err(source.error(&format!("local constant {} not found", name))),
             },
             DefinedName::Instance(instance_name) => {
-                let definition = self
-                    .instance_definitions
-                    .get(instance_name)
-                    .ok_or_else(|| {
-                        source.error(&format!("instance constant {} not found", name))
-                    })?;
+                let definition = self.instance_attr_defs.get(instance_name).ok_or_else(|| {
+                    source.error(&format!("instance constant {} not found", name))
+                })?;
                 let value =
                     AcornValue::instance_constant(instance_name.clone(), definition.get_type());
                 Ok(PotentialValue::Resolved(value))
@@ -275,7 +273,7 @@ impl BindingMap {
     /// Just use this for testing.
     pub fn has_constant_name(&self, name: &str) -> bool {
         let constant_name = ConstantName::unqualified(self.module_id, name);
-        self.constant_info.contains_key(&constant_name)
+        self.constant_defs.contains_key(&constant_name)
     }
 
     /// Returns the defined value, if there is a defined value.
@@ -283,9 +281,9 @@ impl BindingMap {
     pub fn get_definition(&self, name: &DefinedName) -> Option<&AcornValue> {
         match name {
             DefinedName::Constant(constant_name) => {
-                self.constant_info.get(constant_name)?.definition.as_ref()
+                self.constant_defs.get(constant_name)?.definition.as_ref()
             }
-            DefinedName::Instance(instance_name) => self.instance_definitions.get(instance_name),
+            DefinedName::Instance(instance_name) => self.instance_attr_defs.get(instance_name),
         }
     }
 
@@ -295,13 +293,13 @@ impl BindingMap {
         &self,
         constant_name: &ConstantName,
     ) -> Option<(&AcornValue, &[TypeParam])> {
-        let info = self.constant_info.get(constant_name)?;
+        let info = self.constant_defs.get(constant_name)?;
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
     // Get a set of all the typeclasses that this typeclass extends.
     pub fn get_extends(&self, typeclass: &Typeclass) -> impl Iterator<Item = &Typeclass> {
-        self.typeclass_info
+        self.typeclass_defs
             .get(typeclass)
             .into_iter()
             .flat_map(|info| info.extends.iter())
@@ -323,20 +321,20 @@ impl BindingMap {
     ) -> &'a BTreeMap<String, Typeclass> {
         &self
             .get_bindings(typeclass.module_id, project)
-            .typeclass_info
+            .typeclass_defs
             .get(&typeclass)
             .unwrap()
             .attributes
     }
 
     pub fn get_constructor_info(&self, name: &ConstantName) -> Option<&ConstructorInfo> {
-        self.constant_info
+        self.constant_defs
             .get(name)
             .and_then(|info| info.constructor.as_ref())
     }
 
     pub fn get_module_for_class_attr(&self, class: &Class, attr: &str) -> Option<ModuleId> {
-        self.class_info
+        self.class_defs
             .get(class)
             .and_then(|info| info.attributes.get(attr))
             .copied()
@@ -407,9 +405,9 @@ impl BindingMap {
         };
         // Store the doc comments for this class
         let info = self
-            .class_info
+            .class_defs
             .entry(class.clone())
-            .or_insert_with(ClassInfo::new);
+            .or_insert_with(ClassDefinition::new);
         info.doc_comments = doc_comments;
         let t = AcornType::Data(class, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
@@ -432,9 +430,9 @@ impl BindingMap {
         };
         // Store the doc comments for this class
         let info = self
-            .class_info
+            .class_defs
             .entry(class.clone())
-            .or_insert_with(ClassInfo::new);
+            .or_insert_with(ClassDefinition::new);
         info.doc_comments = doc_comments;
         let ut = UnresolvedType { class, params };
         let potential = PotentialType::Unresolved(ut);
@@ -483,12 +481,12 @@ impl BindingMap {
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
-        let mut info = TypeclassInfo::new();
+        let mut info = TypeclassDefinition::new();
         info.doc_comments = doc_comments;
         for base in extends {
             info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
-            let base_info = bindings.typeclass_info.get(&base).unwrap();
+            let base_info = bindings.typeclass_defs.get(&base).unwrap();
             for base_base in &base_info.extends {
                 if !info.extends.contains(base_base) {
                     info.extends.insert(base_base.clone());
@@ -512,7 +510,7 @@ impl BindingMap {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        match self.typeclass_info.entry(typeclass.clone()) {
+        match self.typeclass_defs.entry(typeclass.clone()) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(info);
             }
@@ -581,9 +579,9 @@ impl BindingMap {
     }
 
     pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
-        self.class_info
+        self.class_defs
             .entry(class)
-            .or_insert_with(ClassInfo::new)
+            .or_insert_with(ClassDefinition::new)
             .typeclasses
             .insert(typeclass, self.module_id);
     }
@@ -629,7 +627,7 @@ impl BindingMap {
                 if constructor.is_some() {
                     panic!("instance may not be a constructor");
                 }
-                self.instance_definitions
+                self.instance_attr_defs
                     .insert(instance_name.clone(), definition);
                 let value = AcornValue::instance_constant(instance_name.clone(), constant_type);
                 PotentialValue::Resolved(value)
@@ -748,7 +746,7 @@ impl BindingMap {
         };
 
         // New constants start out not being theorems and are marked as a theorem later.
-        let info = ConstantInfo {
+        let info = ConstantDefinition {
             value: value.clone(),
             canonical: true,
             definition,
@@ -757,25 +755,25 @@ impl BindingMap {
             doc_comments,
         };
 
-        self.add_constant_info(constant_name.clone(), info);
+        self.add_constant_def(constant_name.clone(), info);
         value
     }
 
     /// Adds information for either a newly defined constant, or an alias.
-    fn add_constant_info(&mut self, constant_name: ConstantName, info: ConstantInfo) {
+    fn add_constant_def(&mut self, constant_name: ConstantName, info: ConstantDefinition) {
         match &constant_name {
             ConstantName::ClassAttribute(class, attribute) => {
                 // We are defining a new class attribute.
-                self.class_info
+                self.class_defs
                     .entry(class.clone())
-                    .or_insert_with(ClassInfo::new)
+                    .or_insert_with(ClassDefinition::new)
                     .attributes
                     .insert(attribute.clone(), self.module_id);
             }
             ConstantName::TypeclassAttribute(typeclass, attribute) => {
-                self.typeclass_info
+                self.typeclass_defs
                     .entry(typeclass.clone())
-                    .or_insert_with(TypeclassInfo::new)
+                    .or_insert_with(TypeclassDefinition::new)
                     .attributes
                     .insert(attribute.clone(), typeclass.clone());
             }
@@ -784,7 +782,7 @@ impl BindingMap {
             }
         }
 
-        self.constant_info.insert(constant_name, info);
+        self.constant_defs.insert(constant_name, info);
     }
 
     /// Be really careful about this, it seems likely to break things.
@@ -793,7 +791,7 @@ impl BindingMap {
             // Remove the unqualified name from the list of unqualified names.
             self.unqualified.remove(word);
         }
-        self.constant_info
+        self.constant_defs
             .remove(constant_name)
             .expect("constant name not in use");
     }
@@ -812,7 +810,7 @@ impl BindingMap {
                 .entry(canonical)
                 .or_insert(alias.to_string());
         }
-        let info = ConstantInfo {
+        let info = ConstantDefinition {
             value,
             canonical: false,
             theorem: false,
@@ -820,25 +818,25 @@ impl BindingMap {
             constructor: None,
             doc_comments: vec![],
         };
-        self.add_constant_info(alias, info);
+        self.add_constant_def(alias, info);
     }
 
     pub fn mark_as_theorem(&mut self, name: &ConstantName) {
-        self.constant_info
+        self.constant_defs
             .get_mut(name)
             .expect("marking theorem that doesn't exist")
             .theorem = true;
     }
 
     pub fn is_theorem(&self, name: &ConstantName) -> bool {
-        self.constant_info
+        self.constant_defs
             .get(name)
             .map_or(false, |info| info.theorem)
     }
 
     /// Get the doc comments for a constant.
     pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
-        self.constant_info.get(name).and_then(|info| {
+        self.constant_defs.get(name).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
             } else {
@@ -849,7 +847,7 @@ impl BindingMap {
 
     /// Get the doc comment for a class.
     pub fn get_class_doc_comment(&self, class: &Class) -> Option<&Vec<String>> {
-        self.class_info.get(class).and_then(|info| {
+        self.class_defs.get(class).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
             } else {
@@ -860,7 +858,7 @@ impl BindingMap {
 
     /// Get the doc comment for a typeclass.
     pub fn get_typeclass_doc_comment(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
-        self.typeclass_info.get(typeclass).and_then(|info| {
+        self.typeclass_defs.get(typeclass).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
             } else {
@@ -890,9 +888,9 @@ impl BindingMap {
     }
 
     /// Adds this name to the environment as a module.
-    /// Copies over all the class_info from the module's bindings.
+    /// Copies over all the class_defs from the module's bindings.
     /// This enables "mixins".
-    /// Also copy over all the typeclass_info from the module's bindings.
+    /// Also copy over all the typeclass_defs from the module's bindings.
     pub fn import_module(
         &mut self,
         name: &str,
@@ -910,20 +908,20 @@ impl BindingMap {
             .insert(bindings.module_id, name.to_string());
 
         // Copy over the class info.
-        for (class, imported_info) in bindings.class_info.iter() {
+        for (class, imported_info) in bindings.class_defs.iter() {
             let entry = self
-                .class_info
+                .class_defs
                 .entry(class.clone())
-                .or_insert_with(ClassInfo::new);
+                .or_insert_with(ClassDefinition::new);
             entry.import(imported_info, &class.name, source)?;
         }
 
         // Copy over the typeclass info, but drop any aliases.
-        for (typeclass, imported_info) in bindings.typeclass_info.iter() {
-            if !self.typeclass_info.contains_key(typeclass) {
+        for (typeclass, imported_info) in bindings.typeclass_defs.iter() {
+            if !self.typeclass_defs.contains_key(typeclass) {
                 let mut imported_info = imported_info.clone();
                 imported_info.alias = None;
-                self.typeclass_info.insert(typeclass.clone(), imported_info);
+                self.typeclass_defs.insert(typeclass.clone(), imported_info);
             }
         }
         Ok(())
@@ -953,7 +951,7 @@ impl BindingMap {
         let mut answer = vec![];
         if let Some(info) = self
             .get_bindings(typeclass.module_id, project)
-            .typeclass_info
+            .typeclass_defs
             .get(typeclass)
         {
             for key in keys_with_prefix(&info.attributes, &prefix) {
@@ -975,7 +973,7 @@ impl BindingMap {
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
         if let AcornType::Data(class, _) = t {
-            let info = self.class_info.get(class)?;
+            let info = self.class_defs.get(class)?;
             let mut answer = vec![];
             for key in keys_with_prefix(&info.attributes, prefix) {
                 let completion = CompletionItem {
@@ -1056,7 +1054,7 @@ impl BindingMap {
                 }
                 let constant_name = ConstantName::unqualified(self.module_id, key);
                 if importing {
-                    match self.constant_info.get(&constant_name) {
+                    match self.constant_defs.get(&constant_name) {
                         Some(info) => {
                             if !info.canonical || info.theorem {
                                 // Don't suggest aliases or theorems when importing
@@ -1421,7 +1419,7 @@ impl BindingMap {
         match value {
             AcornValue::Variable(_, _) | AcornValue::Bool(_) => {}
             AcornValue::Constant(c) => {
-                if c.name.module_id() == self.module_id && !self.constant_info.contains_key(&c.name)
+                if c.name.module_id() == self.module_id && !self.constant_defs.contains_key(&c.name)
                 {
                     assert!(c.params.is_empty());
                     answer.insert(c.name.to_string(), c.instance_type.clone());
@@ -1534,7 +1532,7 @@ pub struct ConstructorInfo {
 
 /// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
-struct ClassInfo {
+struct ClassDefinition {
     /// What module defines each of the attributes of this class.
     attributes: BTreeMap<String, ModuleId>,
 
@@ -1548,9 +1546,9 @@ struct ClassInfo {
     doc_comments: Vec<String>,
 }
 
-impl ClassInfo {
+impl ClassDefinition {
     fn new() -> Self {
-        ClassInfo {
+        ClassDefinition {
             attributes: BTreeMap::new(),
             typeclasses: HashMap::new(),
             alias: None,
@@ -1560,7 +1558,7 @@ impl ClassInfo {
 
     fn import(
         &mut self,
-        info: &ClassInfo,
+        info: &ClassDefinition,
         typename: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
@@ -1595,7 +1593,7 @@ impl ClassInfo {
 
 /// Information about a typeclass that is defined in this module.
 #[derive(Clone, Debug)]
-struct TypeclassInfo {
+struct TypeclassDefinition {
     /// The attributes available to this typeclass.
     /// The value stores the typeclass on which this attribute was originally defined.
     /// (This can be the typeclass itself.)
@@ -1611,9 +1609,9 @@ struct TypeclassInfo {
     doc_comments: Vec<String>,
 }
 
-impl TypeclassInfo {
+impl TypeclassDefinition {
     fn new() -> Self {
-        TypeclassInfo {
+        TypeclassDefinition {
             attributes: BTreeMap::new(),
             extends: HashSet::new(),
             alias: None,
@@ -1624,7 +1622,7 @@ impl TypeclassInfo {
 
 /// Information that the BindingMap stores about a constant.
 #[derive(Clone)]
-struct ConstantInfo {
+struct ConstantDefinition {
     /// The value for this constant. Not the definition, but the constant itself.
     /// If this is a generic constant, this value is unresolved.
     value: PotentialValue,
@@ -1662,13 +1660,13 @@ fn keys_with_prefix<'a, T>(
 
 impl TypeclassRegistry for BindingMap {
     fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
-        self.class_info
+        self.class_defs
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }
 
     fn extends(&self, typeclass: &Typeclass, base: &Typeclass) -> bool {
-        if let Some(info) = self.typeclass_info.get(typeclass) {
+        if let Some(info) = self.typeclass_defs.get(typeclass) {
             info.extends.contains(base)
         } else {
             false
