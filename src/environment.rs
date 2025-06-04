@@ -1486,6 +1486,7 @@ impl Environment {
             typeclass_name,
             extends,
             doc_comments,
+            Some(statement.range()),
             &project,
             &ts.typeclass_name,
         )?;

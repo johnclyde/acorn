@@ -499,11 +499,13 @@ impl BindingMap {
         name: &str,
         extends: Vec<Typeclass>,
         doc_comments: Vec<String>,
+        range: Option<Range>,
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         let mut info = TypeclassDefinition::new();
         info.doc_comments = doc_comments;
+        info.range = range;
         for base in extends {
             info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
@@ -905,6 +907,11 @@ impl BindingMap {
                 Some(&info.doc_comments)
             }
         })
+    }
+
+    /// Get the definition range for a typeclass.
+    pub fn get_typeclass_range(&self, typeclass: &Typeclass) -> Option<&Range> {
+        self.typeclass_defs.get(typeclass).and_then(|info| info.range.as_ref())
     }
 
     /// Type variables and arbitrary variables should get removed when they go out of scope.
@@ -1651,6 +1658,9 @@ struct TypeclassDefinition {
 
     /// The documentation comments for this typeclass.
     doc_comments: Vec<String>,
+    
+    /// The range in the source code where this typeclass was defined.
+    range: Option<Range>,
 }
 
 impl TypeclassDefinition {
@@ -1660,6 +1670,7 @@ impl TypeclassDefinition {
             extends: HashSet::new(),
             alias: None,
             doc_comments: vec![],
+            range: None,
         }
     }
 }
