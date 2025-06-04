@@ -893,6 +893,7 @@ fn test_hover_with_imports() {
     assert!(p.hover(&env, 1, 7).is_some()); // foo
     assert!(p.hover(&env, 1, 10).is_none()); // import
     assert!(p.hover(&env, 1, 17).is_some()); // Foo
+    assert!(p.hover(&env, 1, 21).is_some()); // bar
 
     // Check hovers
 
