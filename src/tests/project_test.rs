@@ -875,13 +875,16 @@ fn test_hover_with_imports() {
         inductive Foo {               // line 3
             foo
         }
+
+        /// val_doc_comment
+        let bar = Foo.foo
         "},
     );
     p.mock(
         "/mock/main.ac",
         indoc! {r#"
-        // 3456789012345678901234567890  For making columns easier to read
-        from foo import Foo              // line 1
+        // 3456789012345678901234567890  
+        from foo import Foo, bar         // line 1
         "#},
     );
     let desc = ModuleDescriptor::Name("main".to_string());
@@ -899,5 +902,8 @@ fn test_hover_with_imports() {
 
     let type_hover = format!("{:?}", p.hover(&env, 1, 17));
     assert!(!type_hover.contains("module_doc_comment"));
-    // assert!(type_hover.contains("type_doc_comment"));
+    assert!(type_hover.contains("type_doc_comment"));
+
+    let val_hover = format!("{:?}", p.hover(&env, 1, 21));
+    assert!(val_hover.contains("val_doc_comment"));
 }
