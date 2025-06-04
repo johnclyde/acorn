@@ -79,7 +79,7 @@ pub struct BindingMap {
     /// The definitions of the instance attributes defined in this module.
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
     /// is going to need to see them in their parametrized form.
-    instance_attr_defs: HashMap<InstanceName, AcornValue>,
+    instance_attr_defs: HashMap<InstanceName, InstanceAttributeDefinition>,
 }
 
 impl BindingMap {
@@ -234,8 +234,10 @@ impl BindingMap {
                 let definition = self.instance_attr_defs.get(instance_name).ok_or_else(|| {
                     source.error(&format!("instance constant {} not found", name))
                 })?;
-                let value =
-                    AcornValue::instance_constant(instance_name.clone(), definition.get_type());
+                let value = AcornValue::instance_constant(
+                    instance_name.clone(),
+                    definition.value.get_type(),
+                );
                 Ok(PotentialValue::Resolved(value))
             }
         }
@@ -283,7 +285,10 @@ impl BindingMap {
             DefinedName::Constant(constant_name) => {
                 self.constant_defs.get(constant_name)?.definition.as_ref()
             }
-            DefinedName::Instance(instance_name) => self.instance_attr_defs.get(instance_name),
+            DefinedName::Instance(instance_name) => self
+                .instance_attr_defs
+                .get(instance_name)
+                .map(|def| &def.value),
         }
     }
 
@@ -627,8 +632,10 @@ impl BindingMap {
                 if constructor.is_some() {
                     panic!("instance may not be a constructor");
                 }
-                self.instance_attr_defs
-                    .insert(instance_name.clone(), definition);
+                self.instance_attr_defs.insert(
+                    instance_name.clone(),
+                    InstanceAttributeDefinition { value: definition },
+                );
                 let value = AcornValue::instance_constant(instance_name.clone(), constant_type);
                 PotentialValue::Resolved(value)
             }
@@ -1646,6 +1653,13 @@ struct ConstantDefinition {
 
     /// The doc comments by the definition of this constant.
     doc_comments: Vec<String>,
+}
+
+/// The way that a typeclass attribute has been defined for a particular instance of a typeclass.
+#[derive(Clone)]
+struct InstanceAttributeDefinition {
+    /// How the attribute is defined.
+    value: AcornValue,
 }
 
 /// Helper for autocomplete.
