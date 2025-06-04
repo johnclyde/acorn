@@ -875,25 +875,56 @@ impl Project {
 
         // Get doc comments based on entity type
         let doc_comments = match &info.entity {
-            NamedEntity::Value(value) => value
-                .as_simple_constant()
-                .and_then(|name| env.bindings.get_constant_doc_comments(name)),
+            NamedEntity::Value(value) => {
+                if let Some(name) = value.as_simple_constant() {
+                    // Try to get doc comments from the module where this constant was defined
+                    if let Some(module_env) = self.get_env_by_id(name.module_id()) {
+                        module_env.bindings.get_constant_doc_comments(name)
+                    } else {
+                        env.bindings.get_constant_doc_comments(name)
+                    }
+                } else {
+                    None
+                }
+            }
             NamedEntity::UnresolvedValue(unresolved) => {
-                env.bindings.get_constant_doc_comments(&unresolved.name)
+                // Try to get doc comments from the module where this constant was defined
+                if let Some(module_env) = self.get_env_by_id(unresolved.name.module_id()) {
+                    module_env.bindings.get_constant_doc_comments(&unresolved.name)
+                } else {
+                    env.bindings.get_constant_doc_comments(&unresolved.name)
+                }
             }
 
             NamedEntity::Type(acorn_type) => {
                 if let AcornType::Data(class, _) = acorn_type {
-                    env.bindings.get_class_doc_comment(class)
+                    // Try to get doc comments from the module where this class was defined
+                    if let Some(module_env) = self.get_env_by_id(class.module_id) {
+                        module_env.bindings.get_class_doc_comment(class)
+                    } else {
+                        env.bindings.get_class_doc_comment(class)
+                    }
                 } else {
                     None
                 }
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
-                env.bindings.get_class_doc_comment(&unresolved_type.class)
+                // Try to get doc comments from the module where this class was defined
+                if let Some(module_env) = self.get_env_by_id(unresolved_type.class.module_id) {
+                    module_env.bindings.get_class_doc_comment(&unresolved_type.class)
+                } else {
+                    env.bindings.get_class_doc_comment(&unresolved_type.class)
+                }
             }
 
-            NamedEntity::Typeclass(typeclass) => env.bindings.get_typeclass_doc_comment(typeclass),
+            NamedEntity::Typeclass(typeclass) => {
+                // Try to get doc comments from the module where this typeclass was defined
+                if let Some(module_env) = self.get_env_by_id(typeclass.module_id) {
+                    module_env.bindings.get_typeclass_doc_comment(typeclass)
+                } else {
+                    env.bindings.get_typeclass_doc_comment(typeclass)
+                }
+            }
 
             NamedEntity::Module(module_id) => {
                 // Get the environment for this module to access its documentation

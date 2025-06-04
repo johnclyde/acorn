@@ -877,7 +877,7 @@ fn test_hover_with_imports() {
         }
 
         /// val_doc_comment
-        let bar = Foo.foo
+        let bar = (Foo.foo = Foo.foo)
         "},
     );
     p.mock(
