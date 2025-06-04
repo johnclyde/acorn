@@ -416,17 +416,18 @@ impl BindingMap {
 
     /// Adds a new data type to the binding map.
     /// Panics if the name is already bound.
-    pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>) -> AcornType {
+    pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>, range: Option<Range>) -> AcornType {
         let class = Class {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments for this class
+        // Store the doc comments and range for this class
         let info = self
             .class_defs
             .entry(class.clone())
             .or_insert_with(ClassDefinition::new);
         info.doc_comments = doc_comments;
+        info.range = range;
         let t = AcornType::Data(class, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
@@ -438,20 +439,22 @@ impl BindingMap {
         name: &str,
         params: Vec<Option<Typeclass>>,
         doc_comments: Vec<String>,
+        range: Option<Range>,
     ) -> PotentialType {
         if params.len() == 0 {
-            return PotentialType::Resolved(self.add_data_type(name, doc_comments));
+            return PotentialType::Resolved(self.add_data_type(name, doc_comments, range));
         }
         let class = Class {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments for this class
+        // Store the doc comments and range for this class
         let info = self
             .class_defs
             .entry(class.clone())
             .or_insert_with(ClassDefinition::new);
         info.doc_comments = doc_comments;
+        info.range = range;
         let ut = UnresolvedType { class, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
@@ -886,6 +889,11 @@ impl BindingMap {
                 Some(&info.doc_comments)
             }
         })
+    }
+
+    /// Get the definition range for a class.
+    pub fn get_class_range(&self, class: &Class) -> Option<&Range> {
+        self.class_defs.get(class).and_then(|info| info.range.as_ref())
     }
 
     /// Get the doc comment for a typeclass.
@@ -1576,6 +1584,9 @@ struct ClassDefinition {
 
     /// The doc comment for this class.
     doc_comments: Vec<String>,
+    
+    /// The range in the source code where this class was defined.
+    range: Option<Range>,
 }
 
 impl ClassDefinition {
@@ -1585,6 +1596,7 @@ impl ClassDefinition {
             typeclasses: HashMap::new(),
             alias: None,
             doc_comments: Vec::new(),
+            range: None,
         }
     }
 

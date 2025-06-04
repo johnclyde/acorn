@@ -945,7 +945,7 @@ impl Environment {
         let doc_comments = self.take_doc_comments();
         let potential_type = self
             .bindings
-            .add_potential_type(&ss.name, typeclasses, doc_comments);
+            .add_potential_type(&ss.name, typeclasses, doc_comments, Some(statement.range()));
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
@@ -1127,7 +1127,7 @@ impl Environment {
         let doc_comments = self.take_doc_comments();
         let potential_type = self
             .bindings
-            .add_potential_type(&is.name, typeclasses, doc_comments);
+            .add_potential_type(&is.name, typeclasses, doc_comments, Some(statement.range()));
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
@@ -1817,7 +1817,7 @@ impl Environment {
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
             self.bindings
-                .add_potential_type(&ts.name, vec![], doc_comments);
+                .add_potential_type(&ts.name, vec![], doc_comments, Some(statement.range()));
         } else {
             let potential = self
                 .evaluator(project)
