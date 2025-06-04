@@ -861,6 +861,13 @@ fn test_hover_basic() {
 
     let list_hover = format!("{:?}", p.hover(&env, 39, 23));
     assert!(list_hover.contains("List_doc_comment"));
+
+    // Check that "Go to" links are present
+    let nat_hover_str = format!("{:?}", p.hover(&env, 6, 11));
+    assert!(nat_hover_str.contains("Go to Nat"));
+    
+    let has_zero_hover_str = format!("{:?}", p.hover(&env, 19, 19));
+    assert!(has_zero_hover_str.contains("Go to HasZero"));
 }
 
 #[test]

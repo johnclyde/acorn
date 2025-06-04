@@ -949,7 +949,94 @@ impl Project {
             }
         }
 
+        // Add "Go to definition" link if we can find the definition location
+        if let Some(go_to_link) = self.create_go_to_link(&info.entity, env) {
+            parts.push(MarkedString::String(go_to_link));
+        }
+
         Ok(HoverContents::Array(parts))
+    }
+
+    /// Create a "Go to definition" link for the given entity.
+    fn create_go_to_link(&self, entity: &NamedEntity, env: &Environment) -> Option<String> {
+        let (name, range, module_id) = match entity {
+            NamedEntity::Value(value) => {
+                if let Some(constant_name) = value.as_simple_constant() {
+                    let module_id = constant_name.module_id();
+                    let module_env = if module_id == env.module_id {
+                        env
+                    } else {
+                        self.get_env_by_id(module_id)?
+                    };
+                    let range = module_env.bindings.get_definition_range(&crate::names::DefinedName::Constant(constant_name.clone()))?;
+                    (constant_name.to_string(), range, module_id)
+                } else {
+                    return None;
+                }
+            }
+            NamedEntity::UnresolvedValue(unresolved) => {
+                let module_id = unresolved.name.module_id();
+                let module_env = if module_id == env.module_id {
+                    env
+                } else {
+                    self.get_env_by_id(module_id)?
+                };
+                let range = module_env.bindings.get_definition_range(&crate::names::DefinedName::Constant(unresolved.name.clone()))?;
+                (unresolved.name.to_string(), range, module_id)
+            }
+            NamedEntity::Type(acorn_type) => {
+                if let AcornType::Data(class, _) = acorn_type {
+                    let module_id = class.module_id;
+                    let module_env = if module_id == env.module_id {
+                        env
+                    } else {
+                        self.get_env_by_id(module_id)?
+                    };
+                    let range = module_env.bindings.get_class_range(class)?;
+                    (class.name.clone(), range, module_id)
+                } else {
+                    return None;
+                }
+            }
+            NamedEntity::UnresolvedType(unresolved_type) => {
+                let class = &unresolved_type.class;
+                let module_id = class.module_id;
+                let module_env = if module_id == env.module_id {
+                    env
+                } else {
+                    self.get_env_by_id(module_id)?
+                };
+                let range = module_env.bindings.get_class_range(class)?;
+                (class.name.clone(), range, module_id)
+            }
+            NamedEntity::Typeclass(typeclass) => {
+                let module_id = typeclass.module_id;
+                let module_env = if module_id == env.module_id {
+                    env
+                } else {
+                    self.get_env_by_id(module_id)?
+                };
+                let range = module_env.bindings.get_typeclass_range(typeclass)?;
+                (typeclass.name.clone(), range, module_id)
+            }
+            NamedEntity::Module(_) => {
+                // Modules don't have a specific definition location we can link to
+                return None;
+            }
+        };
+
+        // Get the file path for the module
+        let descriptor = self.get_module_descriptor(module_id)?;
+        let file_path = self.path_from_descriptor(descriptor)?;
+        
+        // Create a VSCode-style URI link
+        // The format is: file:///path/to/file.ac#line,character
+        let line = range.start.line + 1; // VSCode uses 1-based line numbers for links
+        let character = range.start.character + 1; // VSCode uses 1-based character numbers for links
+        let file_uri = format!("file://{}", file_path.to_string_lossy());
+        let link = format!("[Go to {}]({}#{},{})", name, file_uri, line, character);
+        
+        Some(link)
     }
 
     /// Figure out the hover information to display.
