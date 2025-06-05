@@ -136,7 +136,7 @@ impl BindingMap {
         self.constant_to_alias.get(name)
     }
 
-    /// Gets the local alias to use for a given class.
+    /// Gets the local alias to use for a given datatype.
     pub fn datatype_alias(&self, datatype: &Datatype) -> Option<&String> {
         self.datatype_defs.get(datatype)?.alias.as_ref()
     }
@@ -315,7 +315,7 @@ impl BindingMap {
         Some((info.definition.as_ref()?, info.value.unresolved_params()))
     }
 
-    // Get a set of all the typeclasses that this typeclass extends.
+    /// Iterate through all the typeclasses that this typeclass extends.
     pub fn get_extends(&self, typeclass: &Typeclass) -> impl Iterator<Item = &Typeclass> {
         self.typeclass_defs
             .get(typeclass)
@@ -351,7 +351,11 @@ impl BindingMap {
             .and_then(|info| info.constructor.as_ref())
     }
 
-    pub fn get_module_for_datatype_attr(&self, datatype: &Datatype, attr: &str) -> Option<ModuleId> {
+    pub fn get_module_for_datatype_attr(
+        &self,
+        datatype: &Datatype,
+        attr: &str,
+    ) -> Option<ModuleId> {
         self.datatype_defs
             .get(datatype)
             .and_then(|info| info.attributes.get(attr))
@@ -416,7 +420,12 @@ impl BindingMap {
 
     /// Adds a new data type to the binding map.
     /// Panics if the name is already bound.
-    pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>, range: Option<Range>) -> AcornType {
+    pub fn add_data_type(
+        &mut self,
+        name: &str,
+        doc_comments: Vec<String>,
+        range: Option<Range>,
+    ) -> AcornType {
         let datatype = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
@@ -478,9 +487,9 @@ impl BindingMap {
     /// Panics if the alias is already bound.
     pub fn add_type_alias(&mut self, alias: &str, potential: PotentialType) {
         // Local type aliases for concrete types should be preferred.
-        if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
+        if let PotentialType::Resolved(AcornType::Data(datatype, params)) = &potential {
             if params.is_empty() {
-                self.add_datatype_alias(class, alias);
+                self.add_datatype_alias(datatype, alias);
             }
         }
 
@@ -601,9 +610,9 @@ impl BindingMap {
         Ok((resolved_attr, instance_attr))
     }
 
-    pub fn add_instance_of(&mut self, class: Datatype, typeclass: Typeclass) {
+    pub fn add_instance_of(&mut self, datatype: Datatype, typeclass: Typeclass) {
         self.datatype_defs
-            .entry(class)
+            .entry(datatype)
             .or_insert_with(DatatypeDefinition::new)
             .typeclasses
             .insert(typeclass, self.module_id);
@@ -615,8 +624,8 @@ impl BindingMap {
         self.name_to_module.values().copied().collect()
     }
 
-    pub fn set_numerals(&mut self, class: Datatype) {
-        self.numerals = Some(class);
+    pub fn set_numerals(&mut self, datatype: Datatype) {
+        self.numerals = Some(datatype);
     }
 
     /// Adds a definition for a name that can either be a normal constant, or an instance.
@@ -895,7 +904,9 @@ impl BindingMap {
 
     /// Get the definition range for a datatype.
     pub fn get_datatype_range(&self, datatype: &Datatype) -> Option<&Range> {
-        self.datatype_defs.get(datatype).and_then(|info| info.range.as_ref())
+        self.datatype_defs
+            .get(datatype)
+            .and_then(|info| info.range.as_ref())
     }
 
     /// Get the doc comment for a typeclass.
@@ -911,7 +922,9 @@ impl BindingMap {
 
     /// Get the definition range for a typeclass.
     pub fn get_typeclass_range(&self, typeclass: &Typeclass) -> Option<&Range> {
-        self.typeclass_defs.get(typeclass).and_then(|info| info.range.as_ref())
+        self.typeclass_defs
+            .get(typeclass)
+            .and_then(|info| info.range.as_ref())
     }
 
     /// Type variables and arbitrary variables should get removed when they go out of scope.
@@ -955,12 +968,12 @@ impl BindingMap {
             .insert(bindings.module_id, name.to_string());
 
         // Copy over the class info.
-        for (class, imported_info) in bindings.datatype_defs.iter() {
+        for (datatype, imported_info) in bindings.datatype_defs.iter() {
             let entry = self
                 .datatype_defs
-                .entry(class.clone())
+                .entry(datatype.clone())
                 .or_insert_with(DatatypeDefinition::new);
-            entry.import(imported_info, &class.name, source)?;
+            entry.import(imported_info, &datatype.name, source)?;
         }
 
         // Copy over the typeclass info, but drop any aliases.
@@ -1126,8 +1139,8 @@ impl BindingMap {
                 if importing {
                     let data_type = self.typename_to_type.get(key)?;
                     match data_type {
-                        PotentialType::Resolved(AcornType::Data(class, _)) => {
-                            if class.module_id != self.module_id || &class.name != key {
+                        PotentialType::Resolved(AcornType::Data(dt, _)) => {
+                            if dt.module_id != self.module_id || &dt.name != key {
                                 continue;
                             }
                         }
@@ -1591,7 +1604,7 @@ struct DatatypeDefinition {
 
     /// The doc comment for this datatype.
     doc_comments: Vec<String>,
-    
+
     /// The range in the source code where this datatype was defined.
     range: Option<Range>,
 }
@@ -1658,7 +1671,7 @@ struct TypeclassDefinition {
 
     /// The documentation comments for this typeclass.
     doc_comments: Vec<String>,
-    
+
     /// The range in the source code where this typeclass was defined.
     range: Option<Range>,
 }
@@ -1701,7 +1714,7 @@ struct ConstantDefinition {
 
     /// The doc comments by the definition of this constant.
     doc_comments: Vec<String>,
-    
+
     /// The range in the source code where this constant was defined.
     range: Option<Range>,
 }
@@ -1711,7 +1724,7 @@ struct ConstantDefinition {
 struct InstanceAttributeDefinition {
     /// How the attribute is defined.
     value: AcornValue,
-    
+
     /// The range in the source code where this instance attribute was defined.
     range: Option<Range>,
 }

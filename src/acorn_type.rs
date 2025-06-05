@@ -498,8 +498,8 @@ impl AcornType {
                 ftype.arg_types.iter().map(|t| t.to_arbitrary()).collect(),
                 ftype.return_type.to_arbitrary(),
             ),
-            AcornType::Data(class, params) => AcornType::Data(
-                class.clone(),
+            AcornType::Data(datatype, params) => AcornType::Data(
+                datatype.clone(),
                 params.iter().map(|t| t.to_arbitrary()).collect(),
             ),
             _ => self.clone(),
