@@ -21,8 +21,8 @@ pub struct TypeUnifier<'a> {
 
 /// The different errors we can get from unification.
 pub enum Error {
-    /// Unification failed, because this class is not an instance of this typeclass.
-    Class(Datatype, Typeclass),
+    /// Unification failed, because this datatype is not an instance of this typeclass.
+    Datatype(Datatype, Typeclass),
 
     /// Unification failed becaue the first typeclass is not an extension of the second.
     /// TypeclassFailure(A, B) indicates that A does not extend B.
@@ -47,7 +47,7 @@ pub trait TypeclassRegistry {
     /// The entity name can be either a class or typeclass.
     fn inherits_attributes(&self, t: &AcornType, module_id: ModuleId, entity_name: &str) -> bool {
         match t {
-            AcornType::Data(class, _) => class.module_id == module_id && class.name == entity_name,
+            AcornType::Data(dt, _) => dt.module_id == module_id && dt.name == entity_name,
             AcornType::Variable(param) | AcornType::Arbitrary(param) => {
                 let Some(param_tc) = &param.typeclass else {
                     return false;
@@ -103,9 +103,9 @@ impl<'a> TypeUnifier<'a> {
                 }
                 if let Some(generic_typeclass) = param.typeclass.as_ref() {
                     match instance_type {
-                        AcornType::Data(class, _) => {
-                            if !self.registry.is_instance_of(&class, generic_typeclass) {
-                                return Err(Error::Class(class.clone(), generic_typeclass.clone()));
+                        AcornType::Data(dt, _) => {
+                            if !self.registry.is_instance_of(&dt, generic_typeclass) {
+                                return Err(Error::Datatype(dt.clone(), generic_typeclass.clone()));
                             }
                         }
                         AcornType::Arbitrary(param) | AcornType::Variable(param) => {

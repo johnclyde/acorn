@@ -178,19 +178,19 @@ impl ConstantInstance {
     pub fn to_defined_instance_name(
         &self,
         typeclass: &Typeclass,
-        class: &Datatype,
+        datatype: &Datatype,
     ) -> Option<DefinedName> {
         if self.name.module_id() != typeclass.module_id {
             return None;
         }
         if let Some((_, receiver, attribute)) = self.name.as_attribute() {
             if receiver == &typeclass.name && self.params.len() == 1 {
-                if let AcornType::Data(param_class, _) = &self.params[0] {
-                    if param_class == class {
+                if let AcornType::Data(param_datatype, _) = &self.params[0] {
+                    if param_datatype == datatype {
                         return Some(DefinedName::Instance(InstanceName {
                             typeclass: typeclass.clone(),
                             attribute: attribute.to_string(),
-                            datatype: class.clone(),
+                            datatype: datatype.clone(),
                         }));
                     }
                 }

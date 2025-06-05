@@ -918,13 +918,14 @@ impl Project {
                 }
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
-                // Try to get doc comments from the module where this class was defined
+                // Try to get doc comments from the module where this datatype was defined
                 if let Some(module_env) = self.get_env_by_id(unresolved_type.datatype.module_id) {
                     module_env
                         .bindings
                         .get_datatype_doc_comment(&unresolved_type.datatype)
                 } else {
-                    env.bindings.get_datatype_doc_comment(&unresolved_type.datatype)
+                    env.bindings
+                        .get_datatype_doc_comment(&unresolved_type.datatype)
                 }
             }
 
@@ -1192,11 +1193,16 @@ impl Project {
         unreachable!("should have returned in the loop")
     }
 
-    pub fn path_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Result<PathBuf, ImportError> {
+    pub fn path_from_descriptor(
+        &self,
+        descriptor: &ModuleDescriptor,
+    ) -> Result<PathBuf, ImportError> {
         let name = match descriptor {
             ModuleDescriptor::Name(name) => name,
             ModuleDescriptor::File(path) => return Ok(path.clone()),
-            ModuleDescriptor::Anonymous => return Err(ImportError::NotFound("anonymous module".to_string())),
+            ModuleDescriptor::Anonymous => {
+                return Err(ImportError::NotFound("anonymous module".to_string()))
+            }
         };
 
         self.path_from_module_name(&name)
@@ -1208,7 +1214,8 @@ impl Project {
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
-        self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor).ok()
+        self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor)
+            .ok()
     }
 
     pub fn get_module_descriptor(&self, module_id: ModuleId) -> Option<&ModuleDescriptor> {

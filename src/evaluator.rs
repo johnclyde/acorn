@@ -177,12 +177,12 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Parses a list of named argument declarations and adds them to the stack.
-    /// class_type should be provided if these are the arguments of a new member function.
+    /// datatype_type should be provided if these are the arguments of a new member function.
     pub fn bind_args<'b, I>(
         &mut self,
         stack: &mut Stack,
         declarations: I,
-        class_type: Option<&AcornType>,
+        datatype_type: Option<&AcornType>,
     ) -> compilation::Result<(Vec<String>, Vec<AcornType>)>
     where
         I: IntoIterator<Item = &'b Declaration>,
@@ -190,11 +190,11 @@ impl<'a> Evaluator<'a> {
         let mut names = Vec::new();
         let mut types = Vec::new();
         for (i, declaration) in declarations.into_iter().enumerate() {
-            if class_type.is_some() && i == 0 {
+            if datatype_type.is_some() && i == 0 {
                 match declaration {
                     Declaration::SelfToken(_) => {
                         names.push("self".to_string());
-                        types.push(class_type.unwrap().clone());
+                        types.push(datatype_type.unwrap().clone());
                         continue;
                     }
                     _ => {
@@ -269,13 +269,13 @@ impl<'a> Evaluator<'a> {
         let constructor = match potential_constructor {
             PotentialValue::Resolved(v) => v,
             PotentialValue::Unresolved(uc) => {
-                let AcornType::Data(class, params) = expected_type else {
+                let AcornType::Data(datatype, params) = expected_type else {
                     return Err(pattern.error("unmatchable datatype?"));
                 };
-                if !uc.name.is_attribute_of(&class) {
+                if !uc.name.is_attribute_of(&datatype) {
                     return Err(pattern.error(&format!(
                         "pattern {} is not an attribute of {}",
-                        &uc.name, class.name
+                        &uc.name, datatype.name
                     )));
                 }
                 uc.resolve(pattern, params.clone())?
@@ -456,16 +456,16 @@ impl<'a> Evaluator<'a> {
             }
             Some(NamedEntity::Type(t)) => {
                 match &t {
-                    AcornType::Data(class, params) => {
+                    AcornType::Data(datatype, params) => {
                         if name_token.token_type == TokenType::Numeral {
                             let value = self.evaluate_number_with_datatype(
                                 name_token,
-                                &class,
+                                &datatype,
                                 name_token.text(),
                             )?;
                             NamedEntity::Value(value)
                         } else {
-                            match self.evaluate_type_attribute(class, name, name_token)? {
+                            match self.evaluate_type_attribute(datatype, name, name_token)? {
                                 PotentialValue::Resolved(value) => {
                                     if !params.is_empty() {
                                         return Err(

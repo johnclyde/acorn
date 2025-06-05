@@ -79,8 +79,8 @@ impl CodeGenerator<'_> {
         }
 
         match acorn_type {
-            AcornType::Data(class, params) => {
-                let base_expr = self.datatype_to_expr(class)?;
+            AcornType::Data(datatype, params) => {
+                let base_expr = self.datatype_to_expr(datatype)?;
 
                 self.parametrize_expr(base_expr, params)
             }
@@ -205,11 +205,11 @@ impl CodeGenerator<'_> {
         // Note that the receiver could be either a class or a typeclass.
         if let Some((_, rname, attr)) = ci.name.as_attribute() {
             // Check if this is a datatype attribute
-            let class = Datatype {
+            let datatype = Datatype {
                 module_id: ci.name.module_id(),
                 name: rname.to_string(),
             };
-            if let Some(alias) = self.bindings.datatype_alias(&class) {
+            if let Some(alias) = self.bindings.datatype_alias(&datatype) {
                 let lhs = Expression::generate_identifier(alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::generate_dot(lhs, rhs));
@@ -485,8 +485,8 @@ impl Error {
         Error::Skolem(s.to_string())
     }
 
-    pub fn unnamed_type(class: &Datatype) -> Error {
-        Error::UnnamedType(class.name.to_string())
+    pub fn unnamed_type(datatype: &Datatype) -> Error {
+        Error::UnnamedType(datatype.name.to_string())
     }
 
     pub fn unhandled_value(s: &str) -> Error {

@@ -265,9 +265,9 @@ impl Environment {
     fn check_can_add_attributes<'a>(
         &self,
         name_token: &Token,
-        class_type: &'a AcornType,
+        datatype_type: &'a AcornType,
     ) -> compilation::Result<&'a Datatype> {
-        match &class_type {
+        match &datatype_type {
             AcornType::Data(datatype, _) => {
                 if &datatype.name != &name_token.text() {
                     Err(name_token.error("you cannot add attributes to aliases"))
@@ -345,14 +345,14 @@ impl Environment {
 
     /// Adds a "let" statement to the environment.
     /// This can also be in a class, typeclass, or instance block.
-    /// If this is in a class block, the class parameters are provided.
+    /// If this is in an attributes block, the datatype parameters are provided.
     fn add_let_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
         ls: &LetStatement,
         range: Range,
-        class_params: Option<&Vec<TypeParam>>,
+        datatype_params: Option<&Vec<TypeParam>>,
     ) -> compilation::Result<()> {
         if ls.name == "self" || ls.name == "new" {
             return Err(ls.name_token.error(&format!(
@@ -386,32 +386,32 @@ impl Environment {
                 // Traditional let with explicit type: let name: Type = value
                 let acorn_type = self.evaluator(project).evaluate_type(type_expr)?;
                 if ls.name_token.token_type == TokenType::Numeral {
-                    // Check if this is a class attribute or instance definition
+                    // Check if this is a datatype attribute or instance definition
                     match &defined_name {
                         DefinedName::Constant(constant_name) => {
-                            // Regular class attribute
-                            let class_name = match constant_name.as_attribute() {
-                                Some((_, class_name, _)) => class_name.to_string(),
+                            // Regular datatype attribute
+                            let datatype_name = match constant_name.as_attribute() {
+                                Some((_, datatype_name, _)) => datatype_name.to_string(),
                                 _ => {
                                     return Err(ls
                                         .name_token
-                                        .error("numeric literals must be class members"))
+                                        .error("numeric literals must be datatype members"))
                                 }
                             };
-                            let class = Datatype {
+                            let datatype = Datatype {
                                 module_id: self.module_id,
-                                name: class_name,
+                                name: datatype_name,
                             };
-                            if acorn_type != AcornType::Data(class, vec![]) {
+                            if acorn_type != AcornType::Data(datatype, vec![]) {
                                 return Err(type_expr
-                                    .error("numeric class variables must be the class type"));
+                                    .error("numeric datatype variables must be the datatype type"));
                             }
                         }
                         DefinedName::Instance(instance_name) => {
-                            // Instance definition - check against the instance class
+                            // Instance definition - check against the instance datatype
                             if acorn_type != AcornType::Data(instance_name.datatype.clone(), vec![]) {
                                 return Err(type_expr.error(
-                                    "numeric instance variables must be the instance class type",
+                                    "numeric instance variables must be the instance datatype type",
                                 ));
                             }
                         }
@@ -448,12 +448,12 @@ impl Environment {
         }
 
         // Genericize the value being defined
-        let type_params = match class_params {
+        let type_params = match datatype_params {
             Some(p) => {
                 if !local_type_params.is_empty() {
                     return Err(ls
                         .name_token
-                        .error("class parameters and let parameters cannot be used together"));
+                        .error("datatype parameters and let parameters cannot be used together"));
                 }
                 p.clone()
             }
@@ -486,18 +486,18 @@ impl Environment {
         Ok(())
     }
 
-    /// Adds a "define" statement to the environment, that may be within a class block.
+    /// Adds a "define" statement to the environment, that may be within an attributes block.
     ///
     /// The self type is the type of the "self" variable. If it's None, there can't be a self.
     ///
-    /// The class params are the parameters for the overall class statement, if we are within one.
+    /// The datatype params are the parameters for the overall attributes statement, if we are within one.
     /// They will become the parameters of the newly defined function.
     fn add_define_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
         self_type: Option<&AcornType>,
-        class_params: Option<&Vec<TypeParam>>,
+        datatype_params: Option<&Vec<TypeParam>>,
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
@@ -537,17 +537,17 @@ impl Environment {
                 Some(&mut self.token_map),
             )?;
 
-        if let Some(class_type) = self_type {
-            if &arg_types[0] != class_type {
-                return Err(ds.args[0].token().error("self must be the class type"));
+        if let Some(datatype_type) = self_type {
+            if &arg_types[0] != datatype_type {
+                return Err(ds.args[0].token().error("self must be the datatype type"));
             }
 
             if ds.name == "read" {
-                if arg_types.len() != 2 || &arg_types[1] != class_type || &value_type != class_type
+                if arg_types.len() != 2 || &arg_types[1] != datatype_type || &value_type != datatype_type
                 {
                     return Err(ds.name_token.error(&format!(
                         "{}.read should be type ({}, {}) -> {}",
-                        class_type, class_type, class_type, class_type
+                        datatype_type, datatype_type, datatype_type, datatype_type
                     )));
                 }
             }
@@ -557,12 +557,12 @@ impl Environment {
         if let Some(v) = unbound_value {
             let mut fn_value = AcornValue::lambda(arg_types, v);
 
-            let params = if let Some(class_params) = class_params {
-                // When a class is parametrized, the member gets parameters from the class.
-                fn_value = fn_value.genericize(&class_params);
-                class_params.clone()
+            let params = if let Some(datatype_params) = datatype_params {
+                // When a datatype is parametrized, the member gets parameters from the datatype.
+                fn_value = fn_value.genericize(&datatype_params);
+datatype_params.clone()
             } else {
-                // When there's no class, we just have the function's own type parameters.
+                // When there's no datatype, we just have the function's own type parameters.
                 fn_param_names
             };
 
@@ -1460,7 +1460,7 @@ impl Environment {
                 }
                 _ => {
                     return Err(substatement
-                        .error("only let and define statements are allowed in class bodies"));
+                        .error("only let and define statements are allowed in attributes bodies"));
                 }
             }
         }
@@ -1647,7 +1647,7 @@ impl Environment {
         // Create an expression from the type name token and evaluate it to track the token
         let type_expr = Expression::Singleton(is.type_name.clone());
         let instance_type = self.evaluator(project).evaluate_type(&type_expr)?;
-        let instance_class = self.check_can_add_attributes(&is.type_name, &instance_type)?;
+        let instance_datatype = self.check_can_add_attributes(&is.type_name, &instance_type)?;
         let typeclass = self.evaluator(project).evaluate_typeclass(&is.typeclass)?;
 
         // Every base typeclass that this typeclass extends, the instance class must
@@ -1655,7 +1655,7 @@ impl Environment {
         for base_typeclass in self.bindings.get_extends(&typeclass) {
             if !self
                 .bindings
-                .is_instance_of(&instance_class, &base_typeclass)
+                .is_instance_of(&instance_datatype, &base_typeclass)
             {
                 return Err(statement.error(&format!(
                     "'{}' must be an instance of '{}' in order to be an instance of '{}'",
@@ -1677,7 +1677,7 @@ impl Environment {
                             DefinedName::instance(
                                 typeclass.clone(),
                                 &ls.name,
-                                instance_class.clone(),
+                                instance_datatype.clone(),
                             ),
                             ls,
                             ls.name_token.range(),
@@ -1701,7 +1701,7 @@ impl Environment {
                             DefinedName::instance(
                                 typeclass.clone(),
                                 &ds.name,
-                                instance_class.clone(),
+                                instance_datatype.clone(),
                             ),
                             Some(&instance_type),
                             None,
@@ -1752,7 +1752,7 @@ impl Environment {
                 // Now we make the condition safe by replacing the unsafe constants with their
                 // definitions.
                 let condition = unsafe_condition.replace_constants(0, &|ci| {
-                    let name = match ci.to_defined_instance_name(&typeclass, &instance_class) {
+                    let name = match ci.to_defined_instance_name(&typeclass, &instance_datatype) {
                         Some(name) => name,
                         None => return None,
                     };
@@ -1762,7 +1762,7 @@ impl Environment {
                 continue;
             }
 
-            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_datatype.clone());
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
@@ -1781,7 +1781,7 @@ impl Environment {
             importable: true,
             depth: self.depth,
         };
-        let instance_fact = Fact::Instance(instance_class.clone(), typeclass.clone(), source);
+        let instance_fact = Fact::Instance(instance_datatype.clone(), typeclass.clone(), source);
 
         let node = if conditions.is_empty() {
             Node::Structural(instance_fact)
@@ -1813,7 +1813,7 @@ impl Environment {
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
         self.bindings
-            .add_instance_of(instance_class.clone(), typeclass);
+            .add_instance_of(instance_datatype.clone(), typeclass);
         Ok(())
     }
 
@@ -2017,13 +2017,13 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let acorn_type = self.evaluator(project).evaluate_type(&ds.type_expr)?;
-        if let AcornType::Data(class, params) = acorn_type {
+        if let AcornType::Data(datatype, params) = acorn_type {
             if !params.is_empty() {
                 return Err(ds
                     .type_expr
                     .error("numerals type cannot have type parameters"));
             }
-            self.bindings.set_numerals(class);
+            self.bindings.set_numerals(datatype);
             Ok(())
         } else {
             Err(ds.type_expr.error("numerals type must be a data type"))

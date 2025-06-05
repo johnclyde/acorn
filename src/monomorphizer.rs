@@ -167,12 +167,12 @@ impl Monomorphizer {
     fn add_instance_of(&mut self, datatype: Datatype, typeclass: Typeclass) {
         let key = (datatype, typeclass);
         let failures = self.instantiation_failures.remove(&key);
-        let (class, typeclass) = key;
+        let (datatype, typeclass) = key;
 
         self.instances
             .entry(typeclass)
             .or_insert_with(HashSet::new)
-            .insert(class);
+            .insert(datatype);
 
         // Check if we have any instantiation failures that can be resolved now.
         if let Some(failures) = failures {
@@ -209,8 +209,8 @@ impl Monomorphizer {
             Fact::Extends(tc, base_set, _) => {
                 self.add_extends(tc, base_set);
             }
-            Fact::Instance(class, typeclass, _) => {
-                self.add_instance_of(class, typeclass);
+            Fact::Instance(datatype, typeclass, _) => {
+                self.add_instance_of(datatype, typeclass);
             }
             Fact::Definition(potential, definition, source) => {
                 let (params, constant) = match potential {
@@ -349,10 +349,10 @@ impl Monomorphizer {
         {
             match unifier.match_instance(generic_type, monomorph_type) {
                 Ok(()) => {}
-                Err(type_unifier::Error::Class(class, typeclass)) => {
+                Err(type_unifier::Error::Datatype(dt, typeclass)) => {
                     // This is a failure based on a typeclass relation.
                     // We can try again later if we find out that the typeclass is valid.
-                    let failure_key = (class, typeclass);
+                    let failure_key = (dt, typeclass);
                     self.instantiation_failures
                         .entry(failure_key)
                         .or_insert_with(Vec::new)
@@ -392,9 +392,9 @@ impl Monomorphizer {
 }
 
 impl TypeclassRegistry for Monomorphizer {
-    fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool {
+    fn is_instance_of(&self, dt: &Datatype, typeclass: &Typeclass) -> bool {
         if let Some(set) = self.instances.get(typeclass) {
-            set.contains(class)
+            set.contains(dt)
         } else {
             false
         }
