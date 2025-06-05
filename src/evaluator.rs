@@ -418,18 +418,16 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let bindings = self.get_bindings(typeclass.module_id);
-
-        // Check if this attribute is an inherited one.
-        // Note that if we are in the definition of typeclass conditions, there is no info yet.
-        if let Some(base_tc) = self.bindings.typeclass_attr_lookup(&typeclass, attr_name) {
-            if base_tc != typeclass {
-                return self.evaluate_typeclass_attribute(&base_tc, attr_name, source);
-            }
+        // Check if this attribute is defined anywhere (including inherited ones)
+        if let Some((attr_module_id, attr_typeclass)) = self.bindings.typeclass_attr_module_lookup(&typeclass, attr_name) {
+            // Get the bindings from the module where this attribute was actually defined
+            let bindings = self.get_bindings(attr_module_id);
+            let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
+            return bindings.get_constant_value(&defined_name, source);
         }
 
-        let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name);
-        bindings.get_constant_value(&defined_name, source)
+        // If no attribute found, return error
+        Err(source.error(&format!("attribute '{}' not found on typeclass '{}'", attr_name, typeclass.name)))
     }
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.

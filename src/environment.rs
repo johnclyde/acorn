@@ -1815,7 +1815,7 @@ impl Environment {
         // Check that we have all implementations.
         let attributes = self.bindings.get_typeclass_attributes(&typeclass, &project);
         let mut conditions = vec![];
-        for (attr_name, root_tc) in attributes.iter() {
+        for (attr_name, (_module_id, root_tc)) in attributes.iter() {
             if root_tc != &typeclass {
                 // This attribute is inherited, so we don't need to check it.
                 continue;

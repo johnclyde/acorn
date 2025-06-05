@@ -124,7 +124,14 @@ impl BindingMap {
     /// This can return the typeclass argument itself, or a base typeclass that it extends.
     /// Returns None if there is no such attribute.
     pub fn typeclass_attr_lookup(&self, typeclass: &Typeclass, attr: &str) -> Option<&Typeclass> {
-        self.typeclass_defs.get(typeclass)?.attributes.get(attr)
+        self.typeclass_defs.get(typeclass)?.attributes.get(attr).map(|(_, tc)| tc)
+    }
+
+    /// For a given typeclass attribute, find the module and typeclass that defines it.
+    /// Returns (module_id, typeclass) where the attribute was originally defined.
+    /// Returns None if there is no such attribute.
+    pub fn typeclass_attr_module_lookup(&self, typeclass: &Typeclass, attr: &str) -> Option<(ModuleId, &Typeclass)> {
+        self.typeclass_defs.get(typeclass)?.attributes.get(attr).map(|(module_id, tc)| (*module_id, tc))
     }
 
     /// Gets the local alias to use for a given constant.
@@ -343,7 +350,7 @@ impl BindingMap {
         &'a self,
         typeclass: &Typeclass,
         project: &'a Project,
-    ) -> &'a BTreeMap<String, Typeclass> {
+    ) -> &'a BTreeMap<String, (ModuleId, Typeclass)> {
         &self
             .get_bindings(typeclass.module_id, project)
             .typeclass_defs
@@ -531,16 +538,16 @@ impl BindingMap {
                     info.extends.insert(base_base.clone());
                 }
             }
-            for (attr, original) in base_info.attributes.iter() {
-                if let Some(current) = info.attributes.get(attr) {
-                    if current != original {
+            for (attr, (original_module, original_typeclass)) in base_info.attributes.iter() {
+                if let Some((_current_module, current_typeclass)) = info.attributes.get(attr) {
+                    if current_typeclass != original_typeclass {
                         return Err(source.error(&format!(
                             "you cannot extend both '{}' and '{}' because they both define the attribute '{}'",
-                            &current.name, &original.name, attr
+                            &current_typeclass.name, &original_typeclass.name, attr
                         )));
                     }
                 } else {
-                    info.attributes.insert(attr.clone(), original.clone());
+                    info.attributes.insert(attr.clone(), (*original_module, original_typeclass.clone()));
                 }
             }
         }
@@ -846,7 +853,7 @@ impl BindingMap {
                     .entry(typeclass.clone())
                     .or_insert_with(TypeclassDefinition::new)
                     .attributes
-                    .insert(attribute.clone(), typeclass.clone());
+                    .insert(attribute.clone(), (self.module_id, typeclass.clone()));
             }
             ConstantName::Unqualified(_, name) => {
                 self.unqualified.insert(name.clone(), ());
@@ -1004,11 +1011,27 @@ impl BindingMap {
 
         // Copy over the typeclass info, but drop any aliases.
         for (typeclass, imported_info) in bindings.typeclass_defs.iter() {
-            if !self.typeclass_defs.contains_key(typeclass) {
-                let mut imported_info = imported_info.clone();
-                imported_info.alias = None;
-                self.typeclass_defs.insert(typeclass.clone(), imported_info);
+            let entry = self
+                .typeclass_defs
+                .entry(typeclass.clone())
+                .or_insert_with(TypeclassDefinition::new);
+            
+            // Merge attributes from the imported typeclass
+            for (attr_name, (attr_module_id, attr_typeclass)) in imported_info.attributes.iter() {
+                if !entry.attributes.contains_key(attr_name) {
+                    entry.attributes.insert(attr_name.clone(), (*attr_module_id, attr_typeclass.clone()));
+                }
             }
+            
+            // Merge other fields if this is a new typeclass (but we already handle attributes above)
+            if entry.doc_comments.is_empty() {
+                entry.doc_comments = imported_info.doc_comments.clone();
+            }
+            if entry.range.is_none() {
+                entry.range = imported_info.range.clone();
+            }
+            // Note: We don't need to merge extends or required since those are set during typeclass definition,
+            // not during attribute definition
         }
         Ok(())
     }
@@ -1685,9 +1708,10 @@ impl DatatypeDefinition {
 #[derive(Clone, Debug)]
 struct TypeclassDefinition {
     /// The attributes available to this typeclass.
-    /// The value stores the typeclass on which this attribute was originally defined.
-    /// (This can be the typeclass itself.)
-    attributes: BTreeMap<String, Typeclass>,
+    /// The value stores (module_id, typeclass) where:
+    /// - module_id is the module where this attribute was defined
+    /// - typeclass is the typeclass on which this attribute was originally defined (for inheritance)
+    attributes: BTreeMap<String, (ModuleId, Typeclass)>,
 
     /// The attributes that are required to be implemented by instances.
     /// These come from the initial typeclass definition block.
