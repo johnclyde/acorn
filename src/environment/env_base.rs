@@ -330,38 +330,6 @@ impl Environment {
         Ok(last_claim)
     }
 
-    /// Adds a "let" statement to the environment.
-    /// This can also be in a class, typeclass, or instance block.
-    /// If this is in an attributes block, the datatype parameters are provided.
-
-    /// Adds a "define" statement to the environment, that may be within an attributes block.
-    ///
-    /// The self type is the type of the "self" variable. If it's None, there can't be a self.
-    ///
-    /// The datatype params are the parameters for the overall attributes statement, if we are within one.
-    /// They will become the parameters of the newly defined function.
-
-    /// Parse these tokens and add them to the environment.
-    /// If project is not provided, we won't be able to handle import statements.
-    pub fn add_tokens(
-        &mut self,
-        project: &mut Project,
-        tokens: Vec<Token>,
-    ) -> compilation::Result<()> {
-        let mut tokens = TokenIter::new(tokens);
-        loop {
-            match Statement::parse(&mut tokens, false) {
-                Ok((Some(statement), _)) => {
-                    if let Err(e) = self.add_statement(project, &statement) {
-                        return Err(e);
-                    }
-                }
-                Ok((None, _)) => return Ok(()),
-                Err(e) => return Err(e),
-            }
-        }
-    }
-
     /// Get all facts that can be imported into other modules from this one.
     /// If the filter is provided, we only return facts whose qualified name is in the filter.
     /// In particular, if you want to import only a minimal set of facts, you have to

@@ -23,7 +23,7 @@ use crate::statement::{
     StructureStatement, TheoremStatement, TypeStatement, TypeclassStatement,
     VariableSatisfyStatement,
 };
-use crate::token::TokenType;
+use crate::token::{Token, TokenIter, TokenType};
 use crate::type_unifier::TypeclassRegistry;
 
 use super::{Environment, LineType};
@@ -32,6 +32,38 @@ use super::{Environment, LineType};
 // It would be nice for the separation to be cleaner.
 
 impl Environment {
+    /// Adds a "let" statement to the environment.
+    /// This can also be in a class, typeclass, or instance block.
+    /// If this is in an attributes block, the datatype parameters are provided.
+
+    /// Adds a "define" statement to the environment, that may be within an attributes block.
+    ///
+    /// The self type is the type of the "self" variable. If it's None, there can't be a self.
+    ///
+    /// The datatype params are the parameters for the overall attributes statement, if we are within one.
+    /// They will become the parameters of the newly defined function.
+
+    /// Parse these tokens and add them to the environment.
+    /// If project is not provided, we won't be able to handle import statements.
+    pub fn add_tokens(
+        &mut self,
+        project: &mut Project,
+        tokens: Vec<Token>,
+    ) -> compilation::Result<()> {
+        let mut tokens = TokenIter::new(tokens);
+        loop {
+            match Statement::parse(&mut tokens, false) {
+                Ok((Some(statement), _)) => {
+                    if let Err(e) = self.add_statement(project, &statement) {
+                        return Err(e);
+                    }
+                }
+                Ok((None, _)) => return Ok(()),
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
     /// Adds a statement to the environment.
     /// If the statement has a body, this call creates a sub-environment and adds the body
     /// to that sub-environment.
@@ -157,11 +189,10 @@ impl Environment {
         result
     }
 
-
     /// Adds a "let" statement to the environment.
     /// This can also be in a class, typeclass, or instance block.
     /// If this is in an attributes block, the datatype parameters are provided.
-    pub fn add_let_statement(
+    fn add_let_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
@@ -303,7 +334,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_define_statement(
+    fn add_define_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
@@ -396,7 +427,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_theorem_statement(
+    fn add_theorem_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -525,7 +556,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_variable_satisfy_statement(
+    fn add_variable_satisfy_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -578,7 +609,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_function_satisfy_statement(
+    fn add_function_satisfy_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -682,7 +713,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_structure_statement(
+    fn add_structure_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -922,7 +953,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_inductive_statement(
+    fn add_inductive_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1226,7 +1257,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_attributes_statement(
+    fn add_attributes_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1359,7 +1390,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_typeclass_statement(
+    fn add_typeclass_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1533,7 +1564,7 @@ impl Environment {
         Ok(())
     }
 
-    pub fn add_instance_statement(
+    fn add_instance_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1724,7 +1755,7 @@ impl Environment {
     }
 
     /// Adds a type statement to the environment.
-    pub fn add_type_statement(
+    fn add_type_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1752,7 +1783,7 @@ impl Environment {
     }
 
     /// Adds a claim statement to the environment.
-    pub fn add_claim_statement(
+    fn add_claim_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1781,7 +1812,7 @@ impl Environment {
     }
 
     /// Adds a forall statement to the environment.
-    pub fn add_forall_statement(
+    fn add_forall_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1817,7 +1848,7 @@ impl Environment {
     }
 
     /// Adds an if statement to the environment.
-    pub fn add_if_statement(
+    fn add_if_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1851,7 +1882,7 @@ impl Environment {
     }
 
     /// Adds an import statement to the environment.
-    pub fn add_import_statement(
+    fn add_import_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1916,7 +1947,7 @@ impl Environment {
     }
 
     /// Adds a numerals statement to the environment.
-    pub fn add_numerals_statement(
+    fn add_numerals_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1938,7 +1969,7 @@ impl Environment {
     }
 
     /// Adds a solve statement to the environment.
-    pub fn add_solve_statement(
+    fn add_solve_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1976,7 +2007,7 @@ impl Environment {
     }
 
     /// Adds a problem statement to the environment.
-    pub fn add_problem_statement(
+    fn add_problem_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1999,7 +2030,7 @@ impl Environment {
     }
 
     /// Adds a match statement to the environment.
-    pub fn add_match_statement(
+    fn add_match_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
