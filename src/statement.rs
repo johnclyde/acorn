@@ -182,18 +182,18 @@ pub struct ImportStatement {
     pub names: Vec<Token>,
 }
 
-/// A class statement defines additional attributes for a type.
-/// They can be accessed either by the class name, or via an instance of the class.
-pub struct ClassStatement {
+/// An attributes statement defines additional attributes for a type.
+/// They can be accessed either by the type's name, or via a value of the type.
+pub struct AttributesStatement {
     pub name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
-    /// The body of a class statement
+    /// The body containing the attributes
     pub body: Body,
 }
 
-/// A numerals statement determines what class is used for numeric literals.
+/// A numerals statement determines what datatype is used for numeric literals.
 pub struct NumeralsStatement {
     pub type_expr: Expression,
 }
@@ -290,7 +290,7 @@ pub enum StatementInfo {
     Structure(StructureStatement),
     Inductive(InductiveStatement),
     Import(ImportStatement),
-    Class(ClassStatement),
+    Attributes(AttributesStatement),
     Numerals(NumeralsStatement),
     Solve(SolveStatement),
     Problem(Body),
@@ -854,8 +854,8 @@ fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     Ok(statement)
 }
 
-/// Parses a class statement where the "class" keyword has already been found.
-fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+/// Parses an attributes statement where the "class" or "attributes" keyword has already been found.
+fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
     let name_token = tokens.expect_type_name()?;
     let type_params = TypeParamExpr::parse_list(tokens)?;
     let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
@@ -865,7 +865,7 @@ fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
         statements,
         right_brace: right_brace.clone(),
     };
-    let cs = ClassStatement {
+    let cs = AttributesStatement {
         name: name_token.to_string(),
         name_token,
         type_params,
@@ -874,7 +874,7 @@ fn parse_class_statement(keyword: Token, tokens: &mut TokenIter) -> Result<State
     let statement = Statement {
         first_token: keyword,
         last_token: right_brace,
-        statement: StatementInfo::Class(cs),
+        statement: StatementInfo::Attributes(cs),
     };
     Ok(statement)
 }
@@ -1384,8 +1384,8 @@ impl Statement {
                 }
             }
 
-            StatementInfo::Class(cs) => {
-                write!(f, "class {}", cs.name)?;
+            StatementInfo::Attributes(cs) => {
+                write!(f, "attributes {}", cs.name)?;
                 write_type_params(f, &cs.type_params)?;
                 write_block(f, &cs.body.statements, indentation)
             }
@@ -1551,7 +1551,7 @@ impl Statement {
                     }
                     TokenType::Class | TokenType::Attributes => {
                         let keyword = tokens.next().unwrap();
-                        let s = parse_class_statement(keyword, tokens)?;
+                        let s = parse_attributes_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     TokenType::Numerals => {
@@ -2070,9 +2070,9 @@ mod tests {
     }
 
     #[test]
-    fn test_class_statement() {
+    fn test_attributes_statement() {
         ok(indoc! {"
-        class Foo {
+        attributes Foo {
             let blorp: Foo = axiom
             let 0: Foo = axiom
         }"});
@@ -2188,9 +2188,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parsing_class_statement_with_type_params() {
+    fn test_parsing_attributes_statement_with_type_params() {
         ok(indoc! {"
-        class Pair<T, U> {
+        attributes Pair<T, U> {
             define swap(self) -> Pair<U, T> {
                 Pair.new(self.second, self.first)
             }

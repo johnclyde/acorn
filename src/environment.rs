@@ -21,7 +21,7 @@ use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::stack::Stack;
 use crate::statement::{
-    Body, ClaimStatement, ClassStatement, DefineStatement, ForAllStatement,
+    Body, ClaimStatement, AttributesStatement, DefineStatement, ForAllStatement,
     FunctionSatisfyStatement, IfStatement, ImportStatement, InductiveStatement, InstanceStatement,
     LetStatement, MatchStatement, NumeralsStatement, SolveStatement, Statement, StatementInfo,
     StructureStatement, TheoremStatement, TypeStatement, TypeclassStatement,
@@ -1416,7 +1416,7 @@ impl Environment {
         &mut self,
         project: &mut Project,
         statement: &Statement,
-        cs: &ClassStatement,
+        cs: &AttributesStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         let potential = match self.bindings.get_type_for_typename(&cs.name) {
@@ -2232,7 +2232,7 @@ impl Environment {
 
             StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
 
-            StatementInfo::Class(cs) => self.add_class_statement(project, statement, cs),
+            StatementInfo::Attributes(cs) => self.add_class_statement(project, statement, cs),
 
             StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
 
