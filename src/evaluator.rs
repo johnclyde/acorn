@@ -322,32 +322,32 @@ impl<'a> Evaluator<'a> {
     /// This function evaluates numbers when we already know what type they are.
     /// token is the token to report errors with.
     /// s is the string to parse.
-    fn evaluate_number_with_class(
+    fn evaluate_number_with_datatype(
         &mut self,
         token: &Token,
-        class: &Datatype,
+        datatype: &Datatype,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if self.bindings.has_type_attribute(&class, s) {
+        if self.bindings.has_type_attribute(&datatype, s) {
             return self
-                .evaluate_type_attribute(&class, s, token)?
+                .evaluate_type_attribute(&datatype, s, token)?
                 .as_value(token);
         }
 
         if s.len() == 1 {
-            return Err(token.error(&format!("digit {}.{} is not defined", &class.name, s)));
+            return Err(token.error(&format!("digit {}.{} is not defined", &datatype.name, s)));
         }
 
         let last_str = &s[s.len() - 1..];
-        let last_num = self.evaluate_number_with_class(token, class, last_str)?;
+        let last_num = self.evaluate_number_with_datatype(token, datatype, last_str)?;
         let initial_str = &s[..s.len() - 1];
-        let initial_num = self.evaluate_number_with_class(token, class, initial_str)?;
-        let read_fn = match self.evaluate_type_attribute(&class, "read", token)? {
+        let initial_num = self.evaluate_number_with_datatype(token, datatype, initial_str)?;
+        let read_fn = match self.evaluate_type_attribute(&datatype, "read", token)? {
             PotentialValue::Resolved(f) => f,
             PotentialValue::Unresolved(_) => {
                 return Err(token.error(&format!(
                     "read function {}.read has unresolved type",
-                    &class.name
+                    &datatype.name
                 )))
             }
         };
@@ -358,16 +358,16 @@ impl<'a> Evaluator<'a> {
     /// Evaluates a name scoped by a type name, like Nat.range
     fn evaluate_type_attribute(
         &mut self,
-        class: &Datatype,
+        datatype: &Datatype,
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         let module_id = self
             .bindings
-            .get_module_for_class_attr(class, attr_name)
+            .get_module_for_datatype_attr(datatype, attr_name)
             .ok_or_else(|| source.error("attribute not found"))?;
         let bindings = self.get_bindings(module_id);
-        let defined_name = DefinedName::class_attr(&class, attr_name);
+        let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
         bindings.get_constant_value(&defined_name, source)
     }
 
@@ -415,7 +415,7 @@ impl<'a> Evaluator<'a> {
         let base_type = receiver.get_type();
 
         let function = match &base_type {
-            AcornType::Data(class, _) => self.evaluate_type_attribute(class, attr_name, source)?,
+            AcornType::Data(datatype, _) => self.evaluate_type_attribute(datatype, attr_name, source)?,
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {
                     Some(t) => t,
@@ -458,7 +458,7 @@ impl<'a> Evaluator<'a> {
                 match &t {
                     AcornType::Data(class, params) => {
                         if name_token.token_type == TokenType::Numeral {
-                            let value = self.evaluate_number_with_class(
+                            let value = self.evaluate_number_with_datatype(
                                 name_token,
                                 &class,
                                 name_token.text(),
@@ -558,7 +558,7 @@ impl<'a> Evaluator<'a> {
                         }
                     }
                     TokenType::Numeral => {
-                        let class = match self.bindings.numerals() {
+                        let datatype = match self.bindings.numerals() {
                             Some(c) => c,
                             None => {
                                 return Err(name_token
@@ -566,7 +566,7 @@ impl<'a> Evaluator<'a> {
                             }
                         };
                         let value =
-                            self.evaluate_number_with_class(name_token, class, name_token.text())?;
+                            self.evaluate_number_with_datatype(name_token, &datatype, name_token.text())?;
                         NamedEntity::Value(value)
                     }
                     TokenType::SelfToken => {

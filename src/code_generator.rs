@@ -45,24 +45,24 @@ impl CodeGenerator<'_> {
         })
     }
 
-    fn class_to_expr(&self, class: &Datatype) -> Result<Expression> {
-        if class.module_id == self.bindings.module_id() {
-            return Ok(Expression::generate_identifier(&class.name));
+    fn datatype_to_expr(&self, datatype: &Datatype) -> Result<Expression> {
+        if datatype.module_id == self.bindings.module_id() {
+            return Ok(Expression::generate_identifier(&datatype.name));
         }
 
         // Check if we have an alias
-        if let Some(alias) = self.bindings.class_alias(&class) {
+        if let Some(alias) = self.bindings.datatype_alias(&datatype) {
             return Ok(Expression::generate_identifier(alias));
         }
 
         // Reference this type via referencing the imported module
-        if let Some(module_name) = self.bindings.get_name_for_module_id(class.module_id) {
+        if let Some(module_name) = self.bindings.get_name_for_module_id(datatype.module_id) {
             return Ok(Expression::generate_identifier_chain(&[
                 module_name,
-                &class.name,
+                &datatype.name,
             ]));
         }
-        Err(Error::unnamed_type(&class))
+        Err(Error::unnamed_type(&datatype))
     }
 
     /// Returns an error if this type can't be encoded as an expression.
@@ -80,7 +80,7 @@ impl CodeGenerator<'_> {
 
         match acorn_type {
             AcornType::Data(class, params) => {
-                let base_expr = self.class_to_expr(class)?;
+                let base_expr = self.datatype_to_expr(class)?;
 
                 self.parametrize_expr(base_expr, params)
             }
@@ -158,22 +158,22 @@ impl CodeGenerator<'_> {
         }
 
         // Handle numeric literals
-        if let Some((_, class_name, attr)) = ci.name.as_attribute() {
+        if let Some((_, datatype_name, attr)) = ci.name.as_attribute() {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
-                let class = Datatype {
+                let datatype = Datatype {
                     module_id: ci.name.module_id(),
-                    name: class_name.to_string(),
+                    name: datatype_name.to_string(),
                 };
 
                 let numeral = TokenType::Numeral.new_token(&attr);
 
                 // If it's the default type, we don't need to scope it
-                if self.bindings.numerals() == Some(&class) {
+                if self.bindings.numerals() == Some(&datatype) {
                     return Ok(Expression::Singleton(numeral));
                 }
 
                 // Otherwise, we need to scope it by the type
-                let numeric_type = self.class_to_expr(&class)?;
+                let numeric_type = self.datatype_to_expr(&datatype)?;
                 return Ok(Expression::generate_dot(
                     numeric_type,
                     Expression::Singleton(numeral),
@@ -185,8 +185,8 @@ impl CodeGenerator<'_> {
         if ci.name.module_id() == self.bindings.module_id() {
             return Ok(match &ci.name {
                 ConstantName::Unqualified(_, word) => Expression::generate_identifier(word),
-                ConstantName::ClassAttribute(class, attr) => Expression::generate_dot(
-                    Expression::generate_identifier(&class.name),
+                ConstantName::DatatypeAttribute(datatype, attr) => Expression::generate_dot(
+                    Expression::generate_identifier(&datatype.name),
                     Expression::generate_identifier(attr),
                 ),
                 ConstantName::TypeclassAttribute(tc, attr) => Expression::generate_dot(
@@ -204,12 +204,12 @@ impl CodeGenerator<'_> {
         // If it's a member function, check if there's a local alias for its receiver.
         // Note that the receiver could be either a class or a typeclass.
         if let Some((_, rname, attr)) = ci.name.as_attribute() {
-            // Check if this is a class attribute
+            // Check if this is a datatype attribute
             let class = Datatype {
                 module_id: ci.name.module_id(),
                 name: rname.to_string(),
             };
-            if let Some(alias) = self.bindings.class_alias(&class) {
+            if let Some(alias) = self.bindings.datatype_alias(&class) {
                 let lhs = Expression::generate_identifier(alias);
                 let rhs = Expression::generate_identifier(attr);
                 return Ok(Expression::generate_dot(lhs, rhs));
@@ -233,8 +233,8 @@ impl CodeGenerator<'_> {
                 let mut parts: Vec<&str> = vec![module_name];
                 match &ci.name {
                     ConstantName::Unqualified(_, name) => parts.push(name),
-                    ConstantName::ClassAttribute(class, attr) => {
-                        parts.push(&class.name);
+                    ConstantName::DatatypeAttribute(datatype, attr) => {
+                        parts.push(&datatype.name);
                         parts.push(attr);
                     }
                     ConstantName::TypeclassAttribute(tc, attr) => {

@@ -137,16 +137,16 @@ impl BindingMap {
     }
 
     /// Gets the local alias to use for a given class.
-    pub fn class_alias(&self, class: &Datatype) -> Option<&String> {
-        self.class_defs.get(class)?.alias.as_ref()
+    pub fn datatype_alias(&self, datatype: &Datatype) -> Option<&String> {
+        self.class_defs.get(datatype)?.alias.as_ref()
     }
 
-    fn add_class_alias(&mut self, class: &Datatype, alias: &str) {
-        if !self.class_defs.contains_key(class) {
+    fn add_datatype_alias(&mut self, datatype: &Datatype, alias: &str) {
+        if !self.class_defs.contains_key(datatype) {
             self.class_defs
-                .insert(class.clone(), ClassDefinition::new());
+                .insert(datatype.clone(), ClassDefinition::new());
         }
-        let info = self.class_defs.get_mut(class).unwrap();
+        let info = self.class_defs.get_mut(datatype).unwrap();
         if info.alias.is_none() {
             info.alias = Some(alias.to_string());
         }
@@ -191,8 +191,8 @@ impl BindingMap {
                         self.unqualified.contains_key(name)
                             || self.name_to_module.contains_key(name)
                     }
-                    ConstantName::ClassAttribute(class, attr) => {
-                        self.has_type_attribute(class, attr)
+                    ConstantName::DatatypeAttribute(datatype, attr) => {
+                        self.has_type_attribute(datatype, attr)
                     }
                     ConstantName::TypeclassAttribute(..) => {
                         // This doesn't seem right!
@@ -351,9 +351,9 @@ impl BindingMap {
             .and_then(|info| info.constructor.as_ref())
     }
 
-    pub fn get_module_for_class_attr(&self, class: &Datatype, attr: &str) -> Option<ModuleId> {
+    pub fn get_module_for_datatype_attr(&self, datatype: &Datatype, attr: &str) -> Option<ModuleId> {
         self.class_defs
-            .get(class)
+            .get(datatype)
             .and_then(|info| info.attributes.get(attr))
             .copied()
     }
@@ -480,14 +480,14 @@ impl BindingMap {
         // Local type aliases for concrete types should be preferred.
         if let PotentialType::Resolved(AcornType::Data(class, params)) = &potential {
             if params.is_empty() {
-                self.add_class_alias(class, alias);
+                self.add_datatype_alias(class, alias);
             }
         }
 
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
-            self.add_class_alias(&u.class, alias);
+            self.add_datatype_alias(&u.class, alias);
         }
 
         self.insert_type_name(alias.to_string(), potential);
@@ -665,10 +665,10 @@ impl BindingMap {
         }
     }
 
-    /// Adds a constant that is an attribute of a class.
-    pub fn add_class_attribute(
+    /// Adds a constant that is an attribute of a datatype.
+    pub fn add_datatype_attribute(
         &mut self,
-        class: &Datatype,
+        datatype: &Datatype,
         attr: &str,
         params: Vec<TypeParam>,
         constant_type: AcornType,
@@ -676,7 +676,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
     ) -> PotentialValue {
-        let constant_name = ConstantName::class_attr(class.clone(), attr);
+        let constant_name = ConstantName::datatype_attr(datatype.clone(), attr);
         self.add_constant_name(
             &constant_name,
             params,
@@ -798,10 +798,10 @@ impl BindingMap {
     /// Adds information for either a newly defined constant, or an alias.
     fn add_constant_def(&mut self, constant_name: ConstantName, info: ConstantDefinition) {
         match &constant_name {
-            ConstantName::ClassAttribute(class, attribute) => {
-                // We are defining a new class attribute.
+            ConstantName::DatatypeAttribute(datatype, attribute) => {
+                // We are defining a new datatype attribute.
                 self.class_defs
-                    .entry(class.clone())
+                    .entry(datatype.clone())
                     .or_insert_with(ClassDefinition::new)
                     .attributes
                     .insert(attribute.clone(), self.module_id);

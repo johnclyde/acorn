@@ -268,11 +268,11 @@ impl Environment {
         class_type: &'a AcornType,
     ) -> compilation::Result<&'a Datatype> {
         match &class_type {
-            AcornType::Data(class, _) => {
-                if &class.name != &name_token.text() {
+            AcornType::Data(datatype, _) => {
+                if &datatype.name != &name_token.text() {
                     Err(name_token.error("you cannot add attributes to aliases"))
                 } else {
-                    Ok(&class)
+                    Ok(&datatype)
                 }
             }
             _ => Err(name_token.error("only data types can have attributes")),
@@ -943,7 +943,7 @@ impl Environment {
 
         // The member functions take the type itself to a particular member.
         // These may be unresolved values.
-        let class = Datatype {
+        let datatype = Datatype {
             module_id: self.module_id,
             name: ss.name.clone(),
         };
@@ -960,8 +960,8 @@ impl Environment {
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
-            let potential = self.bindings.add_class_attribute(
-                &class,
+            let potential = self.bindings.add_datatype_attribute(
+                &datatype,
                 member_fn_name,
                 type_params.clone(),
                 member_fn_type.genericize(&type_params),
@@ -975,12 +975,12 @@ impl Environment {
         // A "new" function to create one of these struct types.
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let constructor_info = ConstructorInfo {
-            class: class.clone(),
+            class: datatype.clone(),
             index: 0,
             total: 1,
         };
-        let new_fn = self.bindings.add_class_attribute(
-            &class,
+        let new_fn = self.bindings.add_datatype_attribute(
+            &datatype,
             "new",
             type_params.clone(),
             new_fn_type.genericize(&type_params),
@@ -1169,7 +1169,7 @@ impl Environment {
 
         // Define the constructors.
         // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
-        let class = Datatype {
+        let datatype = Datatype {
             module_id: self.module_id,
             name: is.name.clone(),
         };
@@ -1180,12 +1180,12 @@ impl Environment {
                 AcornType::functional(type_list.clone(), arb_inductive_type.clone());
             let gen_constructor_type = arb_constructor_type.genericize(&type_params);
             let constructor_info = ConstructorInfo {
-                class: class.clone(),
+                class: datatype.clone(),
                 index: i,
                 total,
             };
-            let gen_constructor_fn = self.bindings.add_class_attribute(
-                &class,
+            let gen_constructor_fn = self.bindings.add_datatype_attribute(
+                &datatype,
                 constructor_name,
                 type_params.clone(),
                 gen_constructor_type,
@@ -1376,11 +1376,11 @@ impl Environment {
         let unbound_claim = AcornValue::implies(conjunction, conclusion);
 
         // The lambda form is the functional form, which we bind in the environment.
-        let name = ConstantName::class_attr(class.clone(), "induction");
+        let name = ConstantName::datatype_attr(datatype.clone(), "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
-        self.bindings.add_class_attribute(
-            &class,
+        self.bindings.add_datatype_attribute(
+            &datatype,
             "induction",
             type_params.clone(),
             gen_lambda_claim.get_type(),
@@ -1412,7 +1412,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_class_statement(
+    fn add_attributes_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1435,14 +1435,14 @@ impl Environment {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
         let instance_type = potential.invertible_resolve(params, &ats.name_token)?;
-        let class = self.check_can_add_attributes(&ats.name_token, &instance_type)?;
+        let datatype = self.check_can_add_attributes(&ats.name_token, &instance_type)?;
 
         for substatement in &ats.body.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::class_attr(class, &ls.name),
+                        DefinedName::datatype_attr(datatype, &ls.name),
                         ls,
                         ls.name_token.range(),
                         Some(&type_params),
@@ -1451,7 +1451,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::class_attr(class, &ds.name),
+                        DefinedName::datatype_attr(datatype, &ds.name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -2232,7 +2232,7 @@ impl Environment {
 
             StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
 
-            StatementInfo::Attributes(ats) => self.add_class_statement(project, statement, ats),
+            StatementInfo::Attributes(ats) => self.add_attributes_statement(project, statement, ats),
 
             StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
 

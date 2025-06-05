@@ -31,12 +31,12 @@ impl fmt::Display for InstanceName {
 
 /// The ConstantName provides an identifier for a constant.
 /// It is unique within a given scope. It is not necessarily globally unique, because you
-/// could have two different modules mix the same attribute into a class or typeclass, or
+/// could have two different modules mix the same attribute into a datatype or typeclass, or
 /// you could have a stack variable with the same name in two different places.
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub enum ConstantName {
-    /// An attribute of a class.
-    ClassAttribute(Datatype, String),
+    /// An attribute of a datatype.
+    DatatypeAttribute(Datatype, String),
 
     /// An attribute of a typeclass.
     TypeclassAttribute(Typeclass, String),
@@ -46,8 +46,8 @@ pub enum ConstantName {
 }
 
 impl ConstantName {
-    pub fn class_attr(class: Datatype, attr: &str) -> ConstantName {
-        ConstantName::ClassAttribute(class, attr.to_string())
+    pub fn datatype_attr(datatype: Datatype, attr: &str) -> ConstantName {
+        ConstantName::DatatypeAttribute(datatype, attr.to_string())
     }
 
     pub fn typeclass_attr(tc: Typeclass, attr: &str) -> ConstantName {
@@ -60,7 +60,7 @@ impl ConstantName {
 
     pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
         match self {
-            ConstantName::ClassAttribute(class, attr) => Some((class.module_id, &class.name, attr)),
+            ConstantName::DatatypeAttribute(datatype, attr) => Some((datatype.module_id, &datatype.name, attr)),
             ConstantName::TypeclassAttribute(tc, attr) => Some((tc.module_id, &tc.name, attr)),
             ConstantName::Unqualified(..) => None,
         }
@@ -68,8 +68,8 @@ impl ConstantName {
 
     pub fn to_defined(&self) -> DefinedName {
         match self {
-            ConstantName::ClassAttribute(class, attr) => {
-                DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
+            ConstantName::DatatypeAttribute(datatype, attr) => {
+                DefinedName::Constant(ConstantName::datatype_attr(datatype.clone(), attr))
             }
             ConstantName::TypeclassAttribute(tc, attr) => {
                 DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
@@ -83,15 +83,15 @@ impl ConstantName {
 
     pub fn module_id(&self) -> ModuleId {
         match self {
-            ConstantName::ClassAttribute(class, _) => class.module_id,
+            ConstantName::DatatypeAttribute(datatype, _) => datatype.module_id,
             ConstantName::TypeclassAttribute(tc, _) => tc.module_id,
             ConstantName::Unqualified(module_id, _) => *module_id,
         }
     }
 
-    pub fn is_attribute_of(&self, class: &Datatype) -> bool {
+    pub fn is_attribute_of(&self, datatype: &Datatype) -> bool {
         match self {
-            ConstantName::ClassAttribute(class_attr, _) => class_attr == class,
+            ConstantName::DatatypeAttribute(datatype_attr, _) => datatype_attr == datatype,
             _ => false,
         }
     }
@@ -100,8 +100,8 @@ impl ConstantName {
 impl fmt::Display for ConstantName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ConstantName::ClassAttribute(class, attr) => {
-                write!(f, "{}.{}", class.name, attr)
+            ConstantName::DatatypeAttribute(datatype, attr) => {
+                write!(f, "{}.{}", datatype.name, attr)
             }
             ConstantName::TypeclassAttribute(tc, attr) => {
                 write!(f, "{}.{}", tc.name, attr)
@@ -135,19 +135,19 @@ impl DefinedName {
         DefinedName::Constant(ConstantName::unqualified(module_id, name))
     }
 
-    pub fn class_attr(class: &Datatype, attr: &str) -> DefinedName {
-        DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
+    pub fn datatype_attr(datatype: &Datatype, attr: &str) -> DefinedName {
+        DefinedName::Constant(ConstantName::datatype_attr(datatype.clone(), attr))
     }
 
     pub fn typeclass_attr(tc: &Typeclass, attr: &str) -> DefinedName {
         DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
     }
 
-    pub fn instance(tc: Typeclass, attr: &str, class: Datatype) -> DefinedName {
+    pub fn instance(tc: Typeclass, attr: &str, datatype: Datatype) -> DefinedName {
         let inst = InstanceName {
             typeclass: tc,
             attribute: attr.to_string(),
-            class,
+            class: datatype,
         };
         DefinedName::Instance(inst)
     }
