@@ -628,7 +628,7 @@ mod tests {
             "/mock/stuff.ac",
             r#"
             type Foo: axiom
-            class Foo {
+            attributes Foo {
                 let foo: Bool = true
                 let foo2: Bool = false
             }
@@ -664,7 +664,7 @@ mod tests {
 
             numerals Nat
 
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat {
                     0
                 }
@@ -695,7 +695,7 @@ mod tests {
 
             numerals Nat
 
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat {
                     0
                 }
@@ -1038,7 +1038,7 @@ mod tests {
                 foo
             }
 
-            class Foo {
+            attributes Foo {
                 define add(self, other: Foo) -> Foo {
                     Foo.foo
                 }
@@ -1049,7 +1049,7 @@ mod tests {
             "/mock/foo_middle.ac",
             r#"
             from foo_base import Foo
-            class Foo {
+            attributes Foo {
                 define mul(self, other: Foo) -> Foo {
                     Foo.foo
                 }
@@ -1060,7 +1060,7 @@ mod tests {
             "/mock/foo.ac",
             r#"
             from foo_middle import Foo
-            class Foo {
+            attributes Foo {
                 define sub(self, other: Foo) -> Foo {
                     Foo.foo
                 }

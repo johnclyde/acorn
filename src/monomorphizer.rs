@@ -164,8 +164,8 @@ impl Monomorphizer {
         TypeUnifier::new(self)
     }
 
-    fn add_instance_of(&mut self, class: Datatype, typeclass: Typeclass) {
-        let key = (class, typeclass);
+    fn add_instance_of(&mut self, datatype: Datatype, typeclass: Typeclass) {
+        let key = (datatype, typeclass);
         let failures = self.instantiation_failures.remove(&key);
         let (class, typeclass) = key;
 
