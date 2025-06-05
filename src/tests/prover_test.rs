@@ -2219,3 +2219,24 @@ fn test_proving_with_deep_base_theorem() {
         "#;
     verify_succeeds(text);
 }
+
+#[test]
+fn test_typeclass_attribute_semantics() {
+    let text = r#"
+            typeclass A: Addable {
+                zero: A
+                add: (A, A) -> A
+            }
+            
+            attributes A: Addable {
+                define plus_zero(self) -> A {
+                    A.add(self, A.zero)
+                }
+            }
+            
+            theorem goal<A: Addable>(x: A) {
+                x.plus_zero = A.add(x, A.zero)
+            }
+        "#;
+    verify_succeeds(text);
+}
