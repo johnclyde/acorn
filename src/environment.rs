@@ -693,7 +693,12 @@ impl Environment {
                 &self,
                 type_params,
                 block_args,
-                BlockParams::Theorem(ts.name_token.as_ref().map(|t| t.text()), range, premise, goal),
+                BlockParams::Theorem(
+                    ts.name_token.as_ref().map(|t| t.text()),
+                    range,
+                    premise,
+                    goal,
+                ),
                 statement.first_line(),
                 statement.last_line(),
                 ts.body.as_ref(),
@@ -1423,7 +1428,8 @@ impl Environment {
         // Try type first
         if let Some(potential) = self.bindings.get_type_for_typename(ats.name_token.text()) {
             self.add_type_attributes(project, ats, potential.clone())
-        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(ats.name_token.text()) {
+        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(ats.name_token.text())
+        {
             self.add_typeclass_attributes(project, ats, typeclass.clone())
         } else {
             Err(ats.name_token.error(&format!(
@@ -1613,7 +1619,7 @@ impl Environment {
             for (attr_name, type_expr) in &ts.constants {
                 if let Some(existing_tc) = self
                     .bindings
-                    .typeclass_attribute_lookup(&typeclass, attr_name.text())
+                    .typeclass_attr_lookup(&typeclass, attr_name.text())
                 {
                     return Err(attr_name.error(&format!(
                         "attribute '{}' is already defined via base typeclass '{}'",
@@ -1637,7 +1643,7 @@ impl Environment {
                 );
                 // Mark as required since it's from the initial typeclass definition
                 self.bindings
-                    .mark_typeclass_attribute_required(&typeclass, &attr_name.text());
+                    .mark_typeclass_attr_required(&typeclass, &attr_name.text());
             }
         }
 
@@ -1846,7 +1852,7 @@ impl Environment {
             // Only check required attributes for implementation
             if !self
                 .bindings
-                .is_typeclass_attribute_required(&typeclass, attr_name)
+                .is_typeclass_attr_required(&typeclass, attr_name)
             {
                 // This is an optional attribute added via "attributes" statement, skip validation
                 continue;
@@ -1930,7 +1936,8 @@ impl Environment {
             let potential = self
                 .evaluator(project)
                 .evaluate_potential_type(&ts.type_expr)?;
-            self.bindings.add_type_alias(ts.name_token.text(), potential);
+            self.bindings
+                .add_type_alias(ts.name_token.text(), potential);
         };
         Ok(())
     }

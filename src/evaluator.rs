@@ -375,25 +375,21 @@ impl<'a> Evaluator<'a> {
         // If no direct type attribute, check if this datatype is an instance
         // of any typeclass that has this attribute
         let mut base_typeclass: Option<&Typeclass> = None;
-        
+
         for typeclass in self.bindings.get_instance_typeclasses(datatype) {
-            if let Some(base_tc) = self
-                .bindings
-                .typeclass_attribute_lookup(typeclass, attr_name)
-            {
-                if let Some(existing_base) = base_typeclass {
-                    // If we find a different base typeclass, it's ambiguous
-                    if existing_base != base_tc {
-                        return Err(source.error(&format!(
-                            "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
-                            attr_name,
-                            existing_base.name,
-                            base_tc.name
-                        )));
-                    }
-                } else {
-                    base_typeclass = Some(base_tc);
+            let Some(base_tc) = self.bindings.typeclass_attr_lookup(typeclass, attr_name) else {
+                continue;
+            };
+            if let Some(existing_base) = base_typeclass {
+                // If we find a different base typeclass, it's ambiguous
+                if existing_base != base_tc {
+                    return Err(source.error(&format!(
+                        "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
+                        attr_name, existing_base.name, base_tc.name
+                    )));
                 }
+            } else {
+                base_typeclass = Some(base_tc);
             }
         }
 
@@ -426,10 +422,7 @@ impl<'a> Evaluator<'a> {
 
         // Check if this attribute is an inherited one.
         // Note that if we are in the definition of typeclass conditions, there is no info yet.
-        if let Some(base_tc) = self
-            .bindings
-            .typeclass_attribute_lookup(&typeclass, attr_name)
-        {
+        if let Some(base_tc) = self.bindings.typeclass_attr_lookup(&typeclass, attr_name) {
             if base_tc != typeclass {
                 return self.evaluate_typeclass_attribute(&base_tc, attr_name, source);
             }

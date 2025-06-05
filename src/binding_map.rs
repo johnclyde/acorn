@@ -123,11 +123,7 @@ impl BindingMap {
     /// For a given typeclass attribute, find the typeclass that defines it.
     /// This can return the typeclass argument itself, or a base typeclass that it extends.
     /// Returns None if there is no such attribute.
-    pub fn typeclass_attribute_lookup(
-        &self,
-        typeclass: &Typeclass,
-        attr: &str,
-    ) -> Option<&Typeclass> {
+    pub fn typeclass_attr_lookup(&self, typeclass: &Typeclass, attr: &str) -> Option<&Typeclass> {
         self.typeclass_defs.get(typeclass)?.attributes.get(attr)
     }
 
@@ -324,7 +320,10 @@ impl BindingMap {
     }
 
     /// Get all typeclasses that this datatype is an instance of.
-    pub fn get_instance_typeclasses(&self, datatype: &Datatype) -> impl Iterator<Item = &Typeclass> {
+    pub fn get_instance_typeclasses(
+        &self,
+        datatype: &Datatype,
+    ) -> impl Iterator<Item = &Typeclass> {
         self.datatype_defs
             .get(datatype)
             .into_iter()
@@ -729,16 +728,17 @@ impl BindingMap {
 
     /// Marks a typeclass attribute as required (must be implemented by instances).
     /// This is called when processing the initial typeclass definition.
-    pub fn mark_typeclass_attribute_required(&mut self, typeclass: &Typeclass, attr: &str) {
+    pub fn mark_typeclass_attr_required(&mut self, typeclass: &Typeclass, attr: &str) {
         if !self.typeclass_defs.contains_key(typeclass) {
-            self.typeclass_defs.insert(typeclass.clone(), TypeclassDefinition::new());
+            self.typeclass_defs
+                .insert(typeclass.clone(), TypeclassDefinition::new());
         }
         let info = self.typeclass_defs.get_mut(typeclass).unwrap();
         info.required.insert(attr.to_string());
     }
 
     /// Checks if a typeclass attribute is required to be implemented by instances.
-    pub fn is_typeclass_attribute_required(&self, typeclass: &Typeclass, attr: &str) -> bool {
+    pub fn is_typeclass_attr_required(&self, typeclass: &Typeclass, attr: &str) -> bool {
         self.typeclass_defs
             .get(typeclass)
             .map(|info| info.required.contains(attr))
@@ -1028,7 +1028,7 @@ impl BindingMap {
         }
     }
 
-    fn get_typeclass_attribute_completions(
+    fn get_typeclass_attr_completions(
         &self,
         typeclass: &Typeclass,
         prefix: &str,
@@ -1053,7 +1053,7 @@ impl BindingMap {
     }
 
     /// Gets completions when we are typing a member name.
-    fn get_type_attribute_completions(
+    fn get_type_attr_completions(
         &self,
         t: &AcornType,
         prefix: &str,
@@ -1099,21 +1099,21 @@ impl BindingMap {
                     return bindings.get_completions(partial, true, project);
                 }
                 NamedEntity::Type(t) => {
-                    return self.get_type_attribute_completions(&t, partial);
+                    return self.get_type_attr_completions(&t, partial);
                 }
                 NamedEntity::Value(v) => {
                     let t = v.get_type();
-                    return self.get_type_attribute_completions(&t, partial);
+                    return self.get_type_attr_completions(&t, partial);
                 }
                 NamedEntity::Typeclass(tc) => {
-                    return self.get_typeclass_attribute_completions(&tc, partial, project);
+                    return self.get_typeclass_attr_completions(&tc, partial, project);
                 }
                 NamedEntity::UnresolvedValue(u) => {
-                    return self.get_type_attribute_completions(&u.generic_type, partial);
+                    return self.get_type_attr_completions(&u.generic_type, partial);
                 }
                 NamedEntity::UnresolvedType(ut) => {
                     let display_type = ut.to_display_type();
-                    return self.get_type_attribute_completions(&display_type, partial);
+                    return self.get_type_attr_completions(&display_type, partial);
                 }
             }
         }

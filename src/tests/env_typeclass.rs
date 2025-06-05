@@ -1056,6 +1056,36 @@ fn test_env_duplicate_typeclass_attributes_error() {
 }
 
 #[test]
+fn test_env_typeclass_attributes_with_self() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                trivial(x: F) {
+                    x = x
+                }
+            }
+            
+            attributes F: Foo {
+                define is_foo(self) -> Bool {
+                    true
+                }
+            }
+            
+            inductive Bar {
+                bar
+            }
+            
+            instance Bar: Foo
+            
+            theorem test_bar_is_foo(b: Bar) {
+                b.is_foo
+            }
+        "#,
+    );
+}
+
+#[test]
 fn test_env_constant_attributes_on_extensions() {
     let mut env = Environment::test();
     env.add(
