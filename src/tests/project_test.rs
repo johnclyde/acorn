@@ -942,44 +942,6 @@ fn test_import_default_ac() {
 }
 
 #[test]
-fn test_import_ambiguous_module() {
-    // Create a new mock project
-    let mut p = Project::new_mock();
-
-    // First create both conflicting files
-    // Use a main module as entry point to avoid loading foo directly
-    p.mock(
-        "/mock/foo.ac",
-        r#"
-        type FooFile: axiom
-        let from_file: FooFile = axiom
-        "#,
-    );
-
-    p.mock(
-        "/mock/foo/default.ac",
-        r#"
-        type FooDir: axiom  
-        let from_dir: FooDir = axiom
-        "#,
-    );
-
-    // Now create main.ac that tries to import foo
-    // This should fail because foo is ambiguous
-    p.mock(
-        "/mock/main.ac",
-        r#"
-        import foo
-        let x = foo.from_file
-        "#,
-    );
-
-    // For now, skip this test since it's complex to trigger ambiguity with mocked files
-    // The issue is that mocking loads modules immediately
-    // TODO: implement proper ambiguity detection that works with mocked files
-}
-
-#[test]
 fn test_import_from_default_ac() {
     let mut p = Project::new_mock();
 
