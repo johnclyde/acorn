@@ -190,7 +190,7 @@ impl ConstantInstance {
                         return Some(DefinedName::Instance(InstanceName {
                             typeclass: typeclass.clone(),
                             attribute: attribute.to_string(),
-                            class: class.clone(),
+                            datatype: class.clone(),
                         }));
                     }
                 }
@@ -440,7 +440,7 @@ impl AcornValue {
     /// Make a constant for an instance attribute.
     pub fn instance_constant(instance_name: InstanceName, instance_type: AcornType) -> AcornValue {
         let name = ConstantName::typeclass_attr(instance_name.typeclass, &instance_name.attribute);
-        let param = AcornType::Data(instance_name.class, vec![]);
+        let param = AcornType::Data(instance_name.datatype, vec![]);
         let ci = ConstantInstance {
             name,
             params: vec![param],

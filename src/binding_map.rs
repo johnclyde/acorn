@@ -45,8 +45,8 @@ pub struct BindingMap {
     /// Maps the type object to its name in this environment.
     type_to_typename: HashMap<PotentialType, String>,
 
-    /// Stores definition information about every class accessible from this module.
-    class_defs: HashMap<Datatype, ClassDefinition>,
+    /// Stores definition information about every datatype accessible from this module.
+    datatype_defs: HashMap<Datatype, DatatypeDefinition>,
 
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
@@ -98,7 +98,7 @@ impl BindingMap {
             module_to_name: HashMap::new(),
             numerals: None,
             instance_attr_defs: HashMap::new(),
-            class_defs: HashMap::new(),
+            datatype_defs: HashMap::new(),
         };
         answer.add_type_alias("Bool", PotentialType::Resolved(AcornType::Bool));
         answer
@@ -114,9 +114,9 @@ impl BindingMap {
     }
 
     /// Whether this type has this attribute in the current context.
-    pub fn has_type_attribute(&self, class: &Datatype, var_name: &str) -> bool {
-        self.class_defs
-            .get(class)
+    pub fn has_type_attribute(&self, datatype: &Datatype, var_name: &str) -> bool {
+        self.datatype_defs
+            .get(datatype)
             .map_or(false, |info| info.attributes.contains_key(var_name))
     }
 
@@ -138,15 +138,15 @@ impl BindingMap {
 
     /// Gets the local alias to use for a given class.
     pub fn datatype_alias(&self, datatype: &Datatype) -> Option<&String> {
-        self.class_defs.get(datatype)?.alias.as_ref()
+        self.datatype_defs.get(datatype)?.alias.as_ref()
     }
 
     fn add_datatype_alias(&mut self, datatype: &Datatype, alias: &str) {
-        if !self.class_defs.contains_key(datatype) {
-            self.class_defs
-                .insert(datatype.clone(), ClassDefinition::new());
+        if !self.datatype_defs.contains_key(datatype) {
+            self.datatype_defs
+                .insert(datatype.clone(), DatatypeDefinition::new());
         }
-        let info = self.class_defs.get_mut(datatype).unwrap();
+        let info = self.datatype_defs.get_mut(datatype).unwrap();
         if info.alias.is_none() {
             info.alias = Some(alias.to_string());
         }
@@ -352,7 +352,7 @@ impl BindingMap {
     }
 
     pub fn get_module_for_datatype_attr(&self, datatype: &Datatype, attr: &str) -> Option<ModuleId> {
-        self.class_defs
+        self.datatype_defs
             .get(datatype)
             .and_then(|info| info.attributes.get(attr))
             .copied()
@@ -417,18 +417,18 @@ impl BindingMap {
     /// Adds a new data type to the binding map.
     /// Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>, range: Option<Range>) -> AcornType {
-        let class = Datatype {
+        let datatype = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments and range for this class
+        // Store the doc comments and range for this datatype
         let info = self
-            .class_defs
-            .entry(class.clone())
-            .or_insert_with(ClassDefinition::new);
+            .datatype_defs
+            .entry(datatype.clone())
+            .or_insert_with(DatatypeDefinition::new);
         info.doc_comments = doc_comments;
         info.range = range;
-        let t = AcornType::Data(class, vec![]);
+        let t = AcornType::Data(datatype, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
     }
@@ -444,18 +444,18 @@ impl BindingMap {
         if params.len() == 0 {
             return PotentialType::Resolved(self.add_data_type(name, doc_comments, range));
         }
-        let class = Datatype {
+        let datatype = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments and range for this class
+        // Store the doc comments and range for this datatype
         let info = self
-            .class_defs
-            .entry(class.clone())
-            .or_insert_with(ClassDefinition::new);
+            .datatype_defs
+            .entry(datatype.clone())
+            .or_insert_with(DatatypeDefinition::new);
         info.doc_comments = doc_comments;
         info.range = range;
-        let ut = UnresolvedType { class, params };
+        let ut = UnresolvedType { datatype, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
         potential
@@ -487,7 +487,7 @@ impl BindingMap {
         // Local type aliases should also be preferred to the canonical name for
         // unresolved generic types.
         if let PotentialType::Unresolved(u) = &potential {
-            self.add_datatype_alias(&u.class, alias);
+            self.add_datatype_alias(&u.datatype, alias);
         }
 
         self.insert_type_name(alias.to_string(), potential);
@@ -585,10 +585,10 @@ impl BindingMap {
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
 
-        // Get the relevant properties of the instance class.
-        let instance_class = instance_type.get_class(source)?;
+        // Get the relevant properties of the instance datatype.
+        let instance_datatype = instance_type.get_datatype(source)?;
         let instance_attr_name =
-            DefinedName::instance(typeclass.clone(), attr_name, instance_class.clone());
+            DefinedName::instance(typeclass.clone(), attr_name, instance_datatype.clone());
         let instance_attr = self.get_constant_value(&instance_attr_name, source)?;
         let instance_attr = instance_attr.as_value(source)?;
         let instance_attr_type = instance_attr.get_type();
@@ -602,9 +602,9 @@ impl BindingMap {
     }
 
     pub fn add_instance_of(&mut self, class: Datatype, typeclass: Typeclass) {
-        self.class_defs
+        self.datatype_defs
             .entry(class)
-            .or_insert_with(ClassDefinition::new)
+            .or_insert_with(DatatypeDefinition::new)
             .typeclasses
             .insert(typeclass, self.module_id);
     }
@@ -800,9 +800,9 @@ impl BindingMap {
         match &constant_name {
             ConstantName::DatatypeAttribute(datatype, attribute) => {
                 // We are defining a new datatype attribute.
-                self.class_defs
+                self.datatype_defs
                     .entry(datatype.clone())
-                    .or_insert_with(ClassDefinition::new)
+                    .or_insert_with(DatatypeDefinition::new)
                     .attributes
                     .insert(attribute.clone(), self.module_id);
             }
@@ -882,9 +882,9 @@ impl BindingMap {
         })
     }
 
-    /// Get the doc comment for a class.
-    pub fn get_class_doc_comment(&self, class: &Datatype) -> Option<&Vec<String>> {
-        self.class_defs.get(class).and_then(|info| {
+    /// Get the doc comment for a datatype.
+    pub fn get_datatype_doc_comment(&self, datatype: &Datatype) -> Option<&Vec<String>> {
+        self.datatype_defs.get(datatype).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
             } else {
@@ -893,9 +893,9 @@ impl BindingMap {
         })
     }
 
-    /// Get the definition range for a class.
-    pub fn get_class_range(&self, class: &Datatype) -> Option<&Range> {
-        self.class_defs.get(class).and_then(|info| info.range.as_ref())
+    /// Get the definition range for a datatype.
+    pub fn get_datatype_range(&self, datatype: &Datatype) -> Option<&Range> {
+        self.datatype_defs.get(datatype).and_then(|info| info.range.as_ref())
     }
 
     /// Get the doc comment for a typeclass.
@@ -920,7 +920,7 @@ impl BindingMap {
         match self.typename_to_type.remove(name) {
             Some(p) => match &p {
                 PotentialType::Unresolved(ut) => {
-                    panic!("removing type {} which is unresolved", ut.class.name);
+                    panic!("removing type {} which is unresolved", ut.datatype.name);
                 }
                 PotentialType::Resolved(t) => {
                     match &t {
@@ -935,7 +935,7 @@ impl BindingMap {
     }
 
     /// Adds this name to the environment as a module.
-    /// Copies over all the class_defs from the module's bindings.
+    /// Copies over all the datatype_defs from the module's bindings.
     /// This enables "mixins".
     /// Also copy over all the typeclass_defs from the module's bindings.
     pub fn import_module(
@@ -955,11 +955,11 @@ impl BindingMap {
             .insert(bindings.module_id, name.to_string());
 
         // Copy over the class info.
-        for (class, imported_info) in bindings.class_defs.iter() {
+        for (class, imported_info) in bindings.datatype_defs.iter() {
             let entry = self
-                .class_defs
+                .datatype_defs
                 .entry(class.clone())
-                .or_insert_with(ClassDefinition::new);
+                .or_insert_with(DatatypeDefinition::new);
             entry.import(imported_info, &class.name, source)?;
         }
 
@@ -1019,8 +1019,8 @@ impl BindingMap {
         t: &AcornType,
         prefix: &str,
     ) -> Option<Vec<CompletionItem>> {
-        if let AcornType::Data(class, _) = t {
-            let info = self.class_defs.get(class)?;
+        if let AcornType::Data(datatype, _) = t {
+            let info = self.datatype_defs.get(datatype)?;
             let mut answer = vec![];
             for key in keys_with_prefix(&info.attributes, prefix) {
                 let completion = CompletionItem {
@@ -1567,38 +1567,38 @@ impl BindingMap {
 /// Information about a constructor.
 #[derive(Clone)]
 pub struct ConstructorInfo {
-    /// The class that this constructor constructs.
-    pub class: Datatype,
+    /// The datatype that this constructor constructs.
+    pub datatype: Datatype,
 
-    /// The index of this constructor in the class.
+    /// The index of this constructor in the datatype.
     pub index: usize,
 
-    /// The total number of constructors for this class.
+    /// The total number of constructors for this datatype.
     pub total: usize,
 }
 
 /// Information about a class that is accessible from this module.
 #[derive(Clone, Debug)]
-struct ClassDefinition {
-    /// What module defines each of the attributes of this class.
+struct DatatypeDefinition {
+    /// What module defines each of the attributes of this datatype.
     attributes: BTreeMap<String, ModuleId>,
 
-    /// Maps typeclasses this class is an instance of to the module with the instance statement.
+    /// Maps typeclasses this datatype is an instance of to the module with the instance statement.
     typeclasses: HashMap<Typeclass, ModuleId>,
 
-    /// The preferred local name for this class.
+    /// The preferred local name for this datatype.
     alias: Option<String>,
 
-    /// The doc comment for this class.
+    /// The doc comment for this datatype.
     doc_comments: Vec<String>,
     
-    /// The range in the source code where this class was defined.
+    /// The range in the source code where this datatype was defined.
     range: Option<Range>,
 }
 
-impl ClassDefinition {
+impl DatatypeDefinition {
     fn new() -> Self {
-        ClassDefinition {
+        DatatypeDefinition {
             attributes: BTreeMap::new(),
             typeclasses: HashMap::new(),
             alias: None,
@@ -1609,7 +1609,7 @@ impl ClassDefinition {
 
     fn import(
         &mut self,
-        info: &ClassDefinition,
+        info: &DatatypeDefinition,
         typename: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
@@ -1728,7 +1728,7 @@ fn keys_with_prefix<'a, T>(
 
 impl TypeclassRegistry for BindingMap {
     fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool {
-        self.class_defs
+        self.datatype_defs
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }

@@ -409,7 +409,7 @@ impl Environment {
                         }
                         DefinedName::Instance(instance_name) => {
                             // Instance definition - check against the instance class
-                            if acorn_type != AcornType::Data(instance_name.class.clone(), vec![]) {
+                            if acorn_type != AcornType::Data(instance_name.datatype.clone(), vec![]) {
                                 return Err(type_expr.error(
                                     "numeric instance variables must be the instance class type",
                                 ));
@@ -975,7 +975,7 @@ impl Environment {
         // A "new" function to create one of these struct types.
         let new_fn_type = AcornType::functional(field_types.clone(), struct_type.clone());
         let constructor_info = ConstructorInfo {
-            class: datatype.clone(),
+            datatype: datatype.clone(),
             index: 0,
             total: 1,
         };
@@ -1180,7 +1180,7 @@ impl Environment {
                 AcornType::functional(type_list.clone(), arb_inductive_type.clone());
             let gen_constructor_type = arb_constructor_type.genericize(&type_params);
             let constructor_info = ConstructorInfo {
-                class: datatype.clone(),
+                datatype: datatype.clone(),
                 index: i,
                 total,
             };

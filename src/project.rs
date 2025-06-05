@@ -906,12 +906,12 @@ impl Project {
             }
 
             NamedEntity::Type(acorn_type) => {
-                if let AcornType::Data(class, _) = acorn_type {
-                    // Try to get doc comments from the module where this class was defined
-                    if let Some(module_env) = self.get_env_by_id(class.module_id) {
-                        module_env.bindings.get_class_doc_comment(class)
+                if let AcornType::Data(datatype, _) = acorn_type {
+                    // Try to get doc comments from the module where this datatype was defined
+                    if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
+                        module_env.bindings.get_datatype_doc_comment(datatype)
                     } else {
-                        env.bindings.get_class_doc_comment(class)
+                        env.bindings.get_datatype_doc_comment(datatype)
                     }
                 } else {
                     None
@@ -919,12 +919,12 @@ impl Project {
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
                 // Try to get doc comments from the module where this class was defined
-                if let Some(module_env) = self.get_env_by_id(unresolved_type.class.module_id) {
+                if let Some(module_env) = self.get_env_by_id(unresolved_type.datatype.module_id) {
                     module_env
                         .bindings
-                        .get_class_doc_comment(&unresolved_type.class)
+                        .get_datatype_doc_comment(&unresolved_type.datatype)
                 } else {
-                    env.bindings.get_class_doc_comment(&unresolved_type.class)
+                    env.bindings.get_datatype_doc_comment(&unresolved_type.datatype)
                 }
             }
 
@@ -1000,29 +1000,29 @@ impl Project {
                 (unresolved.name.to_string(), range, module_id)
             }
             NamedEntity::Type(acorn_type) => {
-                if let AcornType::Data(class, _) = acorn_type {
-                    let module_id = class.module_id;
+                if let AcornType::Data(datatype, _) = acorn_type {
+                    let module_id = datatype.module_id;
                     let module_env = if module_id == env.module_id {
                         env
                     } else {
                         self.get_env_by_id(module_id)?
                     };
-                    let range = module_env.bindings.get_class_range(class)?;
-                    (class.name.clone(), range, module_id)
+                    let range = module_env.bindings.get_datatype_range(datatype)?;
+                    (datatype.name.clone(), range, module_id)
                 } else {
                     return None;
                 }
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
-                let class = &unresolved_type.class;
-                let module_id = class.module_id;
+                let datatype = &unresolved_type.datatype;
+                let module_id = datatype.module_id;
                 let module_env = if module_id == env.module_id {
                     env
                 } else {
                     self.get_env_by_id(module_id)?
                 };
-                let range = module_env.bindings.get_class_range(class)?;
-                (class.name.clone(), range, module_id)
+                let range = module_env.bindings.get_datatype_range(datatype)?;
+                (datatype.name.clone(), range, module_id)
             }
             NamedEntity::Typeclass(typeclass) => {
                 let module_id = typeclass.module_id;

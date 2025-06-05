@@ -19,8 +19,8 @@ pub struct Typeclass {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnresolvedType {
-    /// The underlying generic type.
-    pub class: Datatype,
+    /// The underlying generic datatype.
+    pub datatype: Datatype,
 
     /// The parameters we need to instantiate this type, along with their typeclass if any.
     pub params: Vec<Option<Typeclass>>,
@@ -36,7 +36,7 @@ impl UnresolvedType {
                 typeclass: param.clone(),
             }));
         }
-        AcornType::Data(self.class.clone(), params)
+        AcornType::Data(self.datatype.clone(), params)
     }
 }
 
@@ -62,7 +62,7 @@ impl PotentialType {
             if ut.params.len() != params.len() {
                 return Err(source.error(&format!(
                     "type {} expects {} parameters, but got {}",
-                    ut.class.name,
+                    ut.datatype.name,
                     ut.params.len(),
                     params.len()
                 )));
@@ -102,31 +102,31 @@ impl PotentialType {
                 if params.len() != ut.params.len() {
                     Err(source.error(&format!(
                         "type {} expects {} parameters, but got {}",
-                        ut.class.name,
+                        ut.datatype.name,
                         ut.params.len(),
                         params.len()
                     )))
                 } else {
                     // TODO: check that params obeys ut's typeclasses
-                    Ok(AcornType::Data(ut.class, params))
+                    Ok(AcornType::Data(ut.datatype, params))
                 }
             }
         }
     }
 
-    /// If this potential type represents a base class, ie with no type parameters,
-    /// return a reference to the class.
-    /// Thus, Nat is a base class, and List<T> is a base class, but List<Bool> is not.
-    pub fn as_base_class(&self) -> Option<&Datatype> {
+    /// If this potential type represents a base datatype, ie with no type parameters,
+    /// return a reference to the datatype.
+    /// Thus, Nat is a base datatype, and List<T> is a base datatype, but List<Bool> is not.
+    pub fn as_base_datatype(&self) -> Option<&Datatype> {
         match self {
-            PotentialType::Resolved(AcornType::Data(class, params)) => {
+            PotentialType::Resolved(AcornType::Data(datatype, params)) => {
                 if params.is_empty() {
-                    Some(class)
+                    Some(datatype)
                 } else {
                     None
                 }
             }
-            PotentialType::Unresolved(ut) => Some(&ut.class),
+            PotentialType::Unresolved(ut) => Some(&ut.datatype),
             _ => None,
         }
     }
@@ -252,7 +252,7 @@ pub enum AcornType {
     Bool,
 
     /// Data types are structures, inductive types, or axiomatic types.
-    /// They have a class, and may have type parameters.
+    /// They have a datatype, and may have type parameters.
     Data(Datatype, Vec<AcornType>),
 
     /// Function types are defined by their inputs and output.
@@ -337,13 +337,13 @@ impl AcornType {
         Ok(())
     }
 
-    pub fn check_instance(&self, class: &Datatype, source: &dyn ErrorSource) -> Result<()> {
+    pub fn check_instance(&self, datatype: &Datatype, source: &dyn ErrorSource) -> Result<()> {
         match self {
             AcornType::Data(c, _) => {
-                if c != class {
+                if c != datatype {
                     return Err(source.error(&format!(
                         "expected type {} to be an instance of {}",
-                        self, class.name
+                        self, datatype.name
                     )));
                 }
                 Ok(())
@@ -351,7 +351,7 @@ impl AcornType {
 
             _ => Err(source.error(&format!(
                 "expected type {} to be an instance of {}",
-                self, class.name
+                self, datatype.name
             ))),
         }
     }
@@ -438,8 +438,8 @@ impl AcornType {
                     .collect(),
                 function_type.return_type.instantiate(params),
             ),
-            AcornType::Data(class, types) => AcornType::Data(
-                class.clone(),
+            AcornType::Data(datatype, types) => AcornType::Data(
+                datatype.clone(),
                 types.iter().map(|t| t.instantiate(params)).collect(),
             ),
             _ => self.clone(),
@@ -465,8 +465,8 @@ impl AcornType {
                     .collect(),
                 ftype.return_type.genericize(params),
             ),
-            AcornType::Data(class, types) => AcornType::Data(
-                class.clone(),
+            AcornType::Data(datatype, types) => AcornType::Data(
+                datatype.clone(),
                 types.iter().map(|t| t.genericize(params)).collect(),
             ),
             _ => self.clone(),
@@ -534,11 +534,11 @@ impl AcornType {
         }
     }
 
-    /// Extracts the class from this type, or errors if it is not a data type.
-    pub fn get_class(&self, source: &dyn ErrorSource) -> compilation::Result<&Datatype> {
+    /// Extracts the datatype from this type, or errors if it is not a data type.
+    pub fn get_datatype(&self, source: &dyn ErrorSource) -> compilation::Result<&Datatype> {
         match self {
-            AcornType::Data(class, _) => Ok(class),
-            _ => Err(source.error("not an attributable class")),
+            AcornType::Data(datatype, _) => Ok(datatype),
+            _ => Err(source.error("not an attributable datatype")),
         }
     }
 }
@@ -547,8 +547,8 @@ impl fmt::Display for AcornType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AcornType::Bool => write!(f, "Bool"),
-            AcornType::Data(class, params) => {
-                write!(f, "{}", class.name)?;
+            AcornType::Data(datatype, params) => {
+                write!(f, "{}", datatype.name)?;
                 if !params.is_empty() {
                     write!(f, "<{}>", AcornType::types_to_str(params))?;
                 }

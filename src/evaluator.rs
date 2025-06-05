@@ -69,7 +69,7 @@ impl<'a> Evaluator<'a> {
         match potential {
             PotentialType::Resolved(t) => Ok(t),
             PotentialType::Unresolved(ut) => {
-                Err(expression.error(&format!("type {} is unresolved", ut.class.name)))
+                Err(expression.error(&format!("type {} is unresolved", ut.datatype.name)))
             }
         }
     }
@@ -236,7 +236,7 @@ impl<'a> Evaluator<'a> {
         let Some(info) = bindings.get_constructor_info(&ci.name) else {
             return Err(source.error("expected a constructor"));
         };
-        expected_type.check_instance(&info.class, source)?;
+        expected_type.check_instance(&info.datatype, source)?;
         Ok((info.index, info.total))
     }
 
@@ -521,7 +521,7 @@ impl<'a> Evaluator<'a> {
                 return Err(name_token.error("cannot access members of unresolved types"));
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_type_attribute(&ut.class, name, name_token)? {
+                match self.evaluate_type_attribute(&ut.datatype, name, name_token)? {
                     PotentialValue::Resolved(value) => NamedEntity::Value(value),
                     PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }

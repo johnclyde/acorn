@@ -16,7 +16,7 @@ pub struct InstanceName {
     pub attribute: String,
 
     /// Like "Int", in Ring.add<Int>.
-    pub class: Datatype,
+    pub datatype: Datatype,
 }
 
 impl fmt::Display for InstanceName {
@@ -24,7 +24,7 @@ impl fmt::Display for InstanceName {
         write!(
             f,
             "{}.{}<{}>",
-            self.typeclass.name, self.attribute, self.class.name
+            self.typeclass.name, self.attribute, self.datatype.name
         )
     }
 }
@@ -147,7 +147,7 @@ impl DefinedName {
         let inst = InstanceName {
             typeclass: tc,
             attribute: attr.to_string(),
-            class: datatype,
+            datatype: datatype,
         };
         DefinedName::Instance(inst)
     }
@@ -178,9 +178,9 @@ impl DefinedName {
         }
     }
 
-    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Datatype) -> bool {
+    pub fn matches_instance(&self, typeclass: &Typeclass, datatype: &Datatype) -> bool {
         match self {
-            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
+            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.datatype == *datatype,
             DefinedName::Constant(_) => false,
         }
     }
