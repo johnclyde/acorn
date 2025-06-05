@@ -1017,3 +1017,40 @@ fn test_env_typeclass_attributes_no_type_params() {
         "#,
     );
 }
+
+#[test]
+fn test_env_duplicate_typeclass_attributes_error() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass A: Alpha {
+                shared_attr: A -> Bool
+            }
+            
+            typeclass B: Beta {
+                shared_attr: B -> Bool
+            }
+            
+            inductive TestType {
+                test_val
+            }
+            
+            instance TestType: Alpha {
+                let shared_attr = function(x: TestType) { true }
+            }
+            
+            instance TestType: Beta {
+                let shared_attr = function(x: TestType) { false }
+            }
+        "#,
+    );
+    
+    // This should error because TestType.shared_attr is ambiguous
+    env.bad(
+        r#"
+            theorem test_ambiguous_attribute(t: TestType) {
+                t.shared_attr = true
+            }
+        "#,
+    );
+}

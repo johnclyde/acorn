@@ -374,20 +374,39 @@ impl<'a> Evaluator<'a> {
 
         // If no direct type attribute, check if this datatype is an instance
         // of any typeclass that has this attribute
+        let mut matching_typeclasses = Vec::new();
         for typeclass in self.bindings.get_instance_typeclasses(datatype) {
             if let Some(_) = self
                 .bindings
                 .typeclass_attribute_lookup(typeclass, attr_name)
             {
-                let tc_attr = self.evaluate_typeclass_attribute(typeclass, attr_name, source)?;
-                match tc_attr {
-                    PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
-                    PotentialValue::Unresolved(u) => {
-                        // Resolve the typeclass attribute with the specific datatype
-                        let instance_type = AcornType::Data(datatype.clone(), vec![]);
-                        let resolved = u.resolve(source, vec![instance_type])?;
-                        return Ok(PotentialValue::Resolved(resolved));
-                    }
+                matching_typeclasses.push(typeclass);
+            }
+        }
+
+        // Error if multiple typeclasses define the same attribute
+        if matching_typeclasses.len() > 1 {
+            let typeclass_names: Vec<String> = matching_typeclasses
+                .iter()
+                .map(|tc| tc.name.clone())
+                .collect();
+            return Err(source.error(&format!(
+                "attribute '{}' is ambiguous: defined in multiple typeclasses: {}",
+                attr_name,
+                typeclass_names.join(", ")
+            )));
+        }
+
+        // If exactly one typeclass has this attribute, use it
+        if let Some(typeclass) = matching_typeclasses.first() {
+            let tc_attr = self.evaluate_typeclass_attribute(typeclass, attr_name, source)?;
+            match tc_attr {
+                PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
+                PotentialValue::Unresolved(u) => {
+                    // Resolve the typeclass attribute with the specific datatype
+                    let instance_type = AcornType::Data(datatype.clone(), vec![]);
+                    let resolved = u.resolve(source, vec![instance_type])?;
+                    return Ok(PotentialValue::Resolved(resolved));
                 }
             }
         }
