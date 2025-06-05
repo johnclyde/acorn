@@ -57,10 +57,7 @@ pub struct Project {
     targets: HashSet<ModuleDescriptor>,
 
     // The cache contains a hash for each module from the last time it was cleanly built.
-    #[cfg(test)]
     pub build_cache: BuildCache,
-    #[cfg(not(test))]
-    build_cache: BuildCache,
 
     // Used as a flag to stop a build in progress.
     pub build_stopped: Arc<AtomicBool>,
