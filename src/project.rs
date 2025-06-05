@@ -1042,7 +1042,7 @@ impl Project {
 
         // Get the file path for the module
         let descriptor = self.get_module_descriptor(module_id)?;
-        let file_path = self.path_from_descriptor(descriptor)?;
+        let file_path = self.path_from_descriptor(descriptor).ok()?;
 
         // Create a VSCode-style URI link
         // The format is: file:///path/to/file.ac#line,character
@@ -1192,26 +1192,23 @@ impl Project {
         unreachable!("should have returned in the loop")
     }
 
-    pub fn path_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Option<PathBuf> {
+    pub fn path_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Result<PathBuf, ImportError> {
         let name = match descriptor {
             ModuleDescriptor::Name(name) => name,
-            ModuleDescriptor::File(path) => return Some(path.clone()),
-            ModuleDescriptor::Anonymous => return None,
+            ModuleDescriptor::File(path) => return Ok(path.clone()),
+            ModuleDescriptor::Anonymous => return Err(ImportError::NotFound("anonymous module".to_string())),
         };
 
-        match self.path_from_module_name(&name) {
-            Ok(path) => Some(path),
-            Err(_) => None,
-        }
+        self.path_from_module_name(&name)
     }
 
     pub fn url_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Option<Url> {
-        let path = self.path_from_descriptor(descriptor)?;
+        let path = self.path_from_descriptor(descriptor).ok()?;
         Url::from_file_path(path).ok()
     }
 
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
-        self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor)
+        self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor).ok()
     }
 
     pub fn get_module_descriptor(&self, module_id: ModuleId) -> Option<&ModuleDescriptor> {
@@ -1244,15 +1241,7 @@ impl Project {
             return Ok(*module_id);
         }
 
-        let path = match self.path_from_descriptor(descriptor) {
-            Some(path) => path,
-            None => {
-                return Err(ImportError::NotFound(format!(
-                    "unloadable module: {:?}",
-                    descriptor
-                )))
-            }
-        };
+        let path = self.path_from_descriptor(descriptor)?;
         let text = self
             .read_file(&path)
             .map_err(|e| ImportError::NotFound(e.to_string()))?;

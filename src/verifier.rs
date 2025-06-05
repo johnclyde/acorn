@@ -431,4 +431,46 @@ mod tests {
 
         acornlib.close().unwrap();
     }
+
+    #[test]
+    fn test_verifier_fails_on_ambiguous_import() {
+        let (acornlib, src, _) = setup();
+
+        // Create both foo.ac and foo/default.ac
+        src.child("foo.ac").write_str("type Foo: axiom").unwrap();
+        std::fs::create_dir_all(src.child("foo").path()).unwrap();
+        src.child("foo").child("default.ac").write_str("type Bar: axiom").unwrap();
+
+        // Try to import the ambiguous module
+        src.child("main.ac").write_str("import foo").unwrap();
+
+        let verifier = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Standard,
+            Some("main".to_string()),
+            false,
+        );
+
+        let result = verifier.run();
+        let Ok(output) = result else {
+            panic!("Verifier should run but report compilation error: {:?}", result);
+        };
+
+        // The verifier should report a compilation error
+        assert_eq!(output.status, BuildStatus::Error);
+        
+        // Check that the error message contains "ambiguous"
+        let error_messages: Vec<String> = output.events.iter()
+            .filter_map(|e| e.log_message.as_ref())
+            .cloned()
+            .collect();
+        let error_text = error_messages.join("\n");
+        assert!(
+            error_text.contains("ambiguous"),
+            "Expected ambiguous import error, got: {}",
+            error_text
+        );
+
+        acornlib.close().unwrap();
+    }
 }
