@@ -362,13 +362,32 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let module_id = self
-            .bindings
-            .get_module_for_datatype_attr(datatype, attr_name)
-            .ok_or_else(|| source.error("attribute not found"))?;
-        let bindings = self.get_bindings(module_id);
-        let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
-        bindings.get_constant_value(&defined_name, source)
+        // First try to find a direct type attribute
+        if let Some(module_id) = self.bindings.get_module_for_datatype_attr(datatype, attr_name) {
+            let bindings = self.get_bindings(module_id);
+            let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
+            return bindings.get_constant_value(&defined_name, source);
+        }
+        
+        // If no direct type attribute, check if this datatype is an instance
+        // of any typeclass that has this attribute
+        for typeclass in self.bindings.get_instance_typeclasses(datatype) {
+            if let Some(_) = self.bindings.typeclass_attribute_lookup(typeclass, attr_name) {
+                let tc_attr = self.evaluate_typeclass_attribute(typeclass, attr_name, source)?;
+                match tc_attr {
+                    PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
+                    PotentialValue::Unresolved(u) => {
+                        // Resolve the typeclass attribute with the specific datatype
+                        let instance_type = AcornType::Data(datatype.clone(), vec![]);
+                        let resolved = u.resolve(source, vec![instance_type])?;
+                        return Ok(PotentialValue::Resolved(resolved));
+                    }
+                }
+            }
+        }
+        
+        // If no typeclass attribute found either, return error
+        Err(source.error("attribute not found"))
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
@@ -416,7 +435,22 @@ impl<'a> Evaluator<'a> {
 
         let function = match &base_type {
             AcornType::Data(datatype, _) => {
-                self.evaluate_type_attribute(datatype, attr_name, source)?
+                // First try to find a direct type attribute
+                match self.evaluate_type_attribute(datatype, attr_name, source) {
+                    Ok(attr) => attr,
+                    Err(_) => {
+                        // If no direct type attribute, check if this datatype is an instance
+                        // of any typeclass that has this attribute
+                        for typeclass in self.bindings.get_instance_typeclasses(datatype) {
+                            if let Some(_) = self.bindings.typeclass_attribute_lookup(typeclass, attr_name) {
+                                let tc_attr = self.evaluate_typeclass_attribute(typeclass, attr_name, source)?;
+                                return self.bindings.apply_potential(tc_attr, vec![receiver], None, source);
+                            }
+                        }
+                        // If no typeclass attribute found either, return the original error
+                        return Err(source.error("attribute not found"));
+                    }
+                }
             }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {

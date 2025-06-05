@@ -968,6 +968,10 @@ fn test_env_basic_typeclass_attributes() {
             theorem test_typeclass_attribute(b: Bar) {
                 Foo.flag<Bar> = false
             }
+
+            theorem test_instance_attribute(b: Bar) {
+                Bar.flag = false
+            }
         "#,
     );
 }

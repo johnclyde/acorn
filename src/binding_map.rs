@@ -323,6 +323,14 @@ impl BindingMap {
             .flat_map(|info| info.extends.iter())
     }
 
+    /// Get all typeclasses that this datatype is an instance of.
+    pub fn get_instance_typeclasses(&self, datatype: &Datatype) -> impl Iterator<Item = &Typeclass> {
+        self.datatype_defs
+            .get(datatype)
+            .into_iter()
+            .flat_map(|info| info.typeclasses.keys())
+    }
+
     /// A helper to get the bindings from the project if needed bindings.
     pub fn get_bindings<'a>(&'a self, module_id: ModuleId, project: &'a Project) -> &'a BindingMap {
         if module_id == self.module_id {
