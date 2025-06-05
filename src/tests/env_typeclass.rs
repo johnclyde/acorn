@@ -1054,3 +1054,43 @@ fn test_env_duplicate_typeclass_attributes_error() {
         "#,
     );
 }
+
+#[test]
+fn test_env_constant_attributes_on_extensions() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                value: F -> Bool
+            }
+            
+            attributes F: Foo {
+                let flag: Bool = true
+            }
+            
+            typeclass B: Bar extends Foo {
+                other_value: B -> Bool
+            }
+            
+            inductive TestType {
+                test_val
+            }
+            
+            instance TestType: Foo {
+                let value = function(x: TestType) { true }
+            }
+            
+            instance TestType: Bar {
+                let other_value = function(x: TestType) { false }
+            }
+            
+            theorem test_bar_flag {
+                Bar.flag<TestType> = true
+            }
+            
+            theorem test_instance_flag(t: TestType) {
+                TestType.flag = true
+            }
+        "#,
+    );
+}

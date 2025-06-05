@@ -374,32 +374,32 @@ impl<'a> Evaluator<'a> {
 
         // If no direct type attribute, check if this datatype is an instance
         // of any typeclass that has this attribute
-        let mut matching_typeclasses = Vec::new();
+        let mut base_typeclass: Option<&Typeclass> = None;
+        
         for typeclass in self.bindings.get_instance_typeclasses(datatype) {
-            if let Some(_) = self
+            if let Some(base_tc) = self
                 .bindings
                 .typeclass_attribute_lookup(typeclass, attr_name)
             {
-                matching_typeclasses.push(typeclass);
+                if let Some(existing_base) = base_typeclass {
+                    // If we find a different base typeclass, it's ambiguous
+                    if existing_base != base_tc {
+                        return Err(source.error(&format!(
+                            "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
+                            attr_name,
+                            existing_base.name,
+                            base_tc.name
+                        )));
+                    }
+                } else {
+                    base_typeclass = Some(base_tc);
+                }
             }
         }
 
-        // Error if multiple typeclasses define the same attribute
-        if matching_typeclasses.len() > 1 {
-            let typeclass_names: Vec<String> = matching_typeclasses
-                .iter()
-                .map(|tc| tc.name.clone())
-                .collect();
-            return Err(source.error(&format!(
-                "attribute '{}' is ambiguous: defined in multiple typeclasses: {}",
-                attr_name,
-                typeclass_names.join(", ")
-            )));
-        }
-
-        // If exactly one typeclass has this attribute, use it
-        if let Some(typeclass) = matching_typeclasses.first() {
-            let tc_attr = self.evaluate_typeclass_attribute(typeclass, attr_name, source)?;
+        // If we found a base typeclass with this attribute, use it
+        if let Some(base_tc) = base_typeclass {
+            let tc_attr = self.evaluate_typeclass_attribute(base_tc, attr_name, source)?;
             match tc_attr {
                 PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
                 PotentialValue::Unresolved(u) => {
