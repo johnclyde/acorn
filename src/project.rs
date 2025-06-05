@@ -559,7 +559,12 @@ impl Project {
     // Verifies all goals within this module.
     // If we run into an error, we exit without verifying any more goals.
     #[cfg(test)]
-    pub fn verify_module(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
+    pub fn verify_module(
+        &self,
+        target: &ModuleDescriptor,
+        env: &Environment,
+        builder: &mut Builder,
+    ) {
         self.verify_module_internal(target, env, builder);
     }
 
@@ -568,7 +573,12 @@ impl Project {
         self.verify_module_internal(target, env, builder);
     }
 
-    fn verify_module_internal(&self, target: &ModuleDescriptor, env: &Environment, builder: &mut Builder) {
+    fn verify_module_internal(
+        &self,
+        target: &ModuleDescriptor,
+        env: &Environment,
+        builder: &mut Builder,
+    ) {
         if env.nodes.is_empty() {
             // Nothing to prove
             return;
@@ -890,7 +900,9 @@ impl Project {
             NamedEntity::UnresolvedValue(unresolved) => {
                 // Try to get doc comments from the module where this constant was defined
                 if let Some(module_env) = self.get_env_by_id(unresolved.name.module_id()) {
-                    module_env.bindings.get_constant_doc_comments(&unresolved.name)
+                    module_env
+                        .bindings
+                        .get_constant_doc_comments(&unresolved.name)
                 } else {
                     env.bindings.get_constant_doc_comments(&unresolved.name)
                 }
@@ -911,7 +923,9 @@ impl Project {
             NamedEntity::UnresolvedType(unresolved_type) => {
                 // Try to get doc comments from the module where this class was defined
                 if let Some(module_env) = self.get_env_by_id(unresolved_type.class.module_id) {
-                    module_env.bindings.get_class_doc_comment(&unresolved_type.class)
+                    module_env
+                        .bindings
+                        .get_class_doc_comment(&unresolved_type.class)
                 } else {
                     env.bindings.get_class_doc_comment(&unresolved_type.class)
                 }
@@ -938,7 +952,7 @@ impl Project {
                 } else {
                     None
                 }
-            },
+            }
         };
 
         // Add doc comments if we have them
@@ -968,7 +982,9 @@ impl Project {
                     } else {
                         self.get_env_by_id(module_id)?
                     };
-                    let range = module_env.bindings.get_definition_range(&crate::names::DefinedName::Constant(constant_name.clone()))?;
+                    let range = module_env.bindings.get_definition_range(
+                        &crate::names::DefinedName::Constant(constant_name.clone()),
+                    )?;
                     (constant_name.to_string(), range, module_id)
                 } else {
                     return None;
@@ -981,7 +997,9 @@ impl Project {
                 } else {
                     self.get_env_by_id(module_id)?
                 };
-                let range = module_env.bindings.get_definition_range(&crate::names::DefinedName::Constant(unresolved.name.clone()))?;
+                let range = module_env.bindings.get_definition_range(
+                    &crate::names::DefinedName::Constant(unresolved.name.clone()),
+                )?;
                 (unresolved.name.to_string(), range, module_id)
             }
             NamedEntity::Type(acorn_type) => {
@@ -1028,14 +1046,14 @@ impl Project {
         // Get the file path for the module
         let descriptor = self.get_module_descriptor(module_id)?;
         let file_path = self.path_from_descriptor(descriptor)?;
-        
+
         // Create a VSCode-style URI link
         // The format is: file:///path/to/file.ac#line,character
         let line = range.start.line + 1; // VSCode uses 1-based line numbers for links
         let character = range.start.character + 1; // VSCode uses 1-based character numbers for links
         let file_uri = format!("file://{}", file_path.to_string_lossy());
         let link = format!("[Go to {}]({}#{},{})", name, file_uri, line, character);
-        
+
         Some(link)
     }
 
@@ -1111,6 +1129,12 @@ impl Project {
                         path.display()
                     )));
                 }
+                // Handle the special case of default.ac
+                if component == "default.ac" && i > 0 {
+                    // The module name should be the parent directory
+                    // We've already added it to name, so we're done
+                    break;
+                }
                 component[..component.len() - 3].to_string()
             } else {
                 component.to_string()
@@ -1132,14 +1156,43 @@ impl Project {
         for (i, part) in parts.iter().enumerate() {
             check_valid_module_part(part, module_name)?;
 
-            let component = if i + 1 == parts.len() {
-                format!("{}.ac", part)
+            if i + 1 == parts.len() {
+                // For the last part, check both foo.ac and foo/default.ac
+                let file_path = path.join(format!("{}.ac", part));
+                let dir_path = path.join(part).join("default.ac");
+
+                let file_exists = if self.use_filesystem {
+                    file_path.exists()
+                } else {
+                    self.open_files.contains_key(&file_path)
+                };
+
+                let dir_exists = if self.use_filesystem {
+                    dir_path.exists()
+                } else {
+                    self.open_files.contains_key(&dir_path)
+                };
+
+                if file_exists && dir_exists {
+                    return Err(ImportError::NotFound(format!(
+                        "ambiguous module '{}': both {} and {} exist",
+                        module_name,
+                        file_path.display(),
+                        dir_path.display()
+                    )));
+                } else if file_exists {
+                    return Ok(file_path);
+                } else if dir_exists {
+                    return Ok(dir_path);
+                } else {
+                    // Default to the file path for the error message
+                    return Ok(file_path);
+                }
             } else {
-                part.to_string()
-            };
-            path.push(component);
+                path.push(part.to_string());
+            }
         }
-        Ok(path)
+        unreachable!("should have returned in the loop")
     }
 
     pub fn path_from_descriptor(&self, descriptor: &ModuleDescriptor) -> Option<PathBuf> {
