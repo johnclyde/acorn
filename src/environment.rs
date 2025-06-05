@@ -21,7 +21,7 @@ use crate::proposition::Proposition;
 use crate::source::{Source, SourceType};
 use crate::stack::Stack;
 use crate::statement::{
-    Body, ClaimStatement, AttributesStatement, DefineStatement, ForAllStatement,
+    AttributesStatement, Body, ClaimStatement, DefineStatement, ForAllStatement,
     FunctionSatisfyStatement, IfStatement, ImportStatement, InductiveStatement, InstanceStatement,
     LetStatement, MatchStatement, NumeralsStatement, SolveStatement, Statement, StatementInfo,
     StructureStatement, TheoremStatement, TypeStatement, TypeclassStatement,
@@ -354,10 +354,10 @@ impl Environment {
         range: Range,
         datatype_params: Option<&Vec<TypeParam>>,
     ) -> compilation::Result<()> {
-        if ls.name == "self" || ls.name == "new" {
+        if ls.deprecated_name == "self" || ls.deprecated_name == "new" {
             return Err(ls.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                ls.name
+                ls.deprecated_name
             )));
         }
 
@@ -403,13 +403,15 @@ impl Environment {
                                 name: datatype_name,
                             };
                             if acorn_type != AcornType::Data(datatype, vec![]) {
-                                return Err(type_expr
-                                    .error("numeric datatype variables must be the datatype type"));
+                                return Err(type_expr.error(
+                                    "numeric datatype variables must be the datatype type",
+                                ));
                             }
                         }
                         DefinedName::Instance(instance_name) => {
                             // Instance definition - check against the instance datatype
-                            if acorn_type != AcornType::Data(instance_name.datatype.clone(), vec![]) {
+                            if acorn_type != AcornType::Data(instance_name.datatype.clone(), vec![])
+                            {
                                 return Err(type_expr.error(
                                     "numeric instance variables must be the instance datatype type",
                                 ));
@@ -501,10 +503,10 @@ impl Environment {
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
-        if ds.name == "new" || ds.name == "self" {
+        if ds.deprecated_name == "new" || ds.deprecated_name == "self" {
             return Err(ds.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                ds.name
+                ds.deprecated_name
             )));
         }
         if self.depth > 0 && !ds.type_params.is_empty() {
@@ -542,8 +544,10 @@ impl Environment {
                 return Err(ds.args[0].token().error("self must be the datatype type"));
             }
 
-            if ds.name == "read" {
-                if arg_types.len() != 2 || &arg_types[1] != datatype_type || &value_type != datatype_type
+            if ds.deprecated_name == "read" {
+                if arg_types.len() != 2
+                    || &arg_types[1] != datatype_type
+                    || &value_type != datatype_type
                 {
                     return Err(ds.name_token.error(&format!(
                         "{}.read should be type ({}, {}) -> {}",
@@ -560,7 +564,7 @@ impl Environment {
             let params = if let Some(datatype_params) = datatype_params {
                 // When a datatype is parametrized, the member gets parameters from the datatype.
                 fn_value = fn_value.genericize(&datatype_params);
-datatype_params.clone()
+                datatype_params.clone()
             } else {
                 // When there's no datatype, we just have the function's own type parameters.
                 fn_param_names
@@ -597,7 +601,7 @@ datatype_params.clone()
             end: ts.claim_right_brace.end_pos(),
         };
 
-        if let Some(name) = &ts.name {
+        if let Some(name) = &ts.deprecated_name {
             self.bindings
                 .check_unqualified_name_available(&name, &statement.first_token)?;
         }
@@ -655,7 +659,7 @@ datatype_params.clone()
         // theorem is usable by name in this environment.
         let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
-        if let Some(name) = &ts.name {
+        if let Some(name) = &ts.deprecated_name {
             let doc_comments = self.take_doc_comments();
             // Use the name token range if available, otherwise fall back to statement range
             let name_range = if let Some(name_token) = &ts.name_token {
@@ -681,7 +685,7 @@ datatype_params.clone()
             range,
             true,
             self.depth,
-            ts.name.clone(),
+            ts.deprecated_name.clone(),
         );
         let prop = Proposition::new(external_claim, type_params.clone(), source);
 
@@ -693,7 +697,7 @@ datatype_params.clone()
                 &self,
                 type_params,
                 block_args,
-                BlockParams::Theorem(ts.name.as_deref(), range, premise, goal),
+                BlockParams::Theorem(ts.deprecated_name.as_deref(), range, premise, goal),
                 statement.first_line(),
                 statement.last_line(),
                 ts.body.as_ref(),
@@ -703,7 +707,7 @@ datatype_params.clone()
 
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
-        if let Some(name) = &ts.name {
+        if let Some(name) = &ts.deprecated_name {
             let name = ConstantName::unqualified(self.module_id, name);
             self.bindings.mark_as_theorem(&name);
         }
@@ -770,14 +774,14 @@ datatype_params.clone()
         statement: &Statement,
         fss: &FunctionSatisfyStatement,
     ) -> compilation::Result<()> {
-        if fss.name == "new" || fss.name == "self" {
+        if fss.deprecated_name == "new" || fss.deprecated_name == "self" {
             return Err(fss.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                fss.name
+                fss.deprecated_name
             )));
         }
         self.bindings
-            .check_unqualified_name_available(&fss.name, statement)?;
+            .check_unqualified_name_available(&fss.deprecated_name, statement)?;
 
         // Figure out the range for this function definition.
         // It's smaller than the whole function statement because it doesn't
@@ -833,7 +837,7 @@ datatype_params.clone()
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         let doc_comments = self.take_doc_comments();
         self.bindings.add_unqualified_constant(
-            &fss.name,
+            &fss.deprecated_name,
             vec![],
             function_type.clone(),
             None,
@@ -841,7 +845,7 @@ datatype_params.clone()
             doc_comments,
             Some(fss.name_token.range()),
         );
-        let const_name = ConstantName::unqualified(self.module_id, &fss.name);
+        let const_name = ConstantName::unqualified(self.module_id, &fss.deprecated_name);
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
@@ -859,7 +863,7 @@ datatype_params.clone()
             definition_range,
             self.depth,
             function_constant,
-            &fss.name,
+            &fss.deprecated_name,
         );
         let prop = Proposition::monomorphic(external_condition, source);
 
@@ -880,7 +884,7 @@ datatype_params.clone()
             ss.first_right_brace.line_number,
         );
         self.bindings
-            .check_typename_available(&ss.name, statement)?;
+            .check_typename_available(&ss.deprecated_name, statement)?;
 
         let mut arbitrary_params = vec![];
         let type_params = self
@@ -945,12 +949,12 @@ datatype_params.clone()
         // These may be unresolved values.
         let datatype = Datatype {
             module_id: self.module_id,
-            name: ss.name.clone(),
+            name: ss.deprecated_name.clone(),
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
         let potential_type = self.bindings.add_potential_type(
-            &ss.name,
+            &ss.deprecated_name,
             typeclasses,
             doc_comments,
             Some(ss.name_token.range()),
@@ -1025,7 +1029,7 @@ datatype_params.clone()
                 self.module_id,
                 range,
                 self.depth,
-                ss.name.clone(),
+                ss.deprecated_name.clone(),
                 "constraint".to_string(),
             );
             let prop = Proposition::new(constraint_claim, type_params.clone(), source);
@@ -1046,7 +1050,7 @@ datatype_params.clone()
             self.module_id,
             range,
             self.depth,
-            ss.name.clone(),
+            ss.deprecated_name.clone(),
             "new".to_string(),
         );
         let prop = Proposition::new(new_claim, type_params.clone(), source);
@@ -1094,7 +1098,7 @@ datatype_params.clone()
                 self.module_id,
                 range,
                 self.depth,
-                ss.name.clone(),
+                ss.deprecated_name.clone(),
                 field_name_token.text().to_string(),
             );
             let prop = Proposition::new(member_claim, type_params.clone(), source);
@@ -1116,7 +1120,7 @@ datatype_params.clone()
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(&is.name, statement)?;
+            .check_typename_available(&is.deprecated_name, statement)?;
         let range = Range {
             start: statement.first_token.start_pos(),
             end: is.name_token.end_pos(),
@@ -1135,7 +1139,7 @@ datatype_params.clone()
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
         let potential_type = self.bindings.add_potential_type(
-            &is.name,
+            &is.deprecated_name,
             typeclasses,
             doc_comments,
             Some(is.name_token.range()),
@@ -1171,7 +1175,7 @@ datatype_params.clone()
         // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
         let datatype = Datatype {
             module_id: self.module_id,
-            name: is.name.clone(),
+            name: is.deprecated_name.clone(),
         };
         let mut constructor_fns = vec![];
         let total = constructors.len();
@@ -1228,7 +1232,7 @@ datatype_params.clone()
                     self.module_id,
                     range,
                     self.depth,
-                    is.name.clone(),
+                    is.deprecated_name.clone(),
                     member_name.to_string(),
                 );
                 let gen_claim = arb_claim.genericize(&type_params);
@@ -1262,7 +1266,7 @@ datatype_params.clone()
             self.module_id,
             range,
             self.depth,
-            is.name.clone(),
+            is.deprecated_name.clone(),
             "new".to_string(),
         );
         let gen_claim = arb_claim.genericize(&type_params);
@@ -1310,7 +1314,7 @@ datatype_params.clone()
                 self.module_id,
                 range,
                 self.depth,
-                is.name.clone(),
+                is.deprecated_name.clone(),
                 member_name.to_string(),
             );
             let gen_claim = arb_claim.genericize(&type_params);
@@ -1419,16 +1423,17 @@ datatype_params.clone()
         ats: &AttributesStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        
+
         // Try type first
-        if let Some(potential) = self.bindings.get_type_for_typename(&ats.name) {
+        if let Some(potential) = self.bindings.get_type_for_typename(&ats.deprecated_name) {
             self.add_type_attributes(project, ats, potential.clone())
-        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(&ats.name) {
+        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(&ats.deprecated_name) {
             self.add_typeclass_attributes(project, ats, typeclass.clone())
         } else {
-            Err(ats
-                .name_token
-                .error(&format!("undefined type or typeclass name '{}'", ats.name)))
+            Err(ats.name_token.error(&format!(
+                "undefined type or typeclass name '{}'",
+                ats.deprecated_name
+            )))
         }
     }
 
@@ -1453,7 +1458,7 @@ datatype_params.clone()
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::datatype_attr(datatype, &ls.name),
+                        DefinedName::datatype_attr(datatype, &ls.deprecated_name),
                         ls,
                         ls.name_token.range(),
                         Some(&type_params),
@@ -1462,7 +1467,7 @@ datatype_params.clone()
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::datatype_attr(datatype, &ds.name),
+                        DefinedName::datatype_attr(datatype, &ds.deprecated_name),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1489,14 +1494,16 @@ datatype_params.clone()
     ) -> compilation::Result<()> {
         // Typeclasses don't support type parameters yet
         if !ats.type_params.is_empty() {
-            return Err(ats.type_params[0].name.error(
-                "typeclass attributes do not support type parameters"
-            ));
+            return Err(ats.type_params[0]
+                .name
+                .error("typeclass attributes do not support type parameters"));
         }
 
         // For typeclass attributes, we need an instance name
         let instance_name_token = ats.instance_name.as_ref().ok_or_else(|| {
-            ats.name_token.error("typeclass attributes require an instance name (e.g., 'attributes M: Magma')")
+            ats.name_token.error(
+                "typeclass attributes require an instance name (e.g., 'attributes M: Magma')",
+            )
         })?;
 
         // Bind the instance type as a type parameter with the typeclass constraint
@@ -1513,7 +1520,7 @@ datatype_params.clone()
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::typeclass_attr(&typeclass, &ls.name),
+                        DefinedName::typeclass_attr(&typeclass, &ls.deprecated_name),
                         ls,
                         ls.name_token.range(),
                         Some(&type_params),
@@ -1522,7 +1529,7 @@ datatype_params.clone()
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::typeclass_attr(&typeclass, &ds.name),
+                        DefinedName::typeclass_attr(&typeclass, &ds.deprecated_name),
                         None, // No specific instance type for typeclass attributes
                         Some(&type_params),
                         ds,
@@ -1633,7 +1640,8 @@ datatype_params.clone()
                     vec![],
                 );
                 // Mark as required since it's from the initial typeclass definition
-                self.bindings.mark_typeclass_attribute_required(&typeclass, &attr_name.text());
+                self.bindings
+                    .mark_typeclass_attribute_required(&typeclass, &attr_name.text());
             }
         }
 
@@ -1647,12 +1655,13 @@ datatype_params.clone()
             let type_param = &type_params[0]; // For block syntax, there's exactly one type param
             for condition in &ts.conditions {
                 let range = Range {
-                    start: condition.name.start_pos(),
+                    start: condition.name_token.start_pos(),
                     end: condition.claim.last_token().end_pos(),
                 };
-                let defined_name = DefinedName::typeclass_attr(&typeclass, &condition.name.text());
+                let defined_name =
+                    DefinedName::typeclass_attr(&typeclass, &condition.name_token.text());
                 self.bindings
-                    .check_defined_name_available(&defined_name, &condition.name)?;
+                    .check_defined_name_available(&defined_name, &condition.name_token)?;
 
                 let (bad_params, _, arg_types, unbound_claim, _) =
                     self.bindings.evaluate_scoped_value(
@@ -1666,7 +1675,9 @@ datatype_params.clone()
                         Some(&mut self.token_map),
                     )?;
                 if !bad_params.is_empty() {
-                    return Err(condition.name.error("type parameters are not allowed here"));
+                    return Err(condition
+                        .name_token
+                        .error("type parameters are not allowed here"));
                 }
                 let unbound_claim = unbound_claim
                     .ok_or_else(|| condition.claim.error("conditions must have values"))?;
@@ -1680,7 +1691,7 @@ datatype_params.clone()
                 let theorem_type = lambda_claim.get_type();
                 self.bindings.add_typeclass_attribute(
                     &typeclass,
-                    &condition.name.text(),
+                    &condition.name_token.text(),
                     type_params.clone(),
                     theorem_type.clone(),
                     Some(lambda_claim),
@@ -1699,7 +1710,7 @@ datatype_params.clone()
                 let prop = Proposition::new(external_claim, vec![type_param.clone()], source);
                 self.add_node(Node::structural(project, self, prop));
                 let constant_name =
-                    ConstantName::typeclass_attr(typeclass.clone(), &condition.name.text());
+                    ConstantName::typeclass_attr(typeclass.clone(), &condition.name_token.text());
                 self.bindings.mark_as_theorem(&constant_name);
             }
         }
@@ -1749,7 +1760,7 @@ datatype_params.clone()
                             project,
                             DefinedName::instance(
                                 typeclass.clone(),
-                                &ls.name,
+                                &ls.deprecated_name,
                                 instance_datatype.clone(),
                             ),
                             ls,
@@ -1760,7 +1771,7 @@ datatype_params.clone()
                         pairs.push(self.bindings.check_instance_attribute(
                             &instance_type,
                             &typeclass,
-                            &ls.name,
+                            &ls.deprecated_name,
                             &project,
                             substatement,
                         )?);
@@ -1773,7 +1784,7 @@ datatype_params.clone()
                             project,
                             DefinedName::instance(
                                 typeclass.clone(),
-                                &ds.name,
+                                &ds.deprecated_name,
                                 instance_datatype.clone(),
                             ),
                             Some(&instance_type),
@@ -1785,7 +1796,7 @@ datatype_params.clone()
                         pairs.push(self.bindings.check_instance_attribute(
                             &instance_type,
                             &typeclass,
-                            &ds.name,
+                            &ds.deprecated_name,
                             &project,
                             substatement,
                         )?);
@@ -1807,7 +1818,7 @@ datatype_params.clone()
                 // This attribute is inherited, so we don't need to check it.
                 continue;
             }
-            
+
             let tc_attr_name = ConstantName::typeclass_attr(typeclass.clone(), attr_name);
             let tc_bindings = self.bindings.get_bindings(typeclass.module_id, project);
             if tc_bindings.is_theorem(&tc_attr_name) {
@@ -1837,12 +1848,16 @@ datatype_params.clone()
             }
 
             // Only check required attributes for implementation
-            if !self.bindings.is_typeclass_attribute_required(&typeclass, attr_name) {
+            if !self
+                .bindings
+                .is_typeclass_attribute_required(&typeclass, attr_name)
+            {
                 // This is an optional attribute added via "attributes" statement, skip validation
                 continue;
             }
 
-            let name = DefinedName::instance(typeclass.clone(), attr_name, instance_datatype.clone());
+            let name =
+                DefinedName::instance(typeclass.clone(), attr_name, instance_datatype.clone());
             if !self.bindings.constant_name_in_use(&name) {
                 return Err(
                     statement.error(&format!("missing implementation for attribute '{}'", name))
@@ -1906,11 +1921,11 @@ datatype_params.clone()
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(&ts.name, statement)?;
+            .check_typename_available(&ts.deprecated_name, statement)?;
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
             self.bindings.add_potential_type(
-                &ts.name,
+                &ts.deprecated_name,
                 vec![],
                 doc_comments,
                 Some(ts.name_token.range()),
@@ -1919,7 +1934,7 @@ datatype_params.clone()
             let potential = self
                 .evaluator(project)
                 .evaluate_potential_type(&ts.type_expr)?;
-            self.bindings.add_type_alias(&ts.name, potential);
+            self.bindings.add_type_alias(&ts.deprecated_name, potential);
         };
         Ok(())
     }
@@ -2271,7 +2286,7 @@ datatype_params.clone()
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
-                    DefinedName::unqualified(self.module_id, &ls.name),
+                    DefinedName::unqualified(self.module_id, &ls.deprecated_name),
                     ls,
                     ls.name_token.range(),
                     None,
@@ -2282,7 +2297,7 @@ datatype_params.clone()
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
-                    DefinedName::unqualified(self.module_id, &ds.name),
+                    DefinedName::unqualified(self.module_id, &ds.deprecated_name),
                     None,
                     None,
                     ds,
@@ -2312,7 +2327,9 @@ datatype_params.clone()
 
             StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
 
-            StatementInfo::Attributes(ats) => self.add_attributes_statement(project, statement, ats),
+            StatementInfo::Attributes(ats) => {
+                self.add_attributes_statement(project, statement, ats)
+            }
 
             StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
 
