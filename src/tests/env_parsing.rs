@@ -1496,7 +1496,7 @@ fn test_class_variables() {
         "#,
     );
 
-    // Class variables shouldn't get bound at module scope
+    // Attributes shouldn't get bound at module scope
     env.bad("let alsozero: Nat = zero");
 }
 

@@ -415,7 +415,9 @@ impl<'a> Evaluator<'a> {
         let base_type = receiver.get_type();
 
         let function = match &base_type {
-            AcornType::Data(datatype, _) => self.evaluate_type_attribute(datatype, attr_name, source)?,
+            AcornType::Data(datatype, _) => {
+                self.evaluate_type_attribute(datatype, attr_name, source)?
+            }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {
                     Some(t) => t,
@@ -479,7 +481,7 @@ impl<'a> Evaluator<'a> {
                                         // Leave it unresolved
                                         NamedEntity::UnresolvedValue(u)
                                     } else {
-                                        // Resolve it with the params from the class name
+                                        // Resolve it with the params from the type name
                                         let value = u.resolve(name_token, params.clone())?;
                                         NamedEntity::Value(value)
                                     }
@@ -565,8 +567,11 @@ impl<'a> Evaluator<'a> {
                                     .error("you must set a default type for numeric literals"));
                             }
                         };
-                        let value =
-                            self.evaluate_number_with_datatype(name_token, &datatype, name_token.text())?;
+                        let value = self.evaluate_number_with_datatype(
+                            name_token,
+                            &datatype,
+                            name_token.text(),
+                        )?;
                         NamedEntity::Value(value)
                     }
                     TokenType::SelfToken => {
