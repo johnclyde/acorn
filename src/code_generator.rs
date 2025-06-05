@@ -2,7 +2,7 @@ use std::fmt;
 
 use tower_lsp::lsp_types::{LanguageString, MarkedString};
 
-use crate::acorn_type::{AcornType, Class, PotentialType, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
@@ -45,7 +45,7 @@ impl CodeGenerator<'_> {
         })
     }
 
-    fn class_to_expr(&self, class: &Class) -> Result<Expression> {
+    fn class_to_expr(&self, class: &Datatype) -> Result<Expression> {
         if class.module_id == self.bindings.module_id() {
             return Ok(Expression::generate_identifier(&class.name));
         }
@@ -160,7 +160,7 @@ impl CodeGenerator<'_> {
         // Handle numeric literals
         if let Some((_, class_name, attr)) = ci.name.as_attribute() {
             if attr.chars().all(|ch| ch.is_ascii_digit()) {
-                let class = Class {
+                let class = Datatype {
                     module_id: ci.name.module_id(),
                     name: class_name.to_string(),
                 };
@@ -205,7 +205,7 @@ impl CodeGenerator<'_> {
         // Note that the receiver could be either a class or a typeclass.
         if let Some((_, rname, attr)) = ci.name.as_attribute() {
             // Check if this is a class attribute
-            let class = Class {
+            let class = Datatype {
                 module_id: ci.name.module_id(),
                 name: rname.to_string(),
             };
@@ -485,7 +485,7 @@ impl Error {
         Error::Skolem(s.to_string())
     }
 
-    pub fn unnamed_type(class: &Class) -> Error {
+    pub fn unnamed_type(class: &Datatype) -> Error {
         Error::UnnamedType(class.name.to_string())
     }
 

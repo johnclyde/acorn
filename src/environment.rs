@@ -3,7 +3,7 @@ use std::vec;
 
 use tower_lsp::lsp_types::Range;
 
-use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::atom::AtomId;
 use crate::binding_map::{BindingMap, ConstructorInfo};
@@ -266,7 +266,7 @@ impl Environment {
         &self,
         name_token: &Token,
         class_type: &'a AcornType,
-    ) -> compilation::Result<&'a Class> {
+    ) -> compilation::Result<&'a Datatype> {
         match &class_type {
             AcornType::Data(class, _) => {
                 if &class.name != &name_token.text() {
@@ -398,7 +398,7 @@ impl Environment {
                                         .error("numeric literals must be class members"))
                                 }
                             };
-                            let class = Class {
+                            let class = Datatype {
                                 module_id: self.module_id,
                                 name: class_name,
                             };
@@ -943,15 +943,18 @@ impl Environment {
 
         // The member functions take the type itself to a particular member.
         // These may be unresolved values.
-        let class = Class {
+        let class = Datatype {
             module_id: self.module_id,
             name: ss.name.clone(),
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
-        let potential_type = self
-            .bindings
-            .add_potential_type(&ss.name, typeclasses, doc_comments, Some(ss.name_token.range()));
+        let potential_type = self.bindings.add_potential_type(
+            &ss.name,
+            typeclasses,
+            doc_comments,
+            Some(ss.name_token.range()),
+        );
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
@@ -1131,9 +1134,12 @@ impl Environment {
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
-        let potential_type = self
-            .bindings
-            .add_potential_type(&is.name, typeclasses, doc_comments, Some(is.name_token.range()));
+        let potential_type = self.bindings.add_potential_type(
+            &is.name,
+            typeclasses,
+            doc_comments,
+            Some(is.name_token.range()),
+        );
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
@@ -1163,7 +1169,7 @@ impl Environment {
 
         // Define the constructors.
         // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
-        let class = Class {
+        let class = Datatype {
             module_id: self.module_id,
             name: is.name.clone(),
         };
@@ -1823,8 +1829,12 @@ impl Environment {
             .check_typename_available(&ts.name, statement)?;
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
-            self.bindings
-                .add_potential_type(&ts.name, vec![], doc_comments, Some(ts.name_token.range()));
+            self.bindings.add_potential_type(
+                &ts.name,
+                vec![],
+                doc_comments,
+                Some(ts.name_token.range()),
+            );
         } else {
             let potential = self
                 .evaluator(project)

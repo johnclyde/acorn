@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::fact::Fact;
 use crate::names::ConstantName;
@@ -139,13 +139,13 @@ pub struct Monomorphizer {
 
     /// All the instance relations we know about.
     /// Monomorphization is only allowed with valid instance relations.
-    instances: HashMap<Typeclass, HashSet<Class>>,
+    instances: HashMap<Typeclass, HashSet<Datatype>>,
 
     /// When we call try_to_monomorphize_prop, and it fails, but just because a type doesn't match
     /// a typeclass, we put an entry here.
     /// Later, if we discover that the type is actually an instance of the typeclass,
     /// we can monomorphize the proposition.
-    instantiation_failures: HashMap<(Class, Typeclass), Vec<InstantiationFailure>>,
+    instantiation_failures: HashMap<(Datatype, Typeclass), Vec<InstantiationFailure>>,
 }
 
 impl Monomorphizer {
@@ -164,7 +164,7 @@ impl Monomorphizer {
         TypeUnifier::new(self)
     }
 
-    fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+    fn add_instance_of(&mut self, class: Datatype, typeclass: Typeclass) {
         let key = (class, typeclass);
         let failures = self.instantiation_failures.remove(&key);
         let (class, typeclass) = key;
@@ -392,7 +392,7 @@ impl Monomorphizer {
 }
 
 impl TypeclassRegistry for Monomorphizer {
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+    fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool {
         if let Some(set) = self.instances.get(typeclass) {
             set.contains(class)
         } else {

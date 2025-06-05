@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, TypeParam, Typeclass};
 use crate::atom::AtomId;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
@@ -178,7 +178,7 @@ impl ConstantInstance {
     pub fn to_defined_instance_name(
         &self,
         typeclass: &Typeclass,
-        class: &Class,
+        class: &Datatype,
     ) -> Option<DefinedName> {
         if self.name.module_id() != typeclass.module_id {
             return None;

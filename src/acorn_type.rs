@@ -3,9 +3,9 @@ use std::{collections::HashMap, fmt};
 use crate::compilation::{self, ErrorSource, Result};
 use crate::module::ModuleId;
 
-/// Classes are represented by the module they were defined in, and their name.
+/// Datatypes are represented by the module they were defined in, and their name.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct Class {
+pub struct Datatype {
     pub module_id: ModuleId,
     pub name: String,
 }
@@ -20,7 +20,7 @@ pub struct Typeclass {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnresolvedType {
     /// The underlying generic type.
-    pub class: Class,
+    pub class: Datatype,
 
     /// The parameters we need to instantiate this type, along with their typeclass if any.
     pub params: Vec<Option<Typeclass>>,
@@ -117,7 +117,7 @@ impl PotentialType {
     /// If this potential type represents a base class, ie with no type parameters,
     /// return a reference to the class.
     /// Thus, Nat is a base class, and List<T> is a base class, but List<Bool> is not.
-    pub fn as_base_class(&self) -> Option<&Class> {
+    pub fn as_base_class(&self) -> Option<&Datatype> {
         match self {
             PotentialType::Resolved(AcornType::Data(class, params)) => {
                 if params.is_empty() {
@@ -253,7 +253,7 @@ pub enum AcornType {
 
     /// Data types are structures, inductive types, or axiomatic types.
     /// They have a class, and may have type parameters.
-    Data(Class, Vec<AcornType>),
+    Data(Datatype, Vec<AcornType>),
 
     /// Function types are defined by their inputs and output.
     Function(FunctionType),
@@ -337,7 +337,7 @@ impl AcornType {
         Ok(())
     }
 
-    pub fn check_instance(&self, class: &Class, source: &dyn ErrorSource) -> Result<()> {
+    pub fn check_instance(&self, class: &Datatype, source: &dyn ErrorSource) -> Result<()> {
         match self {
             AcornType::Data(c, _) => {
                 if c != class {
@@ -535,7 +535,7 @@ impl AcornType {
     }
 
     /// Extracts the class from this type, or errors if it is not a data type.
-    pub fn get_class(&self, source: &dyn ErrorSource) -> compilation::Result<&Class> {
+    pub fn get_class(&self, source: &dyn ErrorSource) -> compilation::Result<&Datatype> {
         match self {
             AcornType::Data(class, _) => Ok(class),
             _ => Err(source.error("not an attributable class")),

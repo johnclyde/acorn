@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Range};
 
-use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass, UnresolvedType};
+use crate::acorn_type::{AcornType, Datatype, PotentialType, TypeParam, Typeclass, UnresolvedType};
 use crate::acorn_value::AcornValue;
 use crate::code_generator::CodeGenerator;
 use crate::compilation::{self, ErrorSource, PanicOnError};
@@ -46,7 +46,7 @@ pub struct BindingMap {
     type_to_typename: HashMap<PotentialType, String>,
 
     /// Stores definition information about every class accessible from this module.
-    class_defs: HashMap<Class, ClassDefinition>,
+    class_defs: HashMap<Datatype, ClassDefinition>,
 
     /// Maps the name of a typeclass to the typeclass.
     /// Includes typeclasses that were imported from other modules.
@@ -74,7 +74,7 @@ pub struct BindingMap {
     module_to_name: HashMap<ModuleId, String>,
 
     /// The default data type to use for numeric literals.
-    numerals: Option<Class>,
+    numerals: Option<Datatype>,
 
     /// The definitions of the instance attributes defined in this module.
     /// Alias-type definitions are stored here just like anything else, because the monomorphizer
@@ -109,12 +109,12 @@ impl BindingMap {
     }
 
     /// Returns the default data type for numeric literals, if set.
-    pub fn numerals(&self) -> Option<&Class> {
+    pub fn numerals(&self) -> Option<&Datatype> {
         self.numerals.as_ref()
     }
 
     /// Whether this type has this attribute in the current context.
-    pub fn has_type_attribute(&self, class: &Class, var_name: &str) -> bool {
+    pub fn has_type_attribute(&self, class: &Datatype, var_name: &str) -> bool {
         self.class_defs
             .get(class)
             .map_or(false, |info| info.attributes.contains_key(var_name))
@@ -137,11 +137,11 @@ impl BindingMap {
     }
 
     /// Gets the local alias to use for a given class.
-    pub fn class_alias(&self, class: &Class) -> Option<&String> {
+    pub fn class_alias(&self, class: &Datatype) -> Option<&String> {
         self.class_defs.get(class)?.alias.as_ref()
     }
 
-    fn add_class_alias(&mut self, class: &Class, alias: &str) {
+    fn add_class_alias(&mut self, class: &Datatype, alias: &str) {
         if !self.class_defs.contains_key(class) {
             self.class_defs
                 .insert(class.clone(), ClassDefinition::new());
@@ -351,7 +351,7 @@ impl BindingMap {
             .and_then(|info| info.constructor.as_ref())
     }
 
-    pub fn get_module_for_class_attr(&self, class: &Class, attr: &str) -> Option<ModuleId> {
+    pub fn get_module_for_class_attr(&self, class: &Datatype, attr: &str) -> Option<ModuleId> {
         self.class_defs
             .get(class)
             .and_then(|info| info.attributes.get(attr))
@@ -417,7 +417,7 @@ impl BindingMap {
     /// Adds a new data type to the binding map.
     /// Panics if the name is already bound.
     pub fn add_data_type(&mut self, name: &str, doc_comments: Vec<String>, range: Option<Range>) -> AcornType {
-        let class = Class {
+        let class = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
@@ -444,7 +444,7 @@ impl BindingMap {
         if params.len() == 0 {
             return PotentialType::Resolved(self.add_data_type(name, doc_comments, range));
         }
-        let class = Class {
+        let class = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
@@ -601,7 +601,7 @@ impl BindingMap {
         Ok((resolved_attr, instance_attr))
     }
 
-    pub fn add_instance_of(&mut self, class: Class, typeclass: Typeclass) {
+    pub fn add_instance_of(&mut self, class: Datatype, typeclass: Typeclass) {
         self.class_defs
             .entry(class)
             .or_insert_with(ClassDefinition::new)
@@ -615,7 +615,7 @@ impl BindingMap {
         self.name_to_module.values().copied().collect()
     }
 
-    pub fn set_numerals(&mut self, class: Class) {
+    pub fn set_numerals(&mut self, class: Datatype) {
         self.numerals = Some(class);
     }
 
@@ -668,7 +668,7 @@ impl BindingMap {
     /// Adds a constant that is an attribute of a class.
     pub fn add_class_attribute(
         &mut self,
-        class: &Class,
+        class: &Datatype,
         attr: &str,
         params: Vec<TypeParam>,
         constant_type: AcornType,
@@ -883,7 +883,7 @@ impl BindingMap {
     }
 
     /// Get the doc comment for a class.
-    pub fn get_class_doc_comment(&self, class: &Class) -> Option<&Vec<String>> {
+    pub fn get_class_doc_comment(&self, class: &Datatype) -> Option<&Vec<String>> {
         self.class_defs.get(class).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
@@ -894,7 +894,7 @@ impl BindingMap {
     }
 
     /// Get the definition range for a class.
-    pub fn get_class_range(&self, class: &Class) -> Option<&Range> {
+    pub fn get_class_range(&self, class: &Datatype) -> Option<&Range> {
         self.class_defs.get(class).and_then(|info| info.range.as_ref())
     }
 
@@ -1568,7 +1568,7 @@ impl BindingMap {
 #[derive(Clone)]
 pub struct ConstructorInfo {
     /// The class that this constructor constructs.
-    pub class: Class,
+    pub class: Datatype,
 
     /// The index of this constructor in the class.
     pub index: usize,
@@ -1727,7 +1727,7 @@ fn keys_with_prefix<'a, T>(
 }
 
 impl TypeclassRegistry for BindingMap {
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool {
+    fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool {
         self.class_defs
             .get(&class)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))

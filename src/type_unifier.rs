@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::acorn_type::{AcornType, Class, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, Typeclass};
 use crate::acorn_value::AcornValue;
 use crate::compilation::{self, ErrorSource};
 use crate::module::ModuleId;
@@ -22,7 +22,7 @@ pub struct TypeUnifier<'a> {
 /// The different errors we can get from unification.
 pub enum Error {
     /// Unification failed, because this class is not an instance of this typeclass.
-    Class(Class, Typeclass),
+    Class(Datatype, Typeclass),
 
     /// Unification failed becaue the first typeclass is not an extension of the second.
     /// TypeclassFailure(A, B) indicates that A does not extend B.
@@ -37,7 +37,7 @@ pub enum Error {
 /// The registry is responsible for that.
 pub trait TypeclassRegistry {
     /// Returns whether the class is an instance of the typeclass.
-    fn is_instance_of(&self, class: &Class, typeclass: &Typeclass) -> bool;
+    fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool;
 
     /// Returns whether typeclass extends base.
     /// In particular, this returns false when typeclass == base.

@@ -1,4 +1,4 @@
-use crate::acorn_type::{AcornType, Class, PotentialType, TypeParam, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, PotentialType, TypeParam, Typeclass};
 use crate::acorn_value::{AcornValue, BinaryOp};
 use crate::binding_map::BindingMap;
 use crate::compilation::{self, ErrorSource};
@@ -325,7 +325,7 @@ impl<'a> Evaluator<'a> {
     fn evaluate_number_with_class(
         &mut self,
         token: &Token,
-        class: &Class,
+        class: &Datatype,
         s: &str,
     ) -> compilation::Result<AcornValue> {
         if self.bindings.has_type_attribute(&class, s) {
@@ -358,7 +358,7 @@ impl<'a> Evaluator<'a> {
     /// Evaluates a name scoped by a type name, like Nat.range
     fn evaluate_type_attribute(
         &mut self,
-        class: &Class,
+        class: &Datatype,
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {

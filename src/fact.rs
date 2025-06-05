@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use crate::acorn_type::{AcornType, Class, Typeclass};
+use crate::acorn_type::{AcornType, Datatype, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::names::ConstantName;
 use crate::potential_value::PotentialValue;
@@ -18,7 +18,7 @@ pub enum Fact {
     Extends(Typeclass, HashSet<Typeclass>, Source),
 
     /// The fact that this class is an instance of this typeclass.
-    Instance(Class, Typeclass, Source),
+    Instance(Datatype, Typeclass, Source),
 
     /// A defined constant.
     /// The tuple is the name of the constant, the definition, and the source.

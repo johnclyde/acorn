@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::acorn_type::{Class, Typeclass};
+use crate::acorn_type::{Datatype, Typeclass};
 use crate::module::ModuleId;
 
 
@@ -16,7 +16,7 @@ pub struct InstanceName {
     pub attribute: String,
 
     /// Like "Int", in Ring.add<Int>.
-    pub class: Class,
+    pub class: Datatype,
 }
 
 impl fmt::Display for InstanceName {
@@ -36,7 +36,7 @@ impl fmt::Display for InstanceName {
 #[derive(Debug, Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 pub enum ConstantName {
     /// An attribute of a class.
-    ClassAttribute(Class, String),
+    ClassAttribute(Datatype, String),
 
     /// An attribute of a typeclass.
     TypeclassAttribute(Typeclass, String),
@@ -46,7 +46,7 @@ pub enum ConstantName {
 }
 
 impl ConstantName {
-    pub fn class_attr(class: Class, attr: &str) -> ConstantName {
+    pub fn class_attr(class: Datatype, attr: &str) -> ConstantName {
         ConstantName::ClassAttribute(class, attr.to_string())
     }
 
@@ -89,7 +89,7 @@ impl ConstantName {
         }
     }
 
-    pub fn is_attribute_of(&self, class: &Class) -> bool {
+    pub fn is_attribute_of(&self, class: &Datatype) -> bool {
         match self {
             ConstantName::ClassAttribute(class_attr, _) => class_attr == class,
             _ => false,
@@ -135,7 +135,7 @@ impl DefinedName {
         DefinedName::Constant(ConstantName::unqualified(module_id, name))
     }
 
-    pub fn class_attr(class: &Class, attr: &str) -> DefinedName {
+    pub fn class_attr(class: &Datatype, attr: &str) -> DefinedName {
         DefinedName::Constant(ConstantName::class_attr(class.clone(), attr))
     }
 
@@ -143,7 +143,7 @@ impl DefinedName {
         DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
     }
 
-    pub fn instance(tc: Typeclass, attr: &str, class: Class) -> DefinedName {
+    pub fn instance(tc: Typeclass, attr: &str, class: Datatype) -> DefinedName {
         let inst = InstanceName {
             typeclass: tc,
             attribute: attr.to_string(),
@@ -178,7 +178,7 @@ impl DefinedName {
         }
     }
 
-    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Class) -> bool {
+    pub fn matches_instance(&self, typeclass: &Typeclass, class: &Datatype) -> bool {
         match self {
             DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.class == *class,
             DefinedName::Constant(_) => false,
