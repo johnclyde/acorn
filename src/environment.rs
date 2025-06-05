@@ -354,10 +354,10 @@ impl Environment {
         range: Range,
         datatype_params: Option<&Vec<TypeParam>>,
     ) -> compilation::Result<()> {
-        if ls.deprecated_name == "self" || ls.deprecated_name == "new" {
+        if ls.name_token.text() == "self" || ls.name_token.text() == "new" {
             return Err(ls.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                ls.deprecated_name
+                ls.name_token.text()
             )));
         }
 
@@ -503,10 +503,10 @@ impl Environment {
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
-        if ds.deprecated_name == "new" || ds.deprecated_name == "self" {
+        if ds.name_token.text() == "new" || ds.name_token.text() == "self" {
             return Err(ds.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                ds.deprecated_name
+                ds.name_token.text()
             )));
         }
         if self.depth > 0 && !ds.type_params.is_empty() {
@@ -544,7 +544,7 @@ impl Environment {
                 return Err(ds.args[0].token().error("self must be the datatype type"));
             }
 
-            if ds.deprecated_name == "read" {
+            if ds.name_token.text() == "read" {
                 if arg_types.len() != 2
                     || &arg_types[1] != datatype_type
                     || &value_type != datatype_type
@@ -601,9 +601,9 @@ impl Environment {
             end: ts.claim_right_brace.end_pos(),
         };
 
-        if let Some(name) = &ts.deprecated_name {
+        if let Some(name_token) = &ts.name_token {
             self.bindings
-                .check_unqualified_name_available(&name, &statement.first_token)?;
+                .check_unqualified_name_available(name_token.text(), &statement.first_token)?;
         }
 
         let (type_params, arg_names, arg_types, value, _) = self.bindings.evaluate_scoped_value(
@@ -659,16 +659,12 @@ impl Environment {
         // theorem is usable by name in this environment.
         let lambda_claim = AcornValue::lambda(arg_types, unbound_claim);
         let theorem_type = lambda_claim.get_type();
-        if let Some(name) = &ts.deprecated_name {
+        if let Some(name_token) = &ts.name_token {
             let doc_comments = self.take_doc_comments();
-            // Use the name token range if available, otherwise fall back to statement range
-            let name_range = if let Some(name_token) = &ts.name_token {
-                name_token.range()
-            } else {
-                range.clone()
-            };
+            // Use the name token range
+            let name_range = name_token.range();
             self.bindings.add_unqualified_constant(
-                name,
+                name_token.text(),
                 type_params.clone(),
                 theorem_type.clone(),
                 Some(lambda_claim.clone()),
@@ -685,7 +681,7 @@ impl Environment {
             range,
             true,
             self.depth,
-            ts.deprecated_name.clone(),
+            ts.name_token.as_ref().map(|t| t.text().to_string()),
         );
         let prop = Proposition::new(external_claim, type_params.clone(), source);
 
@@ -697,7 +693,7 @@ impl Environment {
                 &self,
                 type_params,
                 block_args,
-                BlockParams::Theorem(ts.deprecated_name.as_deref(), range, premise, goal),
+                BlockParams::Theorem(ts.name_token.as_ref().map(|t| t.text()), range, premise, goal),
                 statement.first_line(),
                 statement.last_line(),
                 ts.body.as_ref(),
@@ -707,8 +703,8 @@ impl Environment {
 
         let index = self.add_node(node);
         self.add_node_lines(index, &statement.range());
-        if let Some(name) = &ts.deprecated_name {
-            let name = ConstantName::unqualified(self.module_id, name);
+        if let Some(name_token) = &ts.name_token {
+            let name = ConstantName::unqualified(self.module_id, name_token.text());
             self.bindings.mark_as_theorem(&name);
         }
 
@@ -774,14 +770,14 @@ impl Environment {
         statement: &Statement,
         fss: &FunctionSatisfyStatement,
     ) -> compilation::Result<()> {
-        if fss.deprecated_name == "new" || fss.deprecated_name == "self" {
+        if fss.name_token.text() == "new" || fss.name_token.text() == "self" {
             return Err(fss.name_token.error(&format!(
                 "'{}' is a reserved word. use a different name",
-                fss.deprecated_name
+                fss.name_token.text()
             )));
         }
         self.bindings
-            .check_unqualified_name_available(&fss.deprecated_name, statement)?;
+            .check_unqualified_name_available(fss.name_token.text(), statement)?;
 
         // Figure out the range for this function definition.
         // It's smaller than the whole function statement because it doesn't
@@ -837,7 +833,7 @@ impl Environment {
         let function_type = AcornType::functional(arg_types.clone(), return_type);
         let doc_comments = self.take_doc_comments();
         self.bindings.add_unqualified_constant(
-            &fss.deprecated_name,
+            fss.name_token.text(),
             vec![],
             function_type.clone(),
             None,
@@ -845,7 +841,7 @@ impl Environment {
             doc_comments,
             Some(fss.name_token.range()),
         );
-        let const_name = ConstantName::unqualified(self.module_id, &fss.deprecated_name);
+        let const_name = ConstantName::unqualified(self.module_id, fss.name_token.text());
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
         let function_term = AcornValue::apply(
             function_constant.clone(),
@@ -863,7 +859,7 @@ impl Environment {
             definition_range,
             self.depth,
             function_constant,
-            &fss.deprecated_name,
+            fss.name_token.text(),
         );
         let prop = Proposition::monomorphic(external_condition, source);
 
@@ -884,7 +880,7 @@ impl Environment {
             ss.first_right_brace.line_number,
         );
         self.bindings
-            .check_typename_available(&ss.deprecated_name, statement)?;
+            .check_typename_available(ss.name_token.text(), statement)?;
 
         let mut arbitrary_params = vec![];
         let type_params = self
@@ -949,12 +945,12 @@ impl Environment {
         // These may be unresolved values.
         let datatype = Datatype {
             module_id: self.module_id,
-            name: ss.deprecated_name.clone(),
+            name: ss.name_token.text().to_string(),
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
         let potential_type = self.bindings.add_potential_type(
-            &ss.deprecated_name,
+            ss.name_token.text(),
             typeclasses,
             doc_comments,
             Some(ss.name_token.range()),
@@ -1029,7 +1025,7 @@ impl Environment {
                 self.module_id,
                 range,
                 self.depth,
-                ss.deprecated_name.clone(),
+                ss.name_token.text().to_string(),
                 "constraint".to_string(),
             );
             let prop = Proposition::new(constraint_claim, type_params.clone(), source);
@@ -1050,7 +1046,7 @@ impl Environment {
             self.module_id,
             range,
             self.depth,
-            ss.deprecated_name.clone(),
+            ss.name_token.text().to_string(),
             "new".to_string(),
         );
         let prop = Proposition::new(new_claim, type_params.clone(), source);
@@ -1098,7 +1094,7 @@ impl Environment {
                 self.module_id,
                 range,
                 self.depth,
-                ss.deprecated_name.clone(),
+                ss.name_token.text().to_string(),
                 field_name_token.text().to_string(),
             );
             let prop = Proposition::new(member_claim, type_params.clone(), source);
@@ -1120,7 +1116,7 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(&is.deprecated_name, statement)?;
+            .check_typename_available(is.name_token.text(), statement)?;
         let range = Range {
             start: statement.first_token.start_pos(),
             end: is.name_token.end_pos(),
@@ -1139,7 +1135,7 @@ impl Environment {
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
         let potential_type = self.bindings.add_potential_type(
-            &is.deprecated_name,
+            is.name_token.text(),
             typeclasses,
             doc_comments,
             Some(is.name_token.range()),
@@ -1175,7 +1171,7 @@ impl Environment {
         // constructor_fns contains the functions in their arbitrary forms, as AcornValue.
         let datatype = Datatype {
             module_id: self.module_id,
-            name: is.deprecated_name.clone(),
+            name: is.name_token.text().to_string(),
         };
         let mut constructor_fns = vec![];
         let total = constructors.len();
@@ -1232,7 +1228,7 @@ impl Environment {
                     self.module_id,
                     range,
                     self.depth,
-                    is.deprecated_name.clone(),
+                    is.name_token.text().to_string(),
                     member_name.to_string(),
                 );
                 let gen_claim = arb_claim.genericize(&type_params);
@@ -1266,7 +1262,7 @@ impl Environment {
             self.module_id,
             range,
             self.depth,
-            is.deprecated_name.clone(),
+            is.name_token.text().to_string(),
             "new".to_string(),
         );
         let gen_claim = arb_claim.genericize(&type_params);
@@ -1314,7 +1310,7 @@ impl Environment {
                 self.module_id,
                 range,
                 self.depth,
-                is.deprecated_name.clone(),
+                is.name_token.text().to_string(),
                 member_name.to_string(),
             );
             let gen_claim = arb_claim.genericize(&type_params);
@@ -1425,14 +1421,14 @@ impl Environment {
         self.add_other_lines(statement);
 
         // Try type first
-        if let Some(potential) = self.bindings.get_type_for_typename(&ats.deprecated_name) {
+        if let Some(potential) = self.bindings.get_type_for_typename(ats.name_token.text()) {
             self.add_type_attributes(project, ats, potential.clone())
-        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(&ats.deprecated_name) {
+        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(ats.name_token.text()) {
             self.add_typeclass_attributes(project, ats, typeclass.clone())
         } else {
             Err(ats.name_token.error(&format!(
                 "undefined type or typeclass name '{}'",
-                ats.deprecated_name
+                ats.name_token.text()
             )))
         }
     }
@@ -1458,7 +1454,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::datatype_attr(datatype, &ls.deprecated_name),
+                        DefinedName::datatype_attr(datatype, ls.name_token.text()),
                         ls,
                         ls.name_token.range(),
                         Some(&type_params),
@@ -1467,7 +1463,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::datatype_attr(datatype, &ds.deprecated_name),
+                        DefinedName::datatype_attr(datatype, ds.name_token.text()),
                         Some(&instance_type),
                         Some(&type_params),
                         ds,
@@ -1520,7 +1516,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
-                        DefinedName::typeclass_attr(&typeclass, &ls.deprecated_name),
+                        DefinedName::typeclass_attr(&typeclass, ls.name_token.text()),
                         ls,
                         ls.name_token.range(),
                         Some(&type_params),
@@ -1529,7 +1525,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
-                        DefinedName::typeclass_attr(&typeclass, &ds.deprecated_name),
+                        DefinedName::typeclass_attr(&typeclass, ds.name_token.text()),
                         None, // No specific instance type for typeclass attributes
                         Some(&type_params),
                         ds,
@@ -1760,7 +1756,7 @@ impl Environment {
                             project,
                             DefinedName::instance(
                                 typeclass.clone(),
-                                &ls.deprecated_name,
+                                ls.name_token.text(),
                                 instance_datatype.clone(),
                             ),
                             ls,
@@ -1771,7 +1767,7 @@ impl Environment {
                         pairs.push(self.bindings.check_instance_attribute(
                             &instance_type,
                             &typeclass,
-                            &ls.deprecated_name,
+                            ls.name_token.text(),
                             &project,
                             substatement,
                         )?);
@@ -1784,7 +1780,7 @@ impl Environment {
                             project,
                             DefinedName::instance(
                                 typeclass.clone(),
-                                &ds.deprecated_name,
+                                ds.name_token.text(),
                                 instance_datatype.clone(),
                             ),
                             Some(&instance_type),
@@ -1796,7 +1792,7 @@ impl Environment {
                         pairs.push(self.bindings.check_instance_attribute(
                             &instance_type,
                             &typeclass,
-                            &ds.deprecated_name,
+                            ds.name_token.text(),
                             &project,
                             substatement,
                         )?);
@@ -1921,11 +1917,11 @@ impl Environment {
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
         self.bindings
-            .check_typename_available(&ts.deprecated_name, statement)?;
+            .check_typename_available(ts.name_token.text(), statement)?;
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
             self.bindings.add_potential_type(
-                &ts.deprecated_name,
+                ts.name_token.text(),
                 vec![],
                 doc_comments,
                 Some(ts.name_token.range()),
@@ -1934,7 +1930,7 @@ impl Environment {
             let potential = self
                 .evaluator(project)
                 .evaluate_potential_type(&ts.type_expr)?;
-            self.bindings.add_type_alias(&ts.deprecated_name, potential);
+            self.bindings.add_type_alias(ts.name_token.text(), potential);
         };
         Ok(())
     }
@@ -2286,7 +2282,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
-                    DefinedName::unqualified(self.module_id, &ls.deprecated_name),
+                    DefinedName::unqualified(self.module_id, ls.name_token.text()),
                     ls,
                     ls.name_token.range(),
                     None,
@@ -2297,7 +2293,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
-                    DefinedName::unqualified(self.module_id, &ds.deprecated_name),
+                    DefinedName::unqualified(self.module_id, ds.name_token.text()),
                     None,
                     None,
                     ds,

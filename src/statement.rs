@@ -25,7 +25,6 @@ impl Body {
 ///   let a: int = x + 2
 /// The name token can either be an identifier or a number.
 pub struct LetStatement {
-    pub deprecated_name: String,
     pub name_token: Token,
 
     /// What the constant is parametrized by, if anything.
@@ -41,7 +40,6 @@ pub struct LetStatement {
 /// Define statements introduce new named functions. For example:
 ///   define foo(a: int, b: int) -> int = a + a + b
 pub struct DefineStatement {
-    pub deprecated_name: String,
     pub name_token: Token,
 
     /// For templated definitions
@@ -65,7 +63,6 @@ pub struct DefineStatement {
 /// axiomatic would be "true", the name is "foo", the args are p, q, and the claim is "p -> (q -> p)".
 pub struct TheoremStatement {
     pub axiomatic: bool,
-    pub deprecated_name: Option<String>,
     pub name_token: Option<Token>,
     pub type_params: Vec<TypeParamExpr>,
     pub args: Vec<Declaration>,
@@ -83,7 +80,6 @@ pub struct ClaimStatement {
 
 /// Type statements declare a name as an alias to a type expression.
 pub struct TypeStatement {
-    pub deprecated_name: String,
     pub name_token: Token,
     pub type_expr: Expression,
 }
@@ -121,7 +117,6 @@ pub struct VariableSatisfyStatement {
 /// It's like a combination of a "define" and a "theorem".
 pub struct FunctionSatisfyStatement {
     /// Name of the new function.
-    pub deprecated_name: String,
     pub name_token: Token,
 
     /// The declarations are mostly arguments to the function, but the last one is the return
@@ -142,7 +137,6 @@ pub struct FunctionSatisfyStatement {
 
 /// Struct statements define a new type by combining existing types
 pub struct StructureStatement {
-    pub deprecated_name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
@@ -163,7 +157,6 @@ pub struct StructureStatement {
 
 /// Inductive statements define a new type by defining a set of constructors.
 pub struct InductiveStatement {
-    pub deprecated_name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
@@ -187,7 +180,6 @@ pub struct ImportStatement {
 pub struct AttributesStatement {
     /// For type attributes: the type name (e.g., "Foo" in "attributes Foo")
     /// For typeclass attributes: the typeclass name (e.g., "Magma" in "attributes M: Magma")
-    pub deprecated_name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
@@ -416,11 +408,11 @@ fn parse_theorem_statement(
     tokens: &mut TokenIter,
     axiomatic: bool,
 ) -> Result<Statement> {
-    let (name, name_token) = match tokens.peek_type() {
-        Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => (None, None),
+    let name_token = match tokens.peek_type() {
+        Some(TokenType::LeftParen) | Some(TokenType::LeftBrace) => None,
         _ => {
             let token = tokens.expect_variable_name(false)?;
-            (Some(token.text().to_string()), Some(token))
+            Some(token)
         }
     };
     let type_params = TypeParamExpr::parse_list(tokens)?;
@@ -432,7 +424,6 @@ fn parse_theorem_statement(
 
     let ts = TheoremStatement {
         axiomatic,
-        deprecated_name: name,
         name_token,
         type_params,
         args,
@@ -483,7 +474,7 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
         None => return Err(tokens.error("unexpected end of file")),
     }
     let name_token = tokens.expect_variable_name(true)?;
-    let name = name_token.text().to_string();
+    let _name = name_token.text().to_string();
     if let Some(token) = tokens.peek() {
         if token.token_type == TokenType::LeftParen {
             // This is a function defined via let..satisfy.
@@ -498,7 +489,6 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
                 Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
             let (body, last_token) = parse_by_block(right_brace, tokens)?;
             let fss = FunctionSatisfyStatement {
-                deprecated_name: name,
                 name_token,
                 declarations,
                 satisfy_token,
@@ -543,7 +533,6 @@ fn parse_let_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stateme
 
     let (value, last_token) = Expression::parse_value(tokens, Terminator::Is(TokenType::NewLine))?;
     let ls = LetStatement {
-        deprecated_name: name,
         name_token,
         type_params,
         type_expr,
@@ -565,7 +554,6 @@ fn parse_define_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Stat
     let (return_value, last_token) =
         Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
     let ds = DefineStatement {
-        deprecated_name: name_token.text().to_string(),
         name_token,
         type_params,
         args,
@@ -588,7 +576,6 @@ fn parse_type_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     let (type_expr, _) = Expression::parse_type(tokens, Terminator::Is(TokenType::NewLine))?;
     let last_token = type_expr.last_token().clone();
     let ts = TypeStatement {
-        deprecated_name: name_token.to_string(),
         name_token: name_token.clone(),
         type_expr,
     };
@@ -712,7 +699,6 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     first_token: keyword,
                     last_token,
                     statement: StatementInfo::Structure(StructureStatement {
-                        deprecated_name: name_token.to_string(),
                         name_token,
                         type_params,
                         fields,
@@ -763,7 +749,6 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     first_token: keyword,
                     last_token: tokens.next().unwrap(),
                     statement: StatementInfo::Inductive(InductiveStatement {
-                        deprecated_name: type_token.to_string(),
                         name_token: type_token,
                         type_params,
                         constructors,
@@ -865,20 +850,20 @@ fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<
     let first_name = tokens.expect_type_name()?;
 
     // Check if we have the typeclass syntax (M: TypeclassName) or type syntax (TypeName)
-    let (instance_name, name, name_token) = match tokens.peek_type() {
+    let (instance_name, _name, name_token) = match tokens.peek_type() {
         Some(TokenType::Colon) => {
             // Typeclass syntax: attributes M: TypeclassName
             tokens.next(); // consume ':'
             let typeclass_name = tokens.expect_type_name()?;
             (
                 Some(first_name.clone()),
-                typeclass_name.to_string(),
+                typeclass_name.text().to_string(),
                 typeclass_name,
             )
         }
         _ => {
             // Type syntax: attributes TypeName
-            (None, first_name.to_string(), first_name)
+            (None, first_name.text().to_string(), first_name)
         }
     };
 
@@ -891,7 +876,6 @@ fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<
         right_brace: right_brace.clone(),
     };
     let ats = AttributesStatement {
-        deprecated_name: name,
         name_token,
         type_params,
         instance_name,
@@ -1255,7 +1239,7 @@ impl Statement {
         write!(f, "{}", indentation)?;
         match &self.statement {
             StatementInfo::Let(ls) => {
-                write!(f, "let {}", ls.deprecated_name)?;
+                write!(f, "let {}", ls.name_token.text())?;
                 write_type_params(f, &ls.type_params)?;
                 match &ls.type_expr {
                     Some(type_expr) => write!(f, ": {} = {}", type_expr, ls.value),
@@ -1265,7 +1249,7 @@ impl Statement {
 
             StatementInfo::Define(ds) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "define {}", ds.deprecated_name)?;
+                write!(f, "define {}", ds.name_token.text())?;
                 write_type_params(f, &ds.type_params)?;
                 write_args(f, &ds.args)?;
                 write!(
@@ -1281,8 +1265,8 @@ impl Statement {
                 } else {
                     write!(f, "theorem")?;
                 }
-                if let Some(name) = &ts.deprecated_name {
-                    write!(f, " {}", &name)?;
+                if let Some(name_token) = &ts.name_token {
+                    write!(f, " {}", name_token.text())?;
                 }
                 write_theorem(f, indentation, &ts.type_params, &ts.args, &ts.claim)?;
                 if let Some(body) = &ts.body {
@@ -1298,7 +1282,7 @@ impl Statement {
             }
 
             StatementInfo::Type(ts) => {
-                write!(f, "type {}: {}", ts.deprecated_name, ts.type_expr)
+                write!(f, "type {}: {}", ts.name_token.text(), ts.type_expr)
             }
 
             StatementInfo::ForAll(fas) => {
@@ -1334,7 +1318,7 @@ impl Statement {
 
             StatementInfo::FunctionSatisfy(fss) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "let {}", fss.deprecated_name)?;
+                write!(f, "let {}", fss.name_token.text())?;
                 let i = fss.declarations.len() - 1;
                 write_args(f, &fss.declarations[..i])?;
                 write!(f, " -> {} satisfy {{\n", fss.declarations[i],)?;
@@ -1349,7 +1333,7 @@ impl Statement {
 
             StatementInfo::Structure(ss) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "structure {}", ss.deprecated_name)?;
+                write!(f, "structure {}", ss.name_token.text())?;
                 write_type_params(f, &ss.type_params)?;
                 write!(f, " {{\n")?;
                 for (name, type_expr) in &ss.fields {
@@ -1372,7 +1356,7 @@ impl Statement {
 
             StatementInfo::Inductive(is) => {
                 let new_indentation = add_indent(indentation);
-                write!(f, "inductive {}", is.deprecated_name)?;
+                write!(f, "inductive {}", is.name_token.text())?;
                 write_type_params(f, &is.type_params)?;
                 write!(f, " {{\n")?;
                 for (name, type_expr) in &is.constructors {
@@ -1416,10 +1400,10 @@ impl Statement {
                         f,
                         "attributes {}: {}",
                         instance_name.text(),
-                        ats.deprecated_name
+                        ats.name_token.text()
                     )?;
                 } else {
-                    write!(f, "attributes {}", ats.deprecated_name)?;
+                    write!(f, "attributes {}", ats.name_token.text())?;
                 }
                 write_type_params(f, &ats.type_params)?;
                 write_block(f, &ats.body.statements, indentation)
