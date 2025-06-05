@@ -1086,6 +1086,55 @@ fn test_env_typeclass_attributes_with_self() {
 }
 
 #[test]
+fn test_env_typeclass_operators() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass A: Addable {
+                flag: Bool
+            }
+            
+            attributes A: Addable {
+                define add(self, other: A) -> A {
+                    self
+                }
+            }
+            
+            typeclass B: MoreAddable extends Addable {
+                zero: B
+            }
+            
+            inductive MyNum {
+                zero
+            }
+            
+            instance MyNum: Addable {
+                let flag = true
+            }
+            
+            instance MyNum: MoreAddable {
+                let zero = MyNum.zero
+            }
+            
+            // Test operator on concrete instance type
+            theorem test_concrete_add {
+                MyNum.zero + MyNum.zero = MyNum.zero
+            }
+            
+            // Test operator on generic type with Addable constraint
+            theorem test_generic_addable<T: Addable>(a: T, b: T) {
+                a + b = a
+            }
+            
+            // Test operator on generic type with MoreAddable constraint
+            theorem test_generic_more_addable<T: MoreAddable>(a: T) {
+                a + T.zero = a
+            }
+        "#,
+    );
+}
+
+#[test]
 fn test_env_constant_attributes_on_extensions() {
     let mut env = Environment::test();
     env.add(
