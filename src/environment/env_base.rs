@@ -71,16 +71,16 @@ pub struct Environment {
 
     /// Used during statement parsing. Cleared whenever they are attached to something.
     /// Each line is one entry.
-    doc_comments: Vec<String>,
+    pub doc_comments: Vec<String>,
 
     /// Module-level documentation from doc comments at the top of the file.
-    module_doc_comments: Vec<String>,
+    pub module_doc_comments: Vec<String>,
 
     /// Whether we're still at the beginning of the file and can collect module doc comments.
-    at_module_beginning: bool,
+    pub at_module_beginning: bool,
 
     /// The line number of the last statement we processed (for detecting blank lines).
-    last_statement_line: Option<u32>,
+    pub last_statement_line: Option<u32>,
 }
 
 impl Environment {
@@ -142,7 +142,7 @@ impl Environment {
     }
 
     /// Add all the lines covered by the statement as the "Other" type.
-    fn add_other_lines(&mut self, statement: &Statement) {
+    pub fn add_other_lines(&mut self, statement: &Statement) {
         self.add_line_types(
             LineType::Other,
             statement.first_line(),
@@ -346,7 +346,7 @@ impl Environment {
     /// Adds a "let" statement to the environment.
     /// This can also be in a class, typeclass, or instance block.
     /// If this is in an attributes block, the datatype parameters are provided.
-    fn add_let_statement(
+    pub fn add_let_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
@@ -494,7 +494,7 @@ impl Environment {
     ///
     /// The datatype params are the parameters for the overall attributes statement, if we are within one.
     /// They will become the parameters of the newly defined function.
-    fn add_define_statement(
+    pub fn add_define_statement(
         &mut self,
         project: &Project,
         defined_name: DefinedName,
@@ -587,7 +587,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_theorem_statement(
+    pub fn add_theorem_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -716,7 +716,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_variable_satisfy_statement(
+    pub fn add_variable_satisfy_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -769,7 +769,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_function_satisfy_statement(
+    pub fn add_function_satisfy_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -873,7 +873,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_structure_statement(
+    pub fn add_structure_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1113,7 +1113,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_inductive_statement(
+    pub fn add_inductive_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1417,7 +1417,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_attributes_statement(
+    pub fn add_attributes_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1550,7 +1550,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_typeclass_statement(
+    pub fn add_typeclass_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1724,7 +1724,7 @@ impl Environment {
         Ok(())
     }
 
-    fn add_instance_statement(
+    pub fn add_instance_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1915,7 +1915,7 @@ impl Environment {
     }
 
     /// Adds a type statement to the environment.
-    fn add_type_statement(
+    pub fn add_type_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1943,7 +1943,7 @@ impl Environment {
     }
 
     /// Adds a claim statement to the environment.
-    fn add_claim_statement(
+    pub fn add_claim_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -1972,7 +1972,7 @@ impl Environment {
     }
 
     /// Adds a forall statement to the environment.
-    fn add_forall_statement(
+    pub fn add_forall_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2008,7 +2008,7 @@ impl Environment {
     }
 
     /// Adds an if statement to the environment.
-    fn add_if_statement(
+    pub fn add_if_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2042,7 +2042,7 @@ impl Environment {
     }
 
     /// Adds an import statement to the environment.
-    fn add_import_statement(
+    pub fn add_import_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2107,7 +2107,7 @@ impl Environment {
     }
 
     /// Adds a numerals statement to the environment.
-    fn add_numerals_statement(
+    pub fn add_numerals_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2129,7 +2129,7 @@ impl Environment {
     }
 
     /// Adds a solve statement to the environment.
-    fn add_solve_statement(
+    pub fn add_solve_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2167,7 +2167,7 @@ impl Environment {
     }
 
     /// Adds a problem statement to the environment.
-    fn add_problem_statement(
+    pub fn add_problem_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2190,7 +2190,7 @@ impl Environment {
     }
 
     /// Adds a match statement to the environment.
-    fn add_match_statement(
+    pub fn add_match_statement(
         &mut self,
         project: &mut Project,
         statement: &Statement,
@@ -2251,130 +2251,6 @@ impl Environment {
             .error("not all cases are covered in match statement"))
     }
 
-    /// Adds a statement to the environment.
-    /// If the statement has a body, this call creates a sub-environment and adds the body
-    /// to that sub-environment.
-    pub fn add_statement(
-        &mut self,
-        project: &mut Project,
-        statement: &Statement,
-    ) -> compilation::Result<()> {
-        if self.includes_explicit_false {
-            return Err(
-                statement.error("an explicit 'false' may not be followed by other statements")
-            );
-        }
-
-        // Handle module doc collection logic before processing the statement
-        if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
-            let current_line = statement.first_line();
-
-            // Check if this is the first non-doc statement and there was a gap
-            if self.at_module_beginning {
-                if let Some(last_line) = self.last_statement_line {
-                    if current_line > last_line + 1 {
-                        // There was a gap between last doc comment and this statement
-                        // Move accumulated doc comments to module documentation
-                        self.module_doc_comments.extend(self.doc_comments.drain(..));
-                    }
-                }
-                self.at_module_beginning = false;
-            }
-        }
-
-        let result = match &statement.statement {
-            StatementInfo::Type(ts) => self.add_type_statement(project, statement, ts),
-
-            StatementInfo::Let(ls) => {
-                self.add_other_lines(statement);
-                self.add_let_statement(
-                    project,
-                    DefinedName::unqualified(self.module_id, ls.name_token.text()),
-                    ls,
-                    ls.name_token.range(),
-                    None,
-                )
-            }
-
-            StatementInfo::Define(ds) => {
-                self.add_other_lines(statement);
-                self.add_define_statement(
-                    project,
-                    DefinedName::unqualified(self.module_id, ds.name_token.text()),
-                    None,
-                    None,
-                    ds,
-                    ds.name_token.range(),
-                )
-            }
-
-            StatementInfo::Theorem(ts) => self.add_theorem_statement(project, statement, ts),
-
-            StatementInfo::Claim(cs) => self.add_claim_statement(project, statement, cs),
-
-            StatementInfo::ForAll(fas) => self.add_forall_statement(project, statement, fas),
-
-            StatementInfo::If(is) => self.add_if_statement(project, statement, is),
-
-            StatementInfo::VariableSatisfy(vss) => {
-                self.add_variable_satisfy_statement(project, statement, vss)
-            }
-
-            StatementInfo::FunctionSatisfy(fss) => {
-                self.add_function_satisfy_statement(project, statement, fss)
-            }
-
-            StatementInfo::Structure(ss) => self.add_structure_statement(project, statement, ss),
-
-            StatementInfo::Inductive(is) => self.add_inductive_statement(project, statement, is),
-
-            StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
-
-            StatementInfo::Attributes(ats) => {
-                self.add_attributes_statement(project, statement, ats)
-            }
-
-            StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
-
-            StatementInfo::Solve(ss) => self.add_solve_statement(project, statement, ss),
-
-            StatementInfo::Problem(body) => self.add_problem_statement(project, statement, body),
-
-            StatementInfo::Match(ms) => self.add_match_statement(project, statement, ms),
-
-            StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
-
-            StatementInfo::Instance(is) => self.add_instance_statement(project, statement, is),
-
-            StatementInfo::DocComment(s) => {
-                let current_line = statement.first_line();
-
-                // Check if there's a gap before this doc comment
-                if self.at_module_beginning {
-                    if let Some(last_line) = self.last_statement_line {
-                        if current_line > last_line + 1 {
-                            // There was a gap before this doc comment
-                            // Move any accumulated doc comments to module documentation
-                            self.module_doc_comments.extend(self.doc_comments.drain(..));
-                            self.at_module_beginning = false;
-                        }
-                    }
-                }
-
-                self.doc_comments.push(s.clone());
-                self.last_statement_line = Some(current_line);
-                Ok(())
-            }
-        };
-
-        // Clear doc comments after any non-doc-comment statement
-        if !matches!(&statement.statement, StatementInfo::DocComment(_)) {
-            self.doc_comments.clear();
-            self.last_statement_line = Some(statement.first_line());
-        }
-
-        result
-    }
 
     /// Parse these tokens and add them to the environment.
     /// If project is not provided, we won't be able to handle import statements.
