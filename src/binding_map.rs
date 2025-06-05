@@ -1018,8 +1018,19 @@ impl BindingMap {
             
             // Merge attributes from the imported typeclass
             for (attr_name, (attr_module_id, attr_typeclass)) in imported_info.attributes.iter() {
-                if !entry.attributes.contains_key(attr_name) {
-                    entry.attributes.insert(attr_name.clone(), (*attr_module_id, attr_typeclass.clone()));
+                match entry.attributes.get(attr_name) {
+                    None => {
+                        entry.attributes.insert(attr_name.clone(), (*attr_module_id, attr_typeclass.clone()));
+                    }
+                    Some((existing_module_id, _existing_typeclass)) => {
+                        // Check for conflicts: different modules defining the same attribute
+                        if *existing_module_id != *attr_module_id {
+                            return Err(source.error(&format!(
+                                "typeclass attribute {}.{} is defined in two different modules",
+                                typeclass.name, attr_name
+                            )));
+                        }
+                    }
                 }
             }
             

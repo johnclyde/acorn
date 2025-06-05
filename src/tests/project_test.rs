@@ -1017,3 +1017,55 @@ fn test_typeclass_attributes_across_files() {
     );
     p.expect_ok("main");
 }
+
+#[test]
+fn test_diamond_typeclass_attribute_conflict() {
+    // Similar to test_diamond_attribute_conflict but for typeclass attributes
+    let mut p = Project::new_mock();
+    // Define the typeclass  
+    p.mock(
+        "/mock/addable.ac",
+        r#"
+        typeclass A: Addable {
+            zero: A
+        }
+        "#,
+    );
+    // First module defines an attribute
+    p.mock(
+        "/mock/addable_attrs1.ac",
+        r#"
+        from addable import Addable
+        
+        attributes A: Addable {
+            define helper(self) -> Bool {
+                true
+            }
+        }
+        "#,
+    );
+    // Second module defines the same attribute differently
+    p.mock(
+        "/mock/addable_attrs2.ac",
+        r#"
+        from addable import Addable
+        
+        attributes A: Addable {
+            define helper(self) -> Bool {
+                false
+            }
+        }
+        "#,
+    );
+    // Main tries to import both - should fail
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        import addable_attrs1
+        import addable_attrs2
+        "#,
+    );
+    p.expect_ok("addable_attrs1");
+    p.expect_ok("addable_attrs2");
+    p.expect_module_err("main");
+}
