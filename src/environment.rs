@@ -1514,7 +1514,7 @@ impl Environment {
             name: instance_name.to_string(),
             typeclass: Some(typeclass.clone()),
         };
-        self.bindings.add_arbitrary_type(type_param.clone());
+        let instance_type = self.bindings.add_arbitrary_type(type_param.clone());
         let type_params = vec![type_param];
 
         for substatement in &ats.body.statements {
@@ -1532,7 +1532,7 @@ impl Environment {
                     self.add_define_statement(
                         project,
                         DefinedName::typeclass_attr(&typeclass, ds.name_token.text()),
-                        None, // No specific instance type for typeclass attributes
+                        Some(&instance_type),
                         Some(&type_params),
                         ds,
                         ds.name_token.range(),
