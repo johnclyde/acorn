@@ -967,7 +967,7 @@ impl BindingMap {
         self.module_to_name
             .insert(bindings.module_id, name.to_string());
 
-        // Copy over the class info.
+        // Copy over the datatype info.
         for (datatype, imported_info) in bindings.datatype_defs.iter() {
             let entry = self
                 .datatype_defs
@@ -1420,7 +1420,7 @@ impl BindingMap {
         }
 
         // We might have types parametrized on this function, or they might be parametrized on the
-        // class definition. We only want to genericize the parameters that we created.
+        // datatype definition. We only want to genericize the parameters that we created.
         if type_params.is_empty() {
             // Just keep the types as they are.
             Ok((
@@ -1590,7 +1590,7 @@ pub struct ConstructorInfo {
     pub total: usize,
 }
 
-/// Information about a class that is accessible from this module.
+/// Information about a datatype that is accessible from this module.
 #[derive(Clone, Debug)]
 struct DatatypeDefinition {
     /// What module defines each of the attributes of this datatype.
@@ -1706,7 +1706,7 @@ struct ConstantDefinition {
     theorem: bool,
 
     /// If this constant is a constructor and this is its canonical name, store:
-    ///   the class it constructs
+    ///   the datatype it constructs
     ///   an index of which constructor it is
     ///   how many total constructors there are
     /// Not included for aliases.
@@ -1740,9 +1740,9 @@ fn keys_with_prefix<'a, T>(
 }
 
 impl TypeclassRegistry for BindingMap {
-    fn is_instance_of(&self, class: &Datatype, typeclass: &Typeclass) -> bool {
+    fn is_instance_of(&self, dt: &Datatype, typeclass: &Typeclass) -> bool {
         self.datatype_defs
-            .get(&class)
+            .get(&dt)
             .map_or(false, |info| info.typeclasses.contains_key(typeclass))
     }
 

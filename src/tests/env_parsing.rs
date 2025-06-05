@@ -244,7 +244,7 @@ fn test_arg_names_lowercased() {
 #[test]
 fn test_undefined_class_name() {
     let mut env = Environment::test();
-    env.bad("class Foo {}");
+    env.bad("attributes Foo {}");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_no_methods_on_type_aliases() {
     let mut env = Environment::test();
     env.add("type Nat: axiom");
     env.add("type NatFn: Nat -> Nat");
-    env.bad("class NatFn {}");
+    env.bad("attributes NatFn {}");
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn test_first_arg_must_be_self() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 define add(a: Nat, b: Nat) -> Nat { axiom }
             }
             "#,
@@ -311,7 +311,7 @@ fn test_self_must_have_correct_type() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 define add(self: Bool, other: Nat) -> Nat { axiom }
             }
         "#,
@@ -324,7 +324,7 @@ fn test_no_defining_new() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 define new(self: Bool, other: Nat) -> Bool { true }
             }
         "#,
@@ -372,7 +372,7 @@ fn test_digits_must_be_correct_type() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 let 1: Bool = axiom
             }
         "#,
@@ -385,7 +385,7 @@ fn test_read_must_have_correct_args() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 let 1: Nat = axiom
                 define suc(self) -> Nat: axiom
                 define read(self, digit: Bool) -> Nat: Nat.1
@@ -400,7 +400,7 @@ fn test_read_must_return_correct_type() {
     env.add("type Nat: axiom");
     env.bad(
         r#"
-            class Nat {
+            attributes Nat {
                 let 1: Nat = axiom
                 define suc(self) -> Nat: axiom
                 define read(self, digit: Nat) -> Bool: true
@@ -541,7 +541,7 @@ fn test_no_params_on_member_functions() {
     );
     env.bad(
         r#"
-            class BoolPair {
+            attributes BoolPair {
                 define apply_first<T>(self, f: Bool -> T) -> T {
                     f(self.first)
                 }
@@ -563,7 +563,7 @@ fn test_class_with_mismatched_num_params() {
     );
     env.bad(
         r#"
-            class Pair<T> {
+            attributes Pair<T> {
                 let t: Bool = true
             }
             "#,
@@ -614,7 +614,7 @@ fn test_class_params_leave_scope() {
     );
     env.add(
         r#"
-            class Pair<T, U> {
+            attributes Pair<T, U> {
                 let t: T = axiom
                 let u: U = axiom
             }
@@ -689,7 +689,7 @@ fn test_proposition_must_typecheck_as_bool() {
     env.add(
         r#"
             type Real: axiom
-            class Real {
+            attributes Real {
                 define foo(self) -> Real {
                     axiom
                 }
@@ -1003,7 +1003,7 @@ fn test_match_value_pattern_must_be_constructor() {
                 baz
             }
             
-            class Foo {
+            attributes Foo {
                 define qux(self, b: Bool) -> Foo {
                     Foo.baz
                 }
@@ -1036,7 +1036,7 @@ fn test_match_value_statement_must_be_constructor() {
                 baz
             }
             
-            class Foo {
+            attributes Foo {
                 define qux(self, b: Bool) -> Foo {
                     Foo.baz
                 }
@@ -1384,7 +1384,7 @@ fn test_left_recursive_member_function() {
                 suc(Nat)
             }
 
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat {
                     match self {
                         Nat.zero {
@@ -1410,7 +1410,7 @@ fn test_right_recursive_member_function() {
                 suc(Nat)
             }
 
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat {
                     match other {
                         Nat.zero {
@@ -1487,7 +1487,7 @@ fn test_class_variables() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 let zero: Nat = axiom
                 let 1: Nat = axiom
             }
@@ -1506,7 +1506,7 @@ fn test_instance_methods() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat { axiom }
             }
         "#,
@@ -1519,7 +1519,7 @@ fn test_using_member_function() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) {
@@ -1535,7 +1535,7 @@ fn test_infix_add() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a + b = b + a }
@@ -1549,7 +1549,7 @@ fn test_infix_sub() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define sub(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a - b = b - a }
@@ -1563,7 +1563,7 @@ fn test_infix_mul() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define mul(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a * b = b * a }
@@ -1577,7 +1577,7 @@ fn test_infix_div() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define div(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a / b = b / a }
@@ -1591,7 +1591,7 @@ fn test_infix_mod() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define mod(self, other: Nat) -> Nat { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a % b = b % a }
@@ -1605,7 +1605,7 @@ fn test_infix_lt() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define lt(self, other: Nat) -> Bool { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a < b = b < a }
@@ -1619,7 +1619,7 @@ fn test_infix_gt() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define gt(self, other: Nat) -> Bool { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a > b = b > a }
@@ -1633,7 +1633,7 @@ fn test_infix_lte() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define lte(self, other: Nat) -> Bool { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a <= b = b <= a }
@@ -1647,7 +1647,7 @@ fn test_infix_gte() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define gte(self, other: Nat) -> Bool { axiom }
             }
             theorem goal(a: Nat, b: Nat) { a >= b = b >= a }
@@ -1661,7 +1661,7 @@ fn test_prefix_neg() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define neg(self) -> Nat { axiom }
             }
             theorem goal(a: Nat) { -a = a }
@@ -1691,7 +1691,7 @@ fn test_no_using_methods_with_mismatched_self() {
         r#"
             type Nat: axiom
             let zero: Nat = axiom
-            class Nat {
+            attributes Nat {
                 let foo: Bool -> Bool = function(b: Bool) { b }
             }
         "#,
@@ -1705,7 +1705,7 @@ fn test_multi_digit_unary() {
     env.add("type Unary: axiom");
     env.add(
         r#"
-            class Unary {
+            attributes Unary {
                 let 1: Unary = axiom 
                 define suc(self) -> Unary { axiom }
                 define read(self, digit: Unary) -> Unary { self.suc }
@@ -1739,7 +1739,7 @@ fn test_generic_class_statement() {
                 second: U
             }
 
-            class Pair<T, U> {
+            attributes Pair<T, U> {
                 define swap(self) -> Pair<U, T> {
                     Pair.new(self.second, self.first)
                 }
@@ -1826,7 +1826,7 @@ fn test_generic_return_types() {
                 second: U
             }
             
-            class Pair<T, U> {
+            attributes Pair<T, U> {
                 define swap(self) -> Pair<U, T> {
                     Pair.new(self.second, self.first)
                 }
@@ -1903,7 +1903,7 @@ fn test_param_looking_thing() {
         r#"
             type Nat: axiom
 
-            class Nat {
+            attributes Nat {
                 let 0: Nat = axiom
                 let 1: Nat = axiom
                 let from_bool: Bool -> Nat = axiom

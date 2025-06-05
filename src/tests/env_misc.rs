@@ -201,7 +201,7 @@ fn test_operator_codegen() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 define add(self, other: Nat) -> Nat { axiom }
                 define sub(self, other: Nat) -> Nat { axiom }
                 define mul(self, other: Nat) -> Nat { axiom }
@@ -253,7 +253,7 @@ fn test_numeric_literal_codegen() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 let 0: Nat = axiom
                 define suc(self) -> Nat { axiom }
                 let 1: Nat = Nat.0.suc
@@ -285,7 +285,7 @@ fn test_non_default_numeric_literals() {
     env.add(
         r#"
             type Nat: axiom
-            class Nat {
+            attributes Nat {
                 let 0: Nat = axiom
                 define suc(self) -> Nat { axiom }
                 let 1: Nat = Nat.0.suc

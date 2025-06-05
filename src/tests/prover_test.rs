@@ -909,7 +909,7 @@ fn test_nested_if_else() {
 fn test_infix_addition_goes_left_to_right() {
     let text = r#"
         type Nat: axiom
-        class Nat {
+        attributes Nat {
             define add(self, other: Nat) -> Nat { axiom }
         }
         theorem goal(a: Nat, b: Nat, c: Nat) { Nat.add(Nat.add(a, b), c) = a + b + c }
@@ -923,7 +923,7 @@ fn test_infix_addition_goes_left_to_right() {
 fn test_infix_mul_before_plus() {
     let text = r#"
         type Nat: axiom
-        class Nat {
+        attributes Nat {
             define add(self, other: Nat) -> Nat { axiom }
             define mul(self, other: Nat) -> Nat { axiom }
         }
@@ -938,7 +938,7 @@ fn test_infix_mul_before_plus() {
 fn test_ways_to_call_methods() {
     let text = r#"
         type Nat: axiom
-        class Nat {
+        attributes Nat {
             define suc(self) -> Nat { axiom }
             define add(self, other: Nat) -> Nat { axiom }
         }
@@ -955,7 +955,7 @@ fn test_ways_to_call_methods() {
 fn test_bag_of_digits() {
     let text = r#"
         type Bag: axiom
-        class Bag {
+        attributes Bag {
             let 1: Bag = axiom
             let 2: Bag = axiom
             define read(self, other: Bag) -> Bag { axiom }
@@ -1254,7 +1254,7 @@ fn test_prove_with_match_statement() {
     // An example found when migrating pre-match code.
     let text = r#"
         type Nat: axiom
-        class Nat {
+        attributes Nat {
             define suc(self) -> Nat { axiom }
         }
 
@@ -1519,7 +1519,7 @@ fn test_proving_with_generic_structure() {
                 second: U
             }
 
-            class Pair<T, U> {
+            attributes Pair<T, U> {
                 define swap(self) -> Pair<U, T> {
                     Pair.new(self.second, self.first)
                 }
@@ -1863,7 +1863,7 @@ fn test_normalizing_instance_aliases() {
                 foo
             }
 
-            class Foo {
+            attributes Foo {
                 define mul(self, other: Foo) -> Foo {
                     Foo.foo
                 }
@@ -1996,7 +1996,7 @@ fn test_proving_using_list_contains() {
                 cons(T, List<T>)
             }
 
-            class List<T> {
+            attributes List<T> {
                 define contains(self, item: T) -> Bool {
                     match self {
                         List.nil {
@@ -2040,7 +2040,7 @@ fn test_proving_with_generic_let_attribute() {
                 item: T
             }
 
-            class Box<T> {
+            attributes Box<T> {
                 let const_false: T -> Bool = function(x: T) {
                     false
                 }
@@ -2061,7 +2061,7 @@ fn test_proving_with_if_inside_match() {
                 cons(T, List<T>)
             }
 
-            class List<T> {
+            attributes List<T> {
                 define remove_all(self, item: T) -> List<T> {
                     match self {
                         List.nil {

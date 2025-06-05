@@ -117,7 +117,7 @@ fn test_env_typeclass_in_structure() {
                 second: T
             }
 
-            class MagmaPair<T: Magma> {
+            attributes MagmaPair<T: Magma> {
                 define prod(self) -> T {
                     self.first.mul(self.second)
                 }
@@ -143,7 +143,7 @@ fn test_env_typeclasses_match_between_structure_and_class() {
     );
     env.bad(
         r#"
-            class MagmaPair<T: Magma> {
+            attributes MagmaPair<T: Magma> {
                 define prod(self) -> T {
                     self.first.mul(self.second)
                 }
@@ -664,7 +664,7 @@ fn test_env_handles_bad_typeclass_name_in_class_param() {
     );
     env.bad(
         r#"
-            class List<F: Foo> {
+            attributes List<F: Foo> {
                 let b: Bool = true
             }
         "#,
@@ -690,7 +690,7 @@ fn test_env_basic_typeclass_extension() {
                 qux
             }
 
-            class Qux {
+            attributes Qux {
                 define q(self) -> Bool {
                     true
                 }

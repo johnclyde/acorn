@@ -481,7 +481,7 @@ fn test_instance_of_imported_typeclass() {
             foo
         }
 
-        class Foo {
+        attributes Foo {
             define mul(self, f: Foo) -> Foo {
                 Foo.foo
             }
@@ -506,7 +506,7 @@ fn test_indirect_importing() {
             foo
         }
 
-        class Foo {
+        attributes Foo {
             let a: Bool = true
         }
         "#,
@@ -516,7 +516,7 @@ fn test_indirect_importing() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             let b: Bool = true
         }
         "#,
@@ -544,7 +544,7 @@ fn test_importing_let_attr_conflict() {
             foo
         }
 
-        class Foo {
+        attributes Foo {
             let a: Bool = true
         }
         "#,
@@ -554,7 +554,7 @@ fn test_importing_let_attr_conflict() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             let a: Bool = false
         }
         "#,
@@ -573,7 +573,7 @@ fn test_importing_define_attr_conflict() {
             foo
         }
 
-        class Foo {
+        attributes Foo {
             define a(self) -> Bool { true }
         }
         "#,
@@ -583,7 +583,7 @@ fn test_importing_define_attr_conflict() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             define a(self) -> Bool { true }
         }
         "#,
@@ -609,7 +609,7 @@ fn test_diamond_attribute_conflict() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             let a: Bool = false
         }
         "#,
@@ -619,7 +619,7 @@ fn test_diamond_attribute_conflict() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             let a: Bool = true
         }
         "#,
@@ -749,7 +749,7 @@ fn test_mixed_in_attribute() {
         r#"
         from foo import Foo
 
-        class Foo {
+        attributes Foo {
             define a(self) -> Bool { true }
         }
 
