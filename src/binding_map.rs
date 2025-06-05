@@ -719,6 +719,24 @@ impl BindingMap {
         )
     }
 
+    /// Marks a typeclass attribute as required (must be implemented by instances).
+    /// This is called when processing the initial typeclass definition.
+    pub fn mark_typeclass_attribute_required(&mut self, typeclass: &Typeclass, attr: &str) {
+        if !self.typeclass_defs.contains_key(typeclass) {
+            self.typeclass_defs.insert(typeclass.clone(), TypeclassDefinition::new());
+        }
+        let info = self.typeclass_defs.get_mut(typeclass).unwrap();
+        info.required.insert(attr.to_string());
+    }
+
+    /// Checks if a typeclass attribute is required to be implemented by instances.
+    pub fn is_typeclass_attribute_required(&self, typeclass: &Typeclass, attr: &str) -> bool {
+        self.typeclass_defs
+            .get(typeclass)
+            .map(|info| info.required.contains(attr))
+            .unwrap_or(false)
+    }
+
     /// Adds a constant that is not an attribute of anything.
     pub fn add_unqualified_constant(
         &mut self,
@@ -1663,6 +1681,10 @@ struct TypeclassDefinition {
     /// (This can be the typeclass itself.)
     attributes: BTreeMap<String, Typeclass>,
 
+    /// The attributes that are required to be implemented by instances.
+    /// These come from the initial typeclass definition block.
+    required: HashSet<String>,
+
     /// The typeclasses that this typeclass extends.
     extends: HashSet<Typeclass>,
 
@@ -1680,6 +1702,7 @@ impl TypeclassDefinition {
     fn new() -> Self {
         TypeclassDefinition {
             attributes: BTreeMap::new(),
+            required: HashSet::new(),
             extends: HashSet::new(),
             alias: None,
             doc_comments: vec![],

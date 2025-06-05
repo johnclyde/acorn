@@ -182,12 +182,18 @@ pub struct ImportStatement {
     pub names: Vec<Token>,
 }
 
-/// An attributes statement defines additional attributes for a type.
+/// An attributes statement defines additional attributes for a type or typeclass.
 /// They can be accessed either by the type's name, or via a value of the type.
 pub struct AttributesStatement {
+    /// For type attributes: the type name (e.g., "Foo" in "attributes Foo")
+    /// For typeclass attributes: the typeclass name (e.g., "Magma" in "attributes M: Magma")
     pub name: String,
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
+
+    /// For typeclass attributes: the instance name (e.g., "M" in "attributes M: Magma")
+    /// For type attributes: None
+    pub instance_name: Option<Token>,
 
     /// The body containing the attributes
     pub body: Body,
@@ -856,7 +862,22 @@ fn parse_from_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
 
 /// Parses an attributes statement where the "class" or "attributes" keyword has already been found.
 fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
-    let name_token = tokens.expect_type_name()?;
+    let first_name = tokens.expect_type_name()?;
+
+    // Check if we have the typeclass syntax (M: TypeclassName) or type syntax (TypeName)
+    let (instance_name, name, name_token) = match tokens.peek_type() {
+        Some(TokenType::Colon) => {
+            // Typeclass syntax: attributes M: TypeclassName
+            tokens.next(); // consume ':'
+            let typeclass_name = tokens.expect_type_name()?;
+            (Some(first_name.clone()), typeclass_name.to_string(), typeclass_name)
+        }
+        _ => {
+            // Type syntax: attributes TypeName
+            (None, first_name.to_string(), first_name)
+        }
+    };
+
     let type_params = TypeParamExpr::parse_list(tokens)?;
     let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
     let (statements, right_brace) = parse_block(tokens)?;
@@ -866,9 +887,10 @@ fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<
         right_brace: right_brace.clone(),
     };
     let ats = AttributesStatement {
-        name: name_token.to_string(),
+        name,
         name_token,
         type_params,
+        instance_name,
         body,
     };
     let statement = Statement {
@@ -1385,7 +1407,11 @@ impl Statement {
             }
 
             StatementInfo::Attributes(ats) => {
-                write!(f, "attributes {}", ats.name)?;
+                if let Some(instance_name) = &ats.instance_name {
+                    write!(f, "attributes {}: {}", instance_name.text(), ats.name)?;
+                } else {
+                    write!(f, "attributes {}", ats.name)?;
+                }
                 write_type_params(f, &ats.type_params)?;
                 write_block(f, &ats.body.statements, indentation)
             }

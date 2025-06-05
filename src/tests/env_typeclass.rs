@@ -943,3 +943,73 @@ fn test_env_type_inference_for_numerals_in_typeclasses() {
         "#,
     );
 }
+
+#[test]
+fn test_env_basic_typeclass_attributes() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                trivial(x: F) {
+                    x = x
+                }
+            }
+
+            attributes F: Foo {
+                let flag: Bool = false
+            }
+
+            inductive Bar {
+                bar
+            }
+
+            instance Bar: Foo
+
+            theorem test_typeclass_attribute(b: Bar) {
+                Foo.flag<Bar> = false
+            }
+        "#,
+    );
+}
+
+#[test]
+fn test_env_typeclass_attributes_require_instance_name() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                trivial(x: F) {
+                    x = x
+                }
+            }
+        "#,
+    );
+    env.bad(
+        r#"
+            attributes Foo {
+                let flag: Bool = false
+            }
+        "#,
+    );
+}
+
+#[test]
+fn test_env_typeclass_attributes_no_type_params() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                trivial(x: F) {
+                    x = x
+                }
+            }
+        "#,
+    );
+    env.bad(
+        r#"
+            attributes F: Foo<T> {
+                let flag: Bool = false
+            }
+        "#,
+    );
+}

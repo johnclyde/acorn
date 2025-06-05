@@ -1419,14 +1419,25 @@ datatype_params.clone()
         ats: &AttributesStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        let potential = match self.bindings.get_type_for_typename(&ats.name) {
-            Some(potential) => potential.clone(),
-            None => {
-                return Err(ats
-                    .name_token
-                    .error(&format!("undefined type name '{}'", ats.name)));
-            }
-        };
+        
+        // Try type first
+        if let Some(potential) = self.bindings.get_type_for_typename(&ats.name) {
+            self.add_type_attributes(project, ats, potential.clone())
+        } else if let Some(typeclass) = self.bindings.get_typeclass_for_name(&ats.name) {
+            self.add_typeclass_attributes(project, ats, typeclass.clone())
+        } else {
+            Err(ats
+                .name_token
+                .error(&format!("undefined type or typeclass name '{}'", ats.name)))
+        }
+    }
+
+    fn add_type_attributes(
+        &mut self,
+        project: &mut Project,
+        ats: &AttributesStatement,
+        potential: crate::acorn_type::PotentialType,
+    ) -> compilation::Result<()> {
         let type_params = self
             .evaluator(project)
             .evaluate_type_params(&ats.type_params)?;
@@ -1467,6 +1478,66 @@ datatype_params.clone()
         for type_param in &ats.type_params {
             self.bindings.remove_type(type_param.name.text());
         }
+        Ok(())
+    }
+
+    fn add_typeclass_attributes(
+        &mut self,
+        project: &mut Project,
+        ats: &AttributesStatement,
+        typeclass: crate::acorn_type::Typeclass,
+    ) -> compilation::Result<()> {
+        // Typeclasses don't support type parameters yet
+        if !ats.type_params.is_empty() {
+            return Err(ats.type_params[0].name.error(
+                "typeclass attributes do not support type parameters"
+            ));
+        }
+
+        // For typeclass attributes, we need an instance name
+        let instance_name_token = ats.instance_name.as_ref().ok_or_else(|| {
+            ats.name_token.error("typeclass attributes require an instance name (e.g., 'attributes M: Magma')")
+        })?;
+
+        // Bind the instance type as a type parameter with the typeclass constraint
+        let instance_name = instance_name_token.text();
+        let type_param = crate::acorn_type::TypeParam {
+            name: instance_name.to_string(),
+            typeclass: Some(typeclass.clone()),
+        };
+        self.bindings.add_arbitrary_type(type_param.clone());
+        let type_params = vec![type_param];
+
+        for substatement in &ats.body.statements {
+            match &substatement.statement {
+                StatementInfo::Let(ls) => {
+                    self.add_let_statement(
+                        project,
+                        DefinedName::typeclass_attr(&typeclass, &ls.name),
+                        ls,
+                        ls.name_token.range(),
+                        Some(&type_params),
+                    )?;
+                }
+                StatementInfo::Define(ds) => {
+                    self.add_define_statement(
+                        project,
+                        DefinedName::typeclass_attr(&typeclass, &ds.name),
+                        None, // No specific instance type for typeclass attributes
+                        Some(&type_params),
+                        ds,
+                        ds.name_token.range(),
+                    )?;
+                }
+                _ => {
+                    return Err(substatement
+                        .error("only let and define statements are allowed in attributes bodies"));
+                }
+            }
+        }
+
+        // Clean up the instance type binding
+        self.bindings.remove_type(instance_name);
         Ok(())
     }
 
@@ -1561,6 +1632,8 @@ datatype_params.clone()
                     None,
                     vec![],
                 );
+                // Mark as required since it's from the initial typeclass definition
+                self.bindings.mark_typeclass_attribute_required(&typeclass, &attr_name.text());
             }
         }
 
@@ -1734,6 +1807,7 @@ datatype_params.clone()
                 // This attribute is inherited, so we don't need to check it.
                 continue;
             }
+            
             let tc_attr_name = ConstantName::typeclass_attr(typeclass.clone(), attr_name);
             let tc_bindings = self.bindings.get_bindings(typeclass.module_id, project);
             if tc_bindings.is_theorem(&tc_attr_name) {
@@ -1759,6 +1833,12 @@ datatype_params.clone()
                     self.bindings.get_definition(&name).cloned()
                 });
                 conditions.push(condition);
+                continue;
+            }
+
+            // Only check required attributes for implementation
+            if !self.bindings.is_typeclass_attribute_required(&typeclass, attr_name) {
+                // This is an optional attribute added via "attributes" statement, skip validation
                 continue;
             }
 
