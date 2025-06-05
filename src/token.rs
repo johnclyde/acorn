@@ -48,6 +48,7 @@ pub enum TokenType {
     False,
     Else,
     Class,
+    Attributes,
     Asterisk,
     Percent,
     Slash,
@@ -90,6 +91,7 @@ pub fn keyword_map() -> &'static BTreeMap<&'static str, TokenType> {
             ("false", TokenType::False),
             ("else", TokenType::Else),
             ("class", TokenType::Class),
+            ("attributes", TokenType::Attributes),
             ("numerals", TokenType::Numerals),
             ("from", TokenType::From),
             ("solve", TokenType::Solve),
@@ -354,6 +356,7 @@ impl TokenType {
             TokenType::False => "false",
             TokenType::Else => "else",
             TokenType::Class => "class",
+            TokenType::Attributes => "attributes",
             TokenType::Asterisk => "*",
             TokenType::Percent => "%",
             TokenType::Slash => "/",
@@ -507,6 +510,7 @@ impl Token {
             | TokenType::False
             | TokenType::Else
             | TokenType::Class
+            | TokenType::Attributes
             | TokenType::Numerals
             | TokenType::From
             | TokenType::Solve

@@ -1549,7 +1549,7 @@ impl Statement {
                         let s = parse_import_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
-                    TokenType::Class => {
+                    TokenType::Class | TokenType::Attributes => {
                         let keyword = tokens.next().unwrap();
                         let s = parse_class_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
