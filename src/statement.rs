@@ -865,7 +865,7 @@ fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<
         statements,
         right_brace: right_brace.clone(),
     };
-    let cs = AttributesStatement {
+    let ats = AttributesStatement {
         name: name_token.to_string(),
         name_token,
         type_params,
@@ -874,7 +874,7 @@ fn parse_attributes_statement(keyword: Token, tokens: &mut TokenIter) -> Result<
     let statement = Statement {
         first_token: keyword,
         last_token: right_brace,
-        statement: StatementInfo::Attributes(cs),
+        statement: StatementInfo::Attributes(ats),
     };
     Ok(statement)
 }
@@ -1384,10 +1384,10 @@ impl Statement {
                 }
             }
 
-            StatementInfo::Attributes(cs) => {
-                write!(f, "attributes {}", cs.name)?;
-                write_type_params(f, &cs.type_params)?;
-                write_block(f, &cs.body.statements, indentation)
+            StatementInfo::Attributes(ats) => {
+                write!(f, "attributes {}", ats.name)?;
+                write_type_params(f, &ats.type_params)?;
+                write_block(f, &ats.body.statements, indentation)
             }
 
             StatementInfo::Numerals(ds) => {

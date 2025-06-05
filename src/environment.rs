@@ -1416,28 +1416,28 @@ impl Environment {
         &mut self,
         project: &mut Project,
         statement: &Statement,
-        cs: &AttributesStatement,
+        ats: &AttributesStatement,
     ) -> compilation::Result<()> {
         self.add_other_lines(statement);
-        let potential = match self.bindings.get_type_for_typename(&cs.name) {
+        let potential = match self.bindings.get_type_for_typename(&ats.name) {
             Some(potential) => potential.clone(),
             None => {
-                return Err(cs
+                return Err(ats
                     .name_token
-                    .error(&format!("undefined type name '{}'", cs.name)));
+                    .error(&format!("undefined type name '{}'", ats.name)));
             }
         };
         let type_params = self
             .evaluator(project)
-            .evaluate_type_params(&cs.type_params)?;
+            .evaluate_type_params(&ats.type_params)?;
         let mut params = vec![];
         for param in &type_params {
             params.push(self.bindings.add_arbitrary_type(param.clone()));
         }
-        let instance_type = potential.invertible_resolve(params, &cs.name_token)?;
-        let class = self.check_can_add_attributes(&cs.name_token, &instance_type)?;
+        let instance_type = potential.invertible_resolve(params, &ats.name_token)?;
+        let class = self.check_can_add_attributes(&ats.name_token, &instance_type)?;
 
-        for substatement in &cs.body.statements {
+        for substatement in &ats.body.statements {
             match &substatement.statement {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
@@ -1464,7 +1464,7 @@ impl Environment {
                 }
             }
         }
-        for type_param in &cs.type_params {
+        for type_param in &ats.type_params {
             self.bindings.remove_type(type_param.name.text());
         }
         Ok(())
@@ -2232,7 +2232,7 @@ impl Environment {
 
             StatementInfo::Import(is) => self.add_import_statement(project, statement, is),
 
-            StatementInfo::Attributes(cs) => self.add_class_statement(project, statement, cs),
+            StatementInfo::Attributes(ats) => self.add_class_statement(project, statement, ats),
 
             StatementInfo::Numerals(ds) => self.add_numerals_statement(project, statement, ds),
 
