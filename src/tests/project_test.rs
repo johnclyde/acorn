@@ -969,3 +969,51 @@ fn test_import_from_default_ac() {
 
     p.expect_ok("main");
 }
+
+#[test]
+fn test_typeclass_attributes_across_files() {
+    let mut p = Project::new_mock();
+    // Define the typeclass
+    p.mock(
+        "/mock/addable.ac",
+        r#"
+        typeclass A: Addable {
+            zero: A
+        }
+        "#,
+    );
+    // Add attributes to the typeclass
+    p.mock(
+        "/mock/addable_attrs.ac",
+        r#"
+        from addable import Addable
+        
+        attributes A: Addable {
+            define is_zero(self) -> Bool {
+                self = A.zero
+            }
+        }
+        "#,
+    );
+    // Import both and use the attribute
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        from addable import Addable
+        import addable_attrs
+        
+        inductive MyType {
+            value
+        }
+        
+        instance MyType: Addable {
+            let zero = MyType.value
+        }
+        
+        theorem test_use_attribute {
+            MyType.value.is_zero
+        }
+        "#,
+    );
+    p.expect_ok("main");
+}
