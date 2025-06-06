@@ -1655,6 +1655,8 @@ impl Environment {
         // Check that we have all implementations.
         let attributes = self.bindings.get_typeclass_attributes(&typeclass, &project);
         let mut conditions = vec![];
+        let mut defaults_to_add = vec![]; // Collect defaults to add after the loop
+        
         for (attr_name, (_module_id, root_tc)) in attributes.iter() {
             if root_tc != &typeclass {
                 // This attribute is inherited, so we don't need to check it.
@@ -1701,10 +1703,41 @@ impl Environment {
             let name =
                 DefinedName::instance(typeclass.clone(), attr_name, instance_datatype.clone());
             if !self.bindings.constant_name_in_use(&name) {
-                return Err(
-                    statement.error(&format!("missing implementation for attribute '{}'", name))
-                );
+                // Check if a datatype attribute with the same name exists
+                let datatype_attr_name = DefinedName::datatype_attr(&instance_datatype, attr_name);
+                if self.bindings.constant_name_in_use(&datatype_attr_name) {
+                    // Check that the types match
+                    let tc_attr_name = DefinedName::typeclass_attr(&typeclass, attr_name);
+                    let tc_attr = self.bindings.get_constant_value(&tc_attr_name, statement)?;
+                    let tc_unresolved = tc_attr.as_unresolved(statement)?;
+                    let tc_resolved = tc_unresolved.resolve(statement, vec![instance_type.clone()])?;
+                    let tc_type = tc_resolved.get_type();
+                    
+                    let dt_attr = self.bindings.get_constant_value(&datatype_attr_name, statement)?;
+                    let dt_value = dt_attr.as_value(statement)?;
+                    let dt_type = dt_value.get_type();
+                    
+                    if tc_type != dt_type {
+                        return Err(statement.error(&format!(
+                            "type mismatch for attribute '{}': typeclass expects {}, but datatype has {}",
+                            attr_name, tc_type, dt_type
+                        )));
+                    }
+                    
+                    // Store the information to add the default after the loop
+                    defaults_to_add.push((name, tc_type, dt_value.clone(), tc_resolved, dt_value));
+                } else {
+                    return Err(
+                        statement.error(&format!("missing implementation for attribute '{}'", name))
+                    );
+                }
             }
+        }
+        
+        // Now add any defaults we found
+        for (name, tc_type, dt_value, tc_resolved, dt_value_for_pair) in defaults_to_add {
+            self.define_constant(name, vec![], tc_type, Some(dt_value), statement.range());
+            pairs.push((tc_resolved, dt_value_for_pair));
         }
 
         // Create a node for the instance relationship.
