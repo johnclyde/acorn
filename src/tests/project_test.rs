@@ -1022,7 +1022,7 @@ fn test_typeclass_attributes_across_files() {
 fn test_diamond_typeclass_attribute_conflict() {
     // Similar to test_diamond_attribute_conflict but for typeclass attributes
     let mut p = Project::new_mock();
-    // Define the typeclass  
+    // Define the typeclass
     p.mock(
         "/mock/addable.ac",
         r#"
@@ -1068,4 +1068,40 @@ fn test_diamond_typeclass_attribute_conflict() {
     p.expect_ok("addable_attrs1");
     p.expect_ok("addable_attrs2");
     p.expect_module_err("main");
+}
+
+#[test]
+fn test_deep_required_attribute_lookup() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/semigroup.ac",
+        r#"
+        typeclass S: Semigroup {
+            // The semigroup operation
+            mul: (S, S) -> S
+        }
+        "#,
+    );
+    p.mock(
+        "/mock/group.ac",
+        r#"
+        from semigroup import Semigroup
+        typeclass G: Group extends Semigroup {
+            item: G
+        }
+        "#,
+    );
+    p.mock(
+        "/mock/subgroup.ac",
+        r#"
+        from group import Group
+
+        define closure_constraint<G: Group>(contains: G -> Bool) -> Bool {
+            forall(a: G, b: G) {
+                contains(a) and contains(b) implies contains(a * b)
+            }
+        }
+        "#,
+    );
+    p.expect_ok("subgroup");
 }
