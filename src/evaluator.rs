@@ -423,7 +423,9 @@ impl<'a> Evaluator<'a> {
             // Get the bindings from the module where this attribute was actually defined
             let bindings = self.get_bindings(attr_module_id);
             let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
-            return bindings.get_constant_value(&defined_name, source);
+            let attr_value = bindings.get_constant_value(&defined_name, source)?;
+            
+            return Ok(attr_value);
         }
 
         // If no attribute found, return error

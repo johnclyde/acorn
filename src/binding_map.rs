@@ -1041,8 +1041,13 @@ impl BindingMap {
             if entry.range.is_none() {
                 entry.range = imported_info.range.clone();
             }
-            // Note: We don't need to merge extends or required since those are set during typeclass definition,
-            // not during attribute definition
+            // Merge extends and required sets
+            for extends_tc in &imported_info.extends {
+                entry.extends.insert(extends_tc.clone());
+            }
+            for required_attr in &imported_info.required {
+                entry.required.insert(required_attr.clone());
+            }
         }
         Ok(())
     }
