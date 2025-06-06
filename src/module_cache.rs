@@ -126,8 +126,8 @@ impl ModuleCache {
         if ext != "yaml" {
             return None;
         }
-        let stem = relative_filename.file_stem()?;
-        let name = stem.to_string_lossy().to_string().replace("/", ".");
+        let path_without_extension = relative_filename.with_extension("");
+        let name = path_without_extension.to_string_lossy().to_string().replace("/", ".");
         let descriptor = ModuleDescriptor::Name(name);
         let module_cache = ModuleCache::load(full_filename).ok()?;
         Some((descriptor, module_cache))

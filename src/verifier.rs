@@ -291,7 +291,7 @@ mod tests {
         // Create a nested directory structure
         let foo_dir = src.child("foo");
         foo_dir.create_dir_all().unwrap();
-        
+
         // Create a file at foo/bar.ac with one theorem
         let bar_ac = foo_dir.child("bar.ac");
         bar_ac
