@@ -1194,3 +1194,25 @@ fn test_accessing_inherited_required_attributes() {
         "#,
     );
 }
+
+#[test]
+fn test_required_attributes_default_to_same_name() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                flag: Bool
+            }
+
+            inductive Bar {
+                bar
+            }
+
+            attributes Bar {
+                let flag: Bool = true
+            }
+
+            instance Bar: Foo
+        "#,
+    );
+}
