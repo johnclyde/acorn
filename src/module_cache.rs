@@ -127,7 +127,11 @@ impl ModuleCache {
             return None;
         }
         let path_without_extension = relative_filename.with_extension("");
-        let name = path_without_extension.to_string_lossy().to_string().replace("/", ".");
+        let name = path_without_extension
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(".");
         let descriptor = ModuleDescriptor::Name(name);
         let module_cache = ModuleCache::load(full_filename).ok()?;
         Some((descriptor, module_cache))
