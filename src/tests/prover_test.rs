@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use super::common::*;
 use crate::project::Project;
 use crate::prover::Outcome;
-use super::common::*;
+use std::collections::HashSet;
 
 #[test]
 fn test_specialization() {
@@ -2236,6 +2236,40 @@ fn test_typeclass_attribute_semantics() {
             
             theorem goal<A: Addable>(x: A) {
                 x.plus_zero = A.add(x, A.zero)
+            }
+        "#;
+    verify_succeeds(text);
+}
+
+#[test]
+fn test_redefining_provided_attribute_works() {
+    let text = r#"
+            typeclass A: Arf {
+                vacuous_condition {
+                    true
+                }
+            }
+
+            attributes A: Arf {
+                define flag(self) -> Bool {
+                    false
+                }
+            }
+
+            inductive Foo {
+                foo
+            }
+
+            instance Foo: Arf
+
+            attributes Foo {
+                define flag(self) -> Bool {
+                    true
+                }
+            }
+
+            theorem goal(f: Foo) {
+                f.flag
             }
         "#;
     verify_succeeds(text);
