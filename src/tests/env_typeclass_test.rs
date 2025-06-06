@@ -1044,7 +1044,7 @@ fn test_env_duplicate_typeclass_attributes_error() {
             }
         "#,
     );
-    
+
     // This should error because TestType.shared_attr is ambiguous
     env.bad(
         r#"
@@ -1169,6 +1169,27 @@ fn test_env_constant_attributes_on_extensions() {
             
             theorem test_instance_flag(t: TestType) {
                 TestType.flag = true
+            }
+        "#,
+    );
+}
+
+#[test]
+fn test_accessing_inherited_required_attributes() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            typeclass F: Foo {
+                foo: F -> Bool
+                foo_flag: Bool
+            }
+
+            typeclass B: Bar extends Foo {
+                bar_flag: Bool
+            }
+
+            theorem goal<B: Bar>(b: B) {
+                b.foo = B.foo_flag
             }
         "#,
     );
