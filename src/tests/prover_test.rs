@@ -2274,3 +2274,27 @@ fn test_redefining_provided_attribute_works() {
         "#;
     verify_succeeds(text);
 }
+
+#[test]
+fn test_proving_with_default_required_attribute() {
+    let text = r#"
+            typeclass A: Arf {
+                foo: A
+                bar: A
+            }
+
+            inductive Foo {
+                foo
+                bar
+            }
+
+            instance Foo: Arf
+
+            let diff<A: Arf> = (A.foo != A.bar)
+
+            theorem goal {
+                diff<Foo>
+            }
+        "#;
+    verify_succeeds(text);
+}
