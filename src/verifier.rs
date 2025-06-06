@@ -284,6 +284,77 @@ mod tests {
     }
 
     #[test]
+    fn test_verifier_uses_nested_cache() {
+        // Create a temporary directory with the new acorn.toml + src layout
+        let (acornlib, src, build) = setup();
+
+        // Create a nested directory structure
+        let foo_dir = src.child("foo");
+        foo_dir.create_dir_all().unwrap();
+        
+        // Create a file at foo/bar.ac with one theorem
+        let bar_ac = foo_dir.child("bar.ac");
+        bar_ac
+            .write_str(
+                r#"
+                theorem nested_truth {
+                    true
+                }
+                "#,
+            )
+            .unwrap();
+
+        // Create a verifier targeting the nested module
+        let verifier = Verifier::new(
+            acornlib.path().to_path_buf(),
+            ProverMode::Standard,
+            Some("foo.bar".to_string()),
+            false,
+        );
+
+        // Run the verifier the first time
+        let result = verifier.run();
+        assert!(
+            result.is_ok(),
+            "First verifier run should succeed: {:?}",
+            result
+        );
+
+        // Check that we actually proved something
+        let output = result.unwrap();
+        assert_eq!(output.status, BuildStatus::Good);
+        assert_eq!(output.metrics.goals_total, 1); // Should have 1 theorem to prove
+        assert_eq!(output.metrics.goals_success, 1); // Should have successfully proven 1 theorem
+        assert!(output.metrics.searches_total > 0); // Should have performed at least one search
+
+        // Check that we created a file in the nested build directory
+        let build_foo_dir = build.child("foo");
+        let build_file = build_foo_dir.child("bar.yaml");
+        assert!(
+            build_file.exists(),
+            "Cache file should exist at build/foo/bar.yaml"
+        );
+
+        // Verify again - should use the cache
+        let result2 = verifier.run();
+        assert!(
+            result2.is_ok(),
+            "Second verifier should successfully run: {:?}",
+            result2
+        );
+
+        // Check that the cache was used
+        let output2 = result2.unwrap();
+        assert_eq!(output2.status, BuildStatus::Good);
+        assert_eq!(
+            output2.metrics.searches_total, 0,
+            "Should use cache and perform no searches"
+        );
+
+        acornlib.close().unwrap();
+    }
+
+    #[test]
     fn test_verifier_filter_picks_up_imported_extends() {
         let (acornlib, src, _) = setup();
 
@@ -439,7 +510,10 @@ mod tests {
         // Create both foo.ac and foo/default.ac
         src.child("foo.ac").write_str("type Foo: axiom").unwrap();
         std::fs::create_dir_all(src.child("foo").path()).unwrap();
-        src.child("foo").child("default.ac").write_str("type Bar: axiom").unwrap();
+        src.child("foo")
+            .child("default.ac")
+            .write_str("type Bar: axiom")
+            .unwrap();
 
         // Try to import the ambiguous module
         src.child("main.ac").write_str("import foo").unwrap();
@@ -453,14 +527,19 @@ mod tests {
 
         let result = verifier.run();
         let Ok(output) = result else {
-            panic!("Verifier should run but report compilation error: {:?}", result);
+            panic!(
+                "Verifier should run but report compilation error: {:?}",
+                result
+            );
         };
 
         // The verifier should report a compilation error
         assert_eq!(output.status, BuildStatus::Error);
-        
+
         // Check that the error message contains "ambiguous"
-        let error_messages: Vec<String> = output.events.iter()
+        let error_messages: Vec<String> = output
+            .events
+            .iter()
             .filter_map(|e| e.log_message.as_ref())
             .cloned()
             .collect();
