@@ -25,6 +25,12 @@ jobs:
           path: onnxruntime
           key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
 
+      # We ran into a problem where the runner sometimes changed directory names, thus borking
+      # this cache. This just makes us always rebuild.
+      - name: Remove stale build dir if paths mismatch
+        if: steps.cache-onnxruntime.outputs.cache-hit == 'true'
+        run: Remove-Item -Recurse -Force onnxruntime\build
+
       - name: Build ONNX Runtime
         run: .\build.bat --build_dir onnxruntime\build\Windows ^
           --config Release --parallel --skip_tests ^
