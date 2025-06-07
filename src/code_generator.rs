@@ -1083,4 +1083,42 @@ mod tests {
         p.check_code("main", "Foo.foo.sub");
         p.check_code("main", "Foo.foo - Foo.foo");
     }
+
+    #[test]
+    fn test_codegen_instance_attribute_access() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass F: Foo {
+                vacuous {
+                    true
+                }
+            }
+
+            attributes F: Foo {
+                let flag: Bool = true
+                define foo(self) -> Bool {
+                    true
+                }
+            }
+
+            inductive Bar {
+                bar
+            }
+
+            instance Bar: Foo
+
+            theorem const_attr(b: Bar) {
+                Bar.flag
+            }
+
+            theorem fn_attr(b: Bar) {
+                b.foo
+            }
+            "#,
+        );
+        p.check_goal_code("main", "const_attr", "Bar.flag");
+        p.check_goal_code("main", "fn_attr", "b.foo");
+    }
 }
