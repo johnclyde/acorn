@@ -314,25 +314,26 @@ impl CodeGenerator<'_> {
                 // Check if we could replace this with receiver+attribute syntax
                 let receiver_type = fa.args[0].get_type();
                 if let Some((module_id, entity, attr)) = fa.function.as_attribute() {
-                    let is_typeclass_instance = if let AcornValue::Constant(c) = fa.function.as_ref() {
-                        if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
-                            if let AcornType::Data(datatype, _) = &receiver_type {
-                                self.bindings.is_instance_of(datatype, typeclass)
+                    let is_typeclass_instance =
+                        if let AcornValue::Constant(c) = fa.function.as_ref() {
+                            if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
+                                if let AcornType::Data(datatype, _) = &receiver_type {
+                                    self.bindings.is_instance_of(datatype, typeclass)
+                                } else {
+                                    false
+                                }
                             } else {
                                 false
                             }
                         } else {
                             false
-                        }
-                    } else {
-                        false
-                    };
-                    
-                    let use_receiver_syntax = self
-                        .bindings
-                        .inherits_attributes(&receiver_type, module_id, entity)
-                        || is_typeclass_instance;
-                    
+                        };
+
+                    let use_receiver_syntax =
+                        self.bindings
+                            .inherits_attributes(&receiver_type, module_id, entity)
+                            || is_typeclass_instance;
+
                     if use_receiver_syntax {
                         // We can use receiver+attribute syntax
                         if args.len() == 1 {
@@ -426,7 +427,7 @@ impl CodeGenerator<'_> {
                             let rhs = Expression::generate_identifier(&attr);
                             return Ok(Expression::generate_dot(lhs, rhs));
                         }
-                        
+
                         // Check if this is a typeclass attribute being accessed on an instance type
                         if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
                             if let AcornType::Data(datatype, _) = &c.params[0] {
@@ -1148,5 +1149,51 @@ mod tests {
         );
         p.check_goal_code("main", "const_attr", "Bar.flag");
         p.check_goal_code("main", "fn_attr", "b.foo");
+    }
+
+    #[test]
+    fn test_codegen_overridden_attribute() {
+        let mut p = Project::new_mock();
+        p.mock(
+            "/mock/main.ac",
+            r#"
+            typeclass F: Foo {
+                vacuous {
+                    true
+                }
+            }
+
+            attributes F: Foo {
+                let flag: Bool = true
+                define foo(self) -> Bool {
+                    true
+                }
+            }
+
+            inductive Bar {
+                bar
+            }
+
+            instance Bar: Foo
+
+            // These override, changing the desired codegen.
+            attributes Bar {
+                let flag: Bool = false
+                define foo(self) -> Bool {
+                    false
+                }
+            }
+
+            theorem const_attr(b: Bar) {
+                Foo.flag<Bar>
+            }
+
+            theorem fn_attr(b: Bar) {
+                Foo.foo<Bar>(b)
+            }
+            "#,
+        );
+        p.check_goal_code("main", "const_attr", "Foo.flag<Bar>");
+        p.check_goal_code("main", "fn_attr", "Foo.foo<Bar>(b)");
     }
 }
