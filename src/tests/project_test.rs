@@ -1105,3 +1105,52 @@ fn test_deep_required_attribute_lookup() {
     );
     p.expect_ok("subgroup");
 }
+
+#[test]
+fn test_hover_method_call() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        indoc! {r#"
+    inductive Foo {                                 // line 1
+        foo
+    }
+
+    attributes Foo {
+        define bar(self, x: Bool) -> Bool {
+            x
+        }
+    }
+
+    let foo_instance: Foo = Foo.foo                 // line 11  
+    let result = foo_instance.bar(true)             // line 12
+    // 01234567890123456789012345678901234567890
+    "#},
+    );
+    p.expect_ok("main");
+    let desc = ModuleDescriptor::Name("main".to_string());
+    let env = p.get_env(&desc).expect("no env for main");
+    
+    // Test hovering over the method name in method call
+    // Line 11: let result = foo_instance.bar(true)
+    //                                    ^^^
+    // Hovering over "bar" at columns 26-28
+    
+    let method_hover = p.hover(&env, 11, 27); // over "bar" 
+    assert!(method_hover.is_some(), "should be able to hover over method name");
+    
+    let hover_str = format!("{:?}", method_hover.unwrap());
+    println!("Method hover result: {}", hover_str);
+    
+    // This test demonstrates the current issue:
+    // The hover shows "Foo.foo.bar: Bool -> Bool" (method bound to instance)
+    // Instead of the expected "Foo.bar: (self: Foo, x: Bool) -> Bool" (general method signature)
+    
+    // Current behavior: shows the bound method
+    assert!(hover_str.contains("Foo.foo.bar"), 
+            "Current behavior: hover shows method bound to instance");
+    
+    // TODO: When fixed, this should show general method info like "Foo.bar"
+    // assert!(hover_str.contains("Foo.bar") && !hover_str.contains("Foo.foo.bar"),
+    //        "Expected behavior: hover should show general method definition");
+}
