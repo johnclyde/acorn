@@ -7,7 +7,7 @@ use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
 use crate::expression::{Declaration, Expression};
 use crate::module::ModuleId;
-use crate::names::ConstantName;
+use crate::names::{ConstantName, DefinedName};
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
 
@@ -318,7 +318,13 @@ impl CodeGenerator<'_> {
                         if let AcornValue::Constant(c) = fa.function.as_ref() {
                             if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
                                 if let AcornType::Data(datatype, _) = &receiver_type {
-                                    self.bindings.is_instance_of(datatype, typeclass)
+                                    if self.bindings.is_instance_of(datatype, typeclass) {
+                                        // Check if the datatype has its own attribute with the same name
+                                        let datatype_attr_name = DefinedName::datatype_attr(datatype, &attr);
+                                        !self.bindings.constant_name_in_use(&datatype_attr_name)
+                                    } else {
+                                        false
+                                    }
                                 } else {
                                     false
                                 }
@@ -381,7 +387,28 @@ impl CodeGenerator<'_> {
                     }
                 }
 
-                let f = self.value_to_expr(&fa.function, true)?;
+                // For overridden typeclass attributes, we need explicit parameters
+                // to distinguish from the datatype's own attributes
+                let inferrable = if let AcornValue::Constant(c) = fa.function.as_ref() {
+                    if let ConstantName::TypeclassAttribute(typeclass, attr_name) = &c.name {
+                        if let AcornType::Data(datatype, _) = &receiver_type {
+                            if self.bindings.is_instance_of(datatype, typeclass) {
+                                let datatype_attr_name = DefinedName::datatype_attr(datatype, attr_name);
+                                // If the datatype has its own attribute, don't infer parameters
+                                !self.bindings.constant_name_in_use(&datatype_attr_name)
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                };
+                let f = self.value_to_expr(&fa.function, inferrable)?;
                 let grouped_args = Expression::generate_paren_grouping(args);
                 Ok(Expression::Concatenation(
                     Box::new(f),
@@ -432,10 +459,15 @@ impl CodeGenerator<'_> {
                         if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
                             if let AcornType::Data(datatype, _) = &c.params[0] {
                                 if self.bindings.is_instance_of(datatype, typeclass) {
-                                    // Generate DataType.attribute instead of Typeclass.attribute<DataType>
-                                    let lhs = self.type_to_expr(&c.params[0])?;
-                                    let rhs = Expression::generate_identifier(&attr);
-                                    return Ok(Expression::generate_dot(lhs, rhs));
+                                    // Check if the datatype has its own attribute with the same name
+                                    let datatype_attr_name = DefinedName::datatype_attr(datatype, &attr);
+                                    if !self.bindings.constant_name_in_use(&datatype_attr_name) {
+                                        // Generate DataType.attribute instead of Typeclass.attribute<DataType>
+                                        // only if the datatype doesn't override this attribute
+                                        let lhs = self.type_to_expr(&c.params[0])?;
+                                        let rhs = Expression::generate_identifier(&attr);
+                                        return Ok(Expression::generate_dot(lhs, rhs));
+                                    }
                                 }
                             }
                         }
