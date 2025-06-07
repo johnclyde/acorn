@@ -314,10 +314,26 @@ impl CodeGenerator<'_> {
                 // Check if we could replace this with receiver+attribute syntax
                 let receiver_type = fa.args[0].get_type();
                 if let Some((module_id, entity, attr)) = fa.function.as_attribute() {
-                    if self
+                    let is_typeclass_instance = if let AcornValue::Constant(c) = fa.function.as_ref() {
+                        if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
+                            if let AcornType::Data(datatype, _) = &receiver_type {
+                                self.bindings.is_instance_of(datatype, typeclass)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    
+                    let use_receiver_syntax = self
                         .bindings
                         .inherits_attributes(&receiver_type, module_id, entity)
-                    {
+                        || is_typeclass_instance;
+                    
+                    if use_receiver_syntax {
                         // We can use receiver+attribute syntax
                         if args.len() == 1 {
                             // Prefix operators
@@ -409,6 +425,18 @@ impl CodeGenerator<'_> {
                             let lhs = self.type_to_expr(&c.params[0])?;
                             let rhs = Expression::generate_identifier(&attr);
                             return Ok(Expression::generate_dot(lhs, rhs));
+                        }
+                        
+                        // Check if this is a typeclass attribute being accessed on an instance type
+                        if let ConstantName::TypeclassAttribute(typeclass, _) = &c.name {
+                            if let AcornType::Data(datatype, _) = &c.params[0] {
+                                if self.bindings.is_instance_of(datatype, typeclass) {
+                                    // Generate DataType.attribute instead of Typeclass.attribute<DataType>
+                                    let lhs = self.type_to_expr(&c.params[0])?;
+                                    let rhs = Expression::generate_identifier(&attr);
+                                    return Ok(Expression::generate_dot(lhs, rhs));
+                                }
+                            }
                         }
                     }
                 }
@@ -875,7 +903,7 @@ mod tests {
             }
             "#,
         );
-        p.check_code("main", "magma.Magma.op(Z1.zero, Z1.zero) = Z1.zero");
+        p.check_code("main", "Z1.zero.op(Z1.zero) = Z1.zero");
     }
 
     #[test]
@@ -905,7 +933,7 @@ mod tests {
             }
             "#,
         );
-        p.check_code("main", "Magma.mul(Z1.zero, Z1.zero) = Z1.zero");
+        p.check_code("main", "Z1.zero * Z1.zero = Z1.zero");
     }
 
     #[test]

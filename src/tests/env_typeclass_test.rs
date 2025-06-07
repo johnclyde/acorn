@@ -635,8 +635,8 @@ fn test_instance_codegen() {
         "#,
     );
 
-    env.bindings.expect_good_code("Foo.bar<Qux>");
-    env.bindings.expect_good_code("Foo.inverse(Qux.qux)");
+    env.bindings.expect_good_code("Qux.bar");
+    env.bindings.expect_good_code("Qux.qux.inverse");
 }
 
 #[test]
