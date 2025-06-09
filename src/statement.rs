@@ -2297,4 +2297,14 @@ mod tests {
     fn test_parsing_doc_comment_pseudo_statement() {
         ok("/// This is a doc comment");
     }
+
+    #[test]
+    fn test_parsing_todo_statement() {
+        ok(indoc! {"
+        todo {
+            theorem foo(a: Bool, b: Bool) {
+                a = b or a or b
+            }
+        }"});
+    }
 }
