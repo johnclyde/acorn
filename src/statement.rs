@@ -260,6 +260,12 @@ pub struct InstanceStatement {
     pub body: Option<Body>,
 }
 
+/// A todo statement contains a body that is syntactically verified but not proven.
+/// This represents things we want to prove but don't yet know how to prove.
+pub struct TodoStatement {
+    pub body: Body,
+}
+
 /// Acorn is a statement-based language. There are several types.
 /// Each type has its own struct.
 pub struct Statement {
@@ -295,6 +301,7 @@ pub enum StatementInfo {
     Match(MatchStatement),
     Typeclass(TypeclassStatement),
     Instance(InstanceStatement),
+    Todo(TodoStatement),
 
     /// A doc comment is not actually a statement, but it is treated like one in the parser.
     /// Has the leading /// along with leading and trailing whitespace stripped.
@@ -1187,6 +1194,23 @@ fn parse_instance_statement(keyword: Token, tokens: &mut TokenIter) -> Result<St
     Ok(statement)
 }
 
+fn parse_todo_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statement> {
+    let left_brace = tokens.expect_type(TokenType::LeftBrace)?;
+    let (statements, right_brace) = parse_block(tokens)?;
+    let body = Body {
+        left_brace,
+        statements,
+        right_brace: right_brace.clone(),
+    };
+    let ts = TodoStatement { body };
+    let statement = Statement {
+        first_token: keyword,
+        last_token: right_brace,
+        statement: StatementInfo::Todo(ts),
+    };
+    Ok(statement)
+}
+
 /// Writes the type parameters for a statement.
 fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParamExpr]) -> fmt::Result {
     if type_params.len() == 0 {
@@ -1423,6 +1447,11 @@ impl Statement {
                 write_block(f, &body.statements, indentation)
             }
 
+            StatementInfo::Todo(ts) => {
+                write!(f, "todo")?;
+                write_block(f, &ts.body.statements, indentation)
+            }
+
             StatementInfo::Match(ms) => {
                 let new_indentation = add_indent(indentation);
                 write!(f, "match {} {{", ms.scrutinee)?;
@@ -1624,6 +1653,11 @@ impl Statement {
                     TokenType::Instance => {
                         let keyword = tokens.next().unwrap();
                         let s = parse_instance_statement(keyword, tokens)?;
+                        return Ok((Some(s), None));
+                    }
+                    TokenType::Todo => {
+                        let keyword = tokens.next().unwrap();
+                        let s = parse_todo_statement(keyword, tokens)?;
                         return Ok((Some(s), None));
                     }
                     TokenType::DocComment => {

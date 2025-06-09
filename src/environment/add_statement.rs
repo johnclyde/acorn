@@ -20,7 +20,7 @@ use crate::statement::{
     AttributesStatement, Body, ClaimStatement, DefineStatement, ForAllStatement,
     FunctionSatisfyStatement, IfStatement, ImportStatement, InductiveStatement, InstanceStatement,
     LetStatement, MatchStatement, NumeralsStatement, SolveStatement, Statement, StatementInfo,
-    StructureStatement, TheoremStatement, TypeStatement, TypeclassStatement,
+    StructureStatement, TheoremStatement, TodoStatement, TypeStatement, TypeclassStatement,
     VariableSatisfyStatement,
 };
 use crate::token::{Token, TokenIter, TokenType};
@@ -158,6 +158,8 @@ impl Environment {
             StatementInfo::Typeclass(ts) => self.add_typeclass_statement(project, statement, ts),
 
             StatementInfo::Instance(is) => self.add_instance_statement(project, statement, is),
+
+            StatementInfo::Todo(ts) => self.add_todo_statement(project, statement, ts),
 
             StatementInfo::DocComment(s) => {
                 let current_line = statement.first_line();
@@ -2063,6 +2065,29 @@ impl Environment {
             statement.first_line(),
             statement.last_line(),
             Some(body),
+        )?;
+
+        let index = self.add_node(Node::block(project, self, block, None));
+        self.add_node_lines(index, &statement.range());
+        Ok(())
+    }
+
+    /// Adds a todo statement to the environment.
+    fn add_todo_statement(
+        &mut self,
+        project: &mut Project,
+        statement: &Statement,
+        ts: &TodoStatement,
+    ) -> compilation::Result<()> {
+        let block = Block::new(
+            project,
+            &self,
+            vec![],
+            vec![],
+            BlockParams::Todo,
+            statement.first_line(),
+            statement.last_line(),
+            Some(&ts.body),
         )?;
 
         let index = self.add_node(Node::block(project, self, block, None));

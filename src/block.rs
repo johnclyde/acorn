@@ -92,6 +92,7 @@ pub enum BlockParams<'a> {
     /// No special params needed
     ForAll,
     Problem,
+    Todo,
 }
 
 impl Block {
@@ -213,7 +214,7 @@ impl Block {
                 Some(Goal::Prove(Proposition::monomorphic(constraint, source)))
             }
             BlockParams::Solve(target, range) => Some(Goal::Solve(target, range)),
-            BlockParams::ForAll | BlockParams::Problem => None,
+            BlockParams::ForAll | BlockParams::Problem | BlockParams::Todo => None,
         };
 
         match body {
