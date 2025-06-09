@@ -1112,17 +1112,18 @@ fn test_hover_method_call() {
     p.mock(
         "/mock/main.ac",
         indoc! {r#"
-    inductive Foo {                                 // line 1
+    inductive Foo {
         foo
     }
 
     attributes Foo {
+        // bar_doc_comment
         define bar(self, x: Bool) -> Bool {
             x
         }
     }
 
-    let foo_instance: Foo = Foo.foo                 // line 11  
+    let foo_instance: Foo = Foo.foo
     let result = foo_instance.bar(true)             // line 12
     // 01234567890123456789012345678901234567890
     "#},
@@ -1130,22 +1131,29 @@ fn test_hover_method_call() {
     p.expect_ok("main");
     let desc = ModuleDescriptor::Name("main".to_string());
     let env = p.get_env(&desc).expect("no env for main");
-    
+
     // Test hovering over the method name in method call
     // Line 11: let result = foo_instance.bar(true)
     //                                    ^^^
     // Hovering over "bar" at columns 26-28
-    
-    let method_hover = p.hover(&env, 11, 27); // over "bar" 
-    assert!(method_hover.is_some(), "should be able to hover over method name");
-    
+
+    let method_hover = p.hover(&env, 12, 27); // over "bar"
+    assert!(
+        method_hover.is_some(),
+        "should be able to hover over method name"
+    );
+
     let hover_str = format!("{:?}", method_hover.unwrap());
     println!("Method hover result: {}", hover_str);
-    
+
     // After the fix, hover should show the general method definition "Foo.bar"
     // instead of the partial application "Foo.foo.bar"
-    assert!(hover_str.contains("Foo.bar"), 
-            "Hover should show general method definition");
-    assert!(!hover_str.contains("Foo.foo.bar"),
-            "Hover should NOT show method bound to instance");
+    assert!(
+        hover_str.contains("Foo.bar"),
+        "Hover should show general method definition"
+    );
+    assert!(
+        !hover_str.contains("Foo.foo.bar"),
+        "Hover should NOT show method bound to instance"
+    );
 }
