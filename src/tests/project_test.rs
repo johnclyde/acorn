@@ -1142,15 +1142,10 @@ fn test_hover_method_call() {
     let hover_str = format!("{:?}", method_hover.unwrap());
     println!("Method hover result: {}", hover_str);
     
-    // This test demonstrates the current issue:
-    // The hover shows "Foo.foo.bar: Bool -> Bool" (method bound to instance)
-    // Instead of the expected "Foo.bar: (self: Foo, x: Bool) -> Bool" (general method signature)
-    
-    // Current behavior: shows the bound method
-    assert!(hover_str.contains("Foo.foo.bar"), 
-            "Current behavior: hover shows method bound to instance");
-    
-    // TODO: When fixed, this should show general method info like "Foo.bar"
-    // assert!(hover_str.contains("Foo.bar") && !hover_str.contains("Foo.foo.bar"),
-    //        "Expected behavior: hover should show general method definition");
+    // After the fix, hover should show the general method definition "Foo.bar"
+    // instead of the partial application "Foo.foo.bar"
+    assert!(hover_str.contains("Foo.bar"), 
+            "Hover should show general method definition");
+    assert!(!hover_str.contains("Foo.foo.bar"),
+            "Hover should NOT show method bound to instance");
 }
