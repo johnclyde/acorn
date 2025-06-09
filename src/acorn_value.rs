@@ -385,6 +385,16 @@ impl AcornValue {
         }
     }
 
+    /// Recursively extract the base function from applications.
+    /// For example, if we have f(a)(b)(c), this returns f.
+    /// This is useful for getting the original function from partial applications.
+    pub fn unapply(&self) -> &AcornValue {
+        match self {
+            AcornValue::Application(app) => app.function.unapply(),
+            _ => self,
+        }
+    }
+
     /// Construct a lambda if we have arguments, but omit it otherwise.
     pub fn lambda(args: Vec<AcornType>, value: AcornValue) -> AcornValue {
         if args.is_empty() {

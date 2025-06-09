@@ -9,7 +9,6 @@ use tower_lsp::lsp_types::{CompletionItem, Hover, HoverContents, MarkedString, U
 use walkdir::WalkDir;
 
 use crate::acorn_type::AcornType;
-use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::build_cache::BuildCache;
@@ -22,7 +21,6 @@ use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::named_entity::NamedEntity;
-use crate::potential_value::PotentialValue;
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
 use crate::token_map::TokenInfo;
@@ -859,48 +857,9 @@ impl Project {
         // First add the main hover content
         let main_content = match &info.entity {
             NamedEntity::Value(value) => {
-                // Check if this is a partial application of a method (where self is already bound)
-                // In that case, we want to show the general method signature instead
-                if let AcornValue::Application(app) = value {
-                    if app.args.len() == 1 {
-                        // This might be a method with self already applied
-                        if let AcornValue::Constant(ci) = &*app.function {
-                            if ci.name.as_attribute().is_some() {
-                                // This is a partial application of an attribute/method
-                                // Show the original method signature instead
-                                // Try to get the original constant value from bindings
-                                // Use a dummy token for error reporting
-                                let dummy_token = Token::empty();
-                                if let Ok(potential) = env.bindings.get_constant_value(
-                                    &ci.name.to_defined(), 
-                                    &dummy_token
-                                ) {
-                                    match potential {
-                                        PotentialValue::Unresolved(unresolved) => {
-                                            // Show the generic type signature
-                                            let generic = unresolved.to_generic_value();
-                                            gen.value_to_marked(&generic)?
-                                        }
-                                        PotentialValue::Resolved(resolved_value) => {
-                                            // For resolved values, show the actual resolved type
-                                            gen.value_to_marked(&resolved_value)?
-                                        }
-                                    }
-                                } else {
-                                    gen.value_to_marked(&value)?
-                                }
-                            } else {
-                                gen.value_to_marked(&value)?
-                            }
-                        } else {
-                            gen.value_to_marked(&value)?
-                        }
-                    } else {
-                        gen.value_to_marked(&value)?
-                    }
-                } else {
-                    gen.value_to_marked(&value)?
-                }
+                // For partial applications, show the base function instead
+                let base_value = value.unapply();
+                gen.value_to_marked(base_value)?
             }
             NamedEntity::UnresolvedValue(unresolved) => {
                 let generic = unresolved.clone().to_generic_value();
