@@ -1190,6 +1190,10 @@ fn test_hover_typeclass_method_with_doc_comment() {
     let foo_instance: Foo = Foo.foo
     let result = foo_instance.do_something              // line 20
     // 34567890123456789012345678901234567890
+
+    theorem goal<T: Thing>(t: T) {
+        t.do_something
+    }
     "#},
     );
     p.expect_ok("main");
@@ -1213,5 +1217,25 @@ fn test_hover_typeclass_method_with_doc_comment() {
     assert!(
         hover_str.contains("do_something_doc_comment"),
         "Hover should include the doc comment for the typeclass method"
+    );
+    
+    // Test hovering over the typeclass method in a generic context
+    // Line 24: t.do_something
+    let generic_method_hover = p.hover(&env, 24, 10); // over "do_something" in t.do_something
+    assert!(
+        generic_method_hover.is_some(),
+        "should be able to hover over typeclass method in generic context"
+    );
+    
+    let generic_hover_str = format!("{:?}", generic_method_hover.unwrap());
+    println!("Generic typeclass method hover result: {}", generic_hover_str);
+    
+    assert!(
+        generic_hover_str.contains("T.do_something"),
+        "Hover should show the typeclass method with type parameter"
+    );
+    assert!(
+        generic_hover_str.contains("do_something_doc_comment"),
+        "Hover should include the doc comment for the typeclass method in generic context"
     );
 }
