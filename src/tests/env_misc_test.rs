@@ -361,3 +361,48 @@ fn test_structure_with_constraint_and_by_block() {
     );
     assert_eq!(env.iter_goals().count(), 2);
 }
+
+#[test]
+fn test_todo_statement() {
+    let mut env = Environment::test();
+    env.add(
+        r#"
+            let a: Bool = axiom
+            let b: Bool = axiom
+            
+            todo {
+                theorem foo(x: Bool, y: Bool) {
+                    x = y or x or y
+                }
+                
+                axiom bar {
+                    a and b
+                }
+                
+                if a {
+                    b
+                }
+            }
+            
+            theorem actual_theorem {
+                a or not a
+            }
+        "#,
+    );
+    
+    // Debug: print out all goals to understand what's happening
+    let goals: Vec<_> = env.iter_goals().collect();
+    println!("Number of goals: {}", goals.len());
+    for (i, goal) in goals.iter().enumerate() {
+        println!("Goal {}: {:?}", i, goal);
+    }
+    
+    // The todo block should be syntactically valid but not create any goals
+    // Only the actual_theorem should create a goal
+    assert_eq!(env.iter_goals().count(), 1);
+    
+    // Verify that the todo block's contents are parsed but not proven
+    // by checking that we can still reference a and b (they exist in the outer scope)
+    env.bindings.expect_good_code("a");
+    env.bindings.expect_good_code("b");
+}

@@ -41,6 +41,9 @@ pub struct Block {
 
     /// The environment created inside the block.
     pub env: Environment,
+    
+    /// Whether this block is a todo block (goals inside should not be collected)
+    pub is_todo: bool,
 }
 
 /// The different ways to construct a block.
@@ -136,6 +139,7 @@ impl Block {
             internal_args.push(potential.force_value());
         }
 
+        let is_todo = matches!(params, BlockParams::Todo);
         let goal = match params {
             BlockParams::Conditional(condition, range) => {
                 let source = Source::premise(env.module_id, range, subenv.depth);
@@ -242,6 +246,7 @@ impl Block {
             args,
             env: subenv,
             goal,
+            is_todo,
         })
     }
 
@@ -556,6 +561,29 @@ impl fmt::Display for NodeCursor<'_> {
     }
 }
 
+impl fmt::Debug for NodeCursor<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NodeCursor(path: {:?}", self.path())?;
+        
+        // Add information about the node
+        let node = self.node();
+        if node.has_goal() {
+            write!(f, ", has_goal: true")?;
+            match node {
+                Node::Claim(prop) => write!(f, ", claim: {}", prop)?,
+                Node::Block(block, _) => {
+                    if let Some(goal) = &block.goal {
+                        write!(f, ", block_goal: {:?}", goal)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        write!(f, ")")
+    }
+}
+
 impl<'a> NodeCursor<'a> {
     pub fn from_path(env: &'a Environment, path: &[usize]) -> Self {
         assert!(path.len() > 0);
@@ -726,6 +754,14 @@ impl<'a> NodeCursor<'a> {
 
     /// Does a postorder traversal of everything with a goal, at and below this node
     pub fn find_goals(&mut self, output: &mut Vec<NodeCursor<'a>>) {
+        // Check if the current node is a todo block
+        if let Some(block) = self.node().get_block() {
+            if block.is_todo {
+                // Don't recurse into todo blocks
+                return;
+            }
+        }
+        
         for i in 0..self.num_children() {
             self.descend(i);
             self.find_goals(output);
