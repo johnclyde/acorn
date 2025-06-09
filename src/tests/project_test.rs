@@ -1207,8 +1207,8 @@ fn test_hover_typeclass_method_with_doc_comment() {
     println!("Typeclass method hover result: {}", hover_str);
 
     assert!(
-        hover_str.contains("Thing.do_something"),
-        "Hover should show typeclass method definition"
+        hover_str.contains("Foo.do_something"),
+        "Hover should show the instantiated method"
     );
     assert!(
         hover_str.contains("do_something_doc_comment"),

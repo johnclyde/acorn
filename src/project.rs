@@ -9,6 +9,7 @@ use tower_lsp::lsp_types::{CompletionItem, Hover, HoverContents, MarkedString, U
 use walkdir::WalkDir;
 
 use crate::acorn_type::AcornType;
+use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
 use crate::build_cache::BuildCache;
@@ -889,15 +890,17 @@ impl Project {
             NamedEntity::Value(value) => {
                 // Use the unapplied value to get the base constant name for doc comments
                 let base_value = value.unapply();
-                if let Some(name) = base_value.as_simple_constant() {
-                    // Try to get doc comments from the module where this constant was defined
-                    if let Some(module_env) = self.get_env_by_id(name.module_id()) {
-                        module_env.bindings.get_constant_doc_comments(name)
-                    } else {
-                        env.bindings.get_constant_doc_comments(name)
+                match base_value {
+                    AcornValue::Constant(ci) => {
+                        // For constants (including those with type parameters), look up doc comments
+                        // Try to get doc comments from the module where this constant was defined
+                        if let Some(module_env) = self.get_env_by_id(ci.name.module_id()) {
+                            module_env.bindings.get_constant_doc_comments(&ci.name)
+                        } else {
+                            env.bindings.get_constant_doc_comments(&ci.name)
+                        }
                     }
-                } else {
-                    None
+                    _ => None,
                 }
             }
             NamedEntity::UnresolvedValue(unresolved) => {
