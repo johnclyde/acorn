@@ -1117,7 +1117,7 @@ fn test_hover_method_call() {
     }
 
     attributes Foo {
-        // bar_doc_comment
+        /// bar_doc_comment
         define bar(self, x: Bool) -> Bool {
             x
         }
@@ -1125,7 +1125,7 @@ fn test_hover_method_call() {
 
     let foo_instance: Foo = Foo.foo
     let result = foo_instance.bar(true)             // line 12
-    // 01234567890123456789012345678901234567890
+    // 34567890123456789012345678901234567890
     "#},
     );
     p.expect_ok("main");
@@ -1155,5 +1155,63 @@ fn test_hover_method_call() {
     assert!(
         !hover_str.contains("Foo.foo.bar"),
         "Hover should NOT show method bound to instance"
+    );
+    assert!(
+        hover_str.contains("bar_doc_comment"),
+        "Hover should include the doc comment for the method"
+    );
+}
+
+#[test]
+fn test_hover_typeclass_method_with_doc_comment() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        indoc! {r#"
+    typeclass T: Thing {
+        thing: T
+    }
+    
+    attributes T: Thing {
+        /// do_something_doc_comment
+        define do_something(self) -> Bool {
+            self = T.thing
+        }
+    }
+    
+    inductive Foo {
+        foo
+    }
+    
+    instance Foo: Thing {
+        let thing = Foo.foo
+    }
+    
+    let foo_instance: Foo = Foo.foo
+    let result = foo_instance.do_something              // line 20
+    // 34567890123456789012345678901234567890
+    "#},
+    );
+    p.expect_ok("main");
+    let desc = ModuleDescriptor::Name("main".to_string());
+    let env = p.get_env(&desc).expect("no env for main");
+
+    // Test hovering over the typeclass method name in method call
+    let method_hover = p.hover(&env, 20, 30); // over "do_something"
+    assert!(
+        method_hover.is_some(),
+        "should be able to hover over typeclass method name"
+    );
+
+    let hover_str = format!("{:?}", method_hover.unwrap());
+    println!("Typeclass method hover result: {}", hover_str);
+
+    assert!(
+        hover_str.contains("Thing.do_something"),
+        "Hover should show typeclass method definition"
+    );
+    assert!(
+        hover_str.contains("do_something_doc_comment"),
+        "Hover should include the doc comment for the typeclass method"
     );
 }

@@ -887,7 +887,9 @@ impl Project {
         // Get doc comments based on entity type
         let doc_comments = match &info.entity {
             NamedEntity::Value(value) => {
-                if let Some(name) = value.as_simple_constant() {
+                // Use the unapplied value to get the base constant name for doc comments
+                let base_value = value.unapply();
+                if let Some(name) = base_value.as_simple_constant() {
                     // Try to get doc comments from the module where this constant was defined
                     if let Some(module_env) = self.get_env_by_id(name.module_id()) {
                         module_env.bindings.get_constant_doc_comments(name)

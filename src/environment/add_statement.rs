@@ -1316,9 +1316,13 @@ impl Environment {
                         ds.name_token.range(),
                     )?;
                 }
+                StatementInfo::DocComment(s) => {
+                    // Add to self.doc_comments so it will be picked up by the next statement
+                    self.doc_comments.push(s.clone());
+                }
                 _ => {
                     return Err(substatement
-                        .error("only let and define statements are allowed in attributes bodies"));
+                        .error("only let, define, and doc comment statements are allowed in attributes bodies"));
                 }
             }
         }
@@ -1378,9 +1382,13 @@ impl Environment {
                         ds.name_token.range(),
                     )?;
                 }
+                StatementInfo::DocComment(s) => {
+                    // Add to self.doc_comments so it will be picked up by the next statement
+                    self.doc_comments.push(s.clone());
+                }
                 _ => {
                     return Err(substatement
-                        .error("only let and define statements are allowed in attributes bodies"));
+                        .error("only let, define, and doc comment statements are allowed in attributes bodies"));
                 }
             }
         }
