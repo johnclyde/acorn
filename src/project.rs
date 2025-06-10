@@ -891,6 +891,13 @@ impl Project {
             .get_datatype_doc_comment(datatype)
     }
 
+    /// Get definition string for a datatype, looking in the module where it was originally defined.
+    pub fn get_datatype_definition_string(&self, datatype: &Datatype) -> Option<&String> {
+        self.get_env_by_id(datatype.module_id)?
+            .bindings
+            .get_datatype_definition_string(datatype)
+    }
+
     /// Get doc comments for a typeclass, looking in the module where it was originally defined.
     pub fn get_typeclass_doc_comments(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
         self.get_env_by_id(typeclass.module_id)?

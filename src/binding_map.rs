@@ -457,18 +457,20 @@ impl BindingMap {
         name: &str,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
     ) -> AcornType {
         let datatype = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments and range for this datatype
+        // Store the doc comments, range, and definition string for this datatype
         let info = self
             .datatype_defs
             .entry(datatype.clone())
             .or_insert_with(DatatypeDefinition::new);
         info.doc_comments = doc_comments;
         info.range = range;
+        info.definition_string = definition_string;
         let t = AcornType::Data(datatype, vec![]);
         self.insert_type_name(name.to_string(), PotentialType::Resolved(t.clone()));
         t
@@ -481,21 +483,23 @@ impl BindingMap {
         params: Vec<Option<Typeclass>>,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
     ) -> PotentialType {
         if params.len() == 0 {
-            return PotentialType::Resolved(self.add_data_type(name, doc_comments, range));
+            return PotentialType::Resolved(self.add_data_type(name, doc_comments, range, definition_string));
         }
         let datatype = Datatype {
             module_id: self.module_id,
             name: name.to_string(),
         };
-        // Store the doc comments and range for this datatype
+        // Store the doc comments, range, and definition string for this datatype
         let info = self
             .datatype_defs
             .entry(datatype.clone())
             .or_insert_with(DatatypeDefinition::new);
         info.doc_comments = doc_comments;
         info.range = range;
+        info.definition_string = definition_string;
         let ut = UnresolvedType { datatype, params };
         let potential = PotentialType::Unresolved(ut);
         self.insert_type_name(name.to_string(), potential.clone());
@@ -951,6 +955,11 @@ impl BindingMap {
                 Some(&info.doc_comments)
             }
         })
+    }
+
+    /// Get the definition string for a datatype.
+    pub fn get_datatype_definition_string(&self, datatype: &Datatype) -> Option<&String> {
+        self.datatype_defs.get(datatype)?.definition_string.as_ref()
     }
 
     /// Get the definition range for a datatype.
@@ -1700,6 +1709,9 @@ struct DatatypeDefinition {
 
     /// The range in the source code where this datatype was defined.
     range: Option<Range>,
+
+    /// The stringified form of the statement that defined this datatype.
+    definition_string: Option<String>,
 }
 
 impl DatatypeDefinition {
@@ -1710,6 +1722,7 @@ impl DatatypeDefinition {
             alias: None,
             doc_comments: Vec::new(),
             range: None,
+            definition_string: None,
         }
     }
 

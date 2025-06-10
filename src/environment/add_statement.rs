@@ -796,11 +796,13 @@ impl Environment {
         };
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
+        let definition_string = Some(statement.to_string());
         let potential_type = self.bindings.add_potential_type(
             ss.name_token.text(),
             typeclasses,
             doc_comments,
             Some(ss.name_token.range()),
+            definition_string,
         );
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
@@ -981,11 +983,13 @@ impl Environment {
         }
         let typeclasses = type_params.iter().map(|tp| tp.typeclass.clone()).collect();
         let doc_comments = self.take_doc_comments();
+        let definition_string = Some(statement.to_string());
         let potential_type = self.bindings.add_potential_type(
             is.name_token.text(),
             typeclasses,
             doc_comments,
             Some(is.name_token.range()),
+            definition_string,
         );
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
@@ -1809,11 +1813,13 @@ impl Environment {
             .check_typename_available(ts.name_token.text(), statement)?;
         if ts.type_expr.is_axiom() {
             let doc_comments = self.take_doc_comments();
+            let definition_string = Some(statement.to_string());
             self.bindings.add_potential_type(
                 ts.name_token.text(),
                 vec![],
                 doc_comments,
                 Some(ts.name_token.range()),
+                definition_string,
             );
         } else {
             let potential = self
