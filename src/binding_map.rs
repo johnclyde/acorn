@@ -1650,6 +1650,12 @@ impl BindingMap {
             .expect("value_to_code failed");
         assert_eq!(input_code, output_code);
     }
+
+    /// Returns an iterator over all type names and their corresponding types accessible from these bindings.
+    /// This includes types defined in this module as well as imported types.
+    pub fn iter_types(&self) -> impl Iterator<Item = (&String, &PotentialType)> {
+        self.typename_to_type.iter()
+    }
 }
 
 /// Information about a constructor.
