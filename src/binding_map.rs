@@ -1664,6 +1664,10 @@ impl BindingMap {
     pub fn iter_types(&self) -> impl Iterator<Item = (&String, &PotentialType)> {
         self.typename_to_type.iter()
     }
+
+    pub fn iter_typeclasses(&self) -> impl Iterator<Item = (&String, &Typeclass)> {
+        self.name_to_typeclass.iter()
+    }
 }
 
 /// Information about a constructor.

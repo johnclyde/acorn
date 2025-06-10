@@ -3,7 +3,7 @@ use std::fmt;
 use std::io::Write;
 use std::path::Path;
 
-use crate::acorn_type::Datatype;
+use crate::acorn_type::{Datatype, Typeclass};
 use crate::environment::Environment;
 use crate::names::ConstantName;
 use crate::project::Project;
@@ -106,6 +106,54 @@ impl<'a> DocGenerator<'a> {
         Ok(())
     }
 
+    /// Documents a typeclass by writing all its attributes to a markdown file.
+    /// env: The environment with the canonical import location of the typeclass
+    /// typeclass_name: The name of the typeclass (e.g., "Ring")
+    /// typeclass: The typeclass to document
+    /// filename: Where to write the documentation
+    pub fn document_typeclass(
+        &self,
+        env: &Environment,
+        typeclass_name: &str,
+        typeclass: &Typeclass,
+        filename: impl AsRef<Path>,
+    ) -> Result<(), DocError> {
+        let attributes = env.bindings.get_typeclass_attributes(typeclass, self.project);
+        let mut attribute_names: Vec<String> = attributes.keys().cloned().collect();
+        // Filter out attributes that are wholly numeric
+        attribute_names.retain(|name| !name.chars().all(|c| c.is_numeric()));
+        attribute_names.sort();
+        println!("{}", filename.as_ref().display());
+        let mut file = std::fs::File::create(filename)?;
+
+        writeln!(file, "# {}", typeclass_name)?;
+
+        // Write doc comments if they exist
+        if let Some(doc_comments) = self.project.get_typeclass_doc_comments(typeclass) {
+            writeln!(file)?;
+            for comment in doc_comments {
+                writeln!(file, "{}", comment)?;
+            }
+        }
+
+        for attribute_name in attribute_names {
+            writeln!(file, "## {}", attribute_name)?;
+            
+            // Create the constant name for this attribute
+            let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &attribute_name);
+            
+            // Get doc comments for this attribute
+            if let Some(doc_comments) = self.project.get_constant_doc_comments(env, &constant_name) {
+                writeln!(file)?;
+                for comment in doc_comments {
+                    writeln!(file, "{}", comment)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Generates documentation for all types in all top-level modules.
     /// Creates one file named "Typename.md" for each type in the doc_root directory.
     /// Returns the number of files created.
@@ -136,7 +184,7 @@ impl<'a> DocGenerator<'a> {
             }
         }
 
-        let mut documented_types: HashMap<String, String> = HashMap::new();
+        let mut documented_names: HashMap<String, String> = HashMap::new();
         let mut file_count = 0;
 
         // Iterate over all modules
@@ -175,7 +223,7 @@ impl<'a> DocGenerator<'a> {
                 }
 
                 // Check if we've already documented this type
-                if let Some(first_module) = documented_types.get(type_name) {
+                if let Some(first_module) = documented_names.get(type_name) {
                     return Err(DocError::DocumentationConflict {
                         type_name: type_name.clone(),
                         first_module: first_module.clone(),
@@ -184,12 +232,46 @@ impl<'a> DocGenerator<'a> {
                 }
 
                 // Record that we're documenting this type from this module
-                documented_types.insert(type_name.clone(), descriptor.to_string());
+                documented_names.insert(type_name.clone(), descriptor.to_string());
 
                 // Create the output filename
                 let filename = doc_root.join(format!("{}.md", type_name));
 
                 self.document_type(env, type_name, datatype, filename)?;
+                file_count += 1;
+            }
+
+            // Iterate over all typeclasses in this module
+            for (typeclass_name, typeclass) in env.bindings.iter_typeclasses() {
+                // Only document if the typeclass name matches the typeclass's canonical name
+                if typeclass_name != &typeclass.name {
+                    continue;
+                }
+
+                // Only document if this is the authoritative source
+                // Either the module that defines the typeclass, or a module whose name matches
+                if module_id != typeclass.module_id
+                    && !descriptor.is_authoritative_name(&typeclass.name)
+                {
+                    continue;
+                }
+
+                // Check if we've already documented this typeclass
+                if let Some(first_module) = documented_names.get(typeclass_name) {
+                    return Err(DocError::DocumentationConflict {
+                        type_name: typeclass_name.clone(),
+                        first_module: first_module.clone(),
+                        second_module: descriptor.to_string(),
+                    });
+                }
+
+                // Record that we're documenting this typeclass from this module
+                documented_names.insert(typeclass_name.clone(), descriptor.to_string());
+
+                // Create the output filename
+                let filename = doc_root.join(format!("{}.md", typeclass_name));
+
+                self.document_typeclass(env, typeclass_name, typeclass, filename)?;
                 file_count += 1;
             }
         }

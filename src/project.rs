@@ -857,7 +857,10 @@ impl Project {
         // For datatype attributes, we need to find which module actually defines the attribute
         if let ConstantName::DatatypeAttribute(datatype, attr_name) = name {
             // First check if the current environment knows where this attribute is defined
-            if let Some(attr_module_id) = env.bindings.get_datatype_attribute_module(datatype, attr_name) {
+            if let Some(attr_module_id) = env
+                .bindings
+                .get_datatype_attribute_module(datatype, attr_name)
+            {
                 // The attribute is defined in a specific module
                 if let Some(attr_env) = self.get_env_by_id(attr_module_id) {
                     return attr_env.bindings.get_constant_doc_comments(name);
