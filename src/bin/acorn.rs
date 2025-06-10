@@ -105,22 +105,19 @@ async fn main() {
 
     // Check if we should generate documentation.
     if let Some(doc_root) = args.doc_root {
-        match Project::new_local(&current_dir, ProverMode::Standard) {
-            Ok(project) => {
-                let generator = DocGenerator::new(&project);
-                match generator.generate(&doc_root) {
-                    Ok(()) => {
-                        println!("Documentation generated successfully in {}", doc_root);
-                        return;
-                    }
-                    Err(e) => {
-                        println!("Error generating documentation: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+        let mut project =
+            Project::new_local(&current_dir, ProverMode::Standard).unwrap_or_else(|e| {
+                println!("Error loading project: {}", e);
+                std::process::exit(1);
+            });
+        project.add_all_targets();
+        match DocGenerator::new(&project).generate(&doc_root) {
+            Ok(count) => {
+                println!("{} files generated in {}", count, doc_root);
+                return;
             }
             Err(e) => {
-                println!("Error loading project: {}", e);
+                println!("Error generating documentation: {}", e);
                 std::process::exit(1);
             }
         }

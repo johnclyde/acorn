@@ -72,7 +72,7 @@ impl<'a> DocGenerator<'a> {
     ) -> Result<(), DocError> {
         let mut methods = env.bindings.get_datatype_attributes(datatype);
         methods.sort();
-
+        println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
         writeln!(file, "# {} Type Documentation\n", type_name)?;
@@ -86,7 +86,8 @@ impl<'a> DocGenerator<'a> {
 
     /// Generates documentation for all types in all top-level modules.
     /// Creates one file named "Typename.md" for each type in the doc_root directory.
-    pub fn generate(&self, doc_root: impl AsRef<Path>) -> Result<(), DocError> {
+    /// Returns the number of files created.
+    pub fn generate(&self, doc_root: impl AsRef<Path>) -> Result<usize, DocError> {
         let doc_root = doc_root.as_ref();
 
         if !doc_root.exists() {
@@ -113,8 +114,8 @@ impl<'a> DocGenerator<'a> {
             }
         }
 
-        // Track which types we've already documented and from which module
         let mut documented_types: HashMap<String, String> = HashMap::new();
+        let mut file_count = 0;
 
         // Iterate over all modules
         for (descriptor, module_id) in self.project.iter_modules() {
@@ -167,9 +168,10 @@ impl<'a> DocGenerator<'a> {
                 let filename = doc_root.join(format!("{}.md", type_name));
 
                 self.document_type(env, type_name, datatype, filename)?;
+                file_count += 1;
             }
         }
 
-        Ok(())
+        Ok(file_count)
     }
 }
