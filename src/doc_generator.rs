@@ -104,6 +104,15 @@ impl<'a> DocGenerator<'a> {
             ));
         }
 
+        // Remove all existing .md files in the directory
+        for entry in std::fs::read_dir(doc_root)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                std::fs::remove_file(path)?;
+            }
+        }
+
         // Track which types we've already documented and from which module
         let mut documented_types: HashMap<String, String> = HashMap::new();
 
