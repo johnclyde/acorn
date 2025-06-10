@@ -848,48 +848,24 @@ impl Project {
     }
 
     /// Get doc comments for a constant, looking in the module where it was originally defined.
-    /// Falls back to the provided environment if the original module can't be found.
-    pub fn get_constant_doc_comments<'a>(
-        &'a self,
-        env: &'a Environment,
-        name: &ConstantName,
-    ) -> Option<&'a Vec<String>> {
-        // Try to get doc comments from the module where this constant was defined
-        if let Some(module_env) = self.get_env_by_id(name.module_id()) {
-            module_env.bindings.get_constant_doc_comments(name)
-        } else {
-            env.bindings.get_constant_doc_comments(name)
-        }
+    pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
+        self.get_env_by_id(name.module_id())?
+            .bindings
+            .get_constant_doc_comments(name)
     }
 
     /// Get doc comments for a datatype, looking in the module where it was originally defined.
-    /// Falls back to the provided environment if the original module can't be found.
-    pub fn get_datatype_doc_comments<'a>(
-        &'a self,
-        env: &'a Environment,
-        datatype: &Datatype,
-    ) -> Option<&'a Vec<String>> {
-        // Try to get doc comments from the module where this datatype was defined
-        if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
-            module_env.bindings.get_datatype_doc_comment(datatype)
-        } else {
-            env.bindings.get_datatype_doc_comment(datatype)
-        }
+    pub fn get_datatype_doc_comments(&self, datatype: &Datatype) -> Option<&Vec<String>> {
+        self.get_env_by_id(datatype.module_id)?
+            .bindings
+            .get_datatype_doc_comment(datatype)
     }
 
     /// Get doc comments for a typeclass, looking in the module where it was originally defined.
-    /// Falls back to the provided environment if the original module can't be found.
-    pub fn get_typeclass_doc_comments<'a>(
-        &'a self,
-        env: &'a Environment,
-        typeclass: &Typeclass,
-    ) -> Option<&'a Vec<String>> {
-        // Try to get doc comments from the module where this typeclass was defined
-        if let Some(module_env) = self.get_env_by_id(typeclass.module_id) {
-            module_env.bindings.get_typeclass_doc_comment(typeclass)
-        } else {
-            env.bindings.get_typeclass_doc_comment(typeclass)
-        }
+    pub fn get_typeclass_doc_comments(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
+        self.get_env_by_id(typeclass.module_id)?
+            .bindings
+            .get_typeclass_doc_comment(typeclass)
     }
 
     /// env should be the environment in which the token was evaluated.
@@ -939,29 +915,27 @@ impl Project {
                 match base_value {
                     AcornValue::Constant(ci) => {
                         // For constants (including those with type parameters), look up doc comments
-                        self.get_constant_doc_comments(env, &ci.name)
+                        self.get_constant_doc_comments(&ci.name)
                     }
                     _ => None,
                 }
             }
             NamedEntity::UnresolvedValue(unresolved) => {
-                self.get_constant_doc_comments(env, &unresolved.name)
+                self.get_constant_doc_comments(&unresolved.name)
             }
 
             NamedEntity::Type(acorn_type) => {
                 if let AcornType::Data(datatype, _) = acorn_type {
-                    self.get_datatype_doc_comments(env, datatype)
+                    self.get_datatype_doc_comments(datatype)
                 } else {
                     None
                 }
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
-                self.get_datatype_doc_comments(env, &unresolved_type.datatype)
+                self.get_datatype_doc_comments(&unresolved_type.datatype)
             }
 
-            NamedEntity::Typeclass(typeclass) => {
-                self.get_typeclass_doc_comments(env, typeclass)
-            }
+            NamedEntity::Typeclass(typeclass) => self.get_typeclass_doc_comments(typeclass),
 
             NamedEntity::Module(module_id) => {
                 // Get the environment for this module to access its documentation

@@ -1218,7 +1218,7 @@ fn test_hover_typeclass_method_with_doc_comment() {
         hover_str.contains("do_something_doc_comment"),
         "Hover should include the doc comment for the typeclass method"
     );
-    
+
     // Test hovering over the typeclass method in a generic context
     // Line 24: t.do_something
     let generic_method_hover = p.hover(&env, 24, 10); // over "do_something" in t.do_something
@@ -1226,10 +1226,13 @@ fn test_hover_typeclass_method_with_doc_comment() {
         generic_method_hover.is_some(),
         "should be able to hover over typeclass method in generic context"
     );
-    
+
     let generic_hover_str = format!("{:?}", generic_method_hover.unwrap());
-    println!("Generic typeclass method hover result: {}", generic_hover_str);
-    
+    println!(
+        "Generic typeclass method hover result: {}",
+        generic_hover_str
+    );
+
     assert!(
         generic_hover_str.contains("T.do_something"),
         "Hover should show the typeclass method with type parameter"
@@ -1238,4 +1241,51 @@ fn test_hover_typeclass_method_with_doc_comment() {
         generic_hover_str.contains("do_something_doc_comment"),
         "Hover should include the doc comment for the typeclass method in generic context"
     );
+}
+
+#[test]
+fn test_doc_comment_lookup() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/foo_base.ac",
+        r#"
+    /// Foo_doc_comment
+    inductive Foo {
+        foo
+    }
+
+    attributes Foo {
+        /// bar_doc_comment
+        define bar(self, x: Bool) -> Bool {
+            x
+        }
+    }
+    "#,
+    );
+
+    p.mock(
+        "/mock/foo_more.ac",
+        r#"
+    from foo_base import Foo
+    attributes Foo {
+        /// baz_doc_comment
+        define baz(self, y: Bool) -> Bool {
+            y
+        }
+    }
+    "#,
+    );
+
+    p.mock(
+        "/mock/main.ac",
+        r#"
+    from foo_more import Foo
+    "#,
+    );
+
+    p.expect_ok("foo_base");
+    p.expect_ok("foo_more");
+    p.expect_ok("main");
+
+    // TODO: ensure we can look up doc comments correctly
 }
