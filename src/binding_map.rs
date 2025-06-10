@@ -386,6 +386,7 @@ impl BindingMap {
             .unwrap_or_default()
     }
 
+
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
         &self,

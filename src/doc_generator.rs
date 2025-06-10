@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::acorn_type::Datatype;
 use crate::environment::Environment;
+use crate::names::ConstantName;
 use crate::project::Project;
 
 #[derive(Debug)]
@@ -80,18 +81,26 @@ impl<'a> DocGenerator<'a> {
         writeln!(file, "# {}", type_name)?;
 
         // Write doc comments if they exist
-        // Doc comments are stored in the module where the type was originally defined
-        if let Some(original_env) = self.project.get_env_by_id(datatype.module_id) {
-            if let Some(doc_comments) = original_env.bindings.get_datatype_doc_comment(datatype) {
-                writeln!(file)?;
-                for comment in doc_comments {
-                    writeln!(file, "{}", comment)?;
-                }
+        if let Some(doc_comments) = self.project.get_datatype_doc_comments(env, datatype) {
+            writeln!(file)?;
+            for comment in doc_comments {
+                writeln!(file, "{}", comment)?;
             }
         }
 
         for method_name in methods {
             writeln!(file, "## {}", method_name)?;
+            
+            // Create the constant name for this attribute
+            let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
+            
+            // Get doc comments for this attribute
+            if let Some(doc_comments) = self.project.get_constant_doc_comments(env, &constant_name) {
+                writeln!(file)?;
+                for comment in doc_comments {
+                    writeln!(file, "{}", comment)?;
+                }
+            }
         }
 
         Ok(())

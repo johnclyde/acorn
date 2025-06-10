@@ -8,7 +8,7 @@ use regex::Regex;
 use tower_lsp::lsp_types::{CompletionItem, Hover, HoverContents, MarkedString, Url};
 use walkdir::WalkDir;
 
-use crate::acorn_type::AcornType;
+use crate::acorn_type::{AcornType, Datatype, Typeclass};
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
 use crate::block::NodeCursor;
@@ -22,6 +22,7 @@ use crate::goal::GoalContext;
 use crate::module::{LoadState, Module, ModuleDescriptor, ModuleId};
 use crate::module_cache::{ModuleCache, ModuleHash};
 use crate::named_entity::NamedEntity;
+use crate::names::ConstantName;
 use crate::prover::{Outcome, Prover};
 use crate::token::Token;
 use crate::token_map::TokenInfo;
@@ -846,6 +847,51 @@ impl Project {
         }
     }
 
+    /// Get doc comments for a constant, looking in the module where it was originally defined.
+    /// Falls back to the provided environment if the original module can't be found.
+    pub fn get_constant_doc_comments<'a>(
+        &'a self,
+        env: &'a Environment,
+        name: &ConstantName,
+    ) -> Option<&'a Vec<String>> {
+        // Try to get doc comments from the module where this constant was defined
+        if let Some(module_env) = self.get_env_by_id(name.module_id()) {
+            module_env.bindings.get_constant_doc_comments(name)
+        } else {
+            env.bindings.get_constant_doc_comments(name)
+        }
+    }
+
+    /// Get doc comments for a datatype, looking in the module where it was originally defined.
+    /// Falls back to the provided environment if the original module can't be found.
+    pub fn get_datatype_doc_comments<'a>(
+        &'a self,
+        env: &'a Environment,
+        datatype: &Datatype,
+    ) -> Option<&'a Vec<String>> {
+        // Try to get doc comments from the module where this datatype was defined
+        if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
+            module_env.bindings.get_datatype_doc_comment(datatype)
+        } else {
+            env.bindings.get_datatype_doc_comment(datatype)
+        }
+    }
+
+    /// Get doc comments for a typeclass, looking in the module where it was originally defined.
+    /// Falls back to the provided environment if the original module can't be found.
+    pub fn get_typeclass_doc_comments<'a>(
+        &'a self,
+        env: &'a Environment,
+        typeclass: &Typeclass,
+    ) -> Option<&'a Vec<String>> {
+        // Try to get doc comments from the module where this typeclass was defined
+        if let Some(module_env) = self.get_env_by_id(typeclass.module_id) {
+            module_env.bindings.get_typeclass_doc_comment(typeclass)
+        } else {
+            env.bindings.get_typeclass_doc_comment(typeclass)
+        }
+    }
+
     /// env should be the environment in which the token was evaluated.
     fn hover_for_info(
         &self,
@@ -893,58 +939,28 @@ impl Project {
                 match base_value {
                     AcornValue::Constant(ci) => {
                         // For constants (including those with type parameters), look up doc comments
-                        // Try to get doc comments from the module where this constant was defined
-                        if let Some(module_env) = self.get_env_by_id(ci.name.module_id()) {
-                            module_env.bindings.get_constant_doc_comments(&ci.name)
-                        } else {
-                            env.bindings.get_constant_doc_comments(&ci.name)
-                        }
+                        self.get_constant_doc_comments(env, &ci.name)
                     }
                     _ => None,
                 }
             }
             NamedEntity::UnresolvedValue(unresolved) => {
-                // Try to get doc comments from the module where this constant was defined
-                if let Some(module_env) = self.get_env_by_id(unresolved.name.module_id()) {
-                    module_env
-                        .bindings
-                        .get_constant_doc_comments(&unresolved.name)
-                } else {
-                    env.bindings.get_constant_doc_comments(&unresolved.name)
-                }
+                self.get_constant_doc_comments(env, &unresolved.name)
             }
 
             NamedEntity::Type(acorn_type) => {
                 if let AcornType::Data(datatype, _) = acorn_type {
-                    // Try to get doc comments from the module where this datatype was defined
-                    if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
-                        module_env.bindings.get_datatype_doc_comment(datatype)
-                    } else {
-                        env.bindings.get_datatype_doc_comment(datatype)
-                    }
+                    self.get_datatype_doc_comments(env, datatype)
                 } else {
                     None
                 }
             }
             NamedEntity::UnresolvedType(unresolved_type) => {
-                // Try to get doc comments from the module where this datatype was defined
-                if let Some(module_env) = self.get_env_by_id(unresolved_type.datatype.module_id) {
-                    module_env
-                        .bindings
-                        .get_datatype_doc_comment(&unresolved_type.datatype)
-                } else {
-                    env.bindings
-                        .get_datatype_doc_comment(&unresolved_type.datatype)
-                }
+                self.get_datatype_doc_comments(env, &unresolved_type.datatype)
             }
 
             NamedEntity::Typeclass(typeclass) => {
-                // Try to get doc comments from the module where this typeclass was defined
-                if let Some(module_env) = self.get_env_by_id(typeclass.module_id) {
-                    module_env.bindings.get_typeclass_doc_comment(typeclass)
-                } else {
-                    env.bindings.get_typeclass_doc_comment(typeclass)
-                }
+                self.get_typeclass_doc_comments(env, typeclass)
             }
 
             NamedEntity::Module(module_id) => {
@@ -1236,7 +1252,7 @@ impl Project {
     pub fn get_module_cache(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
         self.build_cache.get_cloned(descriptor)
     }
-    
+
     /// Iterate over all module descriptors with their corresponding module IDs.
     pub fn iter_modules(&self) -> impl Iterator<Item = (&ModuleDescriptor, ModuleId)> {
         self.module_map
