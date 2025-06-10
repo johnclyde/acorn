@@ -23,6 +23,10 @@ impl VerifierOutput {
     pub fn num_verified(&self) -> usize {
         self.events.iter().filter(|e| e.verified.is_some()).count()
     }
+
+    pub fn is_success(&self) -> bool {
+        self.status == BuildStatus::Good
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

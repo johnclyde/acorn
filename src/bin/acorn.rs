@@ -109,8 +109,16 @@ async fn main() {
 
     // Run the verifier.
     let verifier = Verifier::new(current_dir, mode, args.target, args.dataset);
-    if let Err(e) = verifier.run() {
-        println!("{}", e);
-        std::process::exit(1);
+    match verifier.run() {
+        Err(e) => {
+            println!("{}", e);
+            std::process::exit(1);
+        }
+        Ok(output) => {
+            if !output.is_success() {
+                // Make sure CI-type environments fail.
+                std::process::exit(1);
+            }
+        }
     }
 }
