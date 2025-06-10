@@ -120,6 +120,17 @@ pub enum ModuleDescriptor {
     File(PathBuf),
 }
 
+impl ModuleDescriptor {
+    /// Returns true if this is a top-level module that can be imported with just "import x".
+    /// These are Name descriptors with no dots in the name.
+    pub fn is_top_level(&self) -> bool {
+        match self {
+            ModuleDescriptor::Name(name) => !name.contains('.'),
+            _ => false,
+        }
+    }
+}
+
 impl fmt::Display for ModuleDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {

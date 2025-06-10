@@ -1236,6 +1236,13 @@ impl Project {
     pub fn get_module_cache(&self, descriptor: &ModuleDescriptor) -> Option<ModuleCache> {
         self.build_cache.get_cloned(descriptor)
     }
+    
+    /// Iterate over all module descriptors with their corresponding module IDs.
+    pub fn iter_modules(&self) -> impl Iterator<Item = (&ModuleDescriptor, ModuleId)> {
+        self.module_map
+            .iter()
+            .map(|(descriptor, &module_id)| (descriptor, module_id))
+    }
 
     // Loads a module from cache if possible, or else from the filesystem.
     // Module names are a .-separated list where each one must be [a-z_].
