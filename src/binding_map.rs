@@ -386,6 +386,13 @@ impl BindingMap {
             .unwrap_or_default()
     }
 
+    /// Get the module where a specific datatype attribute is defined.
+    pub fn get_datatype_attribute_module(&self, datatype: &Datatype, attribute: &str) -> Option<ModuleId> {
+        self.datatype_defs
+            .get(datatype)
+            .and_then(|info| info.attributes.get(attribute).copied())
+    }
+
 
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(

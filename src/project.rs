@@ -854,11 +854,30 @@ impl Project {
         env: &'a Environment,
         name: &ConstantName,
     ) -> Option<&'a Vec<String>> {
-        // Try to get doc comments from the module where this constant was defined
-        if let Some(module_env) = self.get_env_by_id(name.module_id()) {
-            module_env.bindings.get_constant_doc_comments(name)
-        } else {
+        // For datatype attributes, we need to find which module actually defines the attribute
+        if let ConstantName::DatatypeAttribute(datatype, attr_name) = name {
+            // First check if the current environment knows where this attribute is defined
+            if let Some(attr_module_id) = env.bindings.get_datatype_attribute_module(datatype, attr_name) {
+                // The attribute is defined in a specific module
+                if let Some(attr_env) = self.get_env_by_id(attr_module_id) {
+                    return attr_env.bindings.get_constant_doc_comments(name);
+                }
+            }
+            // Fall back to checking the datatype's original module
+            if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
+                if let Some(doc_comments) = module_env.bindings.get_constant_doc_comments(name) {
+                    return Some(doc_comments);
+                }
+            }
+            // Finally fall back to the provided environment
             env.bindings.get_constant_doc_comments(name)
+        } else {
+            // For non-attribute constants, use the original logic
+            if let Some(module_env) = self.get_env_by_id(name.module_id()) {
+                module_env.bindings.get_constant_doc_comments(name)
+            } else {
+                env.bindings.get_constant_doc_comments(name)
+            }
         }
     }
 
