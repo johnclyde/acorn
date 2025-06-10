@@ -12,6 +12,7 @@ pub mod common;
 pub mod compilation;
 pub mod dataset;
 pub mod display;
+pub mod doc_generator;
 pub mod environment;
 pub mod evaluator;
 pub mod expression;

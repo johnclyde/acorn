@@ -375,6 +375,16 @@ impl BindingMap {
             .and_then(|info| info.attributes.get(attr))
             .copied()
     }
+    
+    /// Get all attribute names for a datatype.
+    /// This returns only the direct attributes of the datatype itself,
+    /// NOT including attributes from typeclasses that this type is an instance of.
+    pub fn get_datatype_attributes(&self, datatype: &Datatype) -> Vec<String> {
+        self.datatype_defs
+            .get(datatype)
+            .map(|info| info.attributes.keys().cloned().collect())
+            .unwrap_or_default()
+    }
 
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
