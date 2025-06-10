@@ -103,6 +103,12 @@ impl<'a> DocGenerator<'a> {
                     continue;
                 }
 
+                // Only document if this is the authoritative source
+                // Either the module that defines the datatype, or a module whose name matches
+                if module_id != datatype.module_id && !descriptor.is_authoritative_name(&datatype.name) {
+                    continue;
+                }
+
                 // Create the output filename
                 let filename = doc_root.join(format!("{}.md", type_name));
 
