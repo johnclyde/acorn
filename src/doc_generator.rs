@@ -95,7 +95,7 @@ impl<'a> DocGenerator<'a> {
             let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
             
             // Get doc comments for this attribute
-            if let Some(doc_comments) = self.project.get_constant_doc_comments(&constant_name) {
+            if let Some(doc_comments) = self.project.get_constant_doc_comments(env, &constant_name) {
                 writeln!(file)?;
                 for comment in doc_comments {
                     writeln!(file, "{}", comment)?;

@@ -1247,12 +1247,19 @@ fn test_hover_typeclass_method_with_doc_comment() {
 fn test_doc_comment_lookup() {
     let mut p = Project::new_mock();
     p.mock(
-        "/mock/foo_base.ac",
+        "/mock/foo.ac",
         r#"
     /// Foo_doc_comment
     inductive Foo {
         foo
     }
+    "#,
+    );
+
+    p.mock(
+        "/mock/bar.ac",
+        r#"
+    from foo import Foo
 
     attributes Foo {
         /// bar_doc_comment
@@ -1264,28 +1271,45 @@ fn test_doc_comment_lookup() {
     );
 
     p.mock(
-        "/mock/foo_more.ac",
-        r#"
-    from foo_base import Foo
-    attributes Foo {
-        /// baz_doc_comment
-        define baz(self, y: Bool) -> Bool {
-            y
-        }
-    }
-    "#,
-    );
-
-    p.mock(
         "/mock/main.ac",
         r#"
-    from foo_more import Foo
+    from foo import Foo
     "#,
     );
 
-    p.expect_ok("foo_base");
-    p.expect_ok("foo_more");
+    p.expect_ok("foo");
+    p.expect_ok("bar");
     p.expect_ok("main");
 
-    // TODO: ensure we can look up doc comments correctly
+    // Get the main environment
+    let main_descriptor = crate::module::ModuleDescriptor::Name("main".to_string());
+    let main_env = p.get_env(&main_descriptor).unwrap();
+    
+    // Look up Foo type
+    let foo_potential_type = main_env.bindings.get_type_for_typename("Foo").unwrap();
+    let datatype = match foo_potential_type.as_base_datatype() {
+        Some(dt) => dt,
+        None => panic!("Expected Foo to be a datatype"),
+    };
+    
+    // Create the constant name for Foo.bar
+    let bar_constant_name = crate::names::ConstantName::datatype_attr(datatype.clone(), "bar");
+    
+    // Try to get doc comments for Foo.bar from main's perspective
+    let doc_comments = p.get_constant_doc_comments(main_env, &bar_constant_name);
+    
+    // Debug: Let's see what module the constant name thinks it belongs to
+    println!("bar_constant_name module_id: {:?}", bar_constant_name.module_id());
+    println!("doc_comments found: {:?}", doc_comments);
+    
+    // Also try getting the bar environment directly
+    let bar_descriptor = crate::module::ModuleDescriptor::Name("bar".to_string());
+    if let Some(bar_env) = p.get_env(&bar_descriptor) {
+        let direct_doc_comments = bar_env.bindings.get_constant_doc_comments(&bar_constant_name);
+        println!("Direct lookup in bar module: {:?}", direct_doc_comments);
+    }
+    
+    // This should find the doc comment, but might not due to a bug
+    assert!(doc_comments.is_some(), "Should find doc comments for Foo.bar");
+    assert_eq!(doc_comments.unwrap(), &vec!["bar_doc_comment".to_string()]);
 }

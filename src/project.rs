@@ -848,10 +848,18 @@ impl Project {
     }
 
     /// Get doc comments for a constant, looking in the module where it was originally defined.
-    pub fn get_constant_doc_comments(&self, name: &ConstantName) -> Option<&Vec<String>> {
-        self.get_env_by_id(name.module_id())?
-            .bindings
-            .get_constant_doc_comments(name)
+    /// Falls back to the provided environment if the original module can't be found.
+    pub fn get_constant_doc_comments<'a>(
+        &'a self,
+        env: &'a Environment,
+        name: &ConstantName,
+    ) -> Option<&'a Vec<String>> {
+        // Try to get doc comments from the module where this constant was defined
+        if let Some(module_env) = self.get_env_by_id(name.module_id()) {
+            module_env.bindings.get_constant_doc_comments(name)
+        } else {
+            env.bindings.get_constant_doc_comments(name)
+        }
     }
 
     /// Get doc comments for a datatype, looking in the module where it was originally defined.
@@ -915,13 +923,13 @@ impl Project {
                 match base_value {
                     AcornValue::Constant(ci) => {
                         // For constants (including those with type parameters), look up doc comments
-                        self.get_constant_doc_comments(&ci.name)
+                        self.get_constant_doc_comments(env, &ci.name)
                     }
                     _ => None,
                 }
             }
             NamedEntity::UnresolvedValue(unresolved) => {
-                self.get_constant_doc_comments(&unresolved.name)
+                self.get_constant_doc_comments(env, &unresolved.name)
             }
 
             NamedEntity::Type(acorn_type) => {
