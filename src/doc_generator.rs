@@ -71,11 +71,13 @@ impl<'a> DocGenerator<'a> {
         filename: impl AsRef<Path>,
     ) -> Result<(), DocError> {
         let mut methods = env.bindings.get_datatype_attributes(datatype);
+        // Filter out attributes that are wholly numeric
+        methods.retain(|name| !name.chars().all(|c| c.is_numeric()));
         methods.sort();
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
-        writeln!(file, "# {} Type Documentation\n", type_name)?;
+        writeln!(file, "# {}", type_name)?;
 
         for method_name in methods {
             writeln!(file, "## {}", method_name)?;
