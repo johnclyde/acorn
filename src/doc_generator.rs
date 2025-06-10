@@ -59,6 +59,57 @@ impl<'a> DocGenerator<'a> {
         DocGenerator { project }
     }
 
+    /// Helper function to write the header section of a documentation file.
+    /// This includes the title, doc comments, GitHub link, and horizontal rule.
+    fn write_header(
+        &self,
+        file: &mut std::fs::File,
+        title: &str,
+        doc_comments: Option<&Vec<String>>,
+        module_id: crate::module::ModuleId,
+    ) -> Result<(), DocError> {
+        writeln!(file, "# {}", title)?;
+
+        // Write doc comments if they exist
+        if let Some(comments) = doc_comments {
+            writeln!(file)?;
+            for comment in comments {
+                writeln!(file, "{}", comment)?;
+            }
+        }
+
+        // Add GitHub link
+        if let Some(github_link) = self.project.github_link(module_id) {
+            writeln!(file)?;
+            writeln!(file, "[GitHub]({})", github_link)?;
+        }
+
+        // Add horizontal rule
+        writeln!(file)?;
+        writeln!(file, "---")?;
+
+        Ok(())
+    }
+
+    /// Helper function to write a section with doc comments.
+    fn write_section(
+        &self,
+        file: &mut std::fs::File,
+        section_name: &str,
+        doc_comments: Option<&Vec<String>>,
+    ) -> Result<(), DocError> {
+        writeln!(file, "## {}", section_name)?;
+        
+        if let Some(comments) = doc_comments {
+            writeln!(file)?;
+            for comment in comments {
+                writeln!(file, "{}", comment)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Documents a type by writing all its methods to a markdown file.
     /// env: The environment with the canonical import location of the type
     /// type_name: The name of the type (e.g., "Int")
@@ -78,29 +129,18 @@ impl<'a> DocGenerator<'a> {
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
-        writeln!(file, "# {}", type_name)?;
+        // Write header
+        let doc_comments = self.project.get_datatype_doc_comments(datatype);
+        self.write_header(&mut file, type_name, doc_comments, env.module_id)?;
 
-        // Write doc comments if they exist
-        if let Some(doc_comments) = self.project.get_datatype_doc_comments(datatype) {
-            writeln!(file)?;
-            for comment in doc_comments {
-                writeln!(file, "{}", comment)?;
-            }
-        }
-
+        // Write methods
         for method_name in methods {
-            writeln!(file, "## {}", method_name)?;
-            
             // Create the constant name for this attribute
             let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
             
             // Get doc comments for this attribute
-            if let Some(doc_comments) = self.project.get_constant_doc_comments(env, &constant_name) {
-                writeln!(file)?;
-                for comment in doc_comments {
-                    writeln!(file, "{}", comment)?;
-                }
-            }
+            let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
+            self.write_section(&mut file, &method_name, doc_comments)?;
         }
 
         Ok(())
@@ -126,29 +166,18 @@ impl<'a> DocGenerator<'a> {
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
-        writeln!(file, "# {}", typeclass_name)?;
+        // Write header
+        let doc_comments = self.project.get_typeclass_doc_comments(typeclass);
+        self.write_header(&mut file, typeclass_name, doc_comments, env.module_id)?;
 
-        // Write doc comments if they exist
-        if let Some(doc_comments) = self.project.get_typeclass_doc_comments(typeclass) {
-            writeln!(file)?;
-            for comment in doc_comments {
-                writeln!(file, "{}", comment)?;
-            }
-        }
-
+        // Write attributes
         for attribute_name in attribute_names {
-            writeln!(file, "## {}", attribute_name)?;
-            
             // Create the constant name for this attribute
             let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &attribute_name);
             
             // Get doc comments for this attribute
-            if let Some(doc_comments) = self.project.get_constant_doc_comments(env, &constant_name) {
-                writeln!(file)?;
-                for comment in doc_comments {
-                    writeln!(file, "{}", comment)?;
-                }
-            }
+            let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
+            self.write_section(&mut file, &attribute_name, doc_comments)?;
         }
 
         Ok(())

@@ -898,6 +898,29 @@ impl Project {
             .get_typeclass_doc_comment(typeclass)
     }
 
+    /// Generate a GitHub link to the source code for a module.
+    /// Returns None if the module doesn't have a valid path.
+    pub fn github_link(&self, module_id: ModuleId) -> Option<String> {
+        // Get the descriptor for this module
+        let descriptor = self.get_module_descriptor(module_id)?;
+        
+        // Get the path for the module
+        let path = self.path_from_descriptor(descriptor).ok()?;
+        
+        // Make it relative to the library root
+        let relative_path = path.strip_prefix(&self.library_root).ok()?;
+        
+        // Convert to string with forward slashes
+        let path_str = relative_path.to_str()?;
+        let normalized_path = path_str.replace('\\', "/");
+        
+        // Prepend the GitHub URL
+        Some(format!(
+            "https://github.com/acornprover/acornlib/blob/master/src/{}",
+            normalized_path
+        ))
+    }
+
     /// env should be the environment in which the token was evaluated.
     fn hover_for_info(
         &self,
