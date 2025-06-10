@@ -16,7 +16,7 @@
       "name": "keyword.operator"
     },
     {
-      "match": "\\b(let|axiom|define|theorem|type|structure|constraint|satisfy|inductive|class|attributes|numerals|typeclass|instance|extends)\\b",
+      "match": "\\b(let|axiom|define|theorem|type|structure|constraint|satisfy|inductive|class|attributes|numerals|typeclass|instance|extends|problem|todo)\\b",
       "name": "keyword.declaration"
     },
     {
