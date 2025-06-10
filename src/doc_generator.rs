@@ -60,15 +60,24 @@ impl<'a> DocGenerator<'a> {
     }
 
     /// Helper function to write the header section of a documentation file.
-    /// This includes the title, doc comments, GitHub link, and horizontal rule.
+    /// This includes the title, definition, doc comments, GitHub link, and horizontal rule.
     fn write_header(
         &self,
         file: &mut std::fs::File,
         title: &str,
+        definition_string: Option<&String>,
         doc_comments: Option<&Vec<String>>,
         module_id: crate::module::ModuleId,
     ) -> Result<(), DocError> {
         writeln!(file, "# {}", title)?;
+
+        // Write definition string if it exists
+        if let Some(definition) = definition_string {
+            writeln!(file)?;
+            writeln!(file, "```acorn")?;
+            writeln!(file, "{}", definition)?;
+            writeln!(file, "```")?;
+        }
 
         // Write doc comments if they exist
         if let Some(comments) = doc_comments {
@@ -91,14 +100,23 @@ impl<'a> DocGenerator<'a> {
         Ok(())
     }
 
-    /// Helper function to write a section with doc comments.
+    /// Helper function to write a section with definition and doc comments.
     fn write_section(
         &self,
         file: &mut std::fs::File,
         section_name: &str,
+        definition_string: Option<&String>,
         doc_comments: Option<&Vec<String>>,
     ) -> Result<(), DocError> {
         writeln!(file, "## {}", section_name)?;
+        
+        // Write definition string if it exists
+        if let Some(definition) = definition_string {
+            writeln!(file)?;
+            writeln!(file, "```acorn")?;
+            writeln!(file, "{}", definition)?;
+            writeln!(file, "```")?;
+        }
         
         if let Some(comments) = doc_comments {
             writeln!(file)?;
@@ -131,16 +149,18 @@ impl<'a> DocGenerator<'a> {
 
         // Write header
         let doc_comments = self.project.get_datatype_doc_comments(datatype);
-        self.write_header(&mut file, type_name, doc_comments, env.module_id)?;
+        let definition_string = self.project.get_datatype_definition_string(datatype);
+        self.write_header(&mut file, type_name, definition_string, doc_comments, env.module_id)?;
 
         // Write methods
         for method_name in methods {
             // Create the constant name for this attribute
             let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
             
-            // Get doc comments for this attribute
+            // Get doc comments and definition string for this attribute
             let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
-            self.write_section(&mut file, &method_name, doc_comments)?;
+            let definition_string = self.project.get_constant_definition_string(&constant_name);
+            self.write_section(&mut file, &method_name, definition_string, doc_comments)?;
         }
 
         Ok(())
@@ -168,16 +188,18 @@ impl<'a> DocGenerator<'a> {
 
         // Write header
         let doc_comments = self.project.get_typeclass_doc_comments(typeclass);
-        self.write_header(&mut file, typeclass_name, doc_comments, env.module_id)?;
+        let definition_string = self.project.get_typeclass_definition_string(typeclass);
+        self.write_header(&mut file, typeclass_name, definition_string, doc_comments, env.module_id)?;
 
         // Write attributes
         for attribute_name in attribute_names {
             // Create the constant name for this attribute
             let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &attribute_name);
             
-            // Get doc comments for this attribute
+            // Get doc comments and definition string for this attribute
             let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
-            self.write_section(&mut file, &attribute_name, doc_comments)?;
+            let definition_string = self.project.get_constant_definition_string(&constant_name);
+            self.write_section(&mut file, &attribute_name, definition_string, doc_comments)?;
         }
 
         Ok(())
