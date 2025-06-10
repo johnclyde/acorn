@@ -73,61 +73,7 @@ pub enum Expression {
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Expression::Singleton(token) => write!(f, "{}", token),
-            Expression::Unary(token, subexpression) => {
-                if token.token_type == TokenType::Minus {
-                    write!(f, "{}{}", token, subexpression)
-                } else {
-                    write!(f, "{} {}", token, subexpression)
-                }
-            }
-            Expression::Binary(left, token, right) => {
-                let left_spacer = if token.token_type.left_space() {
-                    " "
-                } else {
-                    ""
-                };
-                let right_spacer = if token.token_type.right_space() {
-                    " "
-                } else {
-                    ""
-                };
-                write!(
-                    f,
-                    "{}{}{}{}{}",
-                    left, left_spacer, token, right_spacer, right
-                )
-            }
-            Expression::Concatenation(left, right) => {
-                write!(f, "{}{}", left, right)
-            }
-            Expression::Grouping(left, e, right) => {
-                write!(f, "{}{}{}", left, e, right)
-            }
-            Expression::Binder(token, args, sub, _) => {
-                write!(f, "{}", token)?;
-                Declaration::write_vec(f, args)?;
-                write!(f, " {{ {} }}", sub)
-            }
-            Expression::IfThenElse(_, cond, if_block, else_block, _) => {
-                match else_block {
-                    Some(else_expr) => write!(
-                        f,
-                        "if {} {{ {} }} else {{ {} }}",
-                        cond, if_block, else_expr
-                    ),
-                    None => write!(f, "if {} {{ {} }}", cond, if_block),
-                }
-            }
-            Expression::Match(_, scrutinee, cases, _) => {
-                write!(f, "match {} {{", scrutinee)?;
-                for (pat, exp) in cases {
-                    write!(f, " {} {{ {} }}", pat, exp)?;
-                }
-                write!(f, " }}")
-            }
-        }
+        self.fmt_helper(f, None)
     }
 }
 
@@ -303,6 +249,115 @@ impl Terminator {
 }
 
 impl Expression {
+    /// Helper function for formatting with optional indentation.
+    /// If indentation is provided, it formats if/match expressions with proper indentation and newlines.
+    pub fn fmt_helper(&self, f: &mut fmt::Formatter, indentation: Option<&str>) -> fmt::Result {
+        match self {
+            Expression::Singleton(token) => write!(f, "{}", token),
+            Expression::Unary(token, subexpression) => {
+                if token.token_type == TokenType::Minus {
+                    write!(f, "{}{}", token, subexpression.fmt_string(indentation))
+                } else {
+                    write!(f, "{} {}", token, subexpression.fmt_string(indentation))
+                }
+            }
+            Expression::Binary(left, token, right) => {
+                let left_spacer = if token.token_type.left_space() {
+                    " "
+                } else {
+                    ""
+                };
+                let right_spacer = if token.token_type.right_space() {
+                    " "
+                } else {
+                    ""
+                };
+                write!(
+                    f,
+                    "{}{}{}{}{}",
+                    left.fmt_string(indentation), left_spacer, token, right_spacer, right.fmt_string(indentation)
+                )
+            }
+            Expression::Concatenation(left, right) => {
+                write!(f, "{}{}", left.fmt_string(indentation), right.fmt_string(indentation))
+            }
+            Expression::Grouping(left, e, right) => {
+                write!(f, "{}{}{}", left, e.fmt_string(indentation), right)
+            }
+            Expression::Binder(token, args, sub, _) => {
+                write!(f, "{}", token)?;
+                Declaration::write_vec(f, args)?;
+                if let Some(indent) = indentation {
+                    let inner_indent = format!("{}    ", indent);
+                    write!(f, " {{\n{}{}\n{}}}", inner_indent, sub.fmt_string(Some(&inner_indent)), indent)
+                } else {
+                    write!(f, " {{ {} }}", sub.fmt_string(None))
+                }
+            }
+            Expression::IfThenElse(_, cond, if_block, else_block, _) => {
+                if let Some(indent) = indentation {
+                    let inner_indent = format!("{}    ", indent);
+                    write!(f, "if {} {{\n{}{}\n{}}}", 
+                        cond.fmt_string(None), 
+                        inner_indent, 
+                        if_block.fmt_string(Some(&inner_indent)), 
+                        indent
+                    )?;
+                    if let Some(else_expr) = else_block {
+                        write!(f, " else {{\n{}{}\n{}}}", 
+                            inner_indent, 
+                            else_expr.fmt_string(Some(&inner_indent)), 
+                            indent
+                        )?;
+                    }
+                    Ok(())
+                } else {
+                    match else_block {
+                        Some(else_expr) => write!(
+                            f,
+                            "if {} {{ {} }} else {{ {} }}",
+                            cond.fmt_string(None), if_block.fmt_string(None), else_expr.fmt_string(None)
+                        ),
+                        None => write!(f, "if {} {{ {} }}", cond.fmt_string(None), if_block.fmt_string(None)),
+                    }
+                }
+            }
+            Expression::Match(_, scrutinee, cases, _) => {
+                if let Some(indent) = indentation {
+                    let inner_indent = format!("{}    ", indent);
+                    write!(f, "match {} {{", scrutinee.fmt_string(None))?;
+                    for (pat, exp) in cases {
+                        write!(f, "\n{}{} {{\n{}{}\n{}}}", 
+                            inner_indent, 
+                            pat.fmt_string(None), 
+                            format!("{}    ", inner_indent),
+                            exp.fmt_string(Some(&format!("{}    ", inner_indent))), 
+                            inner_indent
+                        )?;
+                    }
+                    write!(f, "\n{}}}", indent)
+                } else {
+                    write!(f, "match {} {{", scrutinee.fmt_string(None))?;
+                    for (pat, exp) in cases {
+                        write!(f, " {} {{ {} }}", pat.fmt_string(None), exp.fmt_string(None))?;
+                    }
+                    write!(f, " }}")
+                }
+            }
+        }
+    }
+
+    /// Helper method to get formatted string with indentation
+    fn fmt_string(&self, indentation: Option<&str>) -> String {
+        struct Wrapper<'a>(&'a Expression, Option<&'a str>);
+        impl<'a> fmt::Display for Wrapper<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                self.0.fmt_helper(f, self.1)
+            }
+        }
+        format!("{}", Wrapper(self, indentation))
+    }
+
     pub fn first_token(&self) -> &Token {
         match self {
             Expression::Singleton(token) => token,

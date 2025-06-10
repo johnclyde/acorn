@@ -1266,8 +1266,14 @@ impl Statement {
                 write!(f, "let {}", ls.name_token.text())?;
                 write_type_params(f, &ls.type_params)?;
                 match &ls.type_expr {
-                    Some(type_expr) => write!(f, ": {} = {}", type_expr, ls.value),
-                    None => write!(f, " = {}", ls.value),
+                    Some(type_expr) => {
+                        write!(f, ": {} = ", type_expr)?;
+                        ls.value.fmt_helper(f, Some(indentation))
+                    },
+                    None => {
+                        write!(f, " = ")?;
+                        ls.value.fmt_helper(f, Some(indentation))
+                    },
                 }
             }
 
@@ -1276,11 +1282,9 @@ impl Statement {
                 write!(f, "define {}", ds.name_token.text())?;
                 write_type_params(f, &ds.type_params)?;
                 write_args(f, &ds.args)?;
-                write!(
-                    f,
-                    " -> {} {{\n{}{}\n{}}}",
-                    ds.return_type, new_indentation, ds.return_value, indentation
-                )
+                write!(f, " -> {} {{\n{}", ds.return_type, new_indentation)?;
+                ds.return_value.fmt_helper(f, Some(&new_indentation))?;
+                write!(f, "\n{}}}", indentation)
             }
 
             StatementInfo::Theorem(ts) => {
@@ -1774,7 +1778,10 @@ mod tests {
     fn test_definition_statements() {
         ok("let a: int = x + 2");
         ok("let f: int -> bool = compose(g, h)");
-        ok("let f: int -> int = function(x: int) { x + 1 }");
+        ok(indoc! {"
+        let f: int -> int = function(x: int) {
+            x + 1
+        }"});
         ok("let g: (int, int, int) -> bool = swap(h)");
         ok(indoc! {"
         define orx(p: bool, q: bool) -> bool {
@@ -1838,7 +1845,10 @@ mod tests {
 
     #[test]
     fn test_forall_value_in_statement() {
-        ok("let p: bool = forall(b: bool) { b or not b }");
+        ok(indoc! {"
+        let p: bool = forall(b: bool) {
+            b or not b
+        }"});
     }
 
     #[test]
