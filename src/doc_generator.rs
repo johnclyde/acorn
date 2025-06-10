@@ -79,6 +79,14 @@ impl<'a> DocGenerator<'a> {
 
         writeln!(file, "# {}", type_name)?;
 
+        // Write doc comments if they exist
+        if let Some(doc_comments) = env.bindings.get_datatype_doc_comment(datatype) {
+            writeln!(file)?;
+            for comment in doc_comments {
+                writeln!(file, "{}", comment)?;
+            }
+        }
+
         for method_name in methods {
             writeln!(file, "## {}", method_name)?;
         }
