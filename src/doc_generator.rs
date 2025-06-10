@@ -59,7 +59,7 @@ impl<'a> DocGenerator<'a> {
     }
 
     /// Documents a type by writing all its methods to a markdown file.
-    /// env: The environment containing the type
+    /// env: The environment with the canonical import location of the type
     /// type_name: The name of the type (e.g., "Int")
     /// datatype: The datatype to document
     /// filename: Where to write the documentation
@@ -80,10 +80,13 @@ impl<'a> DocGenerator<'a> {
         writeln!(file, "# {}", type_name)?;
 
         // Write doc comments if they exist
-        if let Some(doc_comments) = env.bindings.get_datatype_doc_comment(datatype) {
-            writeln!(file)?;
-            for comment in doc_comments {
-                writeln!(file, "{}", comment)?;
+        // Doc comments are stored in the module where the type was originally defined
+        if let Some(original_env) = self.project.get_env_by_id(datatype.module_id) {
+            if let Some(doc_comments) = original_env.bindings.get_datatype_doc_comment(datatype) {
+                writeln!(file)?;
+                for comment in doc_comments {
+                    writeln!(file, "{}", comment)?;
+                }
             }
         }
 
