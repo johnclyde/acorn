@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use std::path::Path;
@@ -11,6 +12,12 @@ pub enum DocError {
     IoError(std::io::Error),
     DirectoryNotFound(String),
     NotADirectory(String),
+    MissingCategoryFile(String),
+    DocumentationConflict {
+        type_name: String,
+        first_module: String,
+        second_module: String,
+    },
 }
 
 impl fmt::Display for DocError {
@@ -19,6 +26,19 @@ impl fmt::Display for DocError {
             DocError::IoError(e) => write!(f, "{}", e),
             DocError::DirectoryNotFound(path) => write!(f, "Directory '{}' does not exist", path),
             DocError::NotADirectory(path) => write!(f, "'{}' is not a directory", path),
+            DocError::MissingCategoryFile(path) => write!(
+                f,
+                "Directory '{}' is missing required _category_.json file",
+                path
+            ),
+            DocError::DocumentationConflict {
+                type_name,
+                first_module,
+                second_module,
+            } => {
+                write!(f, "Documentation conflict for type '{}': both modules '{}' and '{}' appear to be authoritative", 
+                       type_name, first_module, second_module)
+            }
         }
     }
 }
@@ -76,6 +96,17 @@ impl<'a> DocGenerator<'a> {
             return Err(DocError::NotADirectory(doc_root.display().to_string()));
         }
 
+        // Check for _category_.json file
+        let category_file = doc_root.join("_category_.json");
+        if !category_file.exists() {
+            return Err(DocError::MissingCategoryFile(
+                doc_root.display().to_string(),
+            ));
+        }
+
+        // Track which types we've already documented and from which module
+        let mut documented_types: HashMap<String, String> = HashMap::new();
+
         // Iterate over all modules
         for (descriptor, module_id) in self.project.iter_modules() {
             // Skip non-top-level modules
@@ -105,14 +136,27 @@ impl<'a> DocGenerator<'a> {
 
                 // Only document if this is the authoritative source
                 // Either the module that defines the datatype, or a module whose name matches
-                if module_id != datatype.module_id && !descriptor.is_authoritative_name(&datatype.name) {
+                if module_id != datatype.module_id
+                    && !descriptor.is_authoritative_name(&datatype.name)
+                {
                     continue;
                 }
+
+                // Check if we've already documented this type
+                if let Some(first_module) = documented_types.get(type_name) {
+                    return Err(DocError::DocumentationConflict {
+                        type_name: type_name.clone(),
+                        first_module: first_module.clone(),
+                        second_module: descriptor.to_string(),
+                    });
+                }
+
+                // Record that we're documenting this type from this module
+                documented_types.insert(type_name.clone(), descriptor.to_string());
 
                 // Create the output filename
                 let filename = doc_root.join(format!("{}.md", type_name));
 
-                // Document this type
                 self.document_type(env, type_name, datatype, filename)?;
             }
         }
