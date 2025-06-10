@@ -1666,7 +1666,13 @@ impl Statement {
                         // The token's text includes "///" at the start
                         let text = doc_token.text();
                         let content = if text.starts_with("///") {
-                            text[3..].trim().to_string()
+                            let after_slash = &text[3..];
+                            // Remove at most one space from the beginning
+                            if after_slash.starts_with(' ') {
+                                after_slash[1..].to_string()
+                            } else {
+                                after_slash.to_string()
+                            }
                         } else {
                             text.to_string()
                         };
