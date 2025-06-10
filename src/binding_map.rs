@@ -545,12 +545,14 @@ impl BindingMap {
         extends: Vec<Typeclass>,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
         project: &Project,
         source: &dyn ErrorSource,
     ) -> compilation::Result<()> {
         let mut info = TypeclassDefinition::new();
         info.doc_comments = doc_comments;
         info.range = range;
+        info.definition_string = definition_string;
         for base in extends {
             info.extends.insert(base.clone());
             let bindings = self.get_bindings(base.module_id, project);
@@ -678,6 +680,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
     ) -> PotentialValue {
         match defined_name {
             DefinedName::Constant(constant_name) => self.add_constant_name(
@@ -688,6 +691,7 @@ impl BindingMap {
                 constructor,
                 doc_comments,
                 range,
+                definition_string,
             ),
             DefinedName::Instance(instance_name) => {
                 let definition = definition.expect("instance must have a definition");
@@ -720,6 +724,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
+        definition_string: Option<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::datatype_attr(datatype.clone(), attr);
         self.add_constant_name(
@@ -730,6 +735,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             None,
+            definition_string,
         )
     }
 
@@ -742,6 +748,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
+        definition_string: Option<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::typeclass_attr(typeclass.clone(), attr);
         self.add_constant_name(
@@ -752,6 +759,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             None,
+            definition_string,
         )
     }
 
@@ -784,6 +792,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
     ) -> PotentialValue {
         let constant_name = ConstantName::unqualified(self.module_id, name);
         self.add_constant_name(
@@ -794,6 +803,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             range,
+            definition_string,
         )
     }
 
@@ -811,6 +821,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
         range: Option<Range>,
+        definition_string: Option<String>,
     ) -> PotentialValue {
         if let Some(definition) = &definition {
             if let Err(e) = definition.validate() {
@@ -853,6 +864,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             range,
+            definition_string,
         };
 
         self.add_constant_def(constant_name.clone(), info);
@@ -918,6 +930,7 @@ impl BindingMap {
             constructor: None,
             doc_comments: vec![],
             range: None,
+            definition_string: None,
         };
         self.add_constant_def(alias, info);
     }
@@ -944,6 +957,11 @@ impl BindingMap {
                 Some(&info.doc_comments)
             }
         })
+    }
+
+    /// Get the definition string for a constant, if it has one.
+    pub fn get_constant_definition_string(&self, name: &ConstantName) -> Option<&String> {
+        self.constant_defs.get(name)?.definition_string.as_ref()
     }
 
     /// Get the doc comment for a datatype.
@@ -978,6 +996,11 @@ impl BindingMap {
                 Some(&info.doc_comments)
             }
         })
+    }
+
+    /// Get the definition string for a typeclass.
+    pub fn get_typeclass_definition_string(&self, typeclass: &Typeclass) -> Option<&String> {
+        self.typeclass_defs.get(typeclass)?.definition_string.as_ref()
     }
 
     /// Get the definition range for a typeclass.
@@ -1476,7 +1499,7 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![], None);
+            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![], None, None);
         }
 
         // Evaluate the internal value using our modified bindings
@@ -1785,6 +1808,9 @@ struct TypeclassDefinition {
 
     /// The range in the source code where this typeclass was defined.
     range: Option<Range>,
+
+    /// The stringified form of the statement that defined this typeclass.
+    definition_string: Option<String>,
 }
 
 impl TypeclassDefinition {
@@ -1796,6 +1822,7 @@ impl TypeclassDefinition {
             alias: None,
             doc_comments: vec![],
             range: None,
+            definition_string: None,
         }
     }
 }
@@ -1829,6 +1856,9 @@ struct ConstantDefinition {
 
     /// The range in the source code where this constant was defined.
     range: Option<Range>,
+
+    /// The stringified form of the statement that defined this constant.
+    definition_string: Option<String>,
 }
 
 /// The way that a typeclass attribute has been defined for a particular instance of a typeclass.

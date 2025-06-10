@@ -213,6 +213,7 @@ impl Environment {
         constant_type: AcornType,
         definition: Option<AcornValue>,
         range: Range,
+        definition_string: Option<String>,
     ) {
         let doc_comments = self.take_doc_comments();
         self.bindings.add_defined_name(
@@ -223,6 +224,7 @@ impl Environment {
             None,
             doc_comments,
             Some(range.clone()),
+            definition_string,
         );
         self.add_definition(&name);
     }

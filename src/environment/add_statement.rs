@@ -102,6 +102,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_let_statement(
                     project,
+                    statement,
                     DefinedName::unqualified(self.module_id, ls.name_token.text()),
                     ls,
                     ls.name_token.range(),
@@ -113,6 +114,7 @@ impl Environment {
                 self.add_other_lines(statement);
                 self.add_define_statement(
                     project,
+                    statement,
                     DefinedName::unqualified(self.module_id, ds.name_token.text()),
                     None,
                     None,
@@ -197,6 +199,7 @@ impl Environment {
     fn add_let_statement(
         &mut self,
         project: &Project,
+        statement: &Statement,
         defined_name: DefinedName,
         ls: &LetStatement,
         range: Range,
@@ -332,13 +335,14 @@ impl Environment {
                 }
             }
         }
-        self.define_constant(defined_name, type_params, acorn_type, value, range);
+        self.define_constant(defined_name, type_params, acorn_type, value, range, Some(statement.to_string()));
         Ok(())
     }
 
     fn add_define_statement(
         &mut self,
         project: &Project,
+        statement: &Statement,
         defined_name: DefinedName,
         self_type: Option<&AcornType>,
         datatype_params: Option<&Vec<TypeParam>>,
@@ -419,13 +423,14 @@ impl Environment {
                 fn_value.get_type(),
                 Some(fn_value),
                 range,
+                Some(statement.to_string()),
             );
             return Ok(());
         }
 
         // Defining an axiom
         let new_axiom_type = AcornType::functional(arg_types, value_type);
-        self.define_constant(defined_name, fn_param_names, new_axiom_type, None, range);
+        self.define_constant(defined_name, fn_param_names, new_axiom_type, None, range, Some(statement.to_string()));
         Ok(())
     }
 
@@ -513,6 +518,7 @@ impl Environment {
                 None,
                 doc_comments,
                 Some(name_range),
+                Some(statement.to_string()),
             );
         }
 
@@ -597,6 +603,7 @@ impl Environment {
                 None,
                 vec![],
                 None,
+                None, // No definition string for quantified variables
             );
         }
 
@@ -687,6 +694,7 @@ impl Environment {
             None,
             doc_comments,
             Some(fss.name_token.range()),
+            Some(statement.to_string()),
         );
         let const_name = ConstantName::unqualified(self.module_id, fss.name_token.text());
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
@@ -817,6 +825,7 @@ impl Environment {
                 None,
                 None,
                 vec![],
+                None, // No definition string for auto-generated member functions
             );
             member_fns.push(potential);
         }
@@ -836,6 +845,7 @@ impl Environment {
             None,
             Some(constructor_info),
             vec![],
+            None, // No definition string for auto-generated constructor
         );
 
         // Each object of this new type has certain properties.
@@ -1043,6 +1053,7 @@ impl Environment {
                 None,
                 Some(constructor_info),
                 vec![],
+                None, // No definition string for auto-generated constructors
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
@@ -1238,6 +1249,7 @@ impl Environment {
             Some(gen_lambda_claim),
             None,
             vec![],
+            None, // No definition string for auto-generated induction principle
         );
         self.bindings.mark_as_theorem(&name);
 
@@ -1306,6 +1318,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
+                        substatement,
                         DefinedName::datatype_attr(datatype, ls.name_token.text()),
                         ls,
                         ls.name_token.range(),
@@ -1315,6 +1328,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
+                        substatement,
                         DefinedName::datatype_attr(datatype, ds.name_token.text()),
                         Some(&instance_type),
                         Some(&type_params),
@@ -1372,6 +1386,7 @@ impl Environment {
                 StatementInfo::Let(ls) => {
                     self.add_let_statement(
                         project,
+                        substatement,
                         DefinedName::typeclass_attr(&typeclass, ls.name_token.text()),
                         ls,
                         ls.name_token.range(),
@@ -1381,6 +1396,7 @@ impl Environment {
                 StatementInfo::Define(ds) => {
                     self.add_define_statement(
                         project,
+                        substatement,
                         DefinedName::typeclass_attr(&typeclass, ds.name_token.text()),
                         Some(&instance_type),
                         Some(&type_params),
@@ -1428,11 +1444,13 @@ impl Environment {
             name: typeclass_name.to_string(),
         };
         let doc_comments = self.take_doc_comments();
+        let definition_string = Some(statement.to_string());
         self.bindings.add_typeclass(
             typeclass_name,
             extends,
             doc_comments,
             Some(ts.typeclass_name.range()),
+            definition_string,
             &project,
             &ts.typeclass_name,
         )?;
@@ -1494,6 +1512,7 @@ impl Environment {
                     None,
                     None,
                     vec![],
+                    None, // No definition string for typeclass attribute declarations
                 );
                 // Mark as required since it's from the initial typeclass definition
                 self.bindings
@@ -1553,6 +1572,7 @@ impl Environment {
                     Some(lambda_claim),
                     None,
                     vec![],
+                    None, // No definition string for typeclass condition theorems
                 );
 
                 let source = Source::theorem(
@@ -1614,6 +1634,7 @@ impl Environment {
                     StatementInfo::Let(ls) => {
                         self.add_let_statement(
                             project,
+                            substatement,
                             DefinedName::instance(
                                 typeclass.clone(),
                                 ls.name_token.text(),
@@ -1638,6 +1659,7 @@ impl Environment {
                         }
                         self.add_define_statement(
                             project,
+                            substatement,
                             DefinedName::instance(
                                 typeclass.clone(),
                                 ds.name_token.text(),
@@ -1750,7 +1772,7 @@ impl Environment {
         
         // Now add any defaults we found
         for (name, tc_type, dt_value, tc_resolved, dt_value_for_pair) in defaults_to_add {
-            self.define_constant(name, vec![], tc_type, Some(dt_value), statement.range());
+            self.define_constant(name, vec![], tc_type, Some(dt_value), statement.range(), None);
             pairs.push((tc_resolved, dt_value_for_pair));
         }
 
