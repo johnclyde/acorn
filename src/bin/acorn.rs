@@ -1,6 +1,8 @@
 // The Acorn CLI.
 // You can run a language server, verify a file, or verify the whole project.
 
+use acorn::doc_generator::DocGenerator;
+use acorn::project::Project;
 use acorn::searcher::Searcher;
 use acorn::server::{run_server, ServerArgs};
 use acorn::verifier::{ProverMode, Verifier};
@@ -52,6 +54,14 @@ struct Args {
         value_name = "LINE"
     )]
     line: Option<u32>,
+
+    /// Generate documentation in the given directory
+    #[clap(
+        long,
+        help = "Generate documentation in the given directory.",
+        value_name = "DIR"
+    )]
+    doc_root: Option<String>,
 }
 
 #[tokio::main]
@@ -92,6 +102,29 @@ async fn main() {
             std::process::exit(1);
         }
     };
+
+    // Check if we should generate documentation.
+    if let Some(doc_root) = args.doc_root {
+        match Project::new_local(&current_dir, ProverMode::Standard) {
+            Ok(project) => {
+                let generator = DocGenerator::new(&project);
+                match generator.generate(&doc_root) {
+                    Ok(()) => {
+                        println!("Documentation generated successfully in {}", doc_root);
+                        return;
+                    }
+                    Err(e) => {
+                        println!("Error generating documentation: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Error loading project: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Check if we should run the searcher.
     if let Some(line) = args.line {
