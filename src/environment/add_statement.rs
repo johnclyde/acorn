@@ -817,6 +817,12 @@ impl Environment {
         for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
+            let def_str = format!(
+                "{}.{}: {}",
+                ss.name_token.text(),
+                member_fn_name,
+                member_fn_type
+            );
             let potential = self.bindings.add_datatype_attribute(
                 &datatype,
                 member_fn_name,
@@ -825,7 +831,7 @@ impl Environment {
                 None,
                 None,
                 vec![],
-                None, // No definition string for auto-generated member functions
+                Some(def_str),
             );
             member_fns.push(potential);
         }
@@ -837,6 +843,7 @@ impl Environment {
             index: 0,
             total: 1,
         };
+        let def_str = format!("{}.new: {}", ss.name_token.text(), new_fn_type);
         let new_fn = self.bindings.add_datatype_attribute(
             &datatype,
             "new",
@@ -845,7 +852,7 @@ impl Environment {
             None,
             Some(constructor_info),
             vec![],
-            None, // No definition string for auto-generated constructor
+            Some(def_str),
         );
 
         // Each object of this new type has certain properties.
@@ -1045,6 +1052,12 @@ impl Environment {
                 index: i,
                 total,
             };
+            let def_str = format!(
+                "{}.{}: {}",
+                is.name_token.text(),
+                constructor_name,
+                gen_constructor_type
+            );
             let gen_constructor_fn = self.bindings.add_datatype_attribute(
                 &datatype,
                 constructor_name,
@@ -1053,7 +1066,7 @@ impl Environment {
                 None,
                 Some(constructor_info),
                 vec![],
-                None, // No definition string for auto-generated constructors
+                Some(def_str),
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
@@ -1241,6 +1254,11 @@ impl Environment {
         let name = ConstantName::datatype_attr(datatype.clone(), "induction");
         let arb_lambda_claim = AcornValue::lambda(vec![hyp_type.clone()], unbound_claim.clone());
         let gen_lambda_claim = arb_lambda_claim.genericize(&type_params);
+        let def_str = format!(
+            "{}.induction: {}",
+            is.name_token.text(),
+            gen_lambda_claim.get_type()
+        );
         self.bindings.add_datatype_attribute(
             &datatype,
             "induction",
@@ -1249,7 +1267,7 @@ impl Environment {
             Some(gen_lambda_claim),
             None,
             vec![],
-            None, // No definition string for auto-generated induction principle
+            Some(def_str),
         );
         self.bindings.mark_as_theorem(&name);
 
