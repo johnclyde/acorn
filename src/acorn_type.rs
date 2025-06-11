@@ -17,6 +17,16 @@ pub struct Typeclass {
     pub name: String,
 }
 
+impl Typeclass {
+    pub fn pretty_ref<'a, D, A>(&'a self, allocator: &'a D) -> pretty::DocBuilder<'a, D, A>
+    where
+        A: 'a,
+        D: pretty::DocAllocator<'a, A>,
+    {
+        allocator.text(&self.name)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UnresolvedType {
     /// The underlying generic datatype.

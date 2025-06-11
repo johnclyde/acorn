@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, fmt};
 
+use pretty::{DocAllocator, DocBuilder, Pretty};
 use tower_lsp::lsp_types::Range;
 
 use crate::compilation::{Error, ErrorSource, Result};
@@ -1230,6 +1231,149 @@ fn combine_partial_expressions(
         }
 
         e => Err(e.error("expected an expression")),
+    }
+}
+
+impl<'a, D, A> Pretty<'a, D, A> for &'a Expression
+where
+    A: 'a,
+    D: DocAllocator<'a, A>,
+{
+    fn pretty(self, allocator: &'a D) -> DocBuilder<'a, D, A> {
+        self.pretty_ref(allocator)
+    }
+}
+
+impl Expression {
+    pub fn pretty_ref<'a, D, A>(&'a self, allocator: &'a D) -> DocBuilder<'a, D, A>
+    where
+        A: 'a,
+        D: DocAllocator<'a, A>,
+    {
+        match self {
+            Expression::Singleton(token) => allocator.text(token.text()),
+            Expression::Unary(token, subexpression) => {
+                if token.token_type == TokenType::Minus {
+                    allocator.text(token.text()).append(subexpression.pretty_ref(allocator))
+                } else {
+                    allocator.text(token.text()).append(allocator.space()).append(subexpression.pretty_ref(allocator))
+                }
+            }
+            Expression::Binary(left, token, right) => {
+                let left_doc = left.pretty_ref(allocator);
+                let right_doc = right.pretty_ref(allocator);
+                
+                if token.token_type.left_space() {
+                    left_doc
+                        .append(allocator.space())
+                        .append(allocator.text(token.text()))
+                } else {
+                    left_doc.append(allocator.text(token.text()))
+                }
+                .append(if token.token_type.right_space() {
+                    allocator.space()
+                } else {
+                    allocator.nil()
+                })
+                .append(right_doc)
+            }
+            Expression::Concatenation(left, right) => {
+                left.pretty_ref(allocator).append(right.pretty_ref(allocator))
+            }
+            Expression::Grouping(left, e, right) => {
+                allocator.text(left.text())
+                    .append(e.pretty_ref(allocator))
+                    .append(allocator.text(right.text()))
+            }
+            Expression::Binder(token, args, sub, _) => {
+                let args_doc = self.pretty_args(allocator, args);
+                allocator.text(token.text())
+                    .append(args_doc)
+                    .append(allocator.space())
+                    .append(allocator.text("{"))
+                    .append(allocator.line().nest(4).append(sub.pretty_ref(allocator)).nest(4))
+                    .append(allocator.line())
+                    .append(allocator.text("}"))
+                    .group()
+            }
+            Expression::IfThenElse(_, cond, if_block, else_block, _) => {
+                let if_doc = allocator.text("if")
+                    .append(allocator.space())
+                    .append(cond.pretty_ref(allocator))
+                    .append(allocator.space())
+                    .append(allocator.text("{"))
+                    .append(allocator.line().nest(4).append(if_block.pretty_ref(allocator)).nest(4))
+                    .append(allocator.line())
+                    .append(allocator.text("}"));
+                
+                match else_block {
+                    Some(else_expr) => if_doc
+                        .append(allocator.space())
+                        .append(allocator.text("else"))
+                        .append(allocator.space())
+                        .append(allocator.text("{"))
+                        .append(allocator.line().nest(4).append(else_expr.pretty_ref(allocator)).nest(4))
+                        .append(allocator.line())
+                        .append(allocator.text("}")),
+                    None => if_doc,
+                }.group()
+            }
+            Expression::Match(_, scrutinee, cases, _) => {
+                let mut doc = allocator.text("match")
+                    .append(allocator.space())
+                    .append(scrutinee.pretty_ref(allocator))
+                    .append(allocator.space())
+                    .append(allocator.text("{"));
+                
+                for (pat, exp) in cases {
+                    doc = doc
+                        .append(allocator.line())
+                        .append(pat.pretty_ref(allocator))
+                        .append(allocator.space())
+                        .append(allocator.text("{"))
+                        .append(allocator.line().nest(4).append(exp.pretty_ref(allocator)).nest(4))
+                        .append(allocator.line())
+                        .append(allocator.text("}"))
+                        .nest(4);
+                }
+                
+                doc.append(allocator.line())
+                    .append(allocator.text("}"))
+                    .group()
+            }
+        }
+    }
+    
+    fn pretty_args<'a, D, A>(&'a self, allocator: &'a D, args: &'a [Declaration]) -> DocBuilder<'a, D, A>
+    where
+        A: 'a,
+        D: DocAllocator<'a, A>,
+    {
+        let mut doc = allocator.text("(");
+        for (i, arg) in args.iter().enumerate() {
+            if i > 0 {
+                doc = doc.append(allocator.text(", "));
+            }
+            doc = doc.append(arg.pretty_ref(allocator));
+        }
+        doc.append(allocator.text(")"))
+    }
+}
+
+impl Declaration {
+    pub fn pretty_ref<'a, D, A>(&'a self, allocator: &'a D) -> DocBuilder<'a, D, A>
+    where
+        A: 'a,
+        D: DocAllocator<'a, A>,
+    {
+        match self {
+            Declaration::Typed(name_token, type_expr) => {
+                allocator.text(name_token.text())
+                    .append(allocator.text(": "))
+                    .append(type_expr.pretty_ref(allocator))
+            }
+            Declaration::SelfToken(token) => allocator.text(token.text()),
+        }
     }
 }
 
