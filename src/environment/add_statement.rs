@@ -330,7 +330,14 @@ impl Environment {
                 }
             }
         }
-        self.define_constant(defined_name, type_params, acorn_type, value, range, Some(statement.to_string()));
+        self.define_constant(
+            defined_name,
+            type_params,
+            acorn_type,
+            value,
+            range,
+            Some(statement.to_string()),
+        );
         Ok(())
     }
 
@@ -420,7 +427,14 @@ impl Environment {
 
         // Defining an axiom
         let new_axiom_type = AcornType::functional(arg_types, value_type);
-        self.define_constant(defined_name, fn_param_names, new_axiom_type, None, range, Some(statement.to_string()));
+        self.define_constant(
+            defined_name,
+            fn_param_names,
+            new_axiom_type,
+            None,
+            range,
+            Some(statement.to_string()),
+        );
         Ok(())
     }
 
@@ -1489,6 +1503,7 @@ impl Environment {
                 let defined_name = DefinedName::typeclass_attr(&typeclass, attr_name.text());
                 self.bindings
                     .check_defined_name_available(&defined_name, attr_name)?;
+                let def_str = format!("{}: {}", attr_name.text(), type_expr);
                 self.bindings.add_typeclass_attribute(
                     &typeclass,
                     &attr_name.text(),
@@ -1497,7 +1512,7 @@ impl Environment {
                     None,
                     None,
                     vec![],
-                    None, // No definition string for typeclass attribute declarations
+                    Some(def_str),
                 );
                 // Mark as required since it's from the initial typeclass definition
                 self.bindings
@@ -1677,7 +1692,7 @@ impl Environment {
         let attributes = self.bindings.get_typeclass_attributes(&typeclass, &project);
         let mut conditions = vec![];
         let mut defaults_to_add = vec![]; // Collect defaults to add after the loop
-        
+
         for (attr_name, (_module_id, root_tc)) in attributes.iter() {
             if root_tc != &typeclass {
                 // This attribute is inherited, so we don't need to check it.
@@ -1731,33 +1746,42 @@ impl Environment {
                     let tc_attr_name = DefinedName::typeclass_attr(&typeclass, attr_name);
                     let tc_attr = self.bindings.get_constant_value(&tc_attr_name, statement)?;
                     let tc_unresolved = tc_attr.as_unresolved(statement)?;
-                    let tc_resolved = tc_unresolved.resolve(statement, vec![instance_type.clone()])?;
+                    let tc_resolved =
+                        tc_unresolved.resolve(statement, vec![instance_type.clone()])?;
                     let tc_type = tc_resolved.get_type();
-                    
-                    let dt_attr = self.bindings.get_constant_value(&datatype_attr_name, statement)?;
+
+                    let dt_attr = self
+                        .bindings
+                        .get_constant_value(&datatype_attr_name, statement)?;
                     let dt_value = dt_attr.as_value(statement)?;
                     let dt_type = dt_value.get_type();
-                    
+
                     if tc_type != dt_type {
                         return Err(statement.error(&format!(
                             "type mismatch for attribute '{}': typeclass expects {}, but datatype has {}",
                             attr_name, tc_type, dt_type
                         )));
                     }
-                    
+
                     // Store the information to add the default after the loop
                     defaults_to_add.push((name, tc_type, dt_value.clone(), tc_resolved, dt_value));
                 } else {
-                    return Err(
-                        statement.error(&format!("missing implementation for attribute '{}'", name))
-                    );
+                    return Err(statement
+                        .error(&format!("missing implementation for attribute '{}'", name)));
                 }
             }
         }
-        
+
         // Now add any defaults we found
         for (name, tc_type, dt_value, tc_resolved, dt_value_for_pair) in defaults_to_add {
-            self.define_constant(name, vec![], tc_type, Some(dt_value), statement.range(), None);
+            self.define_constant(
+                name,
+                vec![],
+                tc_type,
+                Some(dt_value),
+                statement.range(),
+                None,
+            );
             pairs.push((tc_resolved, dt_value_for_pair));
         }
 
