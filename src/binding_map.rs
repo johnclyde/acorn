@@ -131,20 +131,6 @@ impl BindingMap {
             .map(|(_, tc)| tc)
     }
 
-    /// For a given typeclass attribute, find the module and typeclass that defines it.
-    /// Returns (module_id, typeclass) where the attribute was originally defined.
-    /// Returns None if there is no such attribute.
-    pub fn typeclass_attr_module_lookup(
-        &self,
-        typeclass: &Typeclass,
-        attr: &str,
-    ) -> Option<(ModuleId, &Typeclass)> {
-        self.typeclass_defs
-            .get(typeclass)?
-            .attributes
-            .get(attr)
-            .map(|(module_id, tc)| (*module_id, tc))
-    }
 
     /// Gets the local alias to use for a given constant.
     pub fn constant_alias(&self, name: &ConstantName) -> Option<&String> {
@@ -386,6 +372,69 @@ impl BindingMap {
             .get(datatype)
             .and_then(|info| info.attributes.get(attr))
             .copied()
+    }
+
+    /// Figures out whether a datatype attribute is defined directly or by inheritance,
+    /// returning both the module id and the originally defined name.
+    pub fn resolve_datatype_attr(
+        &self,
+        datatype: &Datatype,
+        attr_name: &str,
+    ) -> Result<(ModuleId, ConstantName), String> {
+        if let Some(module_id) = self.get_module_for_datatype_attr(datatype, attr_name) {
+            let name = ConstantName::datatype_attr(datatype.clone(), attr_name);
+            return Ok((module_id, name));
+        }
+
+        // If no direct type attribute, check if this datatype is an instance
+        // of any typeclass that has this attribute
+        let mut base_typeclass: Option<&Typeclass> = None;
+
+        for typeclass in self.get_instance_typeclasses(datatype) {
+            let Some(base_tc) = self.typeclass_attr_lookup(typeclass, attr_name) else {
+                continue;
+            };
+            if let Some(existing_base) = base_typeclass {
+                // If we find a different base typeclass, it's ambiguous
+                if existing_base != base_tc {
+                    return Err(format!(
+                        "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
+                        attr_name, existing_base.name, base_tc.name
+                    ));
+                }
+            } else {
+                base_typeclass = Some(base_tc);
+            }
+        }
+
+        match base_typeclass {
+            Some(typeclass) => self
+                .resolve_typeclass_attr(typeclass, attr_name)
+                .ok_or_else(|| {
+                    format!(
+                        "attribute {}.{} not found via typeclass {}",
+                        &datatype.name, attr_name, typeclass.name
+                    )
+                }),
+            None => Err(format!(
+                "attribute {}.{} not found",
+                &datatype.name, attr_name
+            )),
+        }
+    }
+
+    /// Figures out whether a typeclass attribute is defined directly or by inheritance.
+    /// Returns the module ID and defined name where the attribute was originally defined.
+    pub fn resolve_typeclass_attr(
+        &self,
+        typeclass: &Typeclass,
+        attr_name: &str,
+    ) -> Option<(ModuleId, ConstantName)> {
+        // Check if this attribute is defined anywhere (including inherited ones)
+        let info = self.typeclass_defs.get(typeclass)?;
+        let (attr_module_id, attr_typeclass) = info.attributes.get(attr_name)?;
+        let name = ConstantName::typeclass_attr(attr_typeclass.clone(), attr_name);
+        Some((*attr_module_id, name))
     }
 
     /// Get all attribute names for a datatype.
