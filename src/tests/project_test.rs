@@ -1269,13 +1269,18 @@ fn test_doc_comment_lookup() {
             x
         }
     }
+
+    structure Baz {
+        /// baz_doc_comment
+        baz: Bool
+    }
     "#,
     );
 
     p.mock(
         "/mock/main.ac",
         r#"
-    from bar import Foo
+    from bar import Foo, Baz
     "#,
     );
 
@@ -1289,10 +1294,7 @@ fn test_doc_comment_lookup() {
 
     // Look up Foo type
     let foo_potential_type = main_env.bindings.get_type_for_typename("Foo").unwrap();
-    let foo_datatype = match foo_potential_type.as_base_datatype() {
-        Some(dt) => dt,
-        None => panic!("Expected Foo to be a datatype"),
-    };
+    let foo_datatype = foo_potential_type.as_base_datatype().unwrap();
 
     // Check Foo.bar
     let bar_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "bar");
@@ -1303,4 +1305,11 @@ fn test_doc_comment_lookup() {
     let foo_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "foo");
     let doc_comments = p.get_constant_doc_comments(main_env, &foo_constant_name);
     assert_eq!(doc_comments.unwrap(), &vec!["foo_doc_comment".to_string()]);
+
+    // Check Baz.baz
+    let baz_potential_type = main_env.bindings.get_type_for_typename("Baz").unwrap();
+    let baz_datatype = baz_potential_type.as_base_datatype().unwrap();
+    let baz_constant_name = ConstantName::datatype_attr(baz_datatype.clone(), "baz");
+    let doc_comments = p.get_constant_doc_comments(main_env, &baz_constant_name);
+    assert_eq!(doc_comments.unwrap(), &vec!["baz_doc_comment".to_string()]);
 }
