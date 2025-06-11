@@ -142,14 +142,27 @@ impl<'a> DocGenerator<'a> {
         Ok(())
     }
 
-    /// Helper function to write a section with definition and doc comments.
+    /// Helper function to write a section for an attribute with its definition and doc comments.
+    /// This handles the common pattern of looking up a constant name's environment and documentation.
     fn write_section(
         &self,
         file: &mut std::fs::File,
+        env: &Environment,
+        constant_name: &ConstantName,
         section_name: &str,
-        definition_string: Option<&String>,
-        doc_comments: Option<&Vec<String>>,
     ) -> Result<(), DocError> {
+        // Get the environment for this constant name
+        let Some(def_env) = self.project.get_env_for_name(env, constant_name) else {
+            return Ok(());
+        };
+
+        // Get doc comments and definition string
+        let doc_comments = def_env.bindings.get_constant_doc_comments(constant_name);
+        let definition_string = def_env
+            .bindings
+            .get_constant_definition_string(constant_name);
+
+        // Write the section header
         writeln!(file, "## {}", section_name)?;
 
         // Write definition string if it exists
@@ -160,6 +173,7 @@ impl<'a> DocGenerator<'a> {
             writeln!(file, "```")?;
         }
 
+        // Write doc comments if they exist
         if let Some(comments) = doc_comments {
             writeln!(file)?;
             for comment in comments {
@@ -203,18 +217,8 @@ impl<'a> DocGenerator<'a> {
 
         // Write methods
         for method_name in methods {
-            // Create the constant name for this attribute
             let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
-
-            // Get doc comments and definition string for this attribute
-            let Some(def_env) = self.project.get_env_for_name(env, &constant_name) else {
-                continue;
-            };
-            let doc_comments = def_env.bindings.get_constant_doc_comments(&constant_name);
-            let definition_string = def_env
-                .bindings
-                .get_constant_definition_string(&constant_name);
-            self.write_section(&mut file, &method_name, definition_string, doc_comments)?;
+            self.write_section(&mut file, env, &constant_name, &method_name)?;
         }
 
         Ok(())
@@ -256,18 +260,8 @@ impl<'a> DocGenerator<'a> {
 
         // Write attributes
         for attribute_name in attribute_names {
-            // Create the constant name for this attribute
             let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &attribute_name);
-
-            // Get doc comments and definition string for this attribute
-            let Some(def_env) = self.project.get_env_for_name(env, &constant_name) else {
-                continue;
-            };
-            let doc_comments = def_env.bindings.get_constant_doc_comments(&constant_name);
-            let definition_string = def_env
-                .bindings
-                .get_constant_definition_string(&constant_name);
-            self.write_section(&mut file, &attribute_name, definition_string, doc_comments)?;
+            self.write_section(&mut file, env, &constant_name, &attribute_name)?;
         }
 
         Ok(())
