@@ -751,7 +751,8 @@ impl Environment {
         // self-referential structs.
         let mut member_fn_names = vec![];
         let mut field_types = vec![];
-        for (field_name_token, field_type_expr) in &ss.fields {
+        let mut field_doc_comments = vec![];
+        for (field_name_token, field_type_expr, doc_comments) in &ss.fields {
             let field_type = self.evaluator(project).evaluate_type(&field_type_expr)?;
             field_types.push(field_type.clone());
             if TokenType::is_magic_method_name(&field_name_token.text()) {
@@ -761,6 +762,7 @@ impl Environment {
                 )));
             }
             member_fn_names.push(field_name_token.text());
+            field_doc_comments.push(doc_comments.clone());
         }
 
         // If there's a constraint, add a block to prove it can be satisfied.
@@ -769,7 +771,7 @@ impl Environment {
         // can't use them.
         let unbound_constraint = if let Some(constraint) = &ss.constraint {
             let mut stack = Stack::new();
-            for ((name_token, _), t) in ss.fields.iter().zip(&field_types) {
+            for ((name_token, _, _), t) in ss.fields.iter().zip(&field_types) {
                 stack.insert(name_token.to_string(), t.clone());
             }
             let unbound = self.evaluator(project).evaluate_value_with_stack(
@@ -814,7 +816,11 @@ impl Environment {
         );
         let struct_type = potential_type.resolve(arbitrary_params, &ss.name_token)?;
         let mut member_fns = vec![];
-        for (member_fn_name, field_type) in member_fn_names.into_iter().zip(&field_types) {
+        for ((member_fn_name, field_type), doc_comments) in member_fn_names
+            .into_iter()
+            .zip(&field_types)
+            .zip(&field_doc_comments)
+        {
             let member_fn_type =
                 AcornType::functional(vec![struct_type.clone()], field_type.clone());
             let def_str = format!(
@@ -830,7 +836,7 @@ impl Environment {
                 member_fn_type.genericize(&type_params),
                 None,
                 None,
-                vec![],
+                doc_comments.clone(),
                 def_str,
             );
             member_fns.push(potential);
@@ -931,7 +937,7 @@ impl Environment {
             self.bindings
                 .apply_potential(new_fn, var_args, None, &ss.name_token)?;
         for i in 0..ss.fields.len() {
-            let (field_name_token, field_type_expr) = &ss.fields[i];
+            let (field_name_token, field_type_expr, _) = &ss.fields[i];
             let member_fn = &member_fns[i];
             let applied = self.bindings.apply_potential(
                 member_fn.clone(),

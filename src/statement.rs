@@ -141,8 +141,8 @@ pub struct StructureStatement {
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
-    /// Each field contains a field name-token and a type expression
-    pub fields: Vec<(Token, Expression)>,
+    /// Each field contains a field name-token, a type expression, and doc comments
+    pub fields: Vec<(Token, Expression, Vec<String>)>,
 
     /// The token that ends the first part of the structure statement
     pub first_right_brace: Token,
@@ -693,6 +693,7 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     let type_params = TypeParamExpr::parse_list(tokens)?;
     tokens.expect_type(TokenType::LeftBrace)?;
     let mut fields = vec![];
+    let mut doc_comments = vec![];
     while let Some(token) = tokens.peek() {
         match token.token_type {
             TokenType::NewLine => {
@@ -736,6 +737,11 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     }),
                 });
             }
+            TokenType::DocComment => {
+                // Collect doc comment
+                let doc_token = tokens.next().unwrap();
+                doc_comments.push(doc_token.doc_comment_content());
+            }
             _ => {
                 let token = tokens.expect_variable_name(false)?;
                 tokens.expect_type(TokenType::Colon)?;
@@ -746,7 +752,8 @@ fn parse_structure_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                 if t.token_type == TokenType::RightBrace {
                     return Err(t.error("field declarations must end with a newline"));
                 }
-                fields.push((token, type_expr));
+                fields.push((token, type_expr, doc_comments.clone()));
+                doc_comments.clear();
             }
         }
     }
@@ -1596,7 +1603,7 @@ impl Statement {
                 doc = write_type_params_pretty(allocator, doc, &ss.type_params);
                 doc = doc.append(allocator.text(" {"));
                 let mut fields_inner = allocator.nil();
-                for (name, type_expr) in &ss.fields {
+                for (name, type_expr, _doc_comments) in &ss.fields {
                     fields_inner = fields_inner
                         .append(allocator.hardline())
                         .append(allocator.text(name.text()))

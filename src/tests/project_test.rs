@@ -1270,6 +1270,7 @@ fn test_doc_comment_lookup() {
         }
     }
 
+    /// Baz_doc_comment
     structure Baz {
         /// baz_doc_comment
         baz: Bool
