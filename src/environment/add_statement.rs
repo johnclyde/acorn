@@ -1512,7 +1512,7 @@ impl Environment {
         // Only applicable for block syntax, not no-block syntax
         if !type_params.is_empty() {
             let type_param = &type_params[0]; // For block syntax, there's exactly one type param
-            for (attr_name, type_expr) in &ts.constants {
+            for (attr_name, type_expr, doc_comments) in &ts.constants {
                 if let Some(existing_tc) = self
                     .bindings
                     .typeclass_attr_lookup(&typeclass, attr_name.text())
@@ -1536,7 +1536,7 @@ impl Environment {
                     var_type,
                     None,
                     None,
-                    vec![],
+                    doc_comments.clone(),
                     def_str,
                 );
                 // Mark as required since it's from the initial typeclass definition
@@ -1596,7 +1596,7 @@ impl Environment {
                     theorem_type.clone(),
                     Some(lambda_claim),
                     None,
-                    vec![],
+                    condition.doc_comments.clone(),
                     condition.to_string(),
                 );
 

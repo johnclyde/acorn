@@ -1292,7 +1292,7 @@ fn test_doc_comment_lookup() {
     p.mock(
         "/mock/main.ac",
         r#"
-    from bar import Foo, Baz
+    from bar import Foo, Baz, Qux
     "#,
     );
 
@@ -1330,4 +1330,19 @@ fn test_doc_comment_lookup() {
     let baz_constant_name = ConstantName::datatype_attr(baz_datatype.clone(), "baz");
     let comments = p.get_constant_doc_comments(main_env, &baz_constant_name);
     assert_eq!(comments.unwrap(), &vec!["baz_doc_comment".to_string()]);
+
+    // Check Qux typeclass
+    let qux_typeclass = main_env.bindings.get_typeclass_for_name("Qux").unwrap();
+    let comments = p.get_typeclass_doc_comments(&qux_typeclass);
+    assert_eq!(comments.unwrap(), &vec!["Qux_doc_comment".to_string()]);
+
+    // Check Qux.qux
+    let qux_constant_name = ConstantName::typeclass_attr(qux_typeclass.clone(), "qux");
+    let comments = p.get_constant_doc_comments(main_env, &qux_constant_name);
+    assert_eq!(comments.unwrap(), &vec!["qux_doc_comment".to_string()]);
+
+    // Check Qux.quux
+    let quux_constant_name = ConstantName::typeclass_attr(qux_typeclass.clone(), "quux");
+    let comments = p.get_constant_doc_comments(main_env, &quux_constant_name);
+    assert_eq!(comments.unwrap(), &vec!["quux_doc_comment".to_string()]);
 }

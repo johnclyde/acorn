@@ -219,6 +219,7 @@ pub struct TypeclassCondition {
     pub name_token: Token,
     pub args: Vec<Declaration>,
     pub claim: Expression,
+    pub doc_comments: Vec<String>,
 }
 
 impl fmt::Display for TypeclassCondition {
@@ -269,10 +270,10 @@ pub struct TypeclassStatement {
     pub extends: Vec<Expression>,
 
     /// Each instance type in the typeclass has a list of constants that must be defined.
-    /// This is a list of (name, type) pairs.
+    /// This is a list of (name, type, doc_comments) tuples.
     /// The type may refer to the instance type itself.
     /// For example, all groups must define the identity, of the type of the group elements.
-    pub constants: Vec<(Token, Expression)>,
+    pub constants: Vec<(Token, Expression, Vec<String>)>,
 
     /// Conditions that must be proven for the typeclass to be valid.
     pub conditions: Vec<TypeclassCondition>,
@@ -1074,6 +1075,7 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
 
     let mut constants = vec![];
     let mut conditions = vec![];
+    let mut doc_comments = vec![];
 
     if !has_block {
         // No-block syntax - just return the typeclass with extends only
@@ -1104,6 +1106,11 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     while let Some(token) = tokens.next() {
         match token.token_type {
             TokenType::NewLine => {
+                continue;
+            }
+            TokenType::DocComment => {
+                // Collect doc comment
+                doc_comments.push(token.doc_comment_content());
                 continue;
             }
             TokenType::RightBrace => {
@@ -1137,8 +1144,10 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                             name_token: token,
                             args,
                             claim,
+                            doc_comments: doc_comments.clone(),
                         };
                         conditions.push(condition);
+                        doc_comments.clear();
                     }
                     Some(TokenType::LeftBrace) => {
                         // Theorem with no args
@@ -1149,8 +1158,10 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                             name_token: token,
                             args: vec![],
                             claim,
+                            doc_comments: doc_comments.clone(),
                         };
                         conditions.push(condition);
+                        doc_comments.clear();
                     }
                     Some(TokenType::Colon) => {
                         // Constant
@@ -1162,7 +1173,8 @@ fn parse_typeclass_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                         if t.token_type == TokenType::RightBrace {
                             return Err(t.error("typeclass declarations must end with a newline"));
                         }
-                        constants.push((token, type_expr));
+                        constants.push((token, type_expr, doc_comments.clone()));
+                        doc_comments.clear();
                     }
                     _ => {
                         return Err(
@@ -1760,7 +1772,7 @@ impl Statement {
                 if !ts.constants.is_empty() || !ts.conditions.is_empty() {
                     doc = doc.append(allocator.text(" {"));
                     let mut inner = allocator.nil();
-                    for (name, type_expr) in &ts.constants {
+                    for (name, type_expr, _doc_comments) in &ts.constants {
                         inner = inner
                             .append(allocator.hardline())
                             .append(allocator.text(name.text()))
