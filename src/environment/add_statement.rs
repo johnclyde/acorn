@@ -205,12 +205,7 @@ impl Environment {
         range: Range,
         datatype_params: Option<&Vec<TypeParam>>,
     ) -> compilation::Result<()> {
-        if ls.name_token.text() == "self" || ls.name_token.text() == "new" {
-            return Err(ls.name_token.error(&format!(
-                "'{}' is a reserved word. use a different name",
-                ls.name_token.text()
-            )));
-        }
+        ls.name_token.check_not_reserved()?;
 
         if self.bindings.constant_name_in_use(&defined_name) {
             return Err(ls.name_token.error(&format!(
@@ -349,12 +344,7 @@ impl Environment {
         ds: &DefineStatement,
         range: Range,
     ) -> compilation::Result<()> {
-        if ds.name_token.text() == "new" || ds.name_token.text() == "self" {
-            return Err(ds.name_token.error(&format!(
-                "'{}' is a reserved word. use a different name",
-                ds.name_token.text()
-            )));
-        }
+        ds.name_token.check_not_reserved()?;
         if self.depth > 0 && !ds.type_params.is_empty() {
             return Err(ds
                 .name_token
@@ -624,12 +614,7 @@ impl Environment {
         statement: &Statement,
         fss: &FunctionSatisfyStatement,
     ) -> compilation::Result<()> {
-        if fss.name_token.text() == "new" || fss.name_token.text() == "self" {
-            return Err(fss.name_token.error(&format!(
-                "'{}' is a reserved word. use a different name",
-                fss.name_token.text()
-            )));
-        }
+        fss.name_token.check_not_reserved()?;
         self.bindings
             .check_unqualified_name_available(fss.name_token.text(), statement)?;
 

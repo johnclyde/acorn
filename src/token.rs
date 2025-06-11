@@ -442,6 +442,23 @@ impl Token {
         &self.line[start..end]
     }
 
+    /// Checks if a given identifier name is reserved for system use.
+    pub fn is_reserved_name(name: &str) -> bool {
+        name == "new" || name == "self" || name == "induction" || name == "constraint"
+    }
+
+    /// Checks if this token is a reserved name.
+    /// Returns an error if it is reserved.
+    pub fn check_not_reserved(&self) -> Result<()> {
+        if Self::is_reserved_name(self.text()) {
+            return Err(self.error(&format!(
+                "'{}' is a reserved word. use a different name",
+                self.text()
+            )));
+        }
+        Ok(())
+    }
+
     pub fn start_pos(&self) -> Position {
         Position {
             line: self.line_number,
