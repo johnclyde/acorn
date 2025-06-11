@@ -15,3 +15,6 @@ mod project_test;
 
 #[cfg(test)]
 mod common;
+
+#[cfg(test)]
+mod statement_test;
