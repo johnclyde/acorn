@@ -1321,6 +1321,27 @@ impl Project {
         Url::from_file_path(path).ok()
     }
 
+    /// Get a display-friendly path string for a module descriptor.
+    /// Returns the path relative to the library root, suitable for error messages.
+    pub fn display_path(&self, descriptor: &ModuleDescriptor) -> String {
+        match self.path_from_descriptor(descriptor) {
+            Ok(full_path) => {
+                // Try to make it relative to the library root
+                match full_path.strip_prefix(&self.library_root) {
+                    Ok(relative_path) => relative_path.to_string_lossy().to_string(),
+                    Err(_) => {
+                        // If it's not under library root, just use the full path
+                        full_path.to_string_lossy().to_string()
+                    }
+                }
+            }
+            Err(_) => {
+                // Fall back to the descriptor's Display implementation
+                descriptor.to_string()
+            }
+        }
+    }
+
     pub fn path_from_module_id(&self, module_id: ModuleId) -> Option<PathBuf> {
         self.path_from_descriptor(&self.modules[module_id.get() as usize].descriptor)
             .ok()
