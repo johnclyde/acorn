@@ -159,20 +159,6 @@ impl Declaration {
             tokens.skip_newlines();
         }
     }
-
-    fn write_vec(f: &mut fmt::Formatter, decls: &Vec<Declaration>) -> fmt::Result {
-        let mut first = true;
-        for decl in decls {
-            if first {
-                write!(f, "(")?;
-                first = false;
-            } else {
-                write!(f, ", ")?;
-            }
-            write!(f, "{}", decl)?;
-        }
-        write!(f, ")")
-    }
 }
 
 // A single type parameter that may or may not have a typeclass, like "G: Group".
@@ -255,115 +241,6 @@ impl Terminator {
 }
 
 impl Expression {
-    /// Helper function for formatting with optional indentation.
-    /// If indentation is provided, it formats if/match expressions with proper indentation and newlines.
-    pub fn fmt_helper(&self, f: &mut fmt::Formatter, indentation: Option<&str>) -> fmt::Result {
-        match self {
-            Expression::Singleton(token) => write!(f, "{}", token),
-            Expression::Unary(token, subexpression) => {
-                if token.token_type == TokenType::Minus {
-                    write!(f, "{}{}", token, subexpression.fmt_string(indentation))
-                } else {
-                    write!(f, "{} {}", token, subexpression.fmt_string(indentation))
-                }
-            }
-            Expression::Binary(left, token, right) => {
-                let left_spacer = if token.token_type.left_space() {
-                    " "
-                } else {
-                    ""
-                };
-                let right_spacer = if token.token_type.right_space() {
-                    " "
-                } else {
-                    ""
-                };
-                write!(
-                    f,
-                    "{}{}{}{}{}",
-                    left.fmt_string(indentation), left_spacer, token, right_spacer, right.fmt_string(indentation)
-                )
-            }
-            Expression::Concatenation(left, right) => {
-                write!(f, "{}{}", left.fmt_string(indentation), right.fmt_string(indentation))
-            }
-            Expression::Grouping(left, e, right) => {
-                write!(f, "{}{}{}", left, e.fmt_string(indentation), right)
-            }
-            Expression::Binder(token, args, sub, _) => {
-                write!(f, "{}", token)?;
-                Declaration::write_vec(f, args)?;
-                if let Some(indent) = indentation {
-                    let inner_indent = format!("{}    ", indent);
-                    write!(f, " {{\n{}{}\n{}}}", inner_indent, sub.fmt_string(Some(&inner_indent)), indent)
-                } else {
-                    write!(f, " {{ {} }}", sub.fmt_string(None))
-                }
-            }
-            Expression::IfThenElse(_, cond, if_block, else_block, _) => {
-                if let Some(indent) = indentation {
-                    let inner_indent = format!("{}    ", indent);
-                    write!(f, "if {} {{\n{}{}\n{}}}", 
-                        cond.fmt_string(None), 
-                        inner_indent, 
-                        if_block.fmt_string(Some(&inner_indent)), 
-                        indent
-                    )?;
-                    if let Some(else_expr) = else_block {
-                        write!(f, " else {{\n{}{}\n{}}}", 
-                            inner_indent, 
-                            else_expr.fmt_string(Some(&inner_indent)), 
-                            indent
-                        )?;
-                    }
-                    Ok(())
-                } else {
-                    match else_block {
-                        Some(else_expr) => write!(
-                            f,
-                            "if {} {{ {} }} else {{ {} }}",
-                            cond.fmt_string(None), if_block.fmt_string(None), else_expr.fmt_string(None)
-                        ),
-                        None => write!(f, "if {} {{ {} }}", cond.fmt_string(None), if_block.fmt_string(None)),
-                    }
-                }
-            }
-            Expression::Match(_, scrutinee, cases, _) => {
-                if let Some(indent) = indentation {
-                    let inner_indent = format!("{}    ", indent);
-                    write!(f, "match {} {{", scrutinee.fmt_string(None))?;
-                    for (pat, exp) in cases {
-                        write!(f, "\n{}{} {{\n{}{}\n{}}}", 
-                            inner_indent, 
-                            pat.fmt_string(None), 
-                            format!("{}    ", inner_indent),
-                            exp.fmt_string(Some(&format!("{}    ", inner_indent))), 
-                            inner_indent
-                        )?;
-                    }
-                    write!(f, "\n{}}}", indent)
-                } else {
-                    write!(f, "match {} {{", scrutinee.fmt_string(None))?;
-                    for (pat, exp) in cases {
-                        write!(f, " {} {{ {} }}", pat.fmt_string(None), exp.fmt_string(None))?;
-                    }
-                    write!(f, " }}")
-                }
-            }
-        }
-    }
-
-    /// Helper method to get formatted string with indentation
-    fn fmt_string(&self, indentation: Option<&str>) -> String {
-        struct Wrapper<'a>(&'a Expression, Option<&'a str>);
-        impl<'a> fmt::Display for Wrapper<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                self.0.fmt_helper(f, self.1)
-            }
-        }
-        format!("{}", Wrapper(self, indentation))
-    }
-
     pub fn first_token(&self) -> &Token {
         match self {
             Expression::Singleton(token) => token,
@@ -927,7 +804,7 @@ fn parse_partial_expressions(
                     Expression::parse_value(tokens, Terminator::Is(TokenType::LeftBrace))?;
                 let (if_block, last_right_brace) =
                     Expression::parse_value(tokens, Terminator::Is(TokenType::RightBrace))?;
-                
+
                 // Check if there's an else clause
                 let (else_block, final_brace) = if tokens.peek_type() == Some(TokenType::Else) {
                     tokens.next(); // consume the else token
@@ -938,7 +815,7 @@ fn parse_partial_expressions(
                 } else {
                     (None, last_right_brace)
                 };
-                
+
                 let exp = Expression::IfThenElse(
                     token,
                     Box::new(condition),
@@ -1200,8 +1077,11 @@ fn combine_partial_expressions(
         return match partial {
             PartialExpression::Binary(token) => {
                 // Check for deprecated RightArrow in value expressions
-                if expected_type == ExpressionType::Value && token.token_type == TokenType::RightArrow {
-                    return Err(token.error("'->' is deprecated in value expressions, use 'implies' instead"));
+                if expected_type == ExpressionType::Value
+                    && token.token_type == TokenType::RightArrow
+                {
+                    return Err(token
+                        .error("'->' is deprecated in value expressions, use 'implies' instead"));
                 }
                 let left = combine_partial_expressions(partials, expected_type, source)?;
                 let right = combine_partial_expressions(right_partials, expected_type, source)?;
@@ -1259,15 +1139,20 @@ impl Expression {
             Expression::Singleton(token) => allocator.text(token.text()),
             Expression::Unary(token, subexpression) => {
                 if token.token_type == TokenType::Minus {
-                    allocator.text(token.text()).append(subexpression.pretty_ref(allocator))
+                    allocator
+                        .text(token.text())
+                        .append(subexpression.pretty_ref(allocator))
                 } else {
-                    allocator.text(token.text()).append(allocator.space()).append(subexpression.pretty_ref(allocator))
+                    allocator
+                        .text(token.text())
+                        .append(allocator.space())
+                        .append(subexpression.pretty_ref(allocator))
                 }
             }
             Expression::Binary(left, token, right) => {
                 let left_doc = left.pretty_ref(allocator);
                 let right_doc = right.pretty_ref(allocator);
-                
+
                 if token.token_type.left_space() {
                     left_doc
                         .append(allocator.space())
@@ -1282,74 +1167,105 @@ impl Expression {
                 })
                 .append(right_doc)
             }
-            Expression::Concatenation(left, right) => {
-                left.pretty_ref(allocator).append(right.pretty_ref(allocator))
-            }
-            Expression::Grouping(left, e, right) => {
-                allocator.text(left.text())
-                    .append(e.pretty_ref(allocator))
-                    .append(allocator.text(right.text()))
-            }
+            Expression::Concatenation(left, right) => left
+                .pretty_ref(allocator)
+                .append(right.pretty_ref(allocator)),
+            Expression::Grouping(left, e, right) => allocator
+                .text(left.text())
+                .append(e.pretty_ref(allocator))
+                .append(allocator.text(right.text())),
             Expression::Binder(token, args, sub, _) => {
                 let args_doc = self.pretty_args(allocator, args);
-                allocator.text(token.text())
+                allocator
+                    .text(token.text())
                     .append(args_doc)
                     .append(allocator.space())
                     .append(allocator.text("{"))
-                    .append(allocator.line().nest(4).append(sub.pretty_ref(allocator)).nest(4))
+                    .append(
+                        allocator
+                            .line()
+                            .nest(4)
+                            .append(sub.pretty_ref(allocator))
+                            .nest(4),
+                    )
                     .append(allocator.line())
                     .append(allocator.text("}"))
                     .group()
             }
             Expression::IfThenElse(_, cond, if_block, else_block, _) => {
-                let if_doc = allocator.text("if")
+                let if_doc = allocator
+                    .text("if")
                     .append(allocator.space())
                     .append(cond.pretty_ref(allocator))
                     .append(allocator.space())
                     .append(allocator.text("{"))
-                    .append(allocator.line().nest(4).append(if_block.pretty_ref(allocator)).nest(4))
+                    .append(
+                        allocator
+                            .line()
+                            .nest(4)
+                            .append(if_block.pretty_ref(allocator))
+                            .nest(4),
+                    )
                     .append(allocator.line())
                     .append(allocator.text("}"));
-                
+
                 match else_block {
                     Some(else_expr) => if_doc
                         .append(allocator.space())
                         .append(allocator.text("else"))
                         .append(allocator.space())
                         .append(allocator.text("{"))
-                        .append(allocator.line().nest(4).append(else_expr.pretty_ref(allocator)).nest(4))
+                        .append(
+                            allocator
+                                .line()
+                                .nest(4)
+                                .append(else_expr.pretty_ref(allocator))
+                                .nest(4),
+                        )
                         .append(allocator.line())
                         .append(allocator.text("}")),
                     None => if_doc,
-                }.group()
+                }
+                .group()
             }
             Expression::Match(_, scrutinee, cases, _) => {
-                let mut doc = allocator.text("match")
+                let mut doc = allocator
+                    .text("match")
                     .append(allocator.space())
                     .append(scrutinee.pretty_ref(allocator))
                     .append(allocator.space())
                     .append(allocator.text("{"));
-                
+
                 for (pat, exp) in cases {
                     doc = doc
                         .append(allocator.line())
                         .append(pat.pretty_ref(allocator))
                         .append(allocator.space())
                         .append(allocator.text("{"))
-                        .append(allocator.line().nest(4).append(exp.pretty_ref(allocator)).nest(4))
+                        .append(
+                            allocator
+                                .line()
+                                .nest(4)
+                                .append(exp.pretty_ref(allocator))
+                                .nest(4),
+                        )
                         .append(allocator.line())
                         .append(allocator.text("}"))
                         .nest(4);
                 }
-                
+
                 doc.append(allocator.line())
                     .append(allocator.text("}"))
                     .group()
             }
         }
     }
-    
-    fn pretty_args<'a, D, A>(&'a self, allocator: &'a D, args: &'a [Declaration]) -> DocBuilder<'a, D, A>
+
+    fn pretty_args<'a, D, A>(
+        &'a self,
+        allocator: &'a D,
+        args: &'a [Declaration],
+    ) -> DocBuilder<'a, D, A>
     where
         A: 'a,
         D: DocAllocator<'a, A>,
@@ -1372,11 +1288,10 @@ impl Declaration {
         D: DocAllocator<'a, A>,
     {
         match self {
-            Declaration::Typed(name_token, type_expr) => {
-                allocator.text(name_token.text())
-                    .append(allocator.text(": "))
-                    .append(type_expr.pretty_ref(allocator))
-            }
+            Declaration::Typed(name_token, type_expr) => allocator
+                .text(name_token.text())
+                .append(allocator.text(": "))
+                .append(type_expr.pretty_ref(allocator)),
             Declaration::SelfToken(token) => allocator.text(token.text()),
         }
     }
