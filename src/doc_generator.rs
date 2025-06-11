@@ -127,6 +127,8 @@ impl<'a> DocGenerator<'a> {
             for comment in comments {
                 writeln!(file, "{}", comment)?;
             }
+        } else {
+            eprintln!("warning: no doc comments for '{}'", title);
         }
 
         // Add GitHub link
@@ -170,9 +172,9 @@ impl<'a> DocGenerator<'a> {
             if &base_name != constant_name {
                 if let Some((_, base, attr)) = base_name.as_attribute() {
                     writeln!(file, "Inherited from [{}](../{}/#{}).", base, base, attr)?;
+                    return Ok(());
                 }
             }
-            return Ok(());
         }
 
         // Write definition string if it exists
@@ -189,6 +191,8 @@ impl<'a> DocGenerator<'a> {
             for comment in comments {
                 writeln!(file, "{}", comment)?;
             }
+        } else {
+            eprintln!("warning: no doc comments for '{}'", constant_name);
         }
 
         Ok(())
@@ -211,7 +215,6 @@ impl<'a> DocGenerator<'a> {
         methods
             .retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         methods.sort();
-        println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
         // Write header
@@ -254,7 +257,6 @@ impl<'a> DocGenerator<'a> {
         attribute_names
             .retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         attribute_names.sort();
-        println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
 
         // Write header
