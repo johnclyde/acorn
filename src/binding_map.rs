@@ -949,6 +949,7 @@ impl BindingMap {
         alias: ConstantName,
         canonical: ConstantName,
         value: PotentialValue,
+        definition_string: Option<String>,
     ) {
         if canonical.module_id() != self.module_id {
             // Prefer this alias locally to using the qualified, canonical name
@@ -964,7 +965,7 @@ impl BindingMap {
             constructor: None,
             doc_comments: vec![],
             range: None,
-            definition_string: None,
+            definition_string,
         };
         self.add_constant_def(alias, info);
     }
@@ -1350,6 +1351,7 @@ impl BindingMap {
                         ConstantName::unqualified(self.module_id, name),
                         constant_name.clone(),
                         PotentialValue::Resolved(value.clone()),
+                        None,
                     );
                     Ok(entity)
                 } else {
@@ -1372,6 +1374,7 @@ impl BindingMap {
                     ConstantName::unqualified(self.module_id, name),
                     uc.name.clone(),
                     PotentialValue::Unresolved(uc.clone()),
+                    None,
                 );
                 Ok(entity)
             }

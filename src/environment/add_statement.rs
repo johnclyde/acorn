@@ -309,6 +309,7 @@ impl Environment {
         };
         let acorn_type = acorn_type.genericize(&type_params);
         let value = value.map(|v| v.genericize(&type_params));
+        let def_str = statement.to_string();
 
         // Check for aliasing
         if let Some(value) = &value {
@@ -321,6 +322,7 @@ impl Environment {
                             constant_name.clone(),
                             simple_name.clone(),
                             PotentialValue::Resolved(value.clone()),
+                            Some(def_str),
                         );
                         return Ok(());
                     }
@@ -336,7 +338,7 @@ impl Environment {
             acorn_type,
             value,
             range,
-            Some(statement.to_string()),
+            Some(def_str),
         );
         Ok(())
     }
