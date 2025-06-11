@@ -1572,7 +1572,7 @@ impl Environment {
                     Some(lambda_claim),
                     None,
                     vec![],
-                    None, // No definition string for typeclass condition theorems
+                    Some(condition.to_string()),
                 );
 
                 let source = Source::theorem(

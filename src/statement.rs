@@ -221,6 +221,39 @@ pub struct TypeclassCondition {
     pub claim: Expression,
 }
 
+impl fmt::Display for TypeclassCondition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use the pretty-printing logic with a narrow width for mobile-friendly docs
+        let allocator = pretty::Arena::<()>::new();
+        let doc = self.pretty_ref(&allocator);
+        // Break lines really aggressively
+        doc.render_fmt(1, f)?;
+        Ok(())
+    }
+}
+
+impl<'a, D, A> Pretty<'a, D, A> for &'a TypeclassCondition
+where
+    A: 'a,
+    D: DocAllocator<'a, A>,
+{
+    fn pretty(self, allocator: &'a D) -> DocBuilder<'a, D, A> {
+        self.pretty_ref(allocator)
+    }
+}
+
+impl TypeclassCondition {
+    fn pretty_ref<'a, D, A>(&'a self, allocator: &'a D) -> DocBuilder<'a, D, A>
+    where
+        A: 'a,
+        D: DocAllocator<'a, A>,
+    {
+        let mut doc = allocator.text(self.name_token.text());
+        doc = write_theorem_pretty(allocator, doc, &[], &self.args, &self.claim);
+        doc
+    }
+}
+
 /// A typeclass statement defines a typeclass. It can contain some constants that must be
 /// specified, and theorems that must be proven.
 pub struct TypeclassStatement {
@@ -1734,14 +1767,7 @@ impl Statement {
                     for theorem in &ts.conditions {
                         inner = inner
                             .append(allocator.hardline())
-                            .append(allocator.text(theorem.name_token.text()));
-                        inner = write_theorem_pretty(
-                            allocator,
-                            inner,
-                            &[],
-                            &theorem.args,
-                            &theorem.claim,
-                        );
+                            .append(theorem.pretty_ref(allocator));
                     }
                     doc = doc
                         .append(inner.nest(4))
