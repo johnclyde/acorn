@@ -5,8 +5,10 @@ use std::path::Path;
 
 use crate::acorn_type::{Datatype, Typeclass};
 use crate::environment::Environment;
+use crate::module::{ModuleDescriptor, ModuleId};
 use crate::names::ConstantName;
 use crate::project::Project;
+use crate::token::Token;
 
 #[derive(Debug)]
 pub enum DocError {
@@ -57,6 +59,46 @@ pub struct DocGenerator<'a> {
 impl<'a> DocGenerator<'a> {
     pub fn new(project: &'a Project) -> Self {
         DocGenerator { project }
+    }
+
+    /// Checks if we should document an entity (type or typeclass) from this module.
+    /// Returns Ok(true) if we should document it, Ok(false) if we should skip it,
+    /// or an error if there's a conflict.
+    fn should_document_entity(
+        entity_name: &str,
+        canonical_name: &str,
+        entity_module_id: ModuleId,
+        current_module_id: ModuleId,
+        descriptor: &ModuleDescriptor,
+        documented_names: &mut HashMap<String, String>,
+    ) -> Result<bool, DocError> {
+        // Only document if the entity name matches the canonical name
+        // This ensures we're using the canonical name
+        if entity_name != canonical_name {
+            return Ok(false);
+        }
+
+        // Only document if this is the authoritative source
+        // Either the module that defines the entity, or a module whose name matches
+        if current_module_id != entity_module_id
+            && !descriptor.is_authoritative_name(canonical_name)
+        {
+            return Ok(false);
+        }
+
+        // Check if we've already documented this entity
+        if let Some(first_module) = documented_names.get(entity_name) {
+            return Err(DocError::DocumentationConflict {
+                type_name: entity_name.to_string(),
+                first_module: first_module.clone(),
+                second_module: descriptor.to_string(),
+            });
+        }
+
+        // Record that we're documenting this entity from this module
+        documented_names.insert(entity_name.to_string(), descriptor.to_string());
+        
+        Ok(true)
     }
 
     /// Helper function to write the header section of a documentation file.
@@ -141,8 +183,8 @@ impl<'a> DocGenerator<'a> {
         filename: impl AsRef<Path>,
     ) -> Result<(), DocError> {
         let mut methods = env.bindings.get_datatype_attributes(datatype);
-        // Filter out attributes that are wholly numeric
-        methods.retain(|name| !name.chars().all(|c| c.is_numeric()));
+        // Filter out attributes that are wholly numeric or reserved names
+        methods.retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         methods.sort();
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
@@ -180,8 +222,8 @@ impl<'a> DocGenerator<'a> {
     ) -> Result<(), DocError> {
         let attributes = env.bindings.get_typeclass_attributes(typeclass, self.project);
         let mut attribute_names: Vec<String> = attributes.keys().cloned().collect();
-        // Filter out attributes that are wholly numeric
-        attribute_names.retain(|name| !name.chars().all(|c| c.is_numeric()));
+        // Filter out attributes that are wholly numeric or reserved names
+        attribute_names.retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         attribute_names.sort();
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
@@ -259,31 +301,17 @@ impl<'a> DocGenerator<'a> {
                     None => continue, // Skip types without a base datatype
                 };
 
-                // Only document if the type name matches the datatype's name
-                // This ensures we're using the canonical name
-                if type_name != &datatype.name {
+                // Check if we should document this datatype
+                if !Self::should_document_entity(
+                    type_name,
+                    &datatype.name,
+                    datatype.module_id,
+                    module_id,
+                    &descriptor,
+                    &mut documented_names,
+                )? {
                     continue;
                 }
-
-                // Only document if this is the authoritative source
-                // Either the module that defines the datatype, or a module whose name matches
-                if module_id != datatype.module_id
-                    && !descriptor.is_authoritative_name(&datatype.name)
-                {
-                    continue;
-                }
-
-                // Check if we've already documented this type
-                if let Some(first_module) = documented_names.get(type_name) {
-                    return Err(DocError::DocumentationConflict {
-                        type_name: type_name.clone(),
-                        first_module: first_module.clone(),
-                        second_module: descriptor.to_string(),
-                    });
-                }
-
-                // Record that we're documenting this type from this module
-                documented_names.insert(type_name.clone(), descriptor.to_string());
 
                 // Create the output filename
                 let filename = doc_root.join(format!("{}.md", type_name));
@@ -294,30 +322,17 @@ impl<'a> DocGenerator<'a> {
 
             // Iterate over all typeclasses in this module
             for (typeclass_name, typeclass) in env.bindings.iter_typeclasses() {
-                // Only document if the typeclass name matches the typeclass's canonical name
-                if typeclass_name != &typeclass.name {
+                // Check if we should document this typeclass
+                if !Self::should_document_entity(
+                    typeclass_name,
+                    &typeclass.name,
+                    typeclass.module_id,
+                    module_id,
+                    &descriptor,
+                    &mut documented_names,
+                )? {
                     continue;
                 }
-
-                // Only document if this is the authoritative source
-                // Either the module that defines the typeclass, or a module whose name matches
-                if module_id != typeclass.module_id
-                    && !descriptor.is_authoritative_name(&typeclass.name)
-                {
-                    continue;
-                }
-
-                // Check if we've already documented this typeclass
-                if let Some(first_module) = documented_names.get(typeclass_name) {
-                    return Err(DocError::DocumentationConflict {
-                        type_name: typeclass_name.clone(),
-                        first_module: first_module.clone(),
-                        second_module: descriptor.to_string(),
-                    });
-                }
-
-                // Record that we're documenting this typeclass from this module
-                documented_names.insert(typeclass_name.clone(), descriptor.to_string());
 
                 // Create the output filename
                 let filename = doc_root.join(format!("{}.md", typeclass_name));
