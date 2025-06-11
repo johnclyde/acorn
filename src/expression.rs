@@ -74,7 +74,12 @@ pub enum Expression {
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt_helper(f, None)
+        // Use the pretty-printing logic with infinite width to force everything on one line
+        let allocator = pretty::Arena::<()>::new();
+        let doc = self.pretty_ref(&allocator);
+        // Use render_fmt with a very large width to ensure no line breaks
+        doc.render_fmt(usize::MAX, f)?;
+        Ok(())
     }
 }
 
