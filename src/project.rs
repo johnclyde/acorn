@@ -871,7 +871,6 @@ impl Project {
     }
 
     /// Get doc comments for a constant, looking in the module where it was originally defined.
-    /// Falls back to the provided environment if the original module can't be found.
     pub fn get_constant_doc_comments<'a>(
         &'a self,
         env: &'a Environment,
@@ -880,6 +879,17 @@ impl Project {
         self.get_env_for_name(env, name)?
             .bindings
             .get_constant_doc_comments(name)
+    }
+
+    /// Get definition string for a constant, looking in the module where it was originally defined.
+    pub fn get_constant_definition_string<'a>(
+        &'a self,
+        env: &'a Environment,
+        name: &ConstantName,
+    ) -> Option<&'a String> {
+        self.get_env_for_name(env, name)?
+            .bindings
+            .get_constant_definition_string(name)
     }
 
     /// Get doc comments for a datatype, looking in the module where it was originally defined.
@@ -971,6 +981,40 @@ impl Project {
             }
         };
         parts.push(main_content);
+
+        // Get definition string based on entity type
+        let definition_string = match &info.entity {
+            NamedEntity::Value(value) => {
+                let base_value = value.unapply();
+                match base_value {
+                    AcornValue::Constant(ci) => self.get_constant_definition_string(env, &ci.name),
+                    _ => None,
+                }
+            }
+            NamedEntity::UnresolvedValue(unresolved) => {
+                self.get_constant_definition_string(env, &unresolved.name)
+            }
+            NamedEntity::Type(acorn_type) => {
+                if let AcornType::Data(datatype, _) = acorn_type {
+                    self.get_datatype_definition_string(datatype)
+                } else {
+                    None
+                }
+            }
+            NamedEntity::UnresolvedType(unresolved_type) => {
+                self.get_datatype_definition_string(&unresolved_type.datatype)
+            }
+            NamedEntity::Typeclass(typeclass) => self.get_typeclass_definition_string(typeclass),
+            NamedEntity::Module(_) => None,
+        };
+
+        // Add definition string if we have one and it's different from the main content
+        if let Some(def_string) = definition_string {
+            let marked = CodeGenerator::marked(def_string.clone());
+            if Some(&marked) != parts.last() {
+                parts.push(marked);
+            }
+        }
 
         // Get doc comments based on entity type
         let doc_comments = match &info.entity {
