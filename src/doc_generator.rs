@@ -313,7 +313,9 @@ impl<'a> DocGenerator<'a> {
         let mut file_count = 0;
 
         // Iterate over all modules
-        for (descriptor, module_id) in self.project.iter_modules() {
+        let mut modules: Vec<_> = self.project.iter_modules().collect();
+        modules.sort();
+        for (descriptor, module_id) in modules {
             // Skip non-top-level modules
             if !descriptor.is_top_level() {
                 continue;
