@@ -97,7 +97,7 @@ impl<'a> DocGenerator<'a> {
 
         // Record that we're documenting this entity from this module
         documented_names.insert(entity_name.to_string(), descriptor.to_string());
-        
+
         Ok(true)
     }
 
@@ -151,7 +151,7 @@ impl<'a> DocGenerator<'a> {
         doc_comments: Option<&Vec<String>>,
     ) -> Result<(), DocError> {
         writeln!(file, "## {}", section_name)?;
-        
+
         // Write definition string if it exists
         if let Some(definition) = definition_string {
             writeln!(file)?;
@@ -159,7 +159,7 @@ impl<'a> DocGenerator<'a> {
             writeln!(file, "{}", definition)?;
             writeln!(file, "```")?;
         }
-        
+
         if let Some(comments) = doc_comments {
             writeln!(file)?;
             for comment in comments {
@@ -184,7 +184,8 @@ impl<'a> DocGenerator<'a> {
     ) -> Result<(), DocError> {
         let mut methods = env.bindings.get_datatype_attributes(datatype);
         // Filter out attributes that are wholly numeric or reserved names
-        methods.retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
+        methods
+            .retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         methods.sort();
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
@@ -192,16 +193,27 @@ impl<'a> DocGenerator<'a> {
         // Write header
         let doc_comments = self.project.get_datatype_doc_comments(datatype);
         let definition_string = self.project.get_datatype_definition_string(datatype);
-        self.write_header(&mut file, type_name, definition_string, doc_comments, env.module_id)?;
+        self.write_header(
+            &mut file,
+            type_name,
+            definition_string,
+            doc_comments,
+            env.module_id,
+        )?;
 
         // Write methods
         for method_name in methods {
             // Create the constant name for this attribute
             let constant_name = ConstantName::datatype_attr(datatype.clone(), &method_name);
-            
+
             // Get doc comments and definition string for this attribute
-            let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
-            let definition_string = self.project.get_constant_definition_string(&constant_name);
+            let Some(def_env) = self.project.get_env_for_name(env, &constant_name) else {
+                continue;
+            };
+            let doc_comments = def_env.bindings.get_constant_doc_comments(&constant_name);
+            let definition_string = def_env
+                .bindings
+                .get_constant_definition_string(&constant_name);
             self.write_section(&mut file, &method_name, definition_string, doc_comments)?;
         }
 
@@ -220,10 +232,13 @@ impl<'a> DocGenerator<'a> {
         typeclass: &Typeclass,
         filename: impl AsRef<Path>,
     ) -> Result<(), DocError> {
-        let attributes = env.bindings.get_typeclass_attributes(typeclass, self.project);
+        let attributes = env
+            .bindings
+            .get_typeclass_attributes(typeclass, self.project);
         let mut attribute_names: Vec<String> = attributes.keys().cloned().collect();
         // Filter out attributes that are wholly numeric or reserved names
-        attribute_names.retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
+        attribute_names
+            .retain(|name| !name.chars().all(|c| c.is_numeric()) && !Token::is_reserved_name(name));
         attribute_names.sort();
         println!("{}", filename.as_ref().display());
         let mut file = std::fs::File::create(filename)?;
@@ -231,16 +246,27 @@ impl<'a> DocGenerator<'a> {
         // Write header
         let doc_comments = self.project.get_typeclass_doc_comments(typeclass);
         let definition_string = self.project.get_typeclass_definition_string(typeclass);
-        self.write_header(&mut file, typeclass_name, definition_string, doc_comments, env.module_id)?;
+        self.write_header(
+            &mut file,
+            typeclass_name,
+            definition_string,
+            doc_comments,
+            env.module_id,
+        )?;
 
         // Write attributes
         for attribute_name in attribute_names {
             // Create the constant name for this attribute
             let constant_name = ConstantName::typeclass_attr(typeclass.clone(), &attribute_name);
-            
+
             // Get doc comments and definition string for this attribute
-            let doc_comments = self.project.get_constant_doc_comments(env, &constant_name);
-            let definition_string = self.project.get_constant_definition_string(&constant_name);
+            let Some(def_env) = self.project.get_env_for_name(env, &constant_name) else {
+                continue;
+            };
+            let doc_comments = def_env.bindings.get_constant_doc_comments(&constant_name);
+            let definition_string = def_env
+                .bindings
+                .get_constant_definition_string(&constant_name);
             self.write_section(&mut file, &attribute_name, definition_string, doc_comments)?;
         }
 

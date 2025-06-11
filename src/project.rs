@@ -870,13 +870,6 @@ impl Project {
         }
     }
 
-    /// Get definition string for a constant, looking in the module where it was originally defined.
-    pub fn get_constant_definition_string(&self, name: &ConstantName) -> Option<&String> {
-        self.get_env_by_id(name.module_id())?
-            .bindings
-            .get_constant_definition_string(name)
-    }
-
     /// Get doc comments for a constant, looking in the module where it was originally defined.
     /// Falls back to the provided environment if the original module can't be found.
     pub fn get_constant_doc_comments<'a>(
