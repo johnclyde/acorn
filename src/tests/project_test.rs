@@ -1252,6 +1252,7 @@ fn test_doc_comment_lookup() {
         r#"
     /// Foo_doc_comment
     inductive Foo {
+        /// foo_doc_comment
         foo
     }
     "#,
@@ -1288,18 +1289,18 @@ fn test_doc_comment_lookup() {
 
     // Look up Foo type
     let foo_potential_type = main_env.bindings.get_type_for_typename("Foo").unwrap();
-    let datatype = match foo_potential_type.as_base_datatype() {
+    let foo_datatype = match foo_potential_type.as_base_datatype() {
         Some(dt) => dt,
         None => panic!("Expected Foo to be a datatype"),
     };
 
-    // Look up Foo.bar comments
-    let bar_constant_name = ConstantName::datatype_attr(datatype.clone(), "bar");
+    // Check Foo.bar
+    let bar_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "bar");
     let doc_comments = p.get_constant_doc_comments(main_env, &bar_constant_name);
-
-    assert!(
-        doc_comments.is_some(),
-        "Should find doc comments for Foo.bar"
-    );
     assert_eq!(doc_comments.unwrap(), &vec!["bar_doc_comment".to_string()]);
+
+    // Check Foo.foo
+    let foo_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "foo");
+    let doc_comments = p.get_constant_doc_comments(main_env, &foo_constant_name);
+    assert_eq!(doc_comments.unwrap(), &vec!["foo_doc_comment".to_string()]);
 }
