@@ -1512,7 +1512,7 @@ impl Environment {
                     None,
                     None,
                     vec![],
-                    Some(def_str),
+                    def_str,
                 );
                 // Mark as required since it's from the initial typeclass definition
                 self.bindings
@@ -1572,7 +1572,7 @@ impl Environment {
                     Some(lambda_claim),
                     None,
                     vec![],
-                    Some(condition.to_string()),
+                    condition.to_string(),
                 );
 
                 let source = Source::theorem(
