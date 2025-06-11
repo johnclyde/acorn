@@ -493,6 +493,28 @@ impl Token {
         ch.is_alphanumeric() || ch == '_'
     }
 
+    /// Extracts the content from a doc comment token.
+    /// Removes the leading "///" and at most one space after it.
+    /// Returns an empty string if this is not a doc comment token.
+    pub fn doc_comment_content(&self) -> String {
+        if self.token_type != TokenType::DocComment {
+            return String::new();
+        }
+        
+        let text = self.text();
+        if text.starts_with("///") {
+            let after_slash = &text[3..];
+            // Remove at most one space from the beginning
+            if after_slash.starts_with(' ') {
+                after_slash[1..].to_string()
+            } else {
+                after_slash.to_string()
+            }
+        } else {
+            text.to_string()
+        }
+    }
+
     pub fn lsp_type(&self) -> Option<SemanticTokenType> {
         match self.token_type {
             TokenType::Identifier => Some(SemanticTokenType::VARIABLE),

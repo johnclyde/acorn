@@ -787,19 +787,7 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
             TokenType::DocComment => {
                 // Collect doc comment
                 let doc_token = tokens.next().unwrap();
-                let text = doc_token.text();
-                let content = if text.starts_with("///") {
-                    let after_slash = &text[3..];
-                    // Remove at most one space from the beginning
-                    if after_slash.starts_with(' ') {
-                        after_slash[1..].to_string()
-                    } else {
-                        after_slash.to_string()
-                    }
-                } else {
-                    text.to_string()
-                };
-                doc_comments.push(content);
+                doc_comments.push(doc_token.doc_comment_content());
                 continue;
             }
             _ => {}
@@ -1395,20 +1383,7 @@ impl Statement {
                     }
                     TokenType::DocComment => {
                         let doc_token = tokens.next().unwrap();
-                        // Extract the content from the doc comment token
-                        // The token's text includes "///" at the start
-                        let text = doc_token.text();
-                        let content = if text.starts_with("///") {
-                            let after_slash = &text[3..];
-                            // Remove at most one space from the beginning
-                            if after_slash.starts_with(' ') {
-                                after_slash[1..].to_string()
-                            } else {
-                                after_slash.to_string()
-                            }
-                        } else {
-                            text.to_string()
-                        };
+                        let content = doc_token.doc_comment_content();
                         let s = Statement {
                             first_token: doc_token.clone(),
                             last_token: doc_token,
