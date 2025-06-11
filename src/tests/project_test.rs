@@ -1293,24 +1293,30 @@ fn test_doc_comment_lookup() {
     let main_descriptor = crate::module::ModuleDescriptor::Name("main".to_string());
     let main_env = p.get_env(&main_descriptor).unwrap();
 
-    // Look up Foo type
+    // Check Foo
     let foo_potential_type = main_env.bindings.get_type_for_typename("Foo").unwrap();
     let foo_datatype = foo_potential_type.as_base_datatype().unwrap();
+    let comments = p.get_datatype_doc_comments(&foo_datatype);
+    assert_eq!(comments.unwrap(), &vec!["Foo_doc_comment".to_string()]);
 
     // Check Foo.bar
     let bar_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "bar");
-    let doc_comments = p.get_constant_doc_comments(main_env, &bar_constant_name);
-    assert_eq!(doc_comments.unwrap(), &vec!["bar_doc_comment".to_string()]);
+    let comments = p.get_constant_doc_comments(main_env, &bar_constant_name);
+    assert_eq!(comments.unwrap(), &vec!["bar_doc_comment".to_string()]);
 
     // Check Foo.foo
     let foo_constant_name = ConstantName::datatype_attr(foo_datatype.clone(), "foo");
-    let doc_comments = p.get_constant_doc_comments(main_env, &foo_constant_name);
-    assert_eq!(doc_comments.unwrap(), &vec!["foo_doc_comment".to_string()]);
+    let comments = p.get_constant_doc_comments(main_env, &foo_constant_name);
+    assert_eq!(comments.unwrap(), &vec!["foo_doc_comment".to_string()]);
 
-    // Check Baz.baz
+    // Check Baz
     let baz_potential_type = main_env.bindings.get_type_for_typename("Baz").unwrap();
     let baz_datatype = baz_potential_type.as_base_datatype().unwrap();
+    let comments = p.get_datatype_doc_comments(&baz_datatype);
+    assert_eq!(comments.unwrap(), &vec!["Baz_doc_comment".to_string()]);
+
+    // Check Baz.baz
     let baz_constant_name = ConstantName::datatype_attr(baz_datatype.clone(), "baz");
-    let doc_comments = p.get_constant_doc_comments(main_env, &baz_constant_name);
-    assert_eq!(doc_comments.unwrap(), &vec!["baz_doc_comment".to_string()]);
+    let comments = p.get_constant_doc_comments(main_env, &baz_constant_name);
+    assert_eq!(comments.unwrap(), &vec!["baz_doc_comment".to_string()]);
 }
