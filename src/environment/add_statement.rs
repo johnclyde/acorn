@@ -522,7 +522,7 @@ impl Environment {
                 None,
                 doc_comments,
                 Some(name_range),
-                Some(statement.to_string()),
+                statement.to_string(),
             );
         }
 
@@ -608,7 +608,7 @@ impl Environment {
                 None,
                 vec![],
                 None,
-                Some(def_str),
+                def_str,
             );
         }
 
@@ -694,7 +694,7 @@ impl Environment {
             None,
             doc_comments,
             Some(fss.name_token.range()),
-            Some(statement.to_string()),
+            statement.to_string(),
         );
         let const_name = ConstantName::unqualified(self.module_id, fss.name_token.text());
         let function_constant = AcornValue::constant(const_name, vec![], function_type);
@@ -831,7 +831,7 @@ impl Environment {
                 None,
                 None,
                 vec![],
-                Some(def_str),
+                def_str,
             );
             member_fns.push(potential);
         }
@@ -852,7 +852,7 @@ impl Environment {
             None,
             Some(constructor_info),
             vec![],
-            Some(def_str),
+            def_str,
         );
 
         // Each object of this new type has certain properties.
@@ -1066,7 +1066,7 @@ impl Environment {
                 None,
                 Some(constructor_info),
                 vec![],
-                Some(def_str),
+                def_str,
             );
             let arb_constructor_fn =
                 gen_constructor_fn.resolve_constant(&arbitrary_params, &is.name_token)?;
@@ -1267,7 +1267,7 @@ impl Environment {
             Some(gen_lambda_claim),
             None,
             vec![],
-            Some(def_str),
+            def_str,
         );
         self.bindings.mark_as_theorem(&name);
 

@@ -136,7 +136,7 @@ impl Block {
                 None,
                 vec![],
                 None,
-                Some(def_str),
+                def_str,
             );
             internal_args.push(potential.force_value());
         }
@@ -204,7 +204,7 @@ impl Block {
                         None,
                         vec![],
                         None,
-                        Some(def_str),
+                        def_str,
                     );
                     arg_values.push(potential.force_value());
                 }

@@ -758,7 +758,7 @@ impl BindingMap {
         definition: Option<AcornValue>,
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
-        definition_string: Option<String>,
+        definition_string: String,
     ) -> PotentialValue {
         let constant_name = ConstantName::datatype_attr(datatype.clone(), attr);
         self.add_constant_name(
@@ -769,7 +769,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             None,
-            definition_string,
+            Some(definition_string),
         )
     }
 
@@ -826,7 +826,7 @@ impl BindingMap {
         constructor: Option<ConstructorInfo>,
         doc_comments: Vec<String>,
         range: Option<Range>,
-        definition_string: Option<String>,
+        definition_string: String,
     ) -> PotentialValue {
         let constant_name = ConstantName::unqualified(self.module_id, name);
         self.add_constant_name(
@@ -837,7 +837,7 @@ impl BindingMap {
             constructor,
             doc_comments,
             range,
-            definition_string,
+            Some(definition_string),
         )
     }
 
