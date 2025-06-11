@@ -168,7 +168,9 @@ impl<'a> DocGenerator<'a> {
         // Check if this is inherited
         if let Some((_base_module_id, base_name)) = env.bindings.resolve_name(constant_name) {
             if &base_name != constant_name {
-                writeln!(file, "Inherited from {}", base_name)?;
+                if let Some((_, base, attr)) = base_name.as_attribute() {
+                    writeln!(file, "Inherited from [{}](../{}/#{}).", base, base, attr)?;
+                }
             }
             return Ok(());
         }
