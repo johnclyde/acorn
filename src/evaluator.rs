@@ -355,9 +355,61 @@ impl<'a> Evaluator<'a> {
         Ok(value)
     }
 
+    /// Figures out whether a datatype attribute is defined directly or by inheritance,
+    /// returning both the module id and the originally defined name.
+    fn resolve_datatype_attr(
+        &self,
+        datatype: &Datatype,
+        attr_name: &str,
+    ) -> Result<(ModuleId, DefinedName), String> {
+        if let Some(module_id) = self
+            .bindings
+            .get_module_for_datatype_attr(datatype, attr_name)
+        {
+            let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
+            return Ok((module_id, defined_name));
+        }
+
+        // If no direct type attribute, check if this datatype is an instance
+        // of any typeclass that has this attribute
+        let mut base_typeclass: Option<&Typeclass> = None;
+
+        for typeclass in self.bindings.get_instance_typeclasses(datatype) {
+            let Some(base_tc) = self.bindings.typeclass_attr_lookup(typeclass, attr_name) else {
+                continue;
+            };
+            if let Some(existing_base) = base_typeclass {
+                // If we find a different base typeclass, it's ambiguous
+                if existing_base != base_tc {
+                    return Err(format!(
+                        "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
+                        attr_name, existing_base.name, base_tc.name
+                    ));
+                }
+            } else {
+                base_typeclass = Some(base_tc);
+            }
+        }
+
+        match base_typeclass {
+            Some(typeclass) => self
+                .resolve_typeclass_attr(typeclass, attr_name)
+                .ok_or_else(|| {
+                    format!(
+                        "attribute {}.{} not found via typeclass {}",
+                        &datatype.name, attr_name, typeclass.name
+                    )
+                }),
+            None => Err(format!(
+                "attribute {}.{} not found",
+                &datatype.name, attr_name
+            )),
+        }
+    }
+
     /// Evaluates a name scoped by a datatype, like Nat.range
     fn evaluate_datatype_attr(
-        &mut self,
+        &self,
         datatype: &Datatype,
         attr_name: &str,
         source: &dyn ErrorSource,
@@ -411,7 +463,7 @@ impl<'a> Evaluator<'a> {
         Err(source.error("attribute not found"))
     }
 
-    /// Resolves where a typeclass attribute is defined.
+    /// Figures out whether a typeclass attribute is defined directly or by inheritance.
     /// Returns the module ID and defined name where the attribute was originally defined.
     fn resolve_typeclass_attr(
         &self,
@@ -428,7 +480,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
     fn evaluate_typeclass_attr(
-        &mut self,
+        &self,
         typeclass: &Typeclass,
         attr_name: &str,
         source: &dyn ErrorSource,
