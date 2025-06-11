@@ -2509,4 +2509,19 @@ mod tests {
             }
         }"});
     }
+
+    #[test]
+    fn test_parsing_match_in_define_statement() {
+        ok(indoc! {"
+        define foo(x: Nat) -> Nat {
+            match x {
+                Nat.zero {
+                    0
+                }
+                Nat.suc(n) {
+                    n + 1
+                }
+            }
+        }"});
+    }
 }
