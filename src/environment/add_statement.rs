@@ -1062,7 +1062,7 @@ impl Environment {
                 "{}.{}: {}",
                 is.name_token.text(),
                 constructor_name,
-                gen_constructor_type
+                arb_constructor_type
             );
             let gen_constructor_fn = self.bindings.add_datatype_attribute(
                 &datatype,
