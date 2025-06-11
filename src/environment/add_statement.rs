@@ -599,6 +599,7 @@ impl Environment {
 
         // Define the quantifiers as constants
         for (quant_name, quant_type) in quant_names.iter().zip(quant_types.iter()) {
+            let def_str = format!("{}: {}", quant_name, quant_type);
             self.bindings.add_unqualified_constant(
                 quant_name,
                 vec![],
@@ -607,7 +608,7 @@ impl Environment {
                 None,
                 vec![],
                 None,
-                None, // No definition string for quantified variables
+                Some(def_str),
             );
         }
 

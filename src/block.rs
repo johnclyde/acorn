@@ -41,7 +41,7 @@ pub struct Block {
 
     /// The environment created inside the block.
     pub env: Environment,
-    
+
     /// Whether this block is a todo block (goals inside should not be collected)
     pub is_todo: bool,
 }
@@ -127,6 +127,7 @@ impl Block {
         let mut internal_args = vec![];
         for (arg_name, generic_arg_type) in &args {
             let specific_arg_type = generic_arg_type.instantiate(&param_pairs);
+            let def_str = format!("{}: {}", arg_name, specific_arg_type);
             let potential = subenv.bindings.add_unqualified_constant(
                 arg_name,
                 vec![],
@@ -135,7 +136,7 @@ impl Block {
                 None,
                 vec![],
                 None,
-                None, // No definition string for block arguments
+                Some(def_str),
             );
             internal_args.push(potential.force_value());
         }
@@ -194,6 +195,7 @@ impl Block {
                 // Inside the block, the pattern arguments are constants.
                 let mut arg_values = vec![];
                 for (arg_name, arg_type) in pattern_args {
+                    let def_str = format!("{}: {}", arg_name, arg_type);
                     let potential = subenv.bindings.add_unqualified_constant(
                         &arg_name,
                         vec![],
@@ -202,7 +204,7 @@ impl Block {
                         None,
                         vec![],
                         None,
-                        None, // No definition string for block arguments
+                        Some(def_str),
                     );
                     arg_values.push(potential.force_value());
                 }
@@ -566,7 +568,7 @@ impl fmt::Display for NodeCursor<'_> {
 impl fmt::Debug for NodeCursor<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "NodeCursor(path: {:?}", self.path())?;
-        
+
         // Add information about the node
         let node = self.node();
         if node.has_goal() {
@@ -581,7 +583,7 @@ impl fmt::Debug for NodeCursor<'_> {
                 _ => {}
             }
         }
-        
+
         write!(f, ")")
     }
 }
@@ -763,7 +765,7 @@ impl<'a> NodeCursor<'a> {
                 return;
             }
         }
-        
+
         for i in 0..self.num_children() {
             self.descend(i);
             self.find_goals(output);
