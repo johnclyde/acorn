@@ -5,7 +5,7 @@ use crate::compilation::{self, ErrorSource};
 use crate::expression::{Declaration, Expression, TypeParamExpr};
 use crate::module::ModuleId;
 use crate::named_entity::NamedEntity;
-use crate::names::DefinedName;
+use crate::names::{ConstantName, DefinedName};
 use crate::potential_value::PotentialValue;
 use crate::project::Project;
 use crate::stack::Stack;
@@ -357,17 +357,17 @@ impl<'a> Evaluator<'a> {
 
     /// Figures out whether a datatype attribute is defined directly or by inheritance,
     /// returning both the module id and the originally defined name.
-    fn resolve_datatype_attr(
+    pub fn resolve_datatype_attr(
         &self,
         datatype: &Datatype,
         attr_name: &str,
-    ) -> Result<(ModuleId, DefinedName), String> {
+    ) -> Result<(ModuleId, ConstantName), String> {
         if let Some(module_id) = self
             .bindings
             .get_module_for_datatype_attr(datatype, attr_name)
         {
-            let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
-            return Ok((module_id, defined_name));
+            let name = ConstantName::datatype_attr(datatype.clone(), attr_name);
+            return Ok((module_id, name));
         }
 
         // If no direct type attribute, check if this datatype is an instance
@@ -414,68 +414,43 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        // First try to find a direct type attribute
-        if let Some(module_id) = self
-            .bindings
-            .get_module_for_datatype_attr(datatype, attr_name)
-        {
-            let bindings = self.get_bindings(module_id);
-            let defined_name = DefinedName::datatype_attr(&datatype, attr_name);
-            return bindings.get_constant_value(&defined_name, source);
+        let (module_id, const_name) = match self.resolve_datatype_attr(datatype, attr_name) {
+            Ok((module_id, const_name)) => (module_id, const_name),
+            Err(err) => return Err(source.error(&err)),
+        };
+
+        // Get the bindings from the module where this attribute was actually defined
+        let bindings = self.get_bindings(module_id);
+        let defined_name = DefinedName::Constant(const_name);
+        let value = bindings.get_constant_value(&defined_name, source)?;
+        if !defined_name.is_typeclass_attr() {
+            return Ok(value);
+        };
+
+        // If this is a typeclass attribute, instantiate it with the datatype.
+        if let Some(u) = value.as_unresolved() {
+            // Resolve the typeclass attribute with the specific datatype
+            let instance_type = AcornType::Data(datatype.clone(), vec![]);
+            let resolved = u.resolve(source, vec![instance_type])?;
+            return Ok(PotentialValue::Resolved(resolved));
         }
 
-        // If no direct type attribute, check if this datatype is an instance
-        // of any typeclass that has this attribute
-        let mut base_typeclass: Option<&Typeclass> = None;
-
-        for typeclass in self.bindings.get_instance_typeclasses(datatype) {
-            let Some(base_tc) = self.bindings.typeclass_attr_lookup(typeclass, attr_name) else {
-                continue;
-            };
-            if let Some(existing_base) = base_typeclass {
-                // If we find a different base typeclass, it's ambiguous
-                if existing_base != base_tc {
-                    return Err(source.error(&format!(
-                        "attribute '{}' is ambiguous: defined in multiple typeclasses: {}, {}",
-                        attr_name, existing_base.name, base_tc.name
-                    )));
-                }
-            } else {
-                base_typeclass = Some(base_tc);
-            }
-        }
-
-        // If we found a base typeclass with this attribute, use it
-        if let Some(base_tc) = base_typeclass {
-            let tc_attr = self.evaluate_typeclass_attr(base_tc, attr_name, source)?;
-            match tc_attr {
-                PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
-                PotentialValue::Unresolved(u) => {
-                    // Resolve the typeclass attribute with the specific datatype
-                    let instance_type = AcornType::Data(datatype.clone(), vec![]);
-                    let resolved = u.resolve(source, vec![instance_type])?;
-                    return Ok(PotentialValue::Resolved(resolved));
-                }
-            }
-        }
-
-        // If no typeclass attribute found either, return error
-        Err(source.error("attribute not found"))
+        Ok(value)
     }
 
     /// Figures out whether a typeclass attribute is defined directly or by inheritance.
     /// Returns the module ID and defined name where the attribute was originally defined.
-    fn resolve_typeclass_attr(
+    pub fn resolve_typeclass_attr(
         &self,
         typeclass: &Typeclass,
         attr_name: &str,
-    ) -> Option<(ModuleId, DefinedName)> {
+    ) -> Option<(ModuleId, ConstantName)> {
         // Check if this attribute is defined anywhere (including inherited ones)
         let (attr_module_id, attr_typeclass) = self
             .bindings
             .typeclass_attr_module_lookup(&typeclass, attr_name)?;
-        let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
-        Some((attr_module_id, defined_name))
+        let name = ConstantName::typeclass_attr(attr_typeclass.clone(), attr_name);
+        Some((attr_module_id, name))
     }
 
     /// Evalutes a name scoped by a typeclass name, like Group.foo
@@ -485,9 +460,10 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        if let Some((module_id, defined_name)) = self.resolve_typeclass_attr(typeclass, attr_name) {
+        if let Some((module_id, name)) = self.resolve_typeclass_attr(typeclass, attr_name) {
             // Get the bindings from the module where this attribute was actually defined
             let bindings = self.get_bindings(module_id);
+            let defined_name = DefinedName::Constant(name);
             let attr_value = bindings.get_constant_value(&defined_name, source)?;
             return Ok(attr_value);
         }

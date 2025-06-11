@@ -1772,7 +1772,7 @@ impl Environment {
                     // Check that the types match
                     let tc_attr_name = DefinedName::typeclass_attr(&typeclass, attr_name);
                     let tc_attr = self.bindings.get_constant_value(&tc_attr_name, statement)?;
-                    let tc_unresolved = tc_attr.as_unresolved(statement)?;
+                    let tc_unresolved = tc_attr.to_unresolved(statement)?;
                     let tc_resolved =
                         tc_unresolved.resolve(statement, vec![instance_type.clone()])?;
                     let tc_type = tc_resolved.get_type();

@@ -3,7 +3,6 @@ use std::fmt;
 use crate::acorn_type::{Datatype, Typeclass};
 use crate::module::ModuleId;
 
-
 /// An instance name is something like Ring.add<Int>.
 /// This can be defined directly, although it should be expressed in
 /// parametrized form when it's a value.
@@ -60,7 +59,9 @@ impl ConstantName {
 
     pub fn as_attribute(&self) -> Option<(ModuleId, &str, &str)> {
         match self {
-            ConstantName::DatatypeAttribute(datatype, attr) => Some((datatype.module_id, &datatype.name, attr)),
+            ConstantName::DatatypeAttribute(datatype, attr) => {
+                Some((datatype.module_id, &datatype.name, attr))
+            }
             ConstantName::TypeclassAttribute(tc, attr) => Some((tc.module_id, &tc.name, attr)),
             ConstantName::Unqualified(..) => None,
         }
@@ -80,6 +81,12 @@ impl ConstantName {
         }
     }
 
+    pub fn is_typeclass_attr(&self) -> bool {
+        match self {
+            ConstantName::TypeclassAttribute(..) => true,
+            _ => false,
+        }
+    }
 
     pub fn module_id(&self) -> ModuleId {
         match self {
@@ -172,15 +179,15 @@ impl DefinedName {
                 let (_, entity, attr) = c.as_attribute()?;
                 Some((entity, attr))
             }
-            DefinedName::Instance(inst) => {
-                Some((&inst.typeclass.name, &inst.attribute))
-            }
+            DefinedName::Instance(inst) => Some((&inst.typeclass.name, &inst.attribute)),
         }
     }
 
     pub fn matches_instance(&self, typeclass: &Typeclass, datatype: &Datatype) -> bool {
         match self {
-            DefinedName::Instance(inst) => inst.typeclass == *typeclass && inst.datatype == *datatype,
+            DefinedName::Instance(inst) => {
+                inst.typeclass == *typeclass && inst.datatype == *datatype
+            }
             DefinedName::Constant(_) => false,
         }
     }
@@ -192,4 +199,10 @@ impl DefinedName {
         }
     }
 
+    pub fn is_typeclass_attr(&self) -> bool {
+        match self {
+            DefinedName::Constant(const_name) => const_name.is_typeclass_attr(),
+            DefinedName::Instance(_) => false,
+        }
+    }
 }

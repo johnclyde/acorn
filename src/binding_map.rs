@@ -662,7 +662,7 @@ impl BindingMap {
         let typeclass_attr = self
             .get_bindings(typeclass.module_id, &project)
             .get_constant_value(&typeclass_attr_name, source)?;
-        let uc = typeclass_attr.as_unresolved(source)?;
+        let uc = typeclass_attr.to_unresolved(source)?;
         let resolved_attr = uc.resolve(source, vec![instance_type.clone()])?;
         let resolved_attr_type = resolved_attr.get_type();
 
