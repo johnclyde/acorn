@@ -330,7 +330,7 @@ impl<'a> Evaluator<'a> {
     ) -> compilation::Result<AcornValue> {
         if self.bindings.has_type_attribute(&datatype, s) {
             return self
-                .evaluate_type_attribute(&datatype, s, token)?
+                .evaluate_datatype_attribute(&datatype, s, token)?
                 .as_value(token);
         }
 
@@ -342,7 +342,7 @@ impl<'a> Evaluator<'a> {
         let last_num = self.evaluate_number_with_datatype(token, datatype, last_str)?;
         let initial_str = &s[..s.len() - 1];
         let initial_num = self.evaluate_number_with_datatype(token, datatype, initial_str)?;
-        let read_fn = match self.evaluate_type_attribute(&datatype, "read", token)? {
+        let read_fn = match self.evaluate_datatype_attribute(&datatype, "read", token)? {
             PotentialValue::Resolved(f) => f,
             PotentialValue::Unresolved(_) => {
                 return Err(token.error(&format!(
@@ -355,8 +355,8 @@ impl<'a> Evaluator<'a> {
         Ok(value)
     }
 
-    /// Evaluates a name scoped by a type name, like Nat.range
-    fn evaluate_type_attribute(
+    /// Evaluates a name scoped by a datatype, like Nat.range
+    fn evaluate_datatype_attribute(
         &mut self,
         datatype: &Datatype,
         attr_name: &str,
@@ -419,17 +419,23 @@ impl<'a> Evaluator<'a> {
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
         // Check if this attribute is defined anywhere (including inherited ones)
-        if let Some((attr_module_id, attr_typeclass)) = self.bindings.typeclass_attr_module_lookup(&typeclass, attr_name) {
+        if let Some((attr_module_id, attr_typeclass)) = self
+            .bindings
+            .typeclass_attr_module_lookup(&typeclass, attr_name)
+        {
             // Get the bindings from the module where this attribute was actually defined
             let bindings = self.get_bindings(attr_module_id);
             let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
             let attr_value = bindings.get_constant_value(&defined_name, source)?;
-            
+
             return Ok(attr_value);
         }
 
         // If no attribute found, return error
-        Err(source.error(&format!("attribute '{}' not found on typeclass '{}'", attr_name, typeclass.name)))
+        Err(source.error(&format!(
+            "attribute '{}' not found on typeclass '{}'",
+            attr_name, typeclass.name
+        )))
     }
 
     /// Evaluates an expression that is supposed to describe a value, with an empty stack.
@@ -453,7 +459,7 @@ impl<'a> Evaluator<'a> {
 
         let function = match &base_type {
             AcornType::Data(datatype, _) => {
-                self.evaluate_type_attribute(datatype, attr_name, source)?
+                self.evaluate_datatype_attribute(datatype, attr_name, source)?
             }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
                 let typeclass = match &param.typeclass {
@@ -504,7 +510,7 @@ impl<'a> Evaluator<'a> {
                             )?;
                             NamedEntity::Value(value)
                         } else {
-                            match self.evaluate_type_attribute(datatype, name, name_token)? {
+                            match self.evaluate_datatype_attribute(datatype, name, name_token)? {
                                 PotentialValue::Resolved(value) => {
                                     if !params.is_empty() {
                                         return Err(
@@ -560,7 +566,7 @@ impl<'a> Evaluator<'a> {
                 return Err(name_token.error("cannot access members of unresolved types"));
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_type_attribute(&ut.datatype, name, name_token)? {
+                match self.evaluate_datatype_attribute(&ut.datatype, name, name_token)? {
                     PotentialValue::Resolved(value) => NamedEntity::Value(value),
                     PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }
