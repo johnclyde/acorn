@@ -309,27 +309,14 @@ pub enum StatementInfo {
     DocComment(String),
 }
 
-const ONE_INDENT: &str = "    ";
-
-fn add_indent(indentation: &str) -> String {
-    format!("{}{}", indentation, ONE_INDENT)
-}
-
-/// Writes out a block, starting with the space before the open-brace, indenting the rest.
-/// Does not write a trailing newline.
-fn write_block(f: &mut fmt::Formatter, statements: &[Statement], indentation: &str) -> fmt::Result {
-    write!(f, " {{\n")?;
-    let new_indentation = add_indent(indentation);
-    for s in statements {
-        s.fmt_helper(f, &new_indentation)?;
-        write!(f, "\n")?;
-    }
-    write!(f, "{}}}", indentation)
-}
-
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt_helper(f, "")
+        // Use the pretty-printing logic with a narrow width for mobile-friendly docs
+        let allocator = pretty::Arena::<()>::new();
+        let doc = self.pretty_ref(&allocator, allocator.nil());
+        // Break lines really aggressively
+        doc.render_fmt(1, f)?;
+        Ok(())
     }
 }
 
@@ -1212,320 +1199,7 @@ fn parse_todo_statement(keyword: Token, tokens: &mut TokenIter) -> Result<Statem
     Ok(statement)
 }
 
-/// Writes the type parameters for a statement.
-fn write_type_params(f: &mut fmt::Formatter, type_params: &[TypeParamExpr]) -> fmt::Result {
-    if type_params.len() == 0 {
-        return Ok(());
-    }
-    write!(f, "<")?;
-    for (i, param) in type_params.iter().enumerate() {
-        if i > 0 {
-            write!(f, ", ")?;
-        }
-        write!(f, "{}", param)?;
-    }
-    write!(f, ">")?;
-    Ok(())
-}
-
-/// Writes the arguments for a statement.
-fn write_args(f: &mut fmt::Formatter, args: &[Declaration]) -> fmt::Result {
-    if args.len() == 0 {
-        return Ok(());
-    }
-    write!(f, "(")?;
-    for (i, arg) in args.iter().enumerate() {
-        if i > 0 {
-            write!(f, ", ")?;
-        }
-        write!(f, "{}", arg)?;
-    }
-    write!(f, ")")?;
-    Ok(())
-}
-
-/// Writes everything after the name of the theorem.
-fn write_theorem(
-    f: &mut fmt::Formatter,
-    indentation: &str,
-    type_params: &[TypeParamExpr],
-    args: &[Declaration],
-    claim: &Expression,
-) -> fmt::Result {
-    let new_indentation = add_indent(indentation);
-    write_type_params(f, type_params)?;
-    write_args(f, args)?;
-    write!(f, " {{\n{}{}\n{}}}", new_indentation, claim, indentation)?;
-    Ok(())
-}
-
 impl Statement {
-    fn fmt_helper(&self, f: &mut fmt::Formatter, indentation: &str) -> fmt::Result {
-        write!(f, "{}", indentation)?;
-        match &self.statement {
-            StatementInfo::Let(ls) => {
-                write!(f, "let {}", ls.name_token.text())?;
-                write_type_params(f, &ls.type_params)?;
-                match &ls.type_expr {
-                    Some(type_expr) => {
-                        write!(f, ": {} = ", type_expr)?;
-                        ls.value.fmt_helper(f, Some(indentation))
-                    },
-                    None => {
-                        write!(f, " = ")?;
-                        ls.value.fmt_helper(f, Some(indentation))
-                    },
-                }
-            }
-
-            StatementInfo::Define(ds) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "define {}", ds.name_token.text())?;
-                write_type_params(f, &ds.type_params)?;
-                write_args(f, &ds.args)?;
-                write!(f, " -> {} {{\n{}", ds.return_type, new_indentation)?;
-                ds.return_value.fmt_helper(f, Some(&new_indentation))?;
-                write!(f, "\n{}}}", indentation)
-            }
-
-            StatementInfo::Theorem(ts) => {
-                if ts.axiomatic {
-                    write!(f, "axiom")?;
-                } else {
-                    write!(f, "theorem")?;
-                }
-                if let Some(name_token) = &ts.name_token {
-                    write!(f, " {}", name_token.text())?;
-                }
-                write_theorem(f, indentation, &ts.type_params, &ts.args, &ts.claim)?;
-                if let Some(body) = &ts.body {
-                    write!(f, " by")?;
-                    write_block(f, &body.statements, indentation)?;
-                }
-                Ok(())
-            }
-
-            StatementInfo::Claim(ps) => {
-                write!(f, "{}", ps.claim)?;
-                Ok(())
-            }
-
-            StatementInfo::Type(ts) => {
-                write!(f, "type {}: {}", ts.name_token.text(), ts.type_expr)
-            }
-
-            StatementInfo::ForAll(fas) => {
-                write!(f, "forall")?;
-                write_args(f, &fas.quantifiers)?;
-                write_block(f, &fas.body.statements, indentation)
-            }
-
-            StatementInfo::If(is) => {
-                write!(f, "if {}", is.condition)?;
-                write_block(f, &is.body.statements, indentation)?;
-                if let Some(else_body) = &is.else_body {
-                    write!(f, " else")?;
-                    write_block(f, &else_body.statements, indentation)?;
-                }
-                Ok(())
-            }
-
-            StatementInfo::VariableSatisfy(vss) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "let ")?;
-                if vss.declarations.len() == 1 {
-                    write!(f, "{}", vss.declarations[0])?;
-                } else {
-                    write_args(f, &vss.declarations)?;
-                }
-                write!(
-                    f,
-                    " satisfy {{\n{}{}\n{}}}",
-                    &new_indentation, vss.condition, indentation
-                )
-            }
-
-            StatementInfo::FunctionSatisfy(fss) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "let {}", fss.name_token.text())?;
-                let i = fss.declarations.len() - 1;
-                write_args(f, &fss.declarations[..i])?;
-                write!(f, " -> {} satisfy {{\n", fss.declarations[i],)?;
-                write!(f, "{}{}\n", new_indentation, fss.condition)?;
-                write!(f, "{}}}", indentation)?;
-                if let Some(body) = &fss.body {
-                    write!(f, " by")?;
-                    write_block(f, &body.statements, indentation)?;
-                }
-                Ok(())
-            }
-
-            StatementInfo::Structure(ss) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "structure {}", ss.name_token.text())?;
-                write_type_params(f, &ss.type_params)?;
-                write!(f, " {{\n")?;
-                for (name, type_expr) in &ss.fields {
-                    write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
-                }
-                write!(f, "{}}}", indentation)?;
-                if let Some(constraint) = &ss.constraint {
-                    write!(
-                        f,
-                        " constraint {{\n{}{}\n{}}}",
-                        new_indentation, constraint, indentation
-                    )?;
-                }
-                if let Some(body) = &ss.body {
-                    write!(f, " by")?;
-                    write_block(f, &body.statements, indentation)?;
-                }
-                Ok(())
-            }
-
-            StatementInfo::Inductive(is) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "inductive {}", is.name_token.text())?;
-                write_type_params(f, &is.type_params)?;
-                write!(f, " {{\n")?;
-                for (name, type_expr) in &is.constructors {
-                    match type_expr {
-                        Some(te) => write!(f, "{}{}{}\n", new_indentation, name, te)?,
-                        None => write!(f, "{}{}\n", new_indentation, name)?,
-                    }
-                }
-                write!(f, "{}}}", indentation)
-            }
-
-            StatementInfo::Import(is) => {
-                if is.names.is_empty() {
-                    let module_path = is
-                        .components
-                        .iter()
-                        .map(|t| t.text())
-                        .collect::<Vec<_>>()
-                        .join(".");
-                    write!(f, "import {}", module_path)
-                } else {
-                    let module_path = is
-                        .components
-                        .iter()
-                        .map(|t| t.text())
-                        .collect::<Vec<_>>()
-                        .join(".");
-                    let names = is
-                        .names
-                        .iter()
-                        .map(|t| t.text())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    write!(f, "from {} import {}", module_path, names)
-                }
-            }
-
-            StatementInfo::Attributes(ats) => {
-                if let Some(instance_name) = &ats.instance_name {
-                    write!(
-                        f,
-                        "attributes {}: {}",
-                        instance_name.text(),
-                        ats.name_token.text()
-                    )?;
-                } else {
-                    write!(f, "attributes {}", ats.name_token.text())?;
-                }
-                write_type_params(f, &ats.type_params)?;
-                write_block(f, &ats.body.statements, indentation)
-            }
-
-            StatementInfo::Numerals(ds) => {
-                write!(f, "default {}", ds.type_expr)
-            }
-
-            StatementInfo::Solve(ss) => {
-                write!(f, "solve {} by", ss.target)?;
-                write_block(f, &ss.body.statements, indentation)
-            }
-
-            StatementInfo::Problem(body) => {
-                write!(f, "problem")?;
-                write_block(f, &body.statements, indentation)
-            }
-
-            StatementInfo::Todo(ts) => {
-                write!(f, "todo")?;
-                write_block(f, &ts.body.statements, indentation)
-            }
-
-            StatementInfo::Match(ms) => {
-                let new_indentation = add_indent(indentation);
-                write!(f, "match {} {{", ms.scrutinee)?;
-                for (pattern, body) in &ms.cases {
-                    write!(f, "\n{}{}", new_indentation, pattern)?;
-                    write_block(f, &body.statements, &new_indentation)?;
-                }
-                write!(f, "\n{}}}", indentation)
-            }
-
-            StatementInfo::Typeclass(ts) => {
-                let new_indentation = add_indent(indentation);
-
-                if let Some(instance_name) = &ts.instance_name {
-                    // Block syntax: typeclass Q: TypeclassName extends ... { ... }
-                    write!(f, "typeclass {}: {}", instance_name, ts.typeclass_name)?;
-
-                    // Write the extends part if there are any
-                    if !ts.extends.is_empty() {
-                        write!(f, " extends ")?;
-                        for (i, typeclass) in ts.extends.iter().enumerate() {
-                            if i > 0 {
-                                write!(f, ", ")?;
-                            }
-                            write!(f, "{}", typeclass)?;
-                        }
-                    }
-
-                    write!(f, " {{\n")?;
-                    for (name, type_expr) in &ts.constants {
-                        write!(f, "{}{}: {}\n", new_indentation, name, type_expr)?;
-                    }
-                    for theorem in &ts.conditions {
-                        write!(f, "{}{}", new_indentation, theorem.name_token)?;
-                        write_theorem(f, &new_indentation, &[], &theorem.args, &theorem.claim)?;
-                        write!(f, "\n")?;
-                    }
-                    write!(f, "{}}}", indentation)?;
-                } else {
-                    // No-block syntax: typeclass TypeclassName extends ...
-                    write!(f, "typeclass {}", ts.typeclass_name)?;
-                    if !ts.extends.is_empty() {
-                        write!(f, " extends ")?;
-                        for (i, typeclass) in ts.extends.iter().enumerate() {
-                            if i > 0 {
-                                write!(f, ", ")?;
-                            }
-                            write!(f, "{}", typeclass)?;
-                        }
-                    }
-                }
-                Ok(())
-            }
-
-            StatementInfo::Instance(is) => {
-                write!(f, "instance {}: {}", is.type_name, is.typeclass)?;
-                if let Some(definitions) = &is.definitions {
-                    write_block(f, &definitions.statements, indentation)
-                } else {
-                    Ok(())
-                }
-            }
-
-            StatementInfo::DocComment(s) => {
-                write!(f, "/// {}", s)
-            }
-        }
-    }
-
     /// Tries to parse a single statement from the provided tokens.
     /// If in_block is true, we might get a right brace instead of a statement.
     /// Returns statement, as well as the right brace token, if the current block ended.
@@ -1751,40 +1425,50 @@ where
 }
 
 impl Statement {
-    fn pretty_ref<'a, D, A>(&'a self, allocator: &'a D, indent: DocBuilder<'a, D, A>) -> DocBuilder<'a, D, A>
+    fn pretty_ref<'a, D, A>(
+        &'a self,
+        allocator: &'a D,
+        indent: DocBuilder<'a, D, A>,
+    ) -> DocBuilder<'a, D, A>
     where
         A: 'a,
         D: DocAllocator<'a, A>,
     {
         let doc = match &self.statement {
             StatementInfo::Let(ls) => {
-                let mut doc = allocator.text("let ").append(allocator.text(ls.name_token.text()));
+                let mut doc = allocator
+                    .text("let ")
+                    .append(allocator.text(ls.name_token.text()));
                 doc = write_type_params_pretty(allocator, doc, &ls.type_params);
                 match &ls.type_expr {
-                    Some(type_expr) => {
-                        doc.append(allocator.text(": "))
-                            .append(type_expr.pretty_ref(allocator))
-                            .append(allocator.text(" = "))
-                            .append(ls.value.pretty_ref(allocator))
-                    },
-                    None => {
-                        doc.append(allocator.text(" = "))
-                            .append(ls.value.pretty_ref(allocator))
-                    },
+                    Some(type_expr) => doc
+                        .append(allocator.text(": "))
+                        .append(type_expr.pretty_ref(allocator))
+                        .append(allocator.text(" = "))
+                        .append(ls.value.pretty_ref(allocator)),
+                    None => doc
+                        .append(allocator.text(" = "))
+                        .append(ls.value.pretty_ref(allocator)),
                 }
             }
 
             StatementInfo::Define(ds) => {
-                let mut doc = allocator.text("define ").append(allocator.text(ds.name_token.text()));
+                let mut doc = allocator
+                    .text("define ")
+                    .append(allocator.text(ds.name_token.text()));
                 doc = write_type_params_pretty(allocator, doc, &ds.type_params);
                 doc = write_args_pretty(allocator, doc, &ds.args);
                 doc.append(allocator.text(" -> "))
                     .append(ds.return_type.pretty_ref(allocator))
                     .append(allocator.text(" {"))
-                    .append(allocator.line().nest(4).append(ds.return_value.pretty_ref(allocator)).nest(4))
-                    .append(allocator.line())
+                    .append(
+                        allocator
+                            .hardline()
+                            .append(ds.return_value.pretty_ref(allocator))
+                            .nest(4),
+                    )
+                    .append(allocator.hardline())
                     .append(allocator.text("}"))
-                    .group()
             }
 
             StatementInfo::Theorem(ts) => {
@@ -1794,26 +1478,25 @@ impl Statement {
                     allocator.text("theorem")
                 };
                 if let Some(name_token) = &ts.name_token {
-                    doc = doc.append(allocator.text(" ")).append(allocator.text(name_token.text()));
+                    doc = doc
+                        .append(allocator.text(" "))
+                        .append(allocator.text(name_token.text()));
                 }
                 doc = write_theorem_pretty(allocator, doc, &ts.type_params, &ts.args, &ts.claim);
                 if let Some(body) = &ts.body {
                     doc = doc.append(allocator.text(" by"));
                     doc = write_block_pretty(allocator, doc, &body.statements);
                 }
-                doc.group()
+                doc
             }
 
-            StatementInfo::Claim(ps) => {
-                ps.claim.pretty_ref(allocator)
-            }
+            StatementInfo::Claim(ps) => ps.claim.pretty_ref(allocator),
 
-            StatementInfo::Type(ts) => {
-                allocator.text("type ")
-                    .append(allocator.text(ts.name_token.text()))
-                    .append(allocator.text(": "))
-                    .append(ts.type_expr.pretty_ref(allocator))
-            }
+            StatementInfo::Type(ts) => allocator
+                .text("type ")
+                .append(allocator.text(ts.name_token.text()))
+                .append(allocator.text(": "))
+                .append(ts.type_expr.pretty_ref(allocator)),
 
             StatementInfo::ForAll(fas) => {
                 let mut doc = allocator.text("forall");
@@ -1822,7 +1505,8 @@ impl Statement {
             }
 
             StatementInfo::If(is) => {
-                let mut doc = allocator.text("if ")
+                let mut doc = allocator
+                    .text("if ")
                     .append(is.condition.pretty_ref(allocator));
                 doc = write_block_pretty(allocator, doc, &is.body.statements);
                 if let Some(else_body) = &is.else_body {
@@ -1840,20 +1524,33 @@ impl Statement {
                     doc = write_args_pretty(allocator, doc, &vss.declarations);
                 }
                 doc.append(allocator.text(" satisfy {"))
-                    .append(allocator.line().nest(4).append(vss.condition.pretty_ref(allocator)).nest(4))
-                    .append(allocator.line())
+                    .append(
+                        allocator
+                            .hardline()
+                            .append(vss.condition.pretty_ref(allocator))
+                            .nest(4),
+                    )
+                    .append(allocator.hardline())
                     .append(allocator.text("}"))
-                    .group()
             }
 
             StatementInfo::FunctionSatisfy(fss) => {
-                let mut doc = allocator.text("let ").append(allocator.text(fss.name_token.text()));
+                let mut doc = allocator
+                    .text("let ")
+                    .append(allocator.text(fss.name_token.text()));
                 let i = fss.declarations.len() - 1;
                 doc = write_args_pretty(allocator, doc, &fss.declarations[..i]);
-                doc = doc.append(allocator.text(" -> "))
+                doc = doc
+                    .append(allocator.text(" -> "))
                     .append(fss.declarations[i].pretty_ref(allocator))
                     .append(allocator.text(" satisfy {"))
-                    .append(allocator.line().nest(4).append(fss.condition.pretty_ref(allocator)).nest(4))
+                    .append(
+                        allocator
+                            .line()
+                            .nest(4)
+                            .append(fss.condition.pretty_ref(allocator))
+                            .nest(4),
+                    )
                     .append(allocator.line())
                     .append(allocator.text("}"));
                 if let Some(body) = &fss.body {
@@ -1864,21 +1561,33 @@ impl Statement {
             }
 
             StatementInfo::Structure(ss) => {
-                let mut doc = allocator.text("structure ").append(allocator.text(ss.name_token.text()));
+                let mut doc = allocator
+                    .text("structure ")
+                    .append(allocator.text(ss.name_token.text()));
                 doc = write_type_params_pretty(allocator, doc, &ss.type_params);
                 doc = doc.append(allocator.text(" {"));
+                let mut fields_inner = allocator.nil();
                 for (name, type_expr) in &ss.fields {
-                    doc = doc.append(allocator.line())
+                    fields_inner = fields_inner
+                        .append(allocator.hardline())
                         .append(allocator.text(name.text()))
                         .append(allocator.text(": "))
-                        .append(type_expr.pretty_ref(allocator))
-                        .nest(4);
+                        .append(type_expr.pretty_ref(allocator));
                 }
-                doc = doc.append(allocator.line()).append(allocator.text("}"));
+                doc = doc
+                    .append(fields_inner.nest(4))
+                    .append(allocator.hardline())
+                    .append(allocator.text("}"));
                 if let Some(constraint) = &ss.constraint {
-                    doc = doc.append(allocator.text(" constraint {"))
-                        .append(allocator.line().nest(4).append(constraint.pretty_ref(allocator)).nest(4))
-                        .append(allocator.line())
+                    doc = doc
+                        .append(allocator.text(" constraint {"))
+                        .append(
+                            allocator
+                                .hardline()
+                                .append(constraint.pretty_ref(allocator))
+                                .nest(4),
+                        )
+                        .append(allocator.hardline())
                         .append(allocator.text("}"));
                 }
                 if let Some(body) = &ss.body {
@@ -1889,36 +1598,51 @@ impl Statement {
             }
 
             StatementInfo::Inductive(is) => {
-                let mut doc = allocator.text("inductive ").append(allocator.text(is.name_token.text()));
+                let mut doc = allocator
+                    .text("inductive ")
+                    .append(allocator.text(is.name_token.text()));
                 doc = write_type_params_pretty(allocator, doc, &is.type_params);
                 doc = doc.append(allocator.text(" {"));
+                let mut inner = allocator.nil();
                 for (name, type_expr) in &is.constructors {
-                    doc = doc.append(allocator.line()).append(allocator.text(name.text()));
+                    inner = inner
+                        .append(allocator.hardline())
+                        .append(allocator.text(name.text()));
                     if let Some(te) = type_expr {
-                        doc = doc.append(te.pretty_ref(allocator));
+                        inner = inner.append(te.pretty_ref(allocator));
                     }
-                    doc = doc.nest(4);
                 }
-                doc.append(allocator.line()).append(allocator.text("}")).group()
+                doc.append(inner.nest(4))
+                    .append(allocator.hardline())
+                    .append(allocator.text("}"))
             }
 
             StatementInfo::Import(is) => {
                 if is.names.is_empty() {
-                    let module_path = is.components.iter()
+                    let module_path = is
+                        .components
+                        .iter()
                         .map(|t| t.text())
                         .collect::<Vec<_>>()
                         .join(".");
-                    allocator.text("import ").append(allocator.text(module_path))
+                    allocator
+                        .text("import ")
+                        .append(allocator.text(module_path))
                 } else {
-                    let module_path = is.components.iter()
+                    let module_path = is
+                        .components
+                        .iter()
                         .map(|t| t.text())
                         .collect::<Vec<_>>()
                         .join(".");
-                    let names = is.names.iter()
+                    let names = is
+                        .names
+                        .iter()
                         .map(|t| t.text())
                         .collect::<Vec<_>>()
                         .join(", ");
-                    allocator.text("from ")
+                    allocator
+                        .text("from ")
                         .append(allocator.text(module_path))
                         .append(allocator.text(" import "))
                         .append(allocator.text(names))
@@ -1928,7 +1652,8 @@ impl Statement {
             StatementInfo::Attributes(ats) => {
                 let mut doc = allocator.text("attributes ");
                 if let Some(instance_name) = &ats.instance_name {
-                    doc = doc.append(allocator.text(instance_name.text()))
+                    doc = doc
+                        .append(allocator.text(instance_name.text()))
                         .append(allocator.text(": "))
                         .append(allocator.text(ats.name_token.text()));
                 } else {
@@ -1938,12 +1663,13 @@ impl Statement {
                 write_block_pretty(allocator, doc, &ats.body.statements).group()
             }
 
-            StatementInfo::Numerals(ds) => {
-                allocator.text("default ").append(ds.type_expr.pretty_ref(allocator))
-            }
+            StatementInfo::Numerals(ds) => allocator
+                .text("default ")
+                .append(ds.type_expr.pretty_ref(allocator)),
 
             StatementInfo::Solve(ss) => {
-                let doc = allocator.text("solve ")
+                let doc = allocator
+                    .text("solve ")
                     .append(ss.target.pretty_ref(allocator))
                     .append(allocator.text(" by"));
                 write_block_pretty(allocator, doc, &ss.body.statements).group()
@@ -1960,21 +1686,27 @@ impl Statement {
             }
 
             StatementInfo::Match(ms) => {
-                let mut doc = allocator.text("match ")
+                let doc = allocator
+                    .text("match ")
                     .append(ms.scrutinee.pretty_ref(allocator))
                     .append(allocator.text(" {"));
+                let mut inner = allocator.nil();
                 for (pattern, body) in &ms.cases {
-                    doc = doc.append(allocator.line())
+                    inner = inner
+                        .append(allocator.hardline())
                         .append(pattern.pretty_ref(allocator));
-                    doc = write_block_pretty(allocator, doc, &body.statements).nest(4);
+                    inner = write_block_pretty(allocator, inner, &body.statements);
                 }
-                doc.append(allocator.line()).append(allocator.text("}")).group()
+                doc.append(inner.nest(4))
+                    .append(allocator.hardline())
+                    .append(allocator.text("}"))
             }
 
             StatementInfo::Typeclass(ts) => {
                 let mut doc = allocator.text("typeclass ");
                 if let Some(instance_name) = &ts.instance_name {
-                    doc = doc.append(allocator.text(instance_name.text()))
+                    doc = doc
+                        .append(allocator.text(instance_name.text()))
                         .append(allocator.text(": "))
                         .append(allocator.text(ts.typeclass_name.text()));
                 } else {
@@ -1991,26 +1723,37 @@ impl Statement {
                 }
                 if !ts.constants.is_empty() || !ts.conditions.is_empty() {
                     doc = doc.append(allocator.text(" {"));
+                    let mut inner = allocator.nil();
                     for (name, type_expr) in &ts.constants {
-                        doc = doc.append(allocator.line())
+                        inner = inner
+                            .append(allocator.hardline())
                             .append(allocator.text(name.text()))
                             .append(allocator.text(": "))
-                            .append(type_expr.pretty_ref(allocator))
-                            .nest(4);
+                            .append(type_expr.pretty_ref(allocator));
                     }
                     for theorem in &ts.conditions {
-                        doc = doc.append(allocator.line())
+                        inner = inner
+                            .append(allocator.hardline())
                             .append(allocator.text(theorem.name_token.text()));
-                        doc = write_theorem_pretty(allocator, doc, &[], &theorem.args, &theorem.claim)
-                            .nest(4);
+                        inner = write_theorem_pretty(
+                            allocator,
+                            inner,
+                            &[],
+                            &theorem.args,
+                            &theorem.claim,
+                        );
                     }
-                    doc = doc.append(allocator.line()).append(allocator.text("}"));
+                    doc = doc
+                        .append(inner.nest(4))
+                        .append(allocator.hardline())
+                        .append(allocator.text("}"));
                 }
-                doc.group()
+                doc
             }
 
             StatementInfo::Instance(is) => {
-                let mut doc = allocator.text("instance ")
+                let mut doc = allocator
+                    .text("instance ")
                     .append(allocator.text(is.type_name.text()))
                     .append(allocator.text(": "))
                     .append(is.typeclass.pretty_ref(allocator));
@@ -2020,11 +1763,9 @@ impl Statement {
                 doc.group()
             }
 
-            StatementInfo::DocComment(s) => {
-                allocator.text("/// ").append(allocator.text(s))
-            }
+            StatementInfo::DocComment(s) => allocator.text("/// ").append(allocator.text(s)),
         };
-        
+
         indent.append(doc)
     }
 }
@@ -2086,9 +1827,15 @@ where
 {
     let mut result = write_type_params_pretty(allocator, doc, type_params);
     result = write_args_pretty(allocator, result, args);
-    result.append(allocator.text(" {"))
-        .append(allocator.line().nest(4).append(claim.pretty_ref(allocator)).nest(4))
-        .append(allocator.line())
+    result
+        .append(allocator.text(" {"))
+        .append(
+            allocator
+                .hardline()
+                .append(claim.pretty_ref(allocator))
+                .nest(4),
+        )
+        .append(allocator.hardline())
         .append(allocator.text("}"))
 }
 
@@ -2101,13 +1848,16 @@ where
     A: 'a,
     D: DocAllocator<'a, A>,
 {
-    let mut result = doc.append(allocator.text(" {"));
+    let mut inner = allocator.nil();
     for s in statements {
-        result = result.append(allocator.line())
-            .append(s.pretty_ref(allocator, allocator.nil()))
-            .nest(4);
+        inner = inner
+            .append(allocator.hardline())
+            .append(s.pretty_ref(allocator, allocator.nil()));
     }
-    result.append(allocator.line()).append(allocator.text("}"))
+    doc.append(allocator.text(" {"))
+        .append(inner.nest(4))
+        .append(allocator.hardline())
+        .append(allocator.text("}"))
 }
 
 impl TypeParamExpr {
@@ -2118,13 +1868,13 @@ impl TypeParamExpr {
     {
         match &self.typeclass {
             None => allocator.text(self.name.text()),
-            Some(typeclass) => allocator.text(self.name.text())
+            Some(typeclass) => allocator
+                .text(self.name.text())
                 .append(allocator.text(": "))
                 .append(typeclass.pretty_ref(allocator)),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -2140,6 +1890,13 @@ mod tests {
 
     fn ok(input: &str) {
         let statement = should_parse(input);
+        let output = statement.to_string();
+        if input != output {
+            panic!(
+                "when parsing input:\n{}\nwe emitted output:\n{}",
+                input, output
+            );
+        }
         assert_eq!(input, statement.to_string());
     }
 
@@ -2251,9 +2008,11 @@ mod tests {
             suc(x) != 0
         }"});
         ok(indoc! {"
-            axiom induction(f: Nat -> bool, n: Nat) {
-                f(0) and forall(k: Nat) { f(k) implies f(suc(k)) } implies f(n)
-            }"});
+        axiom induction(f: Nat -> bool, n: Nat) {
+            f(0) and forall(k: Nat) {
+                f(k) implies f(suc(k))
+            } implies f(n)
+        }"});
         ok(indoc! {"
         define recursion(f: Nat -> Nat, a: Nat, n: Nat) -> Nat {
             axiom
@@ -2658,10 +2417,14 @@ mod tests {
         ok(indoc! {"
         typeclass T: MyTypeclass {
             two_nonequal {
-                exists(x: T, y: T) { x != y }
+                exists(x: T, y: T) {
+                    x != y
+                }
             }
             always_a_third(x: T, y: Y) {
-                exists(z: T) { x != z and y != z }
+                exists(z: T) {
+                    x != z and y != z
+                }
             }
         }"});
     }
@@ -2672,7 +2435,9 @@ mod tests {
         typeclass F: Foo {
             bar: (F, F) -> Bool
             some_bar(x: F) {
-                exists(y: F) { x.bar(y) }
+                exists(y: F) {
+                    x.bar(y)
+                }
             }
         }"});
     }
