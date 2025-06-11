@@ -1011,11 +1011,11 @@ impl Environment {
         let arb_inductive_type =
             potential_type.resolve(arbitrary_params.clone(), &is.name_token)?;
 
-        // Parse (member name, list of arg types) for each constructor.
+        // Parse (member name, list of arg types, doc comments) for each constructor.
         // This uses the arbitrary types.
         let mut constructors = vec![];
         let mut has_base = false;
-        for (name_token, type_list_expr) in &is.constructors {
+        for (name_token, type_list_expr, doc_comments) in &is.constructors {
             let type_list = match type_list_expr {
                 Some(expr) => {
                     let mut type_list = vec![];
@@ -1029,7 +1029,7 @@ impl Environment {
                 // This provides a base case
                 has_base = true;
             }
-            constructors.push((name_token.text(), type_list));
+            constructors.push((name_token.text(), type_list, doc_comments.clone()));
         }
         if !has_base {
             return Err(statement.error("inductive type must have a base case"));
@@ -1043,7 +1043,7 @@ impl Environment {
         };
         let mut constructor_fns = vec![];
         let total = constructors.len();
-        for (i, (constructor_name, type_list)) in constructors.iter().enumerate() {
+        for (i, (constructor_name, type_list, doc_comments)) in constructors.iter().enumerate() {
             let arb_constructor_type =
                 AcornType::functional(type_list.clone(), arb_inductive_type.clone());
             let gen_constructor_type = arb_constructor_type.genericize(&type_params);
@@ -1065,7 +1065,7 @@ impl Environment {
                 gen_constructor_type,
                 None,
                 Some(constructor_info),
-                vec![],
+                doc_comments.clone(),
                 def_str,
             );
             let arb_constructor_fn =
@@ -1076,7 +1076,7 @@ impl Environment {
 
         // The "no confusion" property. Different constructors give different results.
         for i in 0..constructors.len() {
-            let (member_name, i_arg_types) = &constructors[i];
+            let (member_name, i_arg_types, _) = &constructors[i];
             let i_fn = constructor_fns[i].clone();
             let i_vars: Vec<_> = i_arg_types
                 .iter()
@@ -1085,7 +1085,7 @@ impl Environment {
                 .collect();
             let i_app = AcornValue::apply(i_fn, i_vars);
             for j in 0..i {
-                let (_, j_arg_types) = &constructors[j];
+                let (_, j_arg_types, _) = &constructors[j];
                 let j_fn = constructor_fns[j].clone();
                 let j_vars: Vec<_> = j_arg_types
                     .iter()
@@ -1118,7 +1118,7 @@ impl Environment {
         // x0 is going to be the "generic item of this type".
         let mut disjuncts = vec![];
         for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-            let (_, arg_types) = &constructors[i];
+            let (_, arg_types, _) = &constructors[i];
             let args = arg_types
                 .iter()
                 .enumerate()
@@ -1147,7 +1147,7 @@ impl Environment {
         // The next principle is that each constructor is injective.
         // Ie if Type.construct(x0, x1) = Type.construct(x2, x3) then x0 = x2 and x1 = x3.
         for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-            let (member_name, arg_types) = &constructors[i];
+            let (member_name, arg_types, _) = &constructors[i];
             if arg_types.is_empty() {
                 continue;
             }
@@ -1202,7 +1202,7 @@ impl Environment {
         // The conclusion is that x0 holds for all items of the type.
         let mut conjuncts = vec![];
         for (i, constructor_fn) in constructor_fns.iter().enumerate() {
-            let (_, arg_types) = &constructors[i];
+            let (_, arg_types, _) = &constructors[i];
             let mut args = vec![];
             let mut conditions = vec![];
             for (j, arg_type) in arg_types.iter().enumerate() {

@@ -161,10 +161,10 @@ pub struct InductiveStatement {
     pub name_token: Token,
     pub type_params: Vec<TypeParamExpr>,
 
-    /// Each constructor has a name token and an expression for a list of types.
+    /// Each constructor has a name token, an expression for a list of types, and doc comments.
     /// If the expression is None, the constructor is a base value.
     /// The types can refer to the inductive type itself.
-    pub constructors: Vec<(Token, Option<Expression>)>,
+    pub constructors: Vec<(Token, Option<Expression>, Vec<String>)>,
 }
 
 pub struct ImportStatement {
@@ -759,6 +759,7 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
     let type_params = TypeParamExpr::parse_list(tokens)?;
     tokens.expect_type(TokenType::LeftBrace)?;
     let mut constructors = vec![];
+    let mut doc_comments = vec![];
     loop {
         let next_type = match tokens.peek() {
             Some(token) => token.token_type,
@@ -783,6 +784,24 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
                     }),
                 });
             }
+            TokenType::DocComment => {
+                // Collect doc comment
+                let doc_token = tokens.next().unwrap();
+                let text = doc_token.text();
+                let content = if text.starts_with("///") {
+                    let after_slash = &text[3..];
+                    // Remove at most one space from the beginning
+                    if after_slash.starts_with(' ') {
+                        after_slash[1..].to_string()
+                    } else {
+                        after_slash.to_string()
+                    }
+                } else {
+                    text.to_string()
+                };
+                doc_comments.push(content);
+                continue;
+            }
             _ => {}
         }
         let name_token = tokens.expect_variable_name(true)?;
@@ -792,7 +811,8 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
         };
         if next_type == TokenType::NewLine {
             // A no-argument constructor
-            constructors.push((name_token, None));
+            constructors.push((name_token, None, doc_comments.clone()));
+            doc_comments.clear();
             continue;
         }
         if next_type != TokenType::LeftParen {
@@ -800,7 +820,8 @@ fn parse_inductive_statement(keyword: Token, tokens: &mut TokenIter) -> Result<S
         }
         let (type_list_expr, _) =
             Expression::parse_type(tokens, Terminator::Is(TokenType::NewLine))?;
-        constructors.push((name_token, Some(type_list_expr)));
+        constructors.push((name_token, Some(type_list_expr), doc_comments.clone()));
+        doc_comments.clear();
     }
     Err(keyword.error("unterminated inductive statement"))
 }
@@ -1637,7 +1658,7 @@ impl Statement {
                 doc = write_type_params_pretty(allocator, doc, &is.type_params);
                 doc = doc.append(allocator.text(" {"));
                 let mut inner = allocator.nil();
-                for (name, type_expr) in &is.constructors {
+                for (name, type_expr, _doc_comments) in &is.constructors {
                     inner = inner
                         .append(allocator.hardline())
                         .append(allocator.text(name.text()));
