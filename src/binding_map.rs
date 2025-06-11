@@ -124,14 +124,26 @@ impl BindingMap {
     /// This can return the typeclass argument itself, or a base typeclass that it extends.
     /// Returns None if there is no such attribute.
     pub fn typeclass_attr_lookup(&self, typeclass: &Typeclass, attr: &str) -> Option<&Typeclass> {
-        self.typeclass_defs.get(typeclass)?.attributes.get(attr).map(|(_, tc)| tc)
+        self.typeclass_defs
+            .get(typeclass)?
+            .attributes
+            .get(attr)
+            .map(|(_, tc)| tc)
     }
 
     /// For a given typeclass attribute, find the module and typeclass that defines it.
     /// Returns (module_id, typeclass) where the attribute was originally defined.
     /// Returns None if there is no such attribute.
-    pub fn typeclass_attr_module_lookup(&self, typeclass: &Typeclass, attr: &str) -> Option<(ModuleId, &Typeclass)> {
-        self.typeclass_defs.get(typeclass)?.attributes.get(attr).map(|(module_id, tc)| (*module_id, tc))
+    pub fn typeclass_attr_module_lookup(
+        &self,
+        typeclass: &Typeclass,
+        attr: &str,
+    ) -> Option<(ModuleId, &Typeclass)> {
+        self.typeclass_defs
+            .get(typeclass)?
+            .attributes
+            .get(attr)
+            .map(|(module_id, tc)| (*module_id, tc))
     }
 
     /// Gets the local alias to use for a given constant.
@@ -375,7 +387,7 @@ impl BindingMap {
             .and_then(|info| info.attributes.get(attr))
             .copied()
     }
-    
+
     /// Get all attribute names for a datatype.
     /// This returns only the direct attributes of the datatype itself,
     /// NOT including attributes from typeclasses that this type is an instance of.
@@ -387,19 +399,28 @@ impl BindingMap {
     }
 
     /// Get the module where a specific datatype attribute is defined.
-    pub fn get_datatype_attribute_module(&self, datatype: &Datatype, attribute: &str) -> Option<ModuleId> {
+    pub fn get_datatype_attribute_module(
+        &self,
+        datatype: &Datatype,
+        attribute: &str,
+    ) -> Option<ModuleId> {
         self.datatype_defs
             .get(datatype)
             .and_then(|info| info.attributes.get(attribute).copied())
     }
 
     /// Get the module where a specific typeclass attribute is defined.
-    pub fn get_typeclass_attribute_module(&self, typeclass: &Typeclass, attribute: &str) -> Option<ModuleId> {
-        self.typeclass_defs
-            .get(typeclass)
-            .and_then(|def| def.attributes.get(attribute).map(|(module_id, _)| *module_id))
+    pub fn get_typeclass_attribute_module(
+        &self,
+        typeclass: &Typeclass,
+        attribute: &str,
+    ) -> Option<ModuleId> {
+        self.typeclass_defs.get(typeclass).and_then(|def| {
+            def.attributes
+                .get(attribute)
+                .map(|(module_id, _)| *module_id)
+        })
     }
-
 
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(
@@ -493,7 +514,12 @@ impl BindingMap {
         definition_string: Option<String>,
     ) -> PotentialType {
         if params.len() == 0 {
-            return PotentialType::Resolved(self.add_data_type(name, doc_comments, range, definition_string));
+            return PotentialType::Resolved(self.add_data_type(
+                name,
+                doc_comments,
+                range,
+                definition_string,
+            ));
         }
         let datatype = Datatype {
             module_id: self.module_id,
@@ -578,7 +604,8 @@ impl BindingMap {
                         )));
                     }
                 } else {
-                    info.attributes.insert(attr.clone(), (*original_module, original_typeclass.clone()));
+                    info.attributes
+                        .insert(attr.clone(), (*original_module, original_typeclass.clone()));
                 }
             }
         }
@@ -972,7 +999,7 @@ impl BindingMap {
     }
 
     /// Get the doc comment for a datatype.
-    pub fn get_datatype_doc_comment(&self, datatype: &Datatype) -> Option<&Vec<String>> {
+    pub fn get_datatype_doc_comments(&self, datatype: &Datatype) -> Option<&Vec<String>> {
         self.datatype_defs.get(datatype).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
@@ -995,7 +1022,7 @@ impl BindingMap {
     }
 
     /// Get the doc comment for a typeclass.
-    pub fn get_typeclass_doc_comment(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
+    pub fn get_typeclass_doc_comments(&self, typeclass: &Typeclass) -> Option<&Vec<String>> {
         self.typeclass_defs.get(typeclass).and_then(|info| {
             if info.doc_comments.is_empty() {
                 None
@@ -1007,7 +1034,10 @@ impl BindingMap {
 
     /// Get the definition string for a typeclass.
     pub fn get_typeclass_definition_string(&self, typeclass: &Typeclass) -> Option<&String> {
-        self.typeclass_defs.get(typeclass)?.definition_string.as_ref()
+        self.typeclass_defs
+            .get(typeclass)?
+            .definition_string
+            .as_ref()
     }
 
     /// Get the definition range for a typeclass.
@@ -1072,12 +1102,14 @@ impl BindingMap {
                 .typeclass_defs
                 .entry(typeclass.clone())
                 .or_insert_with(TypeclassDefinition::new);
-            
+
             // Merge attributes from the imported typeclass
             for (attr_name, (attr_module_id, attr_typeclass)) in imported_info.attributes.iter() {
                 match entry.attributes.get(attr_name) {
                     None => {
-                        entry.attributes.insert(attr_name.clone(), (*attr_module_id, attr_typeclass.clone()));
+                        entry
+                            .attributes
+                            .insert(attr_name.clone(), (*attr_module_id, attr_typeclass.clone()));
                     }
                     Some((existing_module_id, _existing_typeclass)) => {
                         // Check for conflicts: different modules defining the same attribute
@@ -1090,7 +1122,7 @@ impl BindingMap {
                     }
                 }
             }
-            
+
             // Merge other fields if this is a new typeclass (but we already handle attributes above)
             if entry.doc_comments.is_empty() {
                 entry.doc_comments = imported_info.doc_comments.clone();
@@ -1506,7 +1538,16 @@ impl BindingMap {
                 AcornType::functional(internal_arg_types.clone(), internal_value_type.clone());
             // The function is bound to its name locally, to handle recursive definitions.
             // Internally to the definition, this function is not polymorphic.
-            self.add_constant_name(function_name, vec![], fn_type, None, None, vec![], None, None);
+            self.add_constant_name(
+                function_name,
+                vec![],
+                fn_type,
+                None,
+                None,
+                vec![],
+                None,
+                None,
+            );
         }
 
         // Evaluate the internal value using our modified bindings
