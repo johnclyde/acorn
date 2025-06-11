@@ -165,6 +165,14 @@ impl<'a> DocGenerator<'a> {
         // Write the section header
         writeln!(file, "## {}", section_name)?;
 
+        // Check if this is inherited
+        if let Some((_base_module_id, base_name)) = env.bindings.resolve_name(constant_name) {
+            if &base_name != constant_name {
+                writeln!(file, "Inherited from {}", base_name)?;
+            }
+            return Ok(());
+        }
+
         // Write definition string if it exists
         if let Some(definition) = definition_string {
             writeln!(file)?;

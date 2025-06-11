@@ -131,7 +131,6 @@ impl BindingMap {
             .map(|(_, tc)| tc)
     }
 
-
     /// Gets the local alias to use for a given constant.
     pub fn constant_alias(&self, name: &ConstantName) -> Option<&String> {
         self.constant_to_alias.get(name)
@@ -435,6 +434,23 @@ impl BindingMap {
         let (attr_module_id, attr_typeclass) = info.attributes.get(attr_name)?;
         let name = ConstantName::typeclass_attr(attr_typeclass.clone(), attr_name);
         Some((*attr_module_id, name))
+    }
+
+    /// Figures out where this name was originally defined.
+    pub fn resolve_name(&self, name: &ConstantName) -> Option<(ModuleId, ConstantName)> {
+        match name {
+            ConstantName::Unqualified(module_id, _) => {
+                // This is a local name, so it was defined in this module.
+                Some((*module_id, name.clone()))
+            }
+            ConstantName::DatatypeAttribute(datatype, attr) => self
+                .resolve_datatype_attr(datatype, attr)
+                .ok()
+                .map(|(module_id, name)| (module_id, name)),
+            ConstantName::TypeclassAttribute(typeclass, attr) => self
+                .resolve_typeclass_attr(typeclass, attr)
+                .map(|(module_id, name)| (module_id, name)),
+        }
     }
 
     /// Get all attribute names for a datatype.
