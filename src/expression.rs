@@ -1229,15 +1229,16 @@ impl Expression {
                 .group()
             }
             Expression::Match(_, scrutinee, cases, _) => {
-                let mut doc = allocator
+                let doc = allocator
                     .text("match")
                     .append(allocator.space())
                     .append(scrutinee.pretty_ref(allocator))
                     .append(allocator.space())
                     .append(allocator.text("{"));
 
+                let mut cases_doc = allocator.nil();
                 for (pat, exp) in cases {
-                    doc = doc
+                    cases_doc = cases_doc
                         .append(allocator.line())
                         .append(pat.pretty_ref(allocator))
                         .append(allocator.space())
@@ -1245,16 +1246,15 @@ impl Expression {
                         .append(
                             allocator
                                 .line()
-                                .nest(4)
                                 .append(exp.pretty_ref(allocator))
                                 .nest(4),
                         )
                         .append(allocator.line())
-                        .append(allocator.text("}"))
-                        .nest(4);
+                        .append(allocator.text("}"));
                 }
 
-                doc.append(allocator.line())
+                doc.append(cases_doc.nest(4))
+                    .append(allocator.line())
                     .append(allocator.text("}"))
                     .group()
             }
