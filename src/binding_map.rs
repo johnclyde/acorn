@@ -393,6 +393,13 @@ impl BindingMap {
             .and_then(|info| info.attributes.get(attribute).copied())
     }
 
+    /// Get the module where a specific typeclass attribute is defined.
+    pub fn get_typeclass_attribute_module(&self, typeclass: &Typeclass, attribute: &str) -> Option<ModuleId> {
+        self.typeclass_defs
+            .get(typeclass)
+            .and_then(|def| def.attributes.get(attribute).map(|(module_id, _)| *module_id))
+    }
+
 
     /// Checks against names for both types and typeclasses because they can conflict.
     pub fn check_typename_available(

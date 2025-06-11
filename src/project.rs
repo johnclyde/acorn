@@ -847,6 +847,29 @@ impl Project {
         }
     }
 
+    /// Given a name in one environment, find the environment where it was originally defined.
+    pub fn get_env_for_name<'a>(
+        &'a self,
+        env: &'a Environment,
+        name: &ConstantName,
+    ) -> Option<&'a Environment> {
+        match name {
+            ConstantName::DatatypeAttribute(datatype, attr_name) => {
+                let attr_module_id = env
+                    .bindings
+                    .get_datatype_attribute_module(datatype, attr_name)?;
+                self.get_env_by_id(attr_module_id)
+            }
+            ConstantName::TypeclassAttribute(typeclass, attr_name) => {
+                let attr_module_id = env
+                    .bindings
+                    .get_typeclass_attribute_module(typeclass, attr_name)?;
+                self.get_env_by_id(attr_module_id)
+            }
+            ConstantName::Unqualified(module_id, _name) => self.get_env_by_id(*module_id),
+        }
+    }
+
     /// Get definition string for a constant, looking in the module where it was originally defined.
     pub fn get_constant_definition_string(&self, name: &ConstantName) -> Option<&String> {
         self.get_env_by_id(name.module_id())?
@@ -873,20 +896,14 @@ impl Project {
                     return attr_env.bindings.get_constant_doc_comments(name);
                 }
             }
-            // Fall back to checking the datatype's original module
-            if let Some(module_env) = self.get_env_by_id(datatype.module_id) {
-                if let Some(doc_comments) = module_env.bindings.get_constant_doc_comments(name) {
-                    return Some(doc_comments);
-                }
-            }
-            // Finally fall back to the provided environment
-            env.bindings.get_constant_doc_comments(name)
+            None
         } else {
             // For non-attribute constants, use the original logic
             if let Some(module_env) = self.get_env_by_id(name.module_id()) {
                 module_env.bindings.get_constant_doc_comments(name)
             } else {
-                env.bindings.get_constant_doc_comments(name)
+                // env.bindings.get_constant_doc_comments(name)
+                None
             }
         }
     }
@@ -924,17 +941,17 @@ impl Project {
     pub fn github_link(&self, module_id: ModuleId) -> Option<String> {
         // Get the descriptor for this module
         let descriptor = self.get_module_descriptor(module_id)?;
-        
+
         // Get the path for the module
         let path = self.path_from_descriptor(descriptor).ok()?;
-        
+
         // Make it relative to the library root
         let relative_path = path.strip_prefix(&self.library_root).ok()?;
-        
+
         // Convert to string with forward slashes
         let path_str = relative_path.to_str()?;
         let normalized_path = path_str.replace('\\', "/");
-        
+
         // Prepend the GitHub URL
         Some(format!(
             "https://github.com/acornprover/acornlib/blob/master/src/{}",
