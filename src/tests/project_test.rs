@@ -1275,6 +1275,17 @@ fn test_doc_comment_lookup() {
         /// baz_doc_comment
         baz: Bool
     }
+
+    /// Qux_doc_comment
+    typeclass Q: Qux {
+        /// qux_doc_comment
+        qux: Q
+
+        /// quux_doc_comment
+        quux {
+            true
+        }
+    }
     "#,
     );
 
