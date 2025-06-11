@@ -328,9 +328,9 @@ impl<'a> Evaluator<'a> {
         datatype: &Datatype,
         s: &str,
     ) -> compilation::Result<AcornValue> {
-        if self.bindings.has_type_attribute(&datatype, s) {
+        if self.bindings.has_type_attr(&datatype, s) {
             return self
-                .evaluate_datatype_attribute(&datatype, s, token)?
+                .evaluate_datatype_attr(&datatype, s, token)?
                 .as_value(token);
         }
 
@@ -342,7 +342,7 @@ impl<'a> Evaluator<'a> {
         let last_num = self.evaluate_number_with_datatype(token, datatype, last_str)?;
         let initial_str = &s[..s.len() - 1];
         let initial_num = self.evaluate_number_with_datatype(token, datatype, initial_str)?;
-        let read_fn = match self.evaluate_datatype_attribute(&datatype, "read", token)? {
+        let read_fn = match self.evaluate_datatype_attr(&datatype, "read", token)? {
             PotentialValue::Resolved(f) => f,
             PotentialValue::Unresolved(_) => {
                 return Err(token.error(&format!(
@@ -356,7 +356,7 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Evaluates a name scoped by a datatype, like Nat.range
-    fn evaluate_datatype_attribute(
+    fn evaluate_datatype_attr(
         &mut self,
         datatype: &Datatype,
         attr_name: &str,
@@ -395,7 +395,7 @@ impl<'a> Evaluator<'a> {
 
         // If we found a base typeclass with this attribute, use it
         if let Some(base_tc) = base_typeclass {
-            let tc_attr = self.evaluate_typeclass_attribute(base_tc, attr_name, source)?;
+            let tc_attr = self.evaluate_typeclass_attr(base_tc, attr_name, source)?;
             match tc_attr {
                 PotentialValue::Resolved(value) => return Ok(PotentialValue::Resolved(value)),
                 PotentialValue::Unresolved(u) => {
@@ -411,23 +411,32 @@ impl<'a> Evaluator<'a> {
         Err(source.error("attribute not found"))
     }
 
+    /// Resolves where a typeclass attribute is defined.
+    /// Returns the module ID and defined name where the attribute was originally defined.
+    fn resolve_typeclass_attr(
+        &self,
+        typeclass: &Typeclass,
+        attr_name: &str,
+    ) -> Option<(ModuleId, DefinedName)> {
+        // Check if this attribute is defined anywhere (including inherited ones)
+        let (attr_module_id, attr_typeclass) = self
+            .bindings
+            .typeclass_attr_module_lookup(&typeclass, attr_name)?;
+        let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
+        Some((attr_module_id, defined_name))
+    }
+
     /// Evalutes a name scoped by a typeclass name, like Group.foo
-    fn evaluate_typeclass_attribute(
+    fn evaluate_typeclass_attr(
         &mut self,
         typeclass: &Typeclass,
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        // Check if this attribute is defined anywhere (including inherited ones)
-        if let Some((attr_module_id, attr_typeclass)) = self
-            .bindings
-            .typeclass_attr_module_lookup(&typeclass, attr_name)
-        {
+        if let Some((module_id, defined_name)) = self.resolve_typeclass_attr(typeclass, attr_name) {
             // Get the bindings from the module where this attribute was actually defined
-            let bindings = self.get_bindings(attr_module_id);
-            let defined_name = DefinedName::typeclass_attr(&attr_typeclass, attr_name);
+            let bindings = self.get_bindings(module_id);
             let attr_value = bindings.get_constant_value(&defined_name, source)?;
-
             return Ok(attr_value);
         }
 
@@ -449,7 +458,7 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluates an attribute of a value, like foo.bar.
     /// token is used for reporting errors but may not correspond to anything in particular.
-    fn evaluate_value_attribute(
+    fn evaluate_value_attr(
         &mut self,
         receiver: AcornValue,
         attr_name: &str,
@@ -459,19 +468,16 @@ impl<'a> Evaluator<'a> {
 
         let function = match &base_type {
             AcornType::Data(datatype, _) => {
-                self.evaluate_datatype_attribute(datatype, attr_name, source)?
+                self.evaluate_datatype_attr(datatype, attr_name, source)?
             }
             AcornType::Arbitrary(param) | AcornType::Variable(param) => {
-                let typeclass = match &param.typeclass {
-                    Some(t) => t,
-                    None => {
-                        return Err(source.error(&format!(
-                            "unqualified type {} has no attributes",
-                            param.name
-                        )));
-                    }
+                let Some(typeclass) = &param.typeclass else {
+                    return Err(source.error(&format!(
+                        "unqualified type {} has no attributes",
+                        param.name
+                    )));
                 };
-                self.evaluate_typeclass_attribute(typeclass, attr_name, source)?
+                self.evaluate_typeclass_attr(typeclass, attr_name, source)?
             }
             _ => {
                 return Err(source.error(&format!(
@@ -496,7 +502,7 @@ impl<'a> Evaluator<'a> {
         let name = name_token.text();
         let entity = match namespace {
             Some(NamedEntity::Value(instance)) => {
-                let value = self.evaluate_value_attribute(instance, name, name_token)?;
+                let value = self.evaluate_value_attr(instance, name, name_token)?;
                 NamedEntity::Value(value)
             }
             Some(NamedEntity::Type(t)) => {
@@ -510,7 +516,7 @@ impl<'a> Evaluator<'a> {
                             )?;
                             NamedEntity::Value(value)
                         } else {
-                            match self.evaluate_datatype_attribute(datatype, name, name_token)? {
+                            match self.evaluate_datatype_attr(datatype, name, name_token)? {
                                 PotentialValue::Resolved(value) => {
                                     if !params.is_empty() {
                                         return Err(
@@ -534,7 +540,7 @@ impl<'a> Evaluator<'a> {
                     }
                     AcornType::Arbitrary(param) if param.typeclass.is_some() => {
                         let typeclass = param.typeclass.as_ref().unwrap();
-                        match self.evaluate_typeclass_attribute(&typeclass, name, name_token)? {
+                        match self.evaluate_typeclass_attr(&typeclass, name, name_token)? {
                             PotentialValue::Resolved(value) => NamedEntity::Value(value),
                             PotentialValue::Unresolved(u) => {
                                 // Resolve it with the arbitrary type itself
@@ -557,7 +563,7 @@ impl<'a> Evaluator<'a> {
                 }
             }
             Some(NamedEntity::Typeclass(tc)) => {
-                match self.evaluate_typeclass_attribute(&tc, name, name_token)? {
+                match self.evaluate_typeclass_attr(&tc, name, name_token)? {
                     PotentialValue::Resolved(value) => NamedEntity::Value(value),
                     PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }
@@ -566,7 +572,7 @@ impl<'a> Evaluator<'a> {
                 return Err(name_token.error("cannot access members of unresolved types"));
             }
             Some(NamedEntity::UnresolvedType(ut)) => {
-                match self.evaluate_datatype_attribute(&ut.datatype, name, name_token)? {
+                match self.evaluate_datatype_attr(&ut.datatype, name, name_token)? {
                     PotentialValue::Resolved(value) => NamedEntity::Value(value),
                     PotentialValue::Unresolved(u) => NamedEntity::UnresolvedValue(u),
                 }
@@ -707,7 +713,7 @@ impl<'a> Evaluator<'a> {
         let right_value = self.evaluate_value_with_stack(stack, right, None)?;
 
         // Get the partial application to the left
-        let partial = self.evaluate_value_attribute(left_value, name, expression)?;
+        let partial = self.evaluate_value_attr(left_value, name, expression)?;
         let mut fa = match partial {
             AcornValue::Application(fa) => fa,
             _ => {
@@ -804,7 +810,7 @@ impl<'a> Evaluator<'a> {
                 token_type => match token_type.to_prefix_magic_method_name() {
                     Some(name) => {
                         let subvalue = self.evaluate_value_with_stack(stack, expr, None)?;
-                        let value = self.evaluate_value_attribute(subvalue, name, token)?;
+                        let value = self.evaluate_value_attr(subvalue, name, token)?;
                         value.check_type(expected_type, token)?;
                         value
                     }

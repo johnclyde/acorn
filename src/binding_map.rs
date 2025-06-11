@@ -114,7 +114,7 @@ impl BindingMap {
     }
 
     /// Whether this type has this attribute in the current context.
-    pub fn has_type_attribute(&self, datatype: &Datatype, var_name: &str) -> bool {
+    pub fn has_type_attr(&self, datatype: &Datatype, var_name: &str) -> bool {
         self.datatype_defs
             .get(datatype)
             .map_or(false, |info| info.attributes.contains_key(var_name))
@@ -207,7 +207,7 @@ impl BindingMap {
                             || self.name_to_module.contains_key(name)
                     }
                     ConstantName::DatatypeAttribute(datatype, attr) => {
-                        self.has_type_attribute(datatype, attr)
+                        self.has_type_attr(datatype, attr)
                     }
                     ConstantName::TypeclassAttribute(..) => {
                         // This doesn't seem right!
