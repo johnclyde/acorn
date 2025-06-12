@@ -748,33 +748,6 @@ impl LiteralSet {
     }
 }
 
-/// The ClauseSet stores general clauses in a way that allows us to quickly check whether
-/// a new clause is a specialization of an existing one.
-pub struct ClauseSet {
-    /// Stores an id for each clause.
-    tree: PatternTree<usize>,
-}
-
-impl ClauseSet {
-    pub fn new() -> ClauseSet {
-        ClauseSet {
-            tree: PatternTree::new(),
-        }
-    }
-
-    /// Inserts a clause into the set, reordering it in every way that is KBO-nonincreasing.
-    pub fn insert(&mut self, clause: &Clause, id: usize) {
-        for c in clause.all_generalized_si_orders() {
-            self.tree.insert_clause(&c, id);
-        }
-    }
-
-    pub fn find_generalization(&self, clause: &Clause) -> Option<usize> {
-        let s = clause.specialized_si_order();
-        self.tree.find_clause(&s).map(|id| *id)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -217,6 +217,11 @@ impl Literal {
     pub fn has_head(&self, head: &Atom) -> bool {
         self.left.get_head() == head || self.right.get_head() == head
     }
+
+    // Keep in mind this will denormalize the literal.
+    pub fn flip(&mut self) {
+        std::mem::swap(&mut self.left, &mut self.right);
+    }
 }
 
 // Literals are ordered so that you can normalize a clause by sorting its literals.

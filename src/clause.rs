@@ -1,9 +1,7 @@
-use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::{Atom, AtomId};
 use crate::literal::Literal;
-use crate::term::Term;
 
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
 /// We include the types of the universal variables it is quantified over.
@@ -47,7 +45,7 @@ impl Clause {
 
     /// Normalizes the variable IDs in the literals.
     /// If you reorder or modify the literals, you should call this.
-    fn normalize_var_ids(&mut self) {
+    pub fn normalize_var_ids(&mut self) {
         let mut var_ids = vec![];
         for literal in &mut self.literals {
             literal.left.normalize_var_ids(&mut var_ids);
@@ -147,55 +145,4 @@ impl Clause {
         }
         true
     }
-
-    /// The SI order is a "substitution invariant" order. We use it when we are substitution
-    /// into one clause and then matching against another.
-    /// When we specialize a clause and put it into the specialized order, it must match
-    /// one of the generalized orders.
-    /// The "order" includes both literal ordering and direction of the literal.
-    pub fn all_generalized_si_orders(&self) -> Vec<Clause> {
-        todo!();
-    }
-
-    /// Put this clause into the "specialized" SI order.
-    pub fn specialized_si_order(&self) -> Clause {
-        todo!();
-    }
-}
-
-/// The "si order" is also stable under variable substitution, but hopefully closer to total
-/// in practice.
-/// Returns Greater if self > other.
-/// Returns Less if other > self.
-/// Returns Equal if they cannot be ordered. (This is not "Equal" in the usual sense.)
-/// The SI order has the convenient property that if a cannot be ordered with b,
-/// and b cannot be ordered with c, then a cannot be ordered with c.
-pub fn si_term_cmp(left: &Term, left_neg: bool, right: &Term, right_neg: bool) -> Ordering {
-    // First, compare the head types.
-    // I think this is actually more indicative of complexity than the type itself.
-    let head_type_cmp = left.head_type.cmp(&right.head_type);
-    if head_type_cmp != Ordering::Equal {
-        return head_type_cmp;
-    }
-
-    // Next, compare the types.
-    let type_cmp = left.term_type.cmp(&right.term_type);
-    if type_cmp != Ordering::Equal {
-        return type_cmp;
-    }
-
-    // Compare the signs
-    let neg_cmp = left_neg.cmp(&right_neg);
-    if neg_cmp != Ordering::Equal {
-        return neg_cmp;
-    }
-
-    // Then, compare the heads.
-    if left.head.is_variable() || right.head.is_variable() {
-        // There's no way to compare these things in a substitution-invariant way.
-        return Ordering::Equal;
-    }
-
-    // We could do something cleverer but let's try this.
-    left.head.cmp(&right.head)
 }
