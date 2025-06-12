@@ -10,7 +10,7 @@ use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
 use crate::source::{Source, SourceType};
 
-// Ranking for how difficult the proof was to find.
+/// Ranking for how difficult the proof was to find.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Difficulty {
     // When we find a simple proof, it doesn't need to be any simpler.
@@ -26,14 +26,14 @@ pub enum Difficulty {
     Complicated,
 }
 
-// To conveniently manipulate the proof, we store it as a directed graph with its own ids.
-// We need two sorts of ids because as we manipulate the condensed proof, the
-// condensed steps won't be 1-to-1 related to the reduction steps any more.
+/// To conveniently manipulate the proof, we store it as a directed graph with its own ids.
+/// We need two sorts of ids because as we manipulate the condensed proof, the
+/// condensed steps won't be 1-to-1 related to the reduction steps any more.
 type NodeId = u32;
 
-// Each node in the graph represents proving a single thing.
-// The NodeValue represents the way the prover found it.
-// It can either be represented by an underlying clause, or be a special case.
+/// Each node in the graph represents proving a single thing.
+/// The NodeValue represents the way the prover found it.
+/// It can either be represented by an underlying clause, or be a special case.
 #[derive(Debug)]
 enum NodeValue<'a> {
     Clause(&'a Clause),
@@ -61,11 +61,11 @@ impl fmt::Display for NodeValue<'_> {
     }
 }
 
-// The ProofGraph is made up of ProofNodes.
-//
-// Each node represents a single proposition, either a clause or the negation of a clause,
-// which can be proved using other nodes in the proof, external sources, or starting a
-// proof by reduction.
+/// The ProofGraph is made up of ProofNodes.
+///
+/// Each node represents a single proposition, either a clause or the negation of a clause,
+/// which can be proved using other nodes in the proof, external sources, or starting a
+/// proof by reduction.
 struct ProofNode<'a> {
     // The value that should be displayed to represent this node in the graph.
     value: NodeValue<'a>,
@@ -93,7 +93,7 @@ struct ProofNode<'a> {
 }
 
 impl<'a> ProofNode<'a> {
-    // Returns true if this node is the start of a proof by reduction.
+    /// Returns true if this node is the start of a proof by reduction.
     fn starts_reduction(&self) -> bool {
         !self.negated
             && !self.consequences.is_empty()
@@ -101,8 +101,8 @@ impl<'a> ProofNode<'a> {
             && self.sources.is_empty()
     }
 
-    // Instead of removing nodes from the graph, we isolate them by removing all premises and
-    // consequences.
+    /// Instead of removing nodes from the graph, we isolate them by removing all premises and
+    /// consequences.
     fn is_isolated(&self) -> bool {
         self.premises.is_empty() && self.consequences.is_empty()
     }
@@ -128,17 +128,17 @@ impl<'a> ProofNode<'a> {
     }
 }
 
-// A proof that was successfully found by the prover.
-//
-// We store the proof in two different ways.
-// First, we store each step of the proof in the order we found them, in `steps`.
-// This starts with the negated goal and proves it by reducing it to a contradiction.
-//
-// Second, we store the proof as a graph in `nodes`.
-// This form lets us manipulate the proof to create an equivalent version that we can use
-// for code generation.
-// This dual representation helps us avoid the problem of proof generation creating a proof
-// that is unreadable because it repeats itself or uses unnecessarily indirect reasoning.
+/// A proof that was successfully found by the prover.
+///
+/// We store the proof in two different ways.
+/// First, we store each step of the proof in the order we found them, in `steps`.
+/// This starts with the negated goal and proves it by reducing it to a contradiction.
+///
+/// Second, we store the proof as a graph in `nodes`.
+/// This form lets us manipulate the proof to create an equivalent version that we can use
+/// for code generation.
+/// This dual representation helps us avoid the problem of proof generation creating a proof
+/// that is unreadable because it repeats itself or uses unnecessarily indirect reasoning.
 pub struct Proof<'a> {
     normalizer: &'a Normalizer,
 
@@ -171,7 +171,7 @@ fn remove_edge(nodes: &mut Vec<ProofNode>, from: NodeId, to: NodeId) {
     nodes[to as usize].premises.retain(|x| *x != from);
 }
 
-// If the edge is already there, don't re-insert it.
+/// If the edge is already there, don't re-insert it.
 fn insert_edge(nodes: &mut Vec<ProofNode>, from: NodeId, to: NodeId) {
     if !nodes[from as usize].consequences.contains(&to) {
         nodes[from as usize].consequences.push(to);
@@ -194,7 +194,7 @@ fn move_sources_and_premises(nodes: &mut Vec<ProofNode>, from: NodeId, to: NodeI
 }
 
 impl<'a> Proof<'a> {
-    // Creates a new proof, with just one node for the negated goal.
+    /// Creates a new proof, with just one node for the negated goal.
     pub fn new<'b>(
         normalizer: &'a Normalizer,
         negated_goal: &AcornValue,
@@ -223,7 +223,7 @@ impl<'a> Proof<'a> {
         proof
     }
 
-    // Add a new step, which becomes a node in the graph.
+    /// Add a new step, which becomes a node in the graph.
     pub fn add_step(&mut self, id: ProofStepId, step: &'a ProofStep) {
         let value = match id {
             ProofStepId::Final => NodeValue::Contradiction,
@@ -262,15 +262,15 @@ impl<'a> Proof<'a> {
         self.id_map.contains_key(&id)
     }
 
-    // Contracts this node if possible.
-    // (The goal and contradictions cannot be contracted.)
-    //
-    // If we start with
-    // A & B -> C -> D & E
-    // then we replace each in+out pair of C edges with an edge that goes directly.
-    // A & B -> D & E
-    //
-    // Sources and premises are both copied to all consequences.
+    /// Contracts this node if possible.
+    /// (The goal and contradictions cannot be contracted.)
+    ///
+    /// If we start with
+    /// A & B -> C -> D & E
+    /// then we replace each in+out pair of C edges with an edge that goes directly.
+    /// A & B -> D & E
+    ///
+    /// Sources and premises are both copied to all consequences.
     fn contract(&mut self, node_id: NodeId) {
         let node = &self.nodes[node_id as usize];
         match &node.value {
@@ -304,8 +304,8 @@ impl<'a> Proof<'a> {
         }
     }
 
-    // An implicit node either does not need to be converted into code or cannot be
-    // converted into code.
+    /// An implicit node either does not need to be converted into code or cannot be
+    /// converted into code.
     fn is_implicit(&self, node_id: NodeId) -> bool {
         let node = &self.nodes[node_id as usize];
         if node.depth == 0 {
@@ -334,7 +334,7 @@ impl<'a> Proof<'a> {
         false
     }
 
-    // Remove nodes that we don't want to turn into explicit lines of code.
+    /// Remove nodes that we don't want to turn into explicit lines of code.
     fn remove_implicit(&mut self) {
         for node_id in 0..self.nodes.len() as NodeId {
             if self.is_implicit(node_id) {
@@ -387,28 +387,28 @@ impl<'a> Proof<'a> {
         }
     }
 
-    // In a direct proof, all of the statements are true statements, so it's more intuitive.
-    // Howevever, we can't always create a direct proof. So the idea is to make the proof
-    // "as direct as possible".
-    //
-    // Thus, this method tries to turn one step from indirect to direct, and then repeats.
-    // We do this by reversing the logical order of this node and its immediate consequence.
-    //
-    // Converts:
-    //
-    // if A {
-    //   B
-    //   false
-    // }
-    //
-    // into:
-    //
-    // if B {
-    //   false
-    // }
-    // !A
-    //
-    // and then continues with the new hypothesis.
+    /// In a direct proof, all of the statements are true statements, so it's more intuitive.
+    /// Howevever, we can't always create a direct proof. So the idea is to make the proof
+    /// "as direct as possible".
+    ///
+    /// Thus, this method tries to turn one step from indirect to direct, and then repeats.
+    /// We do this by reversing the logical order of this node and its immediate consequence.
+    ///
+    /// Converts:
+    ///
+    /// if A {
+    ///   B
+    ///   false
+    /// }
+    ///
+    /// into:
+    ///
+    /// if B {
+    ///   false
+    /// }
+    /// !A
+    ///
+    /// and then continues with the new hypothesis.
     fn try_to_make_direct(&mut self, from_id: NodeId) {
         let mut from_id = from_id;
         loop {
@@ -464,8 +464,8 @@ impl<'a> Proof<'a> {
         }
     }
 
-    // Reduce the graph as much as possible.
-    // Call just once.
+    /// Reduce the graph as much as possible.
+    /// Call just once.
     pub fn condense(&mut self) {
         assert!(!self.condensed);
         self.remove_implicit();
@@ -473,10 +473,10 @@ impl<'a> Proof<'a> {
         self.condensed = true;
     }
 
-    // Whether this proof could be simplified.
-    // Since we already removed unprintable nodes, the proofs that cannot be simplified are
-    // the ones in which the goal node is proven directly, with sources only, no other
-    // nodes as premises.
+    /// Whether this proof could be simplified.
+    /// Since we already removed unprintable nodes, the proofs that cannot be simplified are
+    /// the ones in which the goal node is proven directly, with sources only, no other
+    /// nodes as premises.
     pub fn has_simplification(&self) -> bool {
         let goal_node = &self.nodes[0];
 
@@ -489,8 +489,8 @@ impl<'a> Proof<'a> {
         true
     }
 
-    // When we run the verifier, or are using the IDE, a proof that needs simplification will
-    // show a warning.
+    /// When we run the verifier, or are using the IDE, a proof that needs simplification will
+    /// show a warning.
     pub fn needs_simplification(&self) -> bool {
         match self.difficulty {
             Difficulty::Simple => false,
@@ -503,8 +503,8 @@ impl<'a> Proof<'a> {
         }
     }
 
-    // Finds the contradiction that this node eventually leads to.
-    // Returns None if it does not lead to any contradiction.
+    /// Finds the contradiction that this node eventually leads to.
+    /// Returns None if it does not lead to any contradiction.
     fn find_contradiction(&self, node_id: NodeId) -> Option<NodeId> {
         let node = &self.nodes[node_id as usize];
         if let NodeValue::Contradiction = node.value {
@@ -518,16 +518,16 @@ impl<'a> Proof<'a> {
         None
     }
 
-    // Converts the proof to lines of code.
-    //
-    // The prover assumes the goal is false and then searches for a contradiction.
-    // When we turn this sort of proof into code, it looks like one big proof by contradiction.
-    // This often commingles lemma-style reasoning that seems intuitively true with
-    // proof-by-contradiction-style reasoning that feels intuitively backwards.
-    // Humans try to avoid mixing these different styles of reasoning.
-    //
-    // Code is generated with *tabs* even though I hate tabs. The consuming logic should
-    // appropriately turn tabs into spaces.
+    /// Converts the proof to lines of code.
+    ///
+    /// The prover assumes the goal is false and then searches for a contradiction.
+    /// When we turn this sort of proof into code, it looks like one big proof by contradiction.
+    /// This often commingles lemma-style reasoning that seems intuitively true with
+    /// proof-by-contradiction-style reasoning that feels intuitively backwards.
+    /// Humans try to avoid mixing these different styles of reasoning.
+    ///
+    /// Code is generated with *tabs* even though I hate tabs. The consuming logic should
+    /// appropriately turn tabs into spaces.
     pub fn to_code(&self, bindings: &BindingMap) -> Result<Vec<String>, Error> {
         let goal_id = 0;
         let mut next_k = 0;
@@ -545,7 +545,7 @@ impl<'a> Proof<'a> {
         Ok(output)
     }
 
-    // Write out code for the given node, and everything needed to prove it.
+    /// Write out code for the given node, and everything needed to prove it.
     fn to_code_helper(
         &self,
         normalizer: &Normalizer,

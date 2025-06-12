@@ -10,10 +10,10 @@ use crate::term::Term;
 use crate::term_graph::{TermGraph, TermId};
 use crate::unifier::{Scope, Unifier};
 
-// The ActiveSet stores a bunch of clauses that are indexed for various efficient lookups.
-// The goal is that, given a new clause, it is efficient to determine what can be concluded
-// given that clause and one clause from the active set.
-// "Efficient" is relative - this still may take time roughly linear to the size of the active set.
+/// The ActiveSet stores a bunch of clauses that are indexed for various efficient lookups.
+/// The goal is that, given a new clause, it is efficient to determine what can be concluded
+/// given that clause and one clause from the active set.
+/// "Efficient" is relative - this still may take time roughly linear to the size of the active set.
 #[derive(Clone)]
 pub struct ActiveSet {
     // A vector for indexed reference
@@ -48,7 +48,7 @@ pub struct ActiveSet {
     rewrite_tree: RewriteTree,
 }
 
-// A ResolutionTarget represents a literal that we could do resolution with.
+/// A ResolutionTarget represents a literal that we could do resolution with.
 #[derive(Clone)]
 struct ResolutionTarget {
     // Which proof step the resolution target is in.
@@ -62,7 +62,7 @@ struct ResolutionTarget {
     left: bool,
 }
 
-// Information about a subterm that appears in an activated concrete literal.
+/// Information about a subterm that appears in an activated concrete literal.
 #[derive(Clone)]
 struct SubtermInfo {
     // The subterm itself
@@ -80,8 +80,8 @@ struct SubtermInfo {
     inspiration_id: usize,
 }
 
-// A SubtermLocation describes somewhere that the subterm exists among the activated clauses.
-// Subterm locations always refer to concrete single-literal clauses.
+/// A SubtermLocation describes somewhere that the subterm exists among the activated clauses.
+/// Subterm locations always refer to concrete single-literal clauses.
 #[derive(Clone)]
 struct SubtermLocation {
     // Which proof step the subterm is in.
@@ -121,8 +121,8 @@ impl ActiveSet {
         clause.literals.len() > 1 && self.long_clauses.contains(clause)
     }
 
-    // Finds all resolutions that can be done with a given proof step.
-    // The "new clause" is the one that is being activated, and the "old clause" is the existing one.
+    /// Finds all resolutions that can be done with a given proof step.
+    /// The "new clause" is the one that is being activated, and the "old clause" is the existing one.
     pub fn find_resolutions(&self, new_step: &ProofStep, output: &mut Vec<ProofStep>) {
         let new_step_id = self.next_id();
         for (i, new_literal) in new_step.clause.literals.iter().enumerate() {
@@ -173,14 +173,14 @@ impl ActiveSet {
         }
     }
 
-    // Tries to do a resolution from two clauses. This works when two literals can be unified
-    // in such a way that they contradict each other.
-    //
-    // There are two ways that A = B and C != D can contradict.
-    // When u(A) = u(C) and u(B) = u(D), that is "not flipped".
-    // When u(A) = u(D) and u(B) = u(C), that is "flipped".
-    //
-    // To do resolution, one of the literals must be positive, and the other must be negative.
+    /// Tries to do a resolution from two clauses. This works when two literals can be unified
+    /// in such a way that they contradict each other.
+    ///
+    /// There are two ways that A = B and C != D can contradict.
+    /// When u(A) = u(C) and u(B) = u(D), that is "not flipped".
+    /// When u(A) = u(D) and u(B) = u(C), that is "flipped".
+    ///
+    /// To do resolution, one of the literals must be positive, and the other must be negative.
     fn try_resolution(
         &self,
         pos_id: usize,
@@ -281,9 +281,9 @@ impl ActiveSet {
         Some(step)
     }
 
-    // Look for ways to rewrite a literal that is not yet in the active set.
-    // The literal must be concrete.
-    // The naming convention is that we use the pattern s->t to rewrite u in u ?= v.
+    /// Look for ways to rewrite a literal that is not yet in the active set.
+    /// The literal must be concrete.
+    /// The naming convention is that we use the pattern s->t to rewrite u in u ?= v.
     pub fn activate_rewrite_target(
         &mut self,
         target_id: usize,
@@ -362,8 +362,8 @@ impl ActiveSet {
         }
     }
 
-    // When we have a new rewrite pattern, find everything that we can rewrite with it.
-    // The naming convention is that we use the pattern s->t to rewrite u in u ?= v.
+    /// When we have a new rewrite pattern, find everything that we can rewrite with it.
+    /// The naming convention is that we use the pattern s->t to rewrite u in u ?= v.
     pub fn activate_rewrite_pattern(
         &mut self,
         pattern_id: usize,
@@ -445,10 +445,10 @@ impl ActiveSet {
         }
     }
 
-    // Tries to do inference using the equality resolution (ER) rule.
-    // Specifically, when one first literal is of the form
-    //   u != v
-    // then if we can unify u and v, we can eliminate this literal from the clause.
+    /// Tries to do inference using the equality resolution (ER) rule.
+    /// Specifically, when one first literal is of the form
+    ///   u != v
+    /// then if we can unify u and v, we can eliminate this literal from the clause.
     pub fn equality_resolution(clause: &Clause) -> Vec<Clause> {
         let mut answer = vec![];
 
@@ -483,11 +483,11 @@ impl ActiveSet {
         answer
     }
 
-    // Tries to do inference using the function elimination (FE) rule.
-    // Note that I just made up this rule, it isn't part of standard superposition.
-    // It's pretty simple, though.
-    // When f(a, b, d) != f(a, c, d), that implies that b != c.
-    // We can run this operation on any negative literal in the clause.
+    /// Tries to do inference using the function elimination (FE) rule.
+    /// Note that I just made up this rule, it isn't part of standard superposition.
+    /// It's pretty simple, though.
+    /// When f(a, b, d) != f(a, c, d), that implies that b != c.
+    /// We can run this operation on any negative literal in the clause.
     pub fn function_elimination(clause: &Clause) -> Vec<Clause> {
         let mut answer = vec![];
 
@@ -528,18 +528,18 @@ impl ActiveSet {
         answer
     }
 
-    // Tries to do inference using the equality factoring (EF) rule.
-    //
-    // Given:
-    //   s = t | u = v | R
-    // if we can unify s and u, we can rewrite it to:
-    //   t != v | u = v | R
-    //
-    // "s = t" must be the first clause, but "u = v" can be any of them.
-    //
-    // I find this rule to be unintuitive, extracting an inequality from only equalities.
-    //
-    // TODO: This "first clause" constraint seems incomplete or mistaken.
+    /// Tries to do inference using the equality factoring (EF) rule.
+    ///
+    /// Given:
+    ///   s = t | u = v | R
+    /// if we can unify s and u, we can rewrite it to:
+    ///   t != v | u = v | R
+    ///
+    /// "s = t" must be the first clause, but "u = v" can be any of them.
+    ///
+    /// I find this rule to be unintuitive, extracting an inequality from only equalities.
+    ///
+    /// TODO: This "first clause" constraint seems incomplete or mistaken.
     pub fn equality_factoring(clause: &Clause) -> Vec<Clause> {
         let mut answer = vec![];
         let st_literal = &clause.literals[0];
@@ -591,12 +591,12 @@ impl ActiveSet {
         &self.steps[index]
     }
 
-    // Iterate over all active proof steps.
+    /// Iterate over all active proof steps.
     pub fn iter_steps(&self) -> impl Iterator<Item = (usize, &ProofStep)> {
         self.steps.iter().enumerate()
     }
 
-    // Iterate over all proof steps that depend on this id.
+    /// Iterate over all proof steps that depend on this id.
     pub fn find_consequences(&self, id: usize) -> impl Iterator<Item = (usize, &ProofStep)> {
         self.steps
             .iter()
@@ -604,8 +604,8 @@ impl ActiveSet {
             .filter(move |(_, step)| step.depends_on_active(id))
     }
 
-    // Returns (value, id of clause) when this literal's value is known due to some existing clause.
-    // No id is returned if this literal is "expr = expr".
+    /// Returns (value, id of clause) when this literal's value is known due to some existing clause.
+    /// No id is returned if this literal is "expr = expr".
     fn evaluate_literal(&self, literal: &Literal) -> Option<(bool, Option<usize>)> {
         literal.validate_type();
         if literal.left == literal.right {
@@ -617,10 +617,10 @@ impl ActiveSet {
         }
     }
 
-    // Simplifies the clause based on both structural rules and the active set.
-    // If the result is redundant given what's already known, return None.
-    // Specializations are allowed, though, even if they're redundant.
-    // If the result is an impossibility, return an empty clause.
+    /// Simplifies the clause based on both structural rules and the active set.
+    /// If the result is redundant given what's already known, return None.
+    /// Specializations are allowed, though, even if they're redundant.
+    /// If the result is an impossibility, return an empty clause.
     pub fn simplify(&self, mut step: ProofStep) -> Option<ProofStep> {
         if step.clause.is_tautology() {
             return None;
@@ -700,8 +700,8 @@ impl ActiveSet {
         );
     }
 
-    // Indexes a clause so that it becomes available for future proof step generation.
-    // Return its id.
+    /// Indexes a clause so that it becomes available for future proof step generation.
+    /// Return its id.
     fn insert(&mut self, step: ProofStep) -> usize {
         let step_index = self.next_id();
         let clause = &step.clause;
@@ -741,7 +741,7 @@ impl ActiveSet {
         }
     }
 
-    // Inference that is specific to literals.
+    /// Inference that is specific to literals.
     fn activate_literal(&mut self, activated_step: &ProofStep, output: &mut Vec<ProofStep>) {
         let activated_id = self.next_id();
         assert_eq!(activated_step.clause.len(), 1);
@@ -771,11 +771,11 @@ impl ActiveSet {
         self.literal_set.insert(&literal, activated_id);
     }
 
-    // Generate all the inferences that can be made from a given clause, plus some existing clause.
-    // This function does not simplify the inferences, or use the inferences to simplify anything else.
-    // The prover will do all forms of simplification separately.
-    // After generation, this clause is added to the active set.
-    // Returns the id of the new clause, and pairs describing how the generated clauses were proved.
+    /// Generate all the inferences that can be made from a given clause, plus some existing clause.
+    /// This function does not simplify the inferences, or use the inferences to simplify anything else.
+    /// The prover will do all forms of simplification separately.
+    /// After generation, this clause is added to the active set.
+    /// Returns the id of the new clause, and pairs describing how the generated clauses were proved.
     pub fn activate(&mut self, activated_step: ProofStep) -> (usize, Vec<ProofStep>) {
         let mut output = vec![];
         let activated_id = self.next_id();
@@ -820,7 +820,7 @@ impl ActiveSet {
         self.steps.iter().map(|step| &step.clause)
     }
 
-    // Find the index of all clauses used to prove the provided step.
+    /// Find the index of all clauses used to prove the provided step.
     pub fn find_upstream(
         &self,
         step: &ProofStep,
