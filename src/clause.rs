@@ -38,13 +38,19 @@ impl Clause {
         literals.sort();
         literals.dedup();
 
-        // Normalize the variable ids
+        let mut c = Clause { literals };
+        c.normalize_var_ids();
+        c
+    }
+
+    // Normalizes the variable IDs in the literals.
+    // If you reorder or modify the literals, you should call this.
+    fn normalize_var_ids(&mut self) {
         let mut var_ids = vec![];
-        for literal in &mut literals {
+        for literal in &mut self.literals {
             literal.left.normalize_var_ids(&mut var_ids);
             literal.right.normalize_var_ids(&mut var_ids);
         }
-        Clause { literals }
     }
 
     // An unsatisfiable clause. Like a lone "false".
@@ -138,5 +144,19 @@ impl Clause {
             return false;
         }
         true
+    }
+
+    // The SI order is a "substitution invariant" order. We use it when we are substitution
+    // into one clause and then matching against another.
+    // When we specialize a clause and put it into the specialized order, it must match
+    // one of the generalized orders.
+    // The "order" includes both literal ordering and direction of the literal.
+    pub fn all_generalized_si_orders(&self) -> Vec<Clause> {
+        todo!();
+    }
+
+    /// Put this clause into the "specialized" SI order.
+    pub fn specialized_si_order(&self) -> Clause {
+        todo!();
     }
 }

@@ -1,6 +1,7 @@
 use qp_trie::{Entry, SubTrie, Trie};
 
 use crate::atom::{Atom, AtomId};
+use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 
@@ -67,6 +68,15 @@ impl TermComponent {
         // The zero is a placeholder. We'll fill in the real info later.
         TermComponent::flatten_next(term1, &mut output);
         TermComponent::flatten_next(term2, &mut output);
+        output
+    }
+
+    fn flatten_clause(clause: &Clause) -> Vec<TermComponent> {
+        let mut output = Vec::new();
+        for literal in &clause.literals {
+            TermComponent::flatten_next(&literal.left, &mut output);
+            TermComponent::flatten_next(&literal.right, &mut output);
+        }
         output
     }
 
@@ -259,7 +269,8 @@ impl TermComponent {
 /// It is a "perfect discrimination tree", designed to store patterns and match them against
 /// specialized instances.
 ///
-/// Each path from the root to a leaf is a series of edges. It can represent a term, literal, or clause.
+/// Each path from the root to a leaf is a series of edges.
+/// It can represent a term, term pair, or clause.
 /// A path starts with "category edges" that differentiate what sort of thing we're matching.
 /// Category edges are just matched exactly, no substitutions.
 /// After the category edges are the "term edges", which represent the structure of one term
@@ -269,8 +280,12 @@ impl TermComponent {
 /// Plain terms are encoded as:
 ///   TermCategory <term>
 ///
-/// Literals are encoded as:
-///   LiteralCategory <left term> <right term>
+/// Term pairs are encoded as:
+///   TermPairCategory <left term> <right term>
+///
+/// Clauses are encoded with their categories first. For example a = b or not c = d is:
+///   PositiveLiteral NegativeLiteral <a> <b> <c> <d>
+///   
 ///
 /// HeadType and Atom edges form a preorder traversal of the tree.
 /// For any non-atomic term, we include the type of its head, then recurse.
@@ -289,8 +304,14 @@ enum Edge {
     /// Category edge to indicate a term of a particular type.
     TermCategory(TypeId),
 
-    /// Top level. Indicates the type of both left and right of the literal.
-    LiteralCategory(TypeId),
+    /// Category edge, including the type of both left and right of the literal.
+    TermPairCategory(TypeId),
+
+    /// Category edge used in clauses, for positive literals.
+    PositiveLiteral(TypeId),
+
+    /// Category edge used in clauses, for negative literals.
+    NegativeLiteral(TypeId),
 }
 
 // Used for converting Edges into byte sequences.
@@ -303,7 +324,9 @@ const MONOMORPH: u8 = 104;
 const VARIABLE: u8 = 105;
 const SKOLEM: u8 = 106;
 const TERM: u8 = 107;
-const LITERAL: u8 = 108;
+const TERM_PAIR: u8 = 108;
+const POSITIVE_LITERAL: u8 = 109;
+const NEGATIVE_LITERAL: u8 = 110;
 
 impl Edge {
     fn first_byte(&self) -> u8 {
@@ -318,7 +341,9 @@ impl Edge {
                 Atom::Skolem(_) => SKOLEM,
             },
             Edge::TermCategory(..) => TERM,
-            Edge::LiteralCategory(..) => LITERAL,
+            Edge::TermPairCategory(..) => TERM_PAIR,
+            Edge::PositiveLiteral(..) => POSITIVE_LITERAL,
+            Edge::NegativeLiteral(..) => NEGATIVE_LITERAL,
         }
     }
 
@@ -335,7 +360,9 @@ impl Edge {
                 Atom::Skolem(s) => *s,
             },
             Edge::TermCategory(t) => *t,
-            Edge::LiteralCategory(t) => *t,
+            Edge::TermPairCategory(t) => *t,
+            Edge::PositiveLiteral(t) => *t,
+            Edge::NegativeLiteral(t) => *t,
         };
         v.extend_from_slice(&id.to_ne_bytes());
     }
@@ -349,7 +376,9 @@ impl Edge {
             MONOMORPH => Edge::Atom(Atom::Monomorph(id)),
             VARIABLE => Edge::Atom(Atom::Variable(id)),
             SKOLEM => Edge::Atom(Atom::Skolem(id)),
-            LITERAL => Edge::LiteralCategory(id),
+            TERM_PAIR => Edge::TermPairCategory(id),
+            POSITIVE_LITERAL => Edge::PositiveLiteral(id),
+            NEGATIVE_LITERAL => Edge::NegativeLiteral(id),
             num_args => {
                 if num_args > MAX_ARGS {
                     panic!("invalid discriminant byte");
@@ -404,7 +433,7 @@ pub fn key_from_term(term: &Term) -> Vec<u8> {
 
 fn literal_key_prefix(type_id: TypeId) -> Vec<u8> {
     let mut key = Vec::new();
-    Edge::LiteralCategory(type_id).append_to(&mut key);
+    Edge::TermPairCategory(type_id).append_to(&mut key);
     key
 }
 
@@ -412,6 +441,29 @@ fn key_from_pair(term1: &Term, term2: &Term) -> Vec<u8> {
     let mut key = literal_key_prefix(term1.term_type);
     key_from_term_helper(&term1, &mut key);
     key_from_term_helper(&term2, &mut key);
+    key
+}
+
+// Just creates the category prefix for a clause key.
+fn clause_key_prefix(clause: &Clause) -> Vec<u8> {
+    let mut key = Vec::new();
+    for literal in &clause.literals {
+        if literal.positive {
+            Edge::PositiveLiteral(literal.left.term_type).append_to(&mut key);
+        } else {
+            Edge::NegativeLiteral(literal.left.term_type).append_to(&mut key);
+        }
+    }
+    key
+}
+
+/// Generates a key for a clause, starting with the category edges, then the term edges.
+fn key_from_clause(clause: &Clause) -> Vec<u8> {
+    let mut key = clause_key_prefix(clause);
+    for literal in &clause.literals {
+        key_from_term_helper(&literal.left, &mut key);
+        key_from_term_helper(&literal.right, &mut key);
+    }
     key
 }
 
@@ -576,6 +628,13 @@ impl<T> PatternTree<T> {
         self.trie.insert(key, value_id);
     }
 
+    pub fn insert_clause(&mut self, clause: &Clause, value: T) {
+        let key = key_from_clause(clause);
+        let value_id = self.values.len();
+        self.values.push(value);
+        self.trie.insert(key, value_id);
+    }
+
     pub fn find_matches_while<'a, F>(
         &self,
         key: &mut Vec<u8>,
@@ -591,7 +650,7 @@ impl<T> PatternTree<T> {
     }
 
     // Finds a single match, if possible.
-    // Returns the value id of the match, and the set of replacements used for the match.
+    // Returns the value of the match, and the set of replacements used for the match.
     pub fn find_one_match<'a, 'b>(
         &'a self,
         key: &mut Vec<u8>,
@@ -612,6 +671,15 @@ impl<T> PatternTree<T> {
     fn find_pair<'a>(&'a self, left: &Term, right: &Term) -> Option<&'a T> {
         let flat = TermComponent::flatten_pair(left, right);
         let mut key = literal_key_prefix(left.term_type);
+        match self.find_one_match(&mut key, &flat) {
+            Some((value, _)) => Some(value),
+            None => None,
+        }
+    }
+
+    fn find_clause<'a>(&'a self, clause: &Clause) -> Option<&'a T> {
+        let flat = TermComponent::flatten_clause(clause);
+        let mut key = key_from_clause(clause);
         match self.find_one_match(&mut key, &flat) {
             Some((value, _)) => Some(value),
             None => None,
@@ -677,6 +745,33 @@ impl LiteralSet {
             Some(&(sign, id)) => Some((sign == literal.positive, id)),
             None => None,
         }
+    }
+}
+
+/// The ClauseSet stores general clauses in a way that allows us to quickly check whether
+/// a new clause is a specialization of an existing one.
+pub struct ClauseSet {
+    /// Stores an id for each clause.
+    tree: PatternTree<usize>,
+}
+
+impl ClauseSet {
+    pub fn new() -> ClauseSet {
+        ClauseSet {
+            tree: PatternTree::new(),
+        }
+    }
+
+    /// Inserts a clause into the set, reordering it in every way that is KBO-nonincreasing.
+    pub fn insert(&mut self, clause: &Clause, id: usize) {
+        for c in clause.all_generalized_si_orders() {
+            self.tree.insert_clause(&c, id);
+        }
+    }
+
+    pub fn find_generalization(&self, clause: &Clause) -> Option<usize> {
+        let s = clause.specialized_si_order();
+        self.tree.find_clause(&s).map(|id| *id)
     }
 }
 
