@@ -1,7 +1,9 @@
+use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::{Atom, AtomId};
 use crate::literal::Literal;
+use crate::term::Term;
 
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
 /// We include the types of the universal variables it is quantified over.
@@ -159,4 +161,41 @@ impl Clause {
     pub fn specialized_si_order(&self) -> Clause {
         todo!();
     }
+}
+
+/// The "si order" is also stable under variable substitution, but hopefully closer to total
+/// in practice.
+/// Returns Greater if self > other.
+/// Returns Less if other > self.
+/// Returns Equal if they cannot be ordered. (This is not "Equal" in the usual sense.)
+/// The SI order has the convenient property that if a cannot be ordered with b,
+/// and b cannot be ordered with c, then a cannot be ordered with c.
+pub fn si_term_cmp(left: &Term, left_neg: bool, right: &Term, right_neg: bool) -> Ordering {
+    // First, compare the head types.
+    // I think this is actually more indicative of complexity than the type itself.
+    let head_type_cmp = left.head_type.cmp(&right.head_type);
+    if head_type_cmp != Ordering::Equal {
+        return head_type_cmp;
+    }
+
+    // Next, compare the types.
+    let type_cmp = left.term_type.cmp(&right.term_type);
+    if type_cmp != Ordering::Equal {
+        return type_cmp;
+    }
+
+    // Compare the signs
+    let neg_cmp = left_neg.cmp(&right_neg);
+    if neg_cmp != Ordering::Equal {
+        return neg_cmp;
+    }
+
+    // Then, compare the heads.
+    if left.head.is_variable() || right.head.is_variable() {
+        // There's no way to compare these things in a substitution-invariant way.
+        return Ordering::Equal;
+    }
+
+    // We could do something cleverer but let's try this.
+    left.head.cmp(&right.head)
 }
