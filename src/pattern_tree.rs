@@ -255,18 +255,43 @@ impl TermComponent {
     }
 }
 
-// A pattern tree is a "perfect discrimination tree" specifically designed to rewrite
-// terms into simplified versions.
-// It's a tree full of patterns.
-// Each path from the root to a leaf is a series of edges that represents a term or a literal.
-// The first edge determines the type, and literal vs term.
-//
-// Afterwards, the linear representation of a term is a preorder traversal of the tree.
-// For any non-atomic term, we include the type of its head, then recurse.
-// For any atom, we just include the atom.
-// This doesn't contain enough type information to extract a term from the tree, but it
-// does contain enough type information to match against an existing term, as long as having
-// an atomic variable at the root level is forbidden.
+/// A pattern tree is built from edges.
+/// It is a "perfect discrimination tree", designed to store patterns and match them against
+/// specialized instances.
+///
+/// Each path from the root to a leaf is a series of edges. It can represent a term, literal, or clause.
+/// A path starts with "category edges" that differentiate what sort of thing we're matching.
+/// Category edges are just matched exactly, no substitutions.
+/// After the category edges are the "term edges", which represent the structure of one term
+/// or a number of terms, and do allow substitutions. These are "Head" and "Atom" edges.
+/// The category edges should indicate how many terms are represented by the term edges.
+///
+/// Plain terms are encoded as:
+///   TermCategory <term>
+///
+/// Literals are encoded as:
+///   LiteralCategory <left term> <right term>
+///
+/// HeadType and Atom edges form a preorder traversal of the tree.
+/// For any non-atomic term, we include the type of its head, then recurse.
+/// For any atom, we just include the atom.
+/// This doesn't contain enough type information to extract a term from the tree, but it
+/// does contain enough type information to match against an existing term, as long as having
+/// an atomic variable at the root level is forbidden.
+#[derive(Debug)]
+enum Edge {
+    /// Number of args, and the type of the head atom.
+    Head(u8, TypeId),
+
+    /// Just an atom.
+    Atom(Atom),
+
+    /// Category edge to indicate a term of a particular type.
+    TermCategory(TypeId),
+
+    /// Top level. Indicates the type of both left and right of the literal.
+    LiteralCategory(TypeId),
+}
 
 // Used for converting Edges into byte sequences.
 // Any byte below MAX_ARGS indicates a composite term with that number of arguments.
@@ -280,24 +305,10 @@ const SKOLEM: u8 = 106;
 const TERM: u8 = 107;
 const LITERAL: u8 = 108;
 
-#[derive(Debug)]
-enum Edge {
-    // Number of args, and the type of the head atom.
-    HeadType(u8, TypeId),
-
-    Atom(Atom),
-
-    // Top level. Indicates the type of the term.
-    Term(TypeId),
-
-    // Top level. Indicates the type of both left and right of the literal.
-    Literal(TypeId),
-}
-
 impl Edge {
     fn first_byte(&self) -> u8 {
         match self {
-            Edge::HeadType(num_args, _) => *num_args,
+            Edge::Head(num_args, _) => *num_args,
             Edge::Atom(a) => match a {
                 Atom::True => TRUE,
                 Atom::GlobalConstant(_) => GLOBAL_CONSTANT,
@@ -306,15 +317,15 @@ impl Edge {
                 Atom::Variable(_) => VARIABLE,
                 Atom::Skolem(_) => SKOLEM,
             },
-            Edge::Term(..) => TERM,
-            Edge::Literal(..) => LITERAL,
+            Edge::TermCategory(..) => TERM,
+            Edge::LiteralCategory(..) => LITERAL,
         }
     }
 
     fn append_to(&self, v: &mut Vec<u8>) {
         v.push(self.first_byte());
         let id: u16 = match self {
-            Edge::HeadType(_, t) => *t,
+            Edge::Head(_, t) => *t,
             Edge::Atom(a) => match a {
                 Atom::True => 0,
                 Atom::GlobalConstant(c) => *c,
@@ -323,8 +334,8 @@ impl Edge {
                 Atom::Variable(i) => *i,
                 Atom::Skolem(s) => *s,
             },
-            Edge::Term(t) => *t,
-            Edge::Literal(t) => *t,
+            Edge::TermCategory(t) => *t,
+            Edge::LiteralCategory(t) => *t,
         };
         v.extend_from_slice(&id.to_ne_bytes());
     }
@@ -338,12 +349,12 @@ impl Edge {
             MONOMORPH => Edge::Atom(Atom::Monomorph(id)),
             VARIABLE => Edge::Atom(Atom::Variable(id)),
             SKOLEM => Edge::Atom(Atom::Skolem(id)),
-            LITERAL => Edge::Literal(id),
+            LITERAL => Edge::LiteralCategory(id),
             num_args => {
                 if num_args > MAX_ARGS {
                     panic!("invalid discriminant byte");
                 }
-                Edge::HeadType(num_args, id)
+                Edge::Head(num_args, id)
             }
         }
     }
@@ -370,7 +381,7 @@ fn key_from_term_helper(term: &Term, key: &mut Vec<u8>) {
     if term.args.is_empty() {
         Edge::Atom(term.head).append_to(key);
     } else {
-        Edge::HeadType(term.args.len() as u8, term.head_type).append_to(key);
+        Edge::Head(term.args.len() as u8, term.head_type).append_to(key);
         Edge::Atom(term.head).append_to(key);
         for arg in &term.args {
             key_from_term_helper(arg, key);
@@ -380,7 +391,7 @@ fn key_from_term_helper(term: &Term, key: &mut Vec<u8>) {
 
 pub fn term_key_prefix(type_id: TypeId) -> Vec<u8> {
     let mut key = Vec::new();
-    Edge::Term(type_id).append_to(&mut key);
+    Edge::TermCategory(type_id).append_to(&mut key);
     key
 }
 
@@ -393,7 +404,7 @@ pub fn key_from_term(term: &Term) -> Vec<u8> {
 
 fn literal_key_prefix(type_id: TypeId) -> Vec<u8> {
     let mut key = Vec::new();
-    Edge::Literal(type_id).append_to(&mut key);
+    Edge::LiteralCategory(type_id).append_to(&mut key);
     key
 }
 
@@ -504,7 +515,7 @@ where
     let edge = match components[0] {
         TermComponent::Composite(_, num_args, _) => {
             if let TermComponent::Atom(head_type, _) = components[1] {
-                Edge::HeadType(num_args, head_type)
+                Edge::Head(num_args, head_type)
             } else {
                 panic!("Composite term must have an atom as its head");
             }
