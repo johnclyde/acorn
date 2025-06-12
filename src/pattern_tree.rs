@@ -5,20 +5,20 @@ use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 
-// The TermComponent is designed so that a &[TermComponent] represents a preorder
-// traversal of the term, and each subterm is represented by a subslice.
+/// The TermComponent is designed so that a &[TermComponent] represents a preorder
+/// traversal of the term, and each subterm is represented by a subslice.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TermComponent {
-    // The u8 is the number of args in the term.
-    // The u16 is the number of term components in the term, including this one.
-    // Must be at least 3. Otherwise this would just be an atom.
+    /// The u8 is the number of args in the term.
+    /// The u16 is the number of term components in the term, including this one.
+    /// Must be at least 3. Otherwise this would just be an atom.
     Composite(TypeId, u8, u16),
 
     Atom(TypeId, Atom),
 }
 
 impl TermComponent {
-    // The number of TermComponents in the component starting with this one
+    /// The number of TermComponents in the component starting with this one
     pub fn size(&self) -> usize {
         match self {
             TermComponent::Composite(_, _, size) => *size as usize,
@@ -80,8 +80,8 @@ impl TermComponent {
         output
     }
 
-    // Constructs a term, starting at components[i].
-    // Returns the next unused index and the term.
+    /// Constructs a term, starting at components[i].
+    /// Returns the next unused index and the term.
     fn unflatten_next(components: &[TermComponent], i: usize) -> (usize, Term) {
         match components[i] {
             TermComponent::Composite(term_type, num_args, size) => {
@@ -127,8 +127,8 @@ impl TermComponent {
         (term1, term2)
     }
 
-    // Validates the subterm starting at the given position.
-    // Returns the position the next subterm should start at.
+    /// Validates the subterm starting at the given position.
+    /// Returns the position the next subterm should start at.
     fn validate_one(components: &[TermComponent], position: usize) -> Result<usize, String> {
         if position > components.len() {
             return Err(format!("ran off the end, position {}", position));
@@ -188,9 +188,9 @@ impl TermComponent {
         }
     }
 
-    // In components, replace the variable x_i with the contents of replacements[i].
-    // If there is no replacement, shift it by shift.
-    // Appends the result to output.
+    /// In components, replace the variable x_i with the contents of replacements[i].
+    /// If there is no replacement, shift it by shift.
+    /// Appends the result to output.
     pub fn replace_or_shift(
         components: &[TermComponent],
         replacements: &[&[TermComponent]],
@@ -314,8 +314,8 @@ enum Edge {
     NegativeLiteral(TypeId),
 }
 
-// Used for converting Edges into byte sequences.
-// Any byte below MAX_ARGS indicates a composite term with that number of arguments.
+/// Used for converting Edges into byte sequences.
+/// Any byte below MAX_ARGS indicates a composite term with that number of arguments.
 const MAX_ARGS: u8 = 100;
 const TRUE: u8 = 101;
 const GLOBAL_CONSTANT: u8 = 102;
@@ -405,7 +405,7 @@ impl Edge {
     }
 }
 
-// Appends the key for this term, but does not add the top-level type
+/// Appends the key for this term, but does not add the top-level type
 fn key_from_term_helper(term: &Term, key: &mut Vec<u8>) {
     if term.args.is_empty() {
         Edge::Atom(term.head).append_to(key);
@@ -424,7 +424,7 @@ pub fn term_key_prefix(type_id: TypeId) -> Vec<u8> {
     key
 }
 
-// Appends the key for this term, prefixing with the top-level type
+/// Appends the key for this term, prefixing with the top-level type
 pub fn key_from_term(term: &Term) -> Vec<u8> {
     let mut key = term_key_prefix(term.term_type);
     key_from_term_helper(term, &mut key);
@@ -444,7 +444,7 @@ fn key_from_pair(term1: &Term, term2: &Term) -> Vec<u8> {
     key
 }
 
-// Just creates the category prefix for a clause key.
+/// Just creates the category prefix for a clause key.
 fn clause_key_prefix(clause: &Clause) -> Vec<u8> {
     let mut key = Vec::new();
     for literal in &clause.literals {
@@ -467,19 +467,19 @@ fn key_from_clause(clause: &Clause) -> Vec<u8> {
     key
 }
 
-// Finds leaves in the trie that match the given term components.
-// These term components could represent a single term, or they could represent a
-// sequence of terms that are a suffix of a subterm. The "right part" of a subterm cut by a path.
-// Kind of confusing, just be aware that it does not correspond to a single term.
-//
-// For each match, it calls the callback with the value id matched, and the replacements used.
-// If the callback returns false, the search is stopped early.
-// The function returns whether the search fully completed (without stopping early).
-//
-// If the search stops early, key and replacements are left in their final state.
-// If the search does fully complete, we reset key and replacements to their initial state.
-//
-// On rare occasion this has blown the stack, so we add a limit.
+/// Finds leaves in the trie that match the given term components.
+/// These term components could represent a single term, or they could represent a
+/// sequence of terms that are a suffix of a subterm. The "right part" of a subterm cut by a path.
+/// Kind of confusing, just be aware that it does not correspond to a single term.
+///
+/// For each match, it calls the callback with the value id matched, and the replacements used.
+/// If the callback returns false, the search is stopped early.
+/// The function returns whether the search fully completed (without stopping early).
+///
+/// If the search stops early, key and replacements are left in their final state.
+/// If the search does fully complete, we reset key and replacements to their initial state.
+///
+/// On rare occasion this has blown the stack, so we add a limit.
 fn find_matches_while<'a, F>(
     subtrie: &SubTrie<Vec<u8>, usize>,
     key: &mut Vec<u8>,
@@ -598,8 +598,8 @@ where
 
 #[derive(Clone, Debug)]
 pub struct PatternTree<T> {
-    // Maps to an index into values.
-    // The values are stored separately because subtrie lifetimes get weird.
+    /// Maps to an index into values.
+    /// The values are stored separately because subtrie lifetimes get weird.
     trie: Trie<Vec<u8>, usize>,
 
     pub values: Vec<T>,
@@ -620,7 +620,7 @@ impl<T> PatternTree<T> {
         self.trie.insert(path, value_id);
     }
 
-    // The pair needs to have normalized variable numbering, with term1's variables preceding term2's.
+    /// The pair needs to have normalized variable numbering, with term1's variables preceding term2's.
     pub fn insert_pair(&mut self, term1: &Term, term2: &Term, value: T) {
         let key = key_from_pair(term1, term2);
         let value_id = self.values.len();
@@ -649,8 +649,8 @@ impl<T> PatternTree<T> {
         find_matches_while(&subtrie, key, components, 100, replacements, callback)
     }
 
-    // Finds a single match, if possible.
-    // Returns the value of the match, and the set of replacements used for the match.
+    /// Finds a single match, if possible.
+    /// Returns the value of the match, and the set of replacements used for the match.
     pub fn find_one_match<'a, 'b>(
         &'a self,
         key: &mut Vec<u8>,
@@ -688,7 +688,7 @@ impl<T> PatternTree<T> {
 }
 
 impl PatternTree<()> {
-    // Appends to the existing value if possible. Otherwises, inserts a vec![U].
+    /// Appends to the existing value if possible. Otherwises, inserts a vec![U].
     pub fn insert_or_append<U>(pt: &mut PatternTree<Vec<U>>, term: &Term, value: U) {
         let key = key_from_term(term);
         match pt.trie.entry(key) {
@@ -705,11 +705,11 @@ impl PatternTree<()> {
     }
 }
 
-// The LiteralSet stores a bunch of literals in a way that makes it quick to check whether
-// the set contains a generalization for a new literal.
+/// The LiteralSet stores a bunch of literals in a way that makes it quick to check whether
+/// the set contains a generalization for a new literal.
 #[derive(Clone)]
 pub struct LiteralSet {
-    // Stores (sign, id) for each literal.
+    /// Stores (sign, id) for each literal.
     tree: PatternTree<(bool, usize)>,
 }
 
@@ -720,13 +720,13 @@ impl LiteralSet {
         }
     }
 
-    // Inserts a literal along with its id.
-    // This always inserts the left->right direction.
-    // When the literal is strictly kbo ordered, it can't be reversed and unify with
-    // another literal, so we don't need to insert the right->left direction.
-    // Otherwise, we do insert the right->left direction.
-    //
-    // Overwrites if the negation already exists.
+    /// Inserts a literal along with its id.
+    /// This always inserts the left->right direction.
+    /// When the literal is strictly kbo ordered, it can't be reversed and unify with
+    /// another literal, so we don't need to insert the right->left direction.
+    /// Otherwise, we do insert the right->left direction.
+    ///
+    /// Overwrites if the negation already exists.
     pub fn insert(&mut self, literal: &Literal, id: usize) {
         self.tree
             .insert_pair(&literal.left, &literal.right, (literal.positive, id));
@@ -736,10 +736,10 @@ impl LiteralSet {
         }
     }
 
-    // Checks whether any literal in the tree is a generalization of the provided literal.
-    // If so, returns a pair with:
-    //   1. whether the sign of the generalization matches the literal
-    //   2. the id of the generalization
+    /// Checks whether any literal in the tree is a generalization of the provided literal.
+    /// If so, returns a pair with:
+    ///   1. whether the sign of the generalization matches the literal
+    ///   2. the id of the generalization
     pub fn find_generalization(&self, literal: &Literal) -> Option<(bool, usize)> {
         match self.tree.find_pair(&literal.left, &literal.right) {
             Some(&(sign, id)) => Some((sign == literal.positive, id)),

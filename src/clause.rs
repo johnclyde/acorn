@@ -3,9 +3,9 @@ use std::fmt;
 use crate::atom::{Atom, AtomId};
 use crate::literal::Literal;
 
-// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
-// We include the types of the universal variables it is quantified over.
-// It cannot contain existential quantifiers.
+/// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
+/// We include the types of the universal variables it is quantified over.
+/// It cannot contain existential quantifiers.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Clause {
     pub literals: Vec<Literal>,
@@ -27,9 +27,9 @@ impl fmt::Display for Clause {
 }
 
 impl Clause {
-    // Sorts literals.
-    // Removes any duplicate or impossible literals.
-    // An empty clause indicates an impossible clause.
+    /// Sorts literals.
+    /// Removes any duplicate or impossible literals.
+    /// An empty clause indicates an impossible clause.
     pub fn new(literals: Vec<Literal>) -> Clause {
         let mut literals = literals
             .into_iter()
@@ -43,8 +43,8 @@ impl Clause {
         c
     }
 
-    // Normalizes the variable IDs in the literals.
-    // If you reorder or modify the literals, you should call this.
+    /// Normalizes the variable IDs in the literals.
+    /// If you reorder or modify the literals, you should call this.
     fn normalize_var_ids(&mut self) {
         let mut var_ids = vec![];
         for literal in &mut self.literals {
@@ -53,7 +53,7 @@ impl Clause {
         }
     }
 
-    // An unsatisfiable clause. Like a lone "false".
+    /// An unsatisfiable clause. Like a lone "false".
     pub fn impossible() -> Clause {
         Clause::new(vec![])
     }
@@ -120,7 +120,7 @@ impl Clause {
         self.literals.iter().filter(|x| x.positive).count()
     }
 
-    // Whether every literal in this clause is exactly contained by the other clause.
+    /// Whether every literal in this clause is exactly contained by the other clause.
     pub fn contains(&self, other: &Clause) -> bool {
         for literal in &other.literals {
             if !self.literals.iter().any(|x| x == literal) {
@@ -130,12 +130,12 @@ impl Clause {
         true
     }
 
-    // Whether any top level term has the given atom as its head.
+    /// Whether any top level term has the given atom as its head.
     pub fn has_head(&self, atom: &Atom) -> bool {
         self.literals.iter().any(|x| x.has_head(atom))
     }
 
-    // Whether we are willing to turn this clause into a line of code in a proof.
+    /// Whether we are willing to turn this clause into a line of code in a proof.
     pub fn is_printable(&self) -> bool {
         if self.len() > 1 {
             return false;
@@ -146,11 +146,11 @@ impl Clause {
         true
     }
 
-    // The SI order is a "substitution invariant" order. We use it when we are substitution
-    // into one clause and then matching against another.
-    // When we specialize a clause and put it into the specialized order, it must match
-    // one of the generalized orders.
-    // The "order" includes both literal ordering and direction of the literal.
+    /// The SI order is a "substitution invariant" order. We use it when we are substitution
+    /// into one clause and then matching against another.
+    /// When we specialize a clause and put it into the specialized order, it must match
+    /// one of the generalized orders.
+    /// The "order" includes both literal ordering and direction of the literal.
     pub fn all_generalized_si_orders(&self) -> Vec<Clause> {
         todo!();
     }
