@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::vec;
 
 use crate::clause::Clause;
+use crate::literal::Literal;
 use crate::pattern_tree::PatternTree;
 use crate::term::Term;
 
@@ -28,9 +29,23 @@ impl ClauseSet {
         }
     }
 
-    pub fn find_generalization(&self, clause: &Clause) -> Option<usize> {
-        let special = specialized_form(&clause);
+    pub fn find_generalization(&self, clause: Clause) -> Option<usize> {
+        let special = specialized_form(clause);
         self.tree.find_clause(&special).map(|id| *id)
+    }
+}
+
+/// Compare two literals in a substitution-invariant way.
+/// First compares left terms, then right terms if left terms are equal.
+fn sub_invariant_literal_cmp(lit1: &Literal, lit2: &Literal) -> Option<Ordering> {
+    // First compare the left terms
+    let left_cmp = sub_invariant_term_cmp(&lit1.left, !lit1.positive, &lit2.left, !lit2.positive);
+    match left_cmp {
+        Some(Ordering::Equal) => {
+            // If left terms are equal, compare right terms
+            sub_invariant_term_cmp(&lit1.right, !lit1.positive, &lit2.right, !lit2.positive)
+        }
+        other => other,
     }
 }
 
@@ -114,11 +129,76 @@ fn all_generalized_forms(base_clause: &mut Clause, start_index: usize, output: &
 
 /// Generate all orders of the provided clause that are a valid generalized form.
 fn all_generalized_orders(base_clause: &Clause, output: &mut Vec<Clause>) {
-    todo!();
+    // Helper function to generate all permutations recursively
+    fn generate_permutations(
+        literals: &[Literal],
+        current: &mut Vec<Literal>,
+        used: &mut Vec<bool>,
+        output: &mut Vec<Clause>,
+    ) {
+        // Base case: we've built a complete permutation
+        if current.len() == literals.len() {
+            let mut clause = Clause {
+                literals: current.clone(),
+            };
+            clause.normalize_var_ids();
+            output.push(clause);
+            return;
+        }
+
+        // Try each unused literal as the next element
+        for i in 0..literals.len() {
+            if used[i] {
+                continue;
+            }
+
+            // Check if this literal can be the next one in a non-increasing order
+            if let Some(last) = current.last() {
+                let cmp = sub_invariant_literal_cmp(last, &literals[i]);
+                if cmp == Some(Ordering::Less) {
+                    continue;
+                }
+            }
+
+            // Mark this literal as used
+            used[i] = true;
+            current.push(literals[i].clone());
+
+            // Recurse
+            generate_permutations(literals, current, used, output);
+
+            // Backtrack
+            current.pop();
+            used[i] = false;
+        }
+    }
+
+    let mut current = Vec::new();
+    let mut used = vec![false; base_clause.literals.len()];
+    generate_permutations(&base_clause.literals, &mut current, &mut used, output);
 }
 
 /// Put this clause into the "specialized" form.
 /// This should only be called on concrete clauses.
-fn specialized_form(_base_clause: &Clause) -> Clause {
-    todo!();
+fn specialized_form(mut clause: Clause) -> Clause {
+    // First, ensure each literal has the larger term on the left
+    for literal in &mut clause.literals {
+        let cmp = sub_invariant_term_cmp(&literal.left, true, &literal.right, true)
+            .expect("Concrete terms should always be comparable");
+        if cmp == Ordering::Less {
+            // The right term is larger, so swap
+            literal.flip();
+        }
+    }
+
+    // Then, sort the literals using our comparison function
+    // Since this is for concrete clauses, we can unwrap the comparison
+    clause.literals.sort_by(|a, b| {
+        sub_invariant_literal_cmp(a, b)
+            .expect("Concrete literals should always be comparable")
+            .reverse() // Reverse to get non-increasing order
+    });
+
+    clause.normalize_var_ids();
+    clause
 }
