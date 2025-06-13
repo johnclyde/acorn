@@ -105,6 +105,10 @@ struct GroupInfo {
     // For each inequality, we store the two terms that we know are not equal,
     // along with the step that we know it from.
     inequalities: HashMap<GroupId, (TermId, TermId, StepId)>,
+
+    // The clauses that are related to this group.
+    // Keyed by the group that is on the other side of the literal from this one.
+    clauses: HashMap<GroupId, Vec<ClauseId>>,
 }
 
 impl GroupInfo {
@@ -188,6 +192,27 @@ impl fmt::Display for CompoundInfo {
     }
 }
 
+// We represent literals based on their terms.
+// This isn't quite enough to have good tracking information, so we might need to expand on this.
+#[derive(Clone)]
+struct LiteralInfo {
+    positive: bool,
+    left: TermId,
+    right: TermId,
+}
+
+#[derive(Clone)]
+struct ClauseInfo {
+    // The literals that make up the clause.
+    literals: Vec<LiteralInfo>,
+
+    // The step in which we added this clause to the graph.
+    step: StepId,
+}
+
+#[derive(Clone)]
+struct ClauseId(usize);
+
 /// The TermGraph stores concrete terms, along with relationships between them that represent
 /// equality, inequality, and subterm relationships.
 #[derive(Clone)]
@@ -201,6 +226,10 @@ pub struct TermGraph {
     // compounds maps CompoundId to CompoundInfo.
     // When a compound is deleted, we replace it with None.
     compounds: Vec<Option<CompoundInfo>>,
+
+    // clauses maps ClauseId to ClauseInfo.
+    // When a clause is eliminated, we replace it with None.
+    clauses: Vec<Option<ClauseInfo>>,
 
     // Keying the compounds so that we can check if a composition belongs to an existing group.
     compound_map: HashMap<CompoundKey, TermId>,
@@ -223,6 +252,7 @@ impl TermGraph {
             terms: Vec::new(),
             groups: Vec::new(),
             compounds: Vec::new(),
+            clauses: Vec::new(),
             compound_map: HashMap::new(),
             decompositions: HashMap::new(),
             pending: Vec::new(),
@@ -311,6 +341,7 @@ impl TermGraph {
             terms: vec![term_id],
             compounds: vec![],
             inequalities: HashMap::new(),
+            clauses: HashMap::new(),
         });
         self.groups.push(group_info);
         self.decompositions.insert(key, term_id);
@@ -340,6 +371,7 @@ impl TermGraph {
             terms: vec![term_id],
             compounds: vec![],
             inequalities: HashMap::new(),
+            clauses: HashMap::new(),
         });
         self.groups.push(group_info);
         self.decompositions.insert(key, term_id);
@@ -738,7 +770,10 @@ impl TermGraph {
             }
         }
     }
+}
 
+// Methods for testing.
+impl TermGraph {
     #[cfg(test)]
     fn insert_str(&mut self, s: &str) -> TermId {
         let id = self.insert_term(&Term::parse(s));
