@@ -213,6 +213,17 @@ struct ClauseInfo {
 #[derive(Clone, Copy)]
 struct ClauseId(usize);
 
+// The pending operation represents something that we want to do to the graph, but if we try to
+// do everything at once, the graph will end up in an invalid state.
+#[derive(Clone)]
+enum PendingOperation {
+    // We have discovered that two terms are equal.
+    TermIdentification(TermId, TermId, Option<RewriteStep>),
+
+    // We have discovered that a clause can be reduced.
+    ClauseReduction(ClauseId),
+}
+
 /// The TermGraph stores concrete terms, along with relationships between them that represent
 /// equality, inequality, and subterm relationships.
 #[derive(Clone)]
@@ -237,8 +248,8 @@ pub struct TermGraph {
     // Each term has its decomposition stored so that we can look it back up again
     decompositions: HashMap<Decomposition, TermId>,
 
-    // Pairs of terms that we have discovered are identical
-    pending: Vec<(TermId, TermId, Option<RewriteStep>)>,
+    // Operations that we have discovered need to be performed
+    pending: Vec<PendingOperation>,
 
     // Set when we discover a contradiction.
     // The provided step sets these terms to be unequal. However, the term graph also
@@ -386,7 +397,7 @@ impl TermGraph {
         if let Some(&existing_result_term) = self.compound_map.get(&key) {
             let existing_result_group = self.get_group_id(existing_result_term);
             if existing_result_group != result_group {
-                self.pending.push((existing_result_term, result_term, None));
+                self.pending.push(PendingOperation::TermIdentification(existing_result_term, result_term, None));
             }
             return;
         }
@@ -526,7 +537,7 @@ impl TermGraph {
                 // Instead of inserting compound.result, we need to delete this compound, and merge the
                 // intended result with result_group.
                 self.pending
-                    .push((compound.result_term, existing_result_term, None));
+                    .push(PendingOperation::TermIdentification(compound.result_term, existing_result_term, None));
                 self.compounds[compound_id.0 as usize] = None;
             } else {
                 self.compound_map
@@ -578,8 +589,9 @@ impl TermGraph {
                 }
                 other_group
             };
-            
-            new_info.clauses
+
+            new_info
+                .clauses
                 .entry(key_group)
                 .or_insert_with(Vec::new)
                 .append(&mut clause_ids);
@@ -589,7 +601,8 @@ impl TermGraph {
         for other_group in other_groups_to_update {
             if let Some(other_info) = self.groups[other_group.0 as usize].as_mut() {
                 if let Some(clauses) = other_info.clauses.remove(&old_group) {
-                    other_info.clauses
+                    other_info
+                        .clauses
                         .entry(new_group)
                         .or_insert_with(Vec::new)
                         .extend(clauses);
@@ -606,10 +619,20 @@ impl TermGraph {
     }
 
     fn process_pending(&mut self) {
-        while let Some((term1, term2, step)) = self.pending.pop() {
+        while let Some(operation) = self.pending.pop() {
             // We can stop processing when we find a contradiction.
-            if self.contradiction.is_none() {
-                self.set_terms_equal_once(term1, term2, step)
+            if self.contradiction.is_some() {
+                break;
+            }
+            
+            match operation {
+                PendingOperation::TermIdentification(term1, term2, step) => {
+                    self.set_terms_equal_once(term1, term2, step);
+                }
+                PendingOperation::ClauseReduction(clause_id) => {
+                    // TODO: Implement clause reduction logic
+                    let _ = clause_id;
+                }
             }
         }
     }
@@ -646,7 +669,7 @@ impl TermGraph {
             pattern_id,
             inspiration_id,
         };
-        self.pending.push((term1, term2, Some(step)));
+        self.pending.push(PendingOperation::TermIdentification(term1, term2, Some(step)));
         self.process_pending();
     }
 
