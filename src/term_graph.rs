@@ -213,10 +213,23 @@ struct ClauseInfo {
 #[derive(Clone, Copy)]
 struct ClauseId(usize);
 
-// The pending operation represents something that we want to do to the graph, but if we try to
-// do everything at once, the graph will end up in an invalid state.
+// In general, there are two sorts of operations that are performed on the graph.
+//
+// "Integrity" operations are to keep the graph valid. A lot of the data is denormalized,
+// so we have to update it in multiple places to keep it consistent.
+// Integrity operations are performed immediately. Integrity operations should not trigger
+// other integrity operations recursively.
+//
+// "Semantic" operations are to reflect the underlying meaning of the terms, like
+// declaring that two terms are identical, or representing that some clause is true.
+// It's hard to do a semantic operation in the middle of performing an integrity operation,
+// because you can't recurse and do a huge number of operations when the graph is in
+// an inconsistent state. It's okay if semantic operations trigger other semantic operations.
+//
+// Thus, our strategy is to finish any integrity operations immediately, but leave semantic
+// operations in this queue. The SemanticOperation represents an element in this queue.
 #[derive(Clone)]
-enum PendingOperation {
+enum SemanticOperation {
     // We have discovered that two terms are equal.
     TermIdentification(TermId, TermId, Option<RewriteStep>),
 
@@ -248,8 +261,8 @@ pub struct TermGraph {
     // Each term has its decomposition stored so that we can look it back up again
     decompositions: HashMap<Decomposition, TermId>,
 
-    // Operations that we have discovered need to be performed
-    pending: Vec<PendingOperation>,
+    // The pending semantic operations on the graph.
+    pending: Vec<SemanticOperation>,
 
     // Set when we discover a contradiction.
     // The provided step sets these terms to be unequal. However, the term graph also
@@ -397,7 +410,11 @@ impl TermGraph {
         if let Some(&existing_result_term) = self.compound_map.get(&key) {
             let existing_result_group = self.get_group_id(existing_result_term);
             if existing_result_group != result_group {
-                self.pending.push(PendingOperation::TermIdentification(existing_result_term, result_term, None));
+                self.pending.push(SemanticOperation::TermIdentification(
+                    existing_result_term,
+                    result_term,
+                    None,
+                ));
             }
             return;
         }
@@ -536,8 +553,11 @@ impl TermGraph {
                 // An compound for the new relationship already exists.
                 // Instead of inserting compound.result, we need to delete this compound, and merge the
                 // intended result with result_group.
-                self.pending
-                    .push(PendingOperation::TermIdentification(compound.result_term, existing_result_term, None));
+                self.pending.push(SemanticOperation::TermIdentification(
+                    compound.result_term,
+                    existing_result_term,
+                    None,
+                ));
                 self.compounds[compound_id.0 as usize] = None;
             } else {
                 self.compound_map
@@ -590,6 +610,15 @@ impl TermGraph {
                 other_group
             };
 
+            // If key_group == new_group, these clauses now compare a group to itself
+            // and need reduction
+            if key_group == new_group {
+                for &clause_id in &clause_ids {
+                    self.pending
+                        .push(SemanticOperation::ClauseReduction(clause_id));
+                }
+            }
+
             new_info
                 .clauses
                 .entry(key_group)
@@ -601,6 +630,14 @@ impl TermGraph {
         for other_group in other_groups_to_update {
             if let Some(other_info) = self.groups[other_group.0 as usize].as_mut() {
                 if let Some(clauses) = other_info.clauses.remove(&old_group) {
+                    // If other_group == new_group, these clauses now compare a group to itself
+                    if other_group == new_group {
+                        for &clause_id in &clauses {
+                            self.pending
+                                .push(SemanticOperation::ClauseReduction(clause_id));
+                        }
+                    }
+
                     other_info
                         .clauses
                         .entry(new_group)
@@ -624,12 +661,12 @@ impl TermGraph {
             if self.contradiction.is_some() {
                 break;
             }
-            
+
             match operation {
-                PendingOperation::TermIdentification(term1, term2, step) => {
+                SemanticOperation::TermIdentification(term1, term2, step) => {
                     self.set_terms_equal_once(term1, term2, step);
                 }
-                PendingOperation::ClauseReduction(clause_id) => {
+                SemanticOperation::ClauseReduction(clause_id) => {
                     // TODO: Implement clause reduction logic
                     let _ = clause_id;
                 }
@@ -669,7 +706,11 @@ impl TermGraph {
             pattern_id,
             inspiration_id,
         };
-        self.pending.push(PendingOperation::TermIdentification(term1, term2, Some(step)));
+        self.pending.push(SemanticOperation::TermIdentification(
+            term1,
+            term2,
+            Some(step),
+        ));
         self.process_pending();
     }
 
