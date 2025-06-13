@@ -86,8 +86,13 @@ pub fn sub_invariant_term_cmp(
         // There's no way to compare these things in a substitution-invariant way.
         return None;
     }
+    
+    // If heads are different atoms, we can compare them
+    if left.head != right.head {
+        return Some(left.head.cmp(&right.head));
+    }
 
-    // Recurse
+    // Heads are the same, so recurse on arguments
     assert!(left.args.len() == right.args.len());
     for (l, r) in left.args.iter().zip(right.args.iter()) {
         match sub_invariant_term_cmp(l, false, r, false) {
@@ -201,4 +206,110 @@ fn specialized_form(mut clause: Clause) -> Clause {
 
     clause.normalize_var_ids();
     clause
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+    #[test]
+    fn test_clause_set_basic_generalization() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a general clause: "c0(x0, c1) or c2(c3, x0)"
+        let general_clause = Clause::parse("c0(x0, c1) or c2(c3, x0)");
+        clause_set.insert(general_clause, 1);
+        
+        // Test that a specialized version is recognized
+        let special_clause = Clause::parse("c2(c3, c3) or c0(c3, c1)");
+        let result = clause_set.find_generalization(special_clause);
+        assert_eq!(result, Some(1), "Should find the generalization");
+    }
+
+    #[test]
+    fn test_clause_set_reordered_literals() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a clause with specific order
+        let clause = Clause::parse("c0(x0) or c1(c2, x0) or c3(x0, c4)");
+        clause_set.insert(clause, 2);
+        
+        // Test that reordered specializations are recognized
+        let special1 = Clause::parse("c1(c2, c5) or c3(c5, c4) or c0(c5)");
+        assert_eq!(clause_set.find_generalization(special1), Some(2));
+        
+        let special2 = Clause::parse("c3(c6, c4) or c0(c6) or c1(c2, c6)");
+        assert_eq!(clause_set.find_generalization(special2), Some(2));
+    }
+
+    #[test]
+    fn test_clause_set_flipped_equality() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert an equality clause
+        let clause = Clause::parse("x0 = c0 or c1(x0)");
+        clause_set.insert(clause, 3);
+        
+        // Test that flipped equalities are recognized
+        let special = Clause::parse("c2 = c0 or c1(c2)");
+        assert_eq!(clause_set.find_generalization(special), Some(3));
+        
+        // Also test with the equality already flipped
+        let special2 = Clause::parse("c0 = c3 or c1(c3)");
+        assert_eq!(clause_set.find_generalization(special2), Some(3));
+    }
+
+    #[test]
+    fn test_clause_set_no_generalization() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a specific clause
+        let clause = Clause::parse("c0(c1, c2) or c3(c4)");
+        clause_set.insert(clause, 4);
+        
+        // Test clauses that should NOT have generalizations
+        let no_match1 = Clause::parse("c0(c1, c4) or c3(c4)");
+        assert_eq!(clause_set.find_generalization(no_match1), None);
+        
+        let no_match2 = Clause::parse("c0(c2, c1) or c3(c4)");
+        assert_eq!(clause_set.find_generalization(no_match2), None);
+    }
+
+    #[test]
+    fn test_clause_set_multiple_variables() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a clause with multiple variables
+        let clause = Clause::parse("c0(x0, x1) or c1(x1, x0)");
+        clause_set.insert(clause, 5);
+        
+        // Test various specializations
+        let special1 = Clause::parse("c0(c2, c3) or c1(c3, c2)");
+        assert_eq!(clause_set.find_generalization(special1), Some(5));
+        
+        let special2 = Clause::parse("c1(c4, c5) or c0(c5, c4)");
+        assert_eq!(clause_set.find_generalization(special2), Some(5));
+        
+        // This should NOT match because the variable pattern is different
+        let no_match = Clause::parse("c0(c2, c3) or c1(c4, c5)");
+        assert_eq!(clause_set.find_generalization(no_match), None);
+    }
+
+    #[test]
+    fn test_clause_set_single_literal() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert single literal clauses
+        let clause1 = Clause::parse("c0(x0, c1)");
+        clause_set.insert(clause1, 6);
+        
+        let clause2 = Clause::parse("x0 = c1");
+        clause_set.insert(clause2, 7);
+        
+        // Test specializations
+        assert_eq!(clause_set.find_generalization(Clause::parse("c0(c2, c1)")), Some(6));
+        assert_eq!(clause_set.find_generalization(Clause::parse("c2 = c1")), Some(7));
+        assert_eq!(clause_set.find_generalization(Clause::parse("c1 = c2")), Some(7));
+    }
 }

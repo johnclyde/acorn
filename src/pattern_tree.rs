@@ -679,7 +679,7 @@ impl<T> PatternTree<T> {
 
     pub fn find_clause<'a>(&'a self, clause: &Clause) -> Option<&'a T> {
         let flat = TermComponent::flatten_clause(clause);
-        let mut key = key_from_clause(clause);
+        let mut key = clause_key_prefix(clause);  // Use prefix, not complete key!
         match self.find_one_match(&mut key, &flat) {
             Some((value, _)) => Some(value),
             None => None,
