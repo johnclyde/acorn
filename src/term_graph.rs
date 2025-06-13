@@ -673,10 +673,34 @@ impl TermGraph {
                     self.set_terms_not_equal_once(term1, term2, step);
                 }
                 SemanticOperation::ClauseReduction(clause_id) => {
-                    // TODO: Implement clause reduction logic
-                    let _ = clause_id;
+                    self.reduce_clause(clause_id);
                 }
             }
+        }
+    }
+
+    /// Reduces a clause by checking if any of its literals can be evaluated.
+    fn reduce_clause(&mut self, clause_id: ClauseId) {
+        let Some(clause_info) = &self.clauses[clause_id.0] else {
+            return;
+        };
+
+        for literal in &clause_info.literals {
+            let left_group = self.get_group_id(literal.left);
+            let right_group = self.get_group_id(literal.right);
+            let sides_equal = if left_group == right_group {
+                true
+            } else {
+                let left_info = self.get_group_info(left_group);
+                if left_info.inequalities.contains_key(&right_group) {
+                    false
+                } else {
+                    // We can't evaluate this literal
+                    continue;
+                }
+            };
+            let literal_truth = literal.positive == sides_equal;
+            // TODO: use the literal truth for something
         }
     }
 
