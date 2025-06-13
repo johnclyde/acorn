@@ -108,6 +108,7 @@ struct GroupInfo {
 
     // The clauses that are related to this group.
     // Keyed by the group that is on the other side of the literal from this one.
+    // THis might include references to deleted clauses. They are only cleaned up lazily.
     clauses: HashMap<GroupId, Vec<ClauseId>>,
 }
 
@@ -681,11 +682,14 @@ impl TermGraph {
 
     /// Reduces a clause by checking if any of its literals can be evaluated.
     fn reduce_clause(&mut self, clause_id: ClauseId) {
-        let Some(clause_info) = &self.clauses[clause_id.0] else {
+        // Taking the clause info. Don't forget to put it back.
+        let Some(mut clause_info) = self.clauses[clause_id.0].take() else {
             return;
         };
 
-        for literal in &clause_info.literals {
+        let mut literals = vec![];
+        std::mem::swap(&mut clause_info.literals, &mut literals);
+        for literal in literals {
             let left_group = self.get_group_id(literal.left);
             let right_group = self.get_group_id(literal.right);
             let sides_equal = if left_group == right_group {
@@ -695,12 +699,34 @@ impl TermGraph {
                 if left_info.inequalities.contains_key(&right_group) {
                     false
                 } else {
-                    // We can't evaluate this literal
+                    // We can't evaluate this literal. Put it back.
+                    clause_info.literals.push(literal);
                     continue;
                 }
             };
-            let literal_truth = literal.positive == sides_equal;
-            // TODO: use the literal truth for something
+            if literal.positive == sides_equal {
+                // This literal is true, so the whole clause is redundant.
+                return;
+            }
+        }
+
+        if clause_info.literals.len() >= 2 {
+            // This clause is still valid. Put it back.
+            self.clauses[clause_id.0] = Some(clause_info);
+            return;
+        }
+
+        // This clause is toast, but now what?
+
+        if clause_info.literals.len() == 1 {
+            let literal = &clause_info.literals[0];
+            if literal.positive {
+                self.set_terms_equal(literal.left, literal.right, clause_info.step, None);
+            } else {
+                self.set_terms_not_equal(literal.left, literal.right, clause_info.step);
+            }
+        } else {
+            todo!("handle contradiction");
         }
     }
 
