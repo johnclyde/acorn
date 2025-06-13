@@ -8,20 +8,40 @@ use crate::term::Term;
 // Each term has a unique id.
 // We never invent new terms. We only make copies of terms that the caller created and find
 // relationships between them.
-pub type TermId = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TermId(u32);
+
+impl fmt::Display for TermId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 // Every time we set two terms equal or not equal, that action is tagged with a StepId.
 // The term graph uses it to provide a history of the reasoning that led to a conclusion.
-type StepId = usize;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StepId(pub usize);
+
+impl StepId {
+    pub fn get(&self) -> usize {
+        self.0
+    }
+}
+
+impl fmt::Display for StepId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 // The rationale for a single rewrite step.
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
 pub struct RewriteStep {
-    // The external id of the rule used for this rewrite.
+    // The id of the rule used for this rewrite.
     // We know this rewrite is true based on the pattern step alone.
     pub pattern_id: StepId,
 
-    // The external id of the rule containing the subterm that inspired this rewrite.
+    // The id of the rule containing the subterm that inspired this rewrite.
     // If it was just the rewrite pattern that inspired this step, this is None.
     // This isn't mathematically necessary to prove the step, but it is necessary to recreate this rule.
     pub inspiration_id: Option<StepId>,
@@ -34,7 +54,7 @@ pub struct RewriteStep {
 pub struct TermGraphContradiction {
     // Every contradiction is based on one inequality, plus a set of rewrites that turn
     // one site of the inequality into the other.
-    pub inequality_id: StepId,
+    pub inequality_id: usize,
 
     // The rewrites that turn one side of the inequality into the other.
     pub rewrite_chain: Vec<(Term, Term, RewriteStep)>,
@@ -63,7 +83,14 @@ struct TermInfo {
 
 // Each term belongs to a group.
 // Terms that belong to the same group are equal.
-type GroupId = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct GroupId(u32);
+
+impl fmt::Display for GroupId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Clone)]
 struct GroupInfo {
@@ -89,7 +116,14 @@ impl GroupInfo {
 // Each composition relation between terms implies a composition relation between groups.
 // The composition relations between groups each get their own id, so we can update them when
 // we combine groups.
-type CompoundId = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct CompoundId(u32);
+
+impl fmt::Display for CompoundId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 struct CompoundKey {
@@ -217,11 +251,11 @@ impl TermGraph {
     }
 
     pub fn get_term(&self, term_id: TermId) -> &Term {
-        &self.terms[term_id as usize].term
+        &self.terms[term_id.0 as usize].term
     }
 
-    pub fn get_group_id(&self, term_id: TermId) -> GroupId {
-        self.terms[term_id as usize].group
+    fn get_group_id(&self, term_id: TermId) -> GroupId {
+        self.terms[term_id.0 as usize].group
     }
 
     pub fn has_contradiction(&self) -> bool {
@@ -235,13 +269,13 @@ impl TermGraph {
         let mut rewrite_chain = vec![];
         self.expand_steps(term1, term2, &mut rewrite_chain);
         Some(TermGraphContradiction {
-            inequality_id,
+            inequality_id: inequality_id.get(),
             rewrite_chain,
         })
     }
 
     fn get_group_info(&self, group_id: GroupId) -> &GroupInfo {
-        match &self.groups[group_id as usize] {
+        match &self.groups[group_id.0 as usize] {
             None => panic!("group is remapped"),
             Some(info) => info,
         }
@@ -257,8 +291,8 @@ impl TermGraph {
         }
 
         // Make a new term and group
-        let term_id = self.terms.len() as TermId;
-        let group_id = self.groups.len() as GroupId;
+        let term_id = TermId(self.terms.len() as u32);
+        let group_id = GroupId(self.groups.len() as u32);
 
         let head = Term {
             term_type: term.head_type,
@@ -293,8 +327,8 @@ impl TermGraph {
         }
 
         // Make a new term and group
-        let term_id = self.terms.len() as TermId;
-        let group_id = self.groups.len() as GroupId;
+        let term_id = TermId(self.terms.len() as u32);
+        let group_id = GroupId(self.groups.len() as u32);
         let term_info = TermInfo {
             term: term.clone(),
             group: group_id,
@@ -331,12 +365,12 @@ impl TermGraph {
             result_term,
         };
         for group in key.groups() {
-            match &mut self.groups[group as usize] {
+            match &mut self.groups[group.0 as usize] {
                 None => {
                     panic!("compound info refers to a remapped group");
                 }
                 Some(info) => {
-                    info.compounds.push(self.compounds.len() as CompoundId);
+                    info.compounds.push(CompoundId(self.compounds.len() as u32));
                 }
             }
         }
@@ -378,18 +412,18 @@ impl TermGraph {
         new_group: GroupId,
         step: Option<RewriteStep>,
     ) {
-        let old_info = self.groups[old_group as usize]
+        let old_info = self.groups[old_group.0 as usize]
             .take()
             .expect("group is remapped");
 
         for &term_id in &old_info.terms {
-            self.terms[term_id as usize].group = new_group;
+            self.terms[term_id.0 as usize].group = new_group;
         }
 
         let mut keep_compounds = vec![];
         for compound_id in old_info.compounds {
             {
-                let compound = match &mut self.compounds[compound_id as usize] {
+                let compound = match &mut self.compounds[compound_id.0 as usize] {
                     Some(compound) => compound,
                     None => {
                         // This compound has already been deleted.
@@ -400,7 +434,7 @@ impl TermGraph {
                 self.compound_map.remove(&compound.key);
                 compound.key.remap_group(old_group, new_group);
             }
-            let compound = self.compounds[compound_id as usize]
+            let compound = self.compounds[compound_id.0 as usize]
                 .as_ref()
                 .expect("how does this happen?");
 
@@ -410,7 +444,7 @@ impl TermGraph {
                 // intended result with result_group.
                 self.pending
                     .push((compound.result_term, existing_result_term, None));
-                self.compounds[compound_id as usize] = None;
+                self.compounds[compound_id.0 as usize] = None;
             } else {
                 self.compound_map
                     .insert(compound.key.clone(), compound.result_term);
@@ -420,7 +454,7 @@ impl TermGraph {
 
         // Rekey the inequalities that refer to this group from elsewhere
         for &unequal_group in old_info.inequalities.keys() {
-            let unequal_info = self.groups[unequal_group as usize]
+            let unequal_info = self.groups[unequal_group.0 as usize]
                 .as_mut()
                 .expect("group is remapped");
             let value = unequal_info
@@ -437,7 +471,7 @@ impl TermGraph {
         }
 
         // Merge the old info into the new info
-        let new_info = self.groups[new_group as usize]
+        let new_info = self.groups[new_group.0 as usize]
             .as_mut()
             .expect("group is remapped");
         new_info.terms.extend(old_info.terms);
@@ -448,10 +482,10 @@ impl TermGraph {
             }
         }
 
-        self.terms[old_term as usize]
+        self.terms[old_term.0 as usize]
             .adjacent
             .push((new_term, step));
-        self.terms[new_term as usize]
+        self.terms[new_term.0 as usize]
             .adjacent
             .push((old_term, step));
     }
@@ -509,14 +543,14 @@ impl TermGraph {
             return;
         }
 
-        let info1 = &mut self.groups[group1 as usize]
+        let info1 = &mut self.groups[group1.0 as usize]
             .as_mut()
             .expect("group is remapped");
         if info1.inequalities.contains_key(&group2) {
             return;
         }
         info1.inequalities.insert(group2, (term1, term2, step));
-        let info2 = &mut self.groups[group2 as usize]
+        let info2 = &mut self.groups[group2.0 as usize]
             .as_mut()
             .expect("group is remapped");
         let prev = info2.inequalities.insert(group1, (term1, term2, step));
@@ -526,7 +560,7 @@ impl TermGraph {
     }
 
     fn as_compound(&self, term: TermId) -> (TermId, &Vec<TermId>) {
-        match &self.terms[term as usize].decomp {
+        match &self.terms[term.0 as usize].decomp {
             Decomposition::Compound(head, args) => (*head, args),
             _ => panic!("not a compound"),
         }
@@ -549,7 +583,7 @@ impl TermGraph {
         let mut queue = vec![term2];
         'outer: loop {
             let term_b = queue.pop().expect("no path between terms");
-            for (term_a, step) in &self.terms[term_b as usize].adjacent {
+            for (term_a, step) in &self.terms[term_b.0 as usize].adjacent {
                 if next_edge.contains_key(term_a) {
                     // We already have a way to get from term_a to term2
                     continue;
@@ -637,7 +671,7 @@ impl TermGraph {
     pub fn get_step_ids(&self, term1: TermId, term2: TermId) -> Vec<usize> {
         let mut answer = BTreeSet::new();
         self.get_step_ids_helper(term1, term2, &mut answer);
-        answer.into_iter().collect()
+        answer.into_iter().map(|id| id.0).collect()
     }
 
     pub fn show_graph(&self) {
@@ -655,8 +689,8 @@ impl TermGraph {
 
     // Checks that the group id has not been remapped
     fn validate_group_id(&self, group_id: GroupId) -> &GroupInfo {
-        assert!(group_id < self.groups.len() as GroupId);
-        match &self.groups[group_id as usize] {
+        assert!(group_id < GroupId(self.groups.len() as u32));
+        match &self.groups[group_id.0 as usize] {
             None => {
                 panic!("group {} is remapped", group_id)
             }
@@ -668,7 +702,7 @@ impl TermGraph {
     pub fn validate(&self) {
         for (term_id, term_info) in self.terms.iter().enumerate() {
             let info = self.validate_group_id(term_info.group);
-            assert!(info.terms.contains(&(term_id as TermId)));
+            assert!(info.terms.contains(&TermId(term_id as u32)));
         }
 
         for (group_id, group_info) in self.groups.iter().enumerate() {
@@ -679,16 +713,16 @@ impl TermGraph {
                 Some(info) => info,
             };
             for term_id in &group_info.terms {
-                let term_group = self.terms[*term_id as usize].group;
-                assert_eq!(term_group, group_id as GroupId);
+                let term_group = self.terms[term_id.0 as usize].group;
+                assert_eq!(term_group, GroupId(group_id as u32));
             }
             for compound_id in &group_info.compounds {
-                let compound = &self.compounds[*compound_id as usize];
+                let compound = &self.compounds[compound_id.0 as usize];
                 let compound = match compound {
                     Some(compound) => compound,
                     None => continue,
                 };
-                assert!(compound.key.touches_group(group_id as GroupId));
+                assert!(compound.key.touches_group(GroupId(group_id as u32)));
             }
         }
 
@@ -700,7 +734,7 @@ impl TermGraph {
             let groups = compound.key.groups();
             for group in groups {
                 let info = self.validate_group_id(group);
-                assert!(info.compounds.contains(&(compound_id as CompoundId)));
+                assert!(info.compounds.contains(&CompoundId(compound_id as u32)));
             }
         }
     }
@@ -748,7 +782,7 @@ mod tests {
         let c2id = g.get_str("c2");
         let c4id = g.get_str("c4");
         g.assert_ne(c2id, c4id);
-        g.set_eq(c2id, c4id, 0);
+        g.set_eq(c2id, c4id, StepId(0));
         g.assert_eq(id1, id2);
         assert_eq!(g.get_step_ids(id1, id2), vec![0]);
     }
@@ -762,11 +796,11 @@ mod tests {
         let sub1 = g.insert_str("c2(c3, c3)");
         let sub2 = g.get_str("c5");
         g.assert_ne(sub1, sub2);
-        g.set_eq(sub1, sub2, 0);
+        g.set_eq(sub1, sub2, StepId(0));
         let c3 = g.get_str("c3");
         let c4 = g.get_str("c4");
         g.assert_ne(c3, c4);
-        g.set_eq(c3, c4, 1);
+        g.set_eq(c3, c4, StepId(1));
         g.assert_eq(term1, term2);
         assert_eq!(g.get_step_ids(term1, term2), vec![0, 1]);
     }
@@ -779,7 +813,7 @@ mod tests {
         g.assert_ne(id1, id2);
         let c1 = g.get_str("c1");
         let c4 = g.get_str("c4");
-        g.set_eq(c1, c4, 0);
+        g.set_eq(c1, c4, StepId(0));
         g.assert_eq(id1, id2);
         assert_eq!(g.get_step_ids(id1, id2), vec![0]);
     }
@@ -793,11 +827,11 @@ mod tests {
         let c3 = g.insert_str("c3");
         let c4 = g.insert_str("c4");
         let c5 = g.insert_str("c5");
-        g.set_eq(c1, c2, 0);
-        g.set_eq(c4, c5, 1);
-        g.set_eq(c0, c1, 2);
-        g.set_eq(c3, c4, 3);
-        g.set_eq(c0, c3, 4);
+        g.set_eq(c1, c2, StepId(0));
+        g.set_eq(c4, c5, StepId(1));
+        g.set_eq(c0, c1, StepId(2));
+        g.set_eq(c3, c4, StepId(3));
+        g.set_eq(c0, c3, StepId(4));
         g.show_graph();
         assert_eq!(g.get_step_ids(c0, c3), vec![4]);
     }
@@ -807,19 +841,19 @@ mod tests {
         let mut g = TermGraph::new();
         let term1 = g.insert_str("c1(c2, c3)");
         let term2 = g.insert_str("c4(c5, c6)");
-        g.set_terms_not_equal(term1, term2, 0);
+        g.set_terms_not_equal(term1, term2, StepId(0));
         assert!(!g.has_contradiction());
         let c1 = g.get_str("c1");
         let c4 = g.get_str("c4");
-        g.set_eq(c1, c4, 1);
+        g.set_eq(c1, c4, StepId(1));
         assert!(!g.has_contradiction());
         let c2 = g.get_str("c2");
         let c5 = g.get_str("c5");
-        g.set_eq(c2, c5, 2);
+        g.set_eq(c2, c5, StepId(2));
         assert!(!g.has_contradiction());
         let c3 = g.get_str("c3");
         let c6 = g.get_str("c6");
-        g.set_eq(c3, c6, 3);
+        g.set_eq(c3, c6, StepId(3));
         assert!(g.has_contradiction());
     }
 }

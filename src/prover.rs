@@ -460,15 +460,15 @@ impl Prover {
         let inequality_step = self.active_set.get_step(contradiction.inequality_id);
         let mut truthiness = inequality_step.truthiness;
         for (left, right, rewrite_info) in contradiction.rewrite_chain {
-            let rewrite_step = self.active_set.get_step(rewrite_info.pattern_id);
+            let rewrite_step = self.active_set.get_step(rewrite_info.pattern_id.get());
             truthiness = truthiness.combine(rewrite_step.truthiness);
 
             // Check whether we need to explicitly add a specialized clause to the proof.
             let inspiration_id = match rewrite_info.inspiration_id {
-                Some(id) => id,
+                Some(id) => id.get(),
                 None => {
                     // No extra specialized clause needed
-                    active_ids.push(rewrite_info.pattern_id);
+                    active_ids.push(rewrite_info.pattern_id.get());
                     max_depth = max_depth.max(rewrite_step.depth);
                     continue;
                 }
@@ -485,7 +485,7 @@ impl Prover {
             }
             new_clauses.insert(clause.clone());
             let step = ProofStep::specialization(
-                rewrite_info.pattern_id,
+                rewrite_info.pattern_id.get(),
                 inspiration_id,
                 rewrite_step,
                 clause,

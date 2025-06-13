@@ -7,7 +7,7 @@ use crate::pattern_tree::LiteralSet;
 use crate::proof_step::{ProofStep, Rule, Truthiness};
 use crate::rewrite_tree::{Rewrite, RewriteTree};
 use crate::term::Term;
-use crate::term_graph::{TermGraph, TermId};
+use crate::term_graph::{StepId, TermGraph, TermId};
 use crate::unifier::{Scope, Unifier};
 
 /// The ActiveSet stores a bunch of clauses that are indexed for various efficient lookups.
@@ -734,10 +734,10 @@ impl ActiveSet {
     ) {
         if equal {
             self.graph
-                .set_terms_equal(term1, term2, pattern_id, inspiration_id);
+                .set_terms_equal(term1, term2, StepId(pattern_id), inspiration_id.map(StepId));
         } else {
             assert!(inspiration_id.is_none());
-            self.graph.set_terms_not_equal(term1, term2, pattern_id);
+            self.graph.set_terms_not_equal(term1, term2, StepId(pattern_id));
         }
     }
 
