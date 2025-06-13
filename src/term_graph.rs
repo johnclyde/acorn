@@ -233,6 +233,9 @@ enum SemanticOperation {
     // We have discovered that two terms are equal.
     TermEquality(TermId, TermId, Option<RewriteStep>),
 
+    // We have discovered that two terms are not equal.
+    TermInequality(TermId, TermId, StepId),
+
     // We have discovered that a clause can be reduced.
     ClauseReduction(ClauseId),
 }
@@ -666,6 +669,9 @@ impl TermGraph {
                 SemanticOperation::TermEquality(term1, term2, step) => {
                     self.set_terms_equal_once(term1, term2, step);
                 }
+                SemanticOperation::TermInequality(term1, term2, step) => {
+                    self.set_terms_not_equal_once(term1, term2, step);
+                }
                 SemanticOperation::ClauseReduction(clause_id) => {
                     // TODO: Implement clause reduction logic
                     let _ = clause_id;
@@ -712,6 +718,14 @@ impl TermGraph {
     }
 
     pub fn set_terms_not_equal(&mut self, term1: TermId, term2: TermId, step: StepId) {
+        self.pending
+            .push(SemanticOperation::TermInequality(term1, term2, step));
+        self.process_pending();
+    }
+
+    // Set two terms to be not equal.
+    // Doesn't repeat to find the logical closure.
+    fn set_terms_not_equal_once(&mut self, term1: TermId, term2: TermId, step: StepId) {
         let group1 = self.get_group_id(term1);
         let group2 = self.get_group_id(term2);
         if group1 == group2 {
