@@ -5,9 +5,9 @@ use std::hash::Hash;
 use crate::atom::Atom;
 use crate::term::Term;
 
-// Each term has a unique id.
-// We never invent new terms. We only make copies of terms that the caller created and find
-// relationships between them.
+/// Each term has a unique id.
+/// We never invent new terms. We only make copies of terms that the caller created and find
+/// relationships between them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TermId(u32);
 
@@ -17,8 +17,8 @@ impl fmt::Display for TermId {
     }
 }
 
-// Every time we set two terms equal or not equal, that action is tagged with a StepId.
-// The term graph uses it to provide a history of the reasoning that led to a conclusion.
+/// Every time we set two terms equal or not equal, that action is tagged with a StepId.
+/// The term graph uses it to provide a history of the reasoning that led to a conclusion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StepId(pub usize);
 
@@ -34,29 +34,29 @@ impl fmt::Display for StepId {
     }
 }
 
-// The rationale for a single rewrite step.
+/// The rationale for a single rewrite step.
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
 pub struct RewriteStep {
-    // The id of the rule used for this rewrite.
-    // We know this rewrite is true based on the pattern step alone.
+    /// The id of the rule used for this rewrite.
+    /// We know this rewrite is true based on the pattern step alone.
     pub pattern_id: StepId,
 
-    // The id of the rule containing the subterm that inspired this rewrite.
-    // If it was just the rewrite pattern that inspired this step, this is None.
-    // This isn't mathematically necessary to prove the step, but it is necessary to recreate this rule.
+    /// The id of the rule containing the subterm that inspired this rewrite.
+    /// If it was just the rewrite pattern that inspired this step, this is None.
+    /// This isn't mathematically necessary to prove the step, but it is necessary to recreate this rule.
     pub inspiration_id: Option<StepId>,
 }
 
-// The goal of the TermGraph is to find a contradiction.
-// When we do, we need to explain to the outside world why this is actually a contradiction.
-// The TermGraphContradiction encodes this.
+/// The goal of the TermGraph is to find a contradiction.
+/// When we do, we need to explain to the outside world why this is actually a contradiction.
+/// The TermGraphContradiction encodes this.
 #[derive(Debug, Eq, PartialEq)]
 pub struct TermGraphContradiction {
-    // Every contradiction is based on one inequality, plus a set of rewrites that turn
-    // one site of the inequality into the other.
+    /// Every contradiction is based on one inequality, plus a set of rewrites that turn
+    /// one site of the inequality into the other.
     pub inequality_id: usize,
 
-    // The rewrites that turn one side of the inequality into the other.
+    /// The rewrites that turn one side of the inequality into the other.
     pub rewrite_chain: Vec<(Term, Term, RewriteStep)>,
 }
 
@@ -188,8 +188,8 @@ impl fmt::Display for CompoundInfo {
     }
 }
 
-// The TermGraph stores concrete terms, along with relationships between them that represent
-// equality, inequality, and subterm relationships.
+/// The TermGraph stores concrete terms, along with relationships between them that represent
+/// equality, inequality, and subterm relationships.
 #[derive(Clone)]
 pub struct TermGraph {
     // terms maps TermId to TermInfo.
@@ -230,7 +230,7 @@ impl TermGraph {
         }
     }
 
-    // Returns None if this term isn't in the graph.
+    /// Returns None if this term isn't in the graph.
     pub fn get_term_id(&self, term: &Term) -> Option<TermId> {
         // Look up the head
         let head_key = Decomposition::Atomic(term.head.clone());
@@ -262,8 +262,8 @@ impl TermGraph {
         self.contradiction.is_some()
     }
 
-    // Used to explain which steps lead to a contradiction.
-    // Returns None if there is no contradiction.
+    /// Used to explain which steps lead to a contradiction.
+    /// Returns None if there is no contradiction.
     pub fn get_contradiction(&self) -> Option<TermGraphContradiction> {
         let (term1, term2, inequality_id) = self.contradiction?;
         let mut rewrite_chain = vec![];
@@ -379,8 +379,8 @@ impl TermGraph {
         return;
     }
 
-    // Inserts a term.
-    // Makes a new term, group, and compound if necessary.
+    /// Inserts a term.
+    /// Makes a new term, group, and compound if necessary.
     pub fn insert_term(&mut self, term: &Term) -> TermId {
         let head_term_id = self.insert_head(term);
         if term.args.is_empty() {
@@ -666,8 +666,8 @@ impl TermGraph {
         }
     }
 
-    // Extract a list of steps ids that we used to prove that these two terms are equal.
-    // This does deduplicate.
+    /// Extract a list of steps ids that we used to prove that these two terms are equal.
+    /// This does deduplicate.
     pub fn get_step_ids(&self, term1: TermId, term2: TermId) -> Vec<usize> {
         let mut answer = BTreeSet::new();
         self.get_step_ids_helper(term1, term2, &mut answer);
@@ -698,7 +698,7 @@ impl TermGraph {
         }
     }
 
-    // Panics if it finds a consistency problem.
+    /// Panics if it finds a consistency problem.
     pub fn validate(&self) {
         for (term_id, term_info) in self.terms.iter().enumerate() {
             let info = self.validate_group_id(term_info.group);
