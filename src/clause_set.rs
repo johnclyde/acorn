@@ -312,4 +312,113 @@ mod tests {
         assert_eq!(clause_set.find_generalization(Clause::parse("c2 = c1")), Some(7));
         assert_eq!(clause_set.find_generalization(Clause::parse("c1 = c2")), Some(7));
     }
+
+    #[test]
+    fn test_clause_set_negated_literals() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a clause with negated literals
+        let clause = Clause::parse("c0 = x0 or x1 != c1");
+        clause_set.insert(clause, 1);
+        
+        // Test that it matches correct specializations
+        let special1 = Clause::parse("c0 = c2 or c3 != c1");
+        assert_eq!(clause_set.find_generalization(special1), Some(1));
+        
+        // Test with reordered literals
+        let special2 = Clause::parse("c4 != c1 or c0 = c4");
+        assert_eq!(clause_set.find_generalization(special2), Some(1));
+        
+        // Test with flipped inequality
+        let special3 = Clause::parse("c0 = c5 or c1 != c5");
+        assert_eq!(clause_set.find_generalization(special3), Some(1));
+    }
+
+    #[test]
+    fn test_clause_set_no_positive_negative_confusion() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a clause with a positive literal
+        let positive_clause = Clause::parse("x0 = c0");
+        clause_set.insert(positive_clause, 1);
+        
+        // Insert a clause with a negative literal
+        let negative_clause = Clause::parse("x0 != c1");
+        clause_set.insert(negative_clause, 2);
+        
+        // Test that positive matches positive
+        assert_eq!(clause_set.find_generalization(Clause::parse("c2 = c0")), Some(1));
+        
+        // Test that negative matches negative
+        assert_eq!(clause_set.find_generalization(Clause::parse("c3 != c1")), Some(2));
+        
+        // Test that positive does NOT match negative
+        assert_eq!(clause_set.find_generalization(Clause::parse("c2 != c0")), None);
+        
+        // Test that negative does NOT match positive
+        assert_eq!(clause_set.find_generalization(Clause::parse("c3 = c1")), None);
+    }
+
+    #[test]
+    fn test_clause_set_mixed_positive_negative() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a complex clause with both positive and negative literals
+        // Using "not" for boolean literals and "!=" for inequalities
+        let clause = Clause::parse("not c0(x0) or c1(x0, x1) or x1 != c2");
+        clause_set.insert(clause, 1);
+        
+        // Test various specializations
+        let special1 = Clause::parse("not c0(c3) or c1(c3, c4) or c4 != c2");
+        assert_eq!(clause_set.find_generalization(special1), Some(1));
+        
+        // Test with reordering
+        let special2 = Clause::parse("c1(c5, c6) or c6 != c2 or not c0(c5)");
+        assert_eq!(clause_set.find_generalization(special2), Some(1));
+        
+        // Test that wrong signs don't match
+        let wrong1 = Clause::parse("c0(c3) or c1(c3, c4) or c4 != c2");  // First literal should be negative
+        assert_eq!(clause_set.find_generalization(wrong1), None);
+        
+        let wrong2 = Clause::parse("not c0(c3) or not c1(c3, c4) or c4 != c2");  // Second literal should be positive
+        assert_eq!(clause_set.find_generalization(wrong2), None);
+    }
+
+    #[test]
+    fn test_clause_set_all_negative() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Insert a simpler clause with only inequality literals
+        let clause = Clause::parse("x0 != c0 or x1 != c1 or x0 != x1");
+        clause_set.insert(clause, 1);
+        
+        // Test that it matches
+        let special = Clause::parse("c2 != c0 or c3 != c1 or c2 != c3");
+        assert_eq!(clause_set.find_generalization(special), Some(1));
+        
+        // Test with reordering
+        let special2 = Clause::parse("c4 != c5 or c4 != c0 or c5 != c1");
+        assert_eq!(clause_set.find_generalization(special2), Some(1));
+    }
+
+    #[test]
+    fn test_clause_set_boolean_negation() {
+        let mut clause_set = ClauseSet::new();
+        
+        // Test with boolean negation (not)
+        let clause = Clause::parse("not c0(x0) or c1(x0)");
+        clause_set.insert(clause, 1);
+        
+        // Test that it matches
+        let special = Clause::parse("not c0(c2) or c1(c2)");
+        assert_eq!(clause_set.find_generalization(special), Some(1));
+        
+        // Test reordering
+        let special2 = Clause::parse("c1(c3) or not c0(c3)");
+        assert_eq!(clause_set.find_generalization(special2), Some(1));
+        
+        // Test that signs matter
+        let wrong = Clause::parse("c0(c2) or c1(c2)");  // Missing "not"
+        assert_eq!(clause_set.find_generalization(wrong), None);
+    }
 }
