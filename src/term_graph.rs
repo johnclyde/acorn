@@ -210,7 +210,7 @@ struct ClauseInfo {
     step: StepId,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct ClauseId(usize);
 
 /// The TermGraph stores concrete terms, along with relationships between them that represent
@@ -435,6 +435,57 @@ impl TermGraph {
         result_term_id
     }
 
+    /// Inserts a clause into the graph.
+    /// All terms in the clause are inserted if not already present.
+    /// The clause is indexed by all groups that appear in its literals.
+    pub fn insert_clause(&mut self, clause: &crate::clause::Clause, step: StepId) {
+        // First, insert all terms and collect their IDs
+        let mut literal_infos = Vec::new();
+        for literal in &clause.literals {
+            let left_id = self.insert_term(&literal.left);
+            let right_id = self.insert_term(&literal.right);
+            literal_infos.push(LiteralInfo {
+                positive: literal.positive,
+                left: left_id,
+                right: right_id,
+            });
+        }
+
+        // Create the clause info
+        let clause_info = ClauseInfo {
+            literals: literal_infos.clone(),
+            step,
+        };
+
+        // Add the clause to the clauses vector
+        let clause_id = ClauseId(self.clauses.len());
+        self.clauses.push(Some(clause_info));
+
+        // For each literal, add the clause to both groups involved
+        for literal_info in &literal_infos {
+            let left_group = self.get_group_id(literal_info.left);
+            let right_group = self.get_group_id(literal_info.right);
+
+            // Add to left group's clauses, indexed by right group
+            if let Some(left_group_info) = &mut self.groups[left_group.0 as usize] {
+                left_group_info
+                    .clauses
+                    .entry(right_group)
+                    .or_insert_with(Vec::new)
+                    .push(clause_id.clone());
+            }
+
+            // Add to right group's clauses, indexed by left group
+            if let Some(right_group_info) = &mut self.groups[right_group.0 as usize] {
+                right_group_info
+                    .clauses
+                    .entry(left_group)
+                    .or_insert_with(Vec::new)
+                    .push(clause_id.clone());
+            }
+        }
+    }
+
     // Merge the small group into the large group.
     fn remap_group(
         &mut self,
@@ -511,6 +562,38 @@ impl TermGraph {
         for (group, value) in old_info.inequalities {
             if !new_info.inequalities.contains_key(&group) {
                 new_info.inequalities.insert(group, value);
+            }
+        }
+
+        // First, merge clauses from old_group into new_group and track which other groups need updates
+        let mut other_groups_to_update = Vec::new();
+        for (other_group, mut clause_ids) in old_info.clauses {
+            let key_group = if other_group == old_group {
+                // Self-referential: old_group -> old_group becomes new_group -> new_group
+                new_group
+            } else {
+                // Track that this other group needs to be updated
+                if other_group != new_group {
+                    other_groups_to_update.push(other_group);
+                }
+                other_group
+            };
+            
+            new_info.clauses
+                .entry(key_group)
+                .or_insert_with(Vec::new)
+                .append(&mut clause_ids);
+        }
+
+        // Now update the other groups to point to new_group instead of old_group
+        for other_group in other_groups_to_update {
+            if let Some(other_info) = self.groups[other_group.0 as usize].as_mut() {
+                if let Some(clauses) = other_info.clauses.remove(&old_group) {
+                    other_info.clauses
+                        .entry(new_group)
+                        .or_insert_with(Vec::new)
+                        .extend(clauses);
+                }
             }
         }
 
