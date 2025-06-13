@@ -231,7 +231,7 @@ struct ClauseId(usize);
 #[derive(Clone)]
 enum SemanticOperation {
     // We have discovered that two terms are equal.
-    TermIdentification(TermId, TermId, Option<RewriteStep>),
+    TermEquality(TermId, TermId, Option<RewriteStep>),
 
     // We have discovered that a clause can be reduced.
     ClauseReduction(ClauseId),
@@ -410,7 +410,7 @@ impl TermGraph {
         if let Some(&existing_result_term) = self.compound_map.get(&key) {
             let existing_result_group = self.get_group_id(existing_result_term);
             if existing_result_group != result_group {
-                self.pending.push(SemanticOperation::TermIdentification(
+                self.pending.push(SemanticOperation::TermEquality(
                     existing_result_term,
                     result_term,
                     None,
@@ -553,7 +553,7 @@ impl TermGraph {
                 // An compound for the new relationship already exists.
                 // Instead of inserting compound.result, we need to delete this compound, and merge the
                 // intended result with result_group.
-                self.pending.push(SemanticOperation::TermIdentification(
+                self.pending.push(SemanticOperation::TermEquality(
                     compound.result_term,
                     existing_result_term,
                     None,
@@ -663,7 +663,7 @@ impl TermGraph {
             }
 
             match operation {
-                SemanticOperation::TermIdentification(term1, term2, step) => {
+                SemanticOperation::TermEquality(term1, term2, step) => {
                     self.set_terms_equal_once(term1, term2, step);
                 }
                 SemanticOperation::ClauseReduction(clause_id) => {
@@ -706,11 +706,8 @@ impl TermGraph {
             pattern_id,
             inspiration_id,
         };
-        self.pending.push(SemanticOperation::TermIdentification(
-            term1,
-            term2,
-            Some(step),
-        ));
+        self.pending
+            .push(SemanticOperation::TermEquality(term1, term2, Some(step)));
         self.process_pending();
     }
 
