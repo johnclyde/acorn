@@ -689,6 +689,18 @@ impl TermGraph {
                 }
             }
         }
+        
+        // Also need to remove old_group from new_group's clauses if it exists
+        // Do this after the loop to avoid borrow checker issues
+        let new_info = self.groups[new_group.0 as usize]
+            .as_mut()
+            .expect("group is remapped");
+        if let Some(clauses) = new_info.clauses.remove(&old_group) {
+            // These clauses now compare a group to itself and need reduction
+            for &clause_id in &clauses {
+                self.pending.push(SemanticOperation::ClauseReduction(clause_id));
+            }
+        }
 
         self.terms[old_term.0 as usize]
             .adjacent
@@ -999,6 +1011,8 @@ impl TermGraph {
 
     /// Panics if it finds a consistency problem.
     pub fn validate(&self) {
+        // Validation should only be called when there are no pending operations
+        assert!(self.pending.is_empty(), "validate() called with {} pending operations", self.pending.len());
         for (term_id, term_info) in self.terms.iter().enumerate() {
             let info = self.validate_group_id(term_info.group);
             assert!(info.terms.contains(&TermId(term_id as u32)));
