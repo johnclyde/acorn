@@ -987,12 +987,6 @@ impl TermGraph {
         );
     }
 
-    fn check_group_has_clause(&self, group_id: GroupId, clause_id: ClauseId) {
-        let group_info = self.validate_group_id(group_id);
-        let ids = group_info.clauses.get(&group_id).unwrap();
-        assert!(ids.contains(&clause_id));
-    }
-
     /// Panics if it finds a consistency problem.
     pub fn validate(&self) {
         for (term_id, term_info) in self.terms.iter().enumerate() {
@@ -1053,9 +1047,15 @@ impl TermGraph {
             assert!(clause_info.literals.len() > 1);
             for literal in &clause_info.literals {
                 let left_group = self.get_group_id(literal.left);
-                self.check_group_has_clause(left_group, clause_id);
                 let right_group = self.get_group_id(literal.right);
-                self.check_group_has_clause(right_group, clause_id);
+
+                let left_info = self.validate_group_id(left_group);
+                let clause_ids = left_info.clauses.get(&right_group).unwrap();
+                assert!(clause_ids.contains(&clause_id));
+
+                let right_info = self.validate_group_id(right_group);
+                let clause_ids = right_info.clauses.get(&left_group).unwrap();
+                assert!(clause_ids.contains(&clause_id));
             }
         }
     }
