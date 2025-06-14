@@ -216,8 +216,14 @@ struct ClauseInfo {
     step: StepId,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 struct ClauseId(usize);
+
+impl fmt::Display for ClauseId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 // In general, there are two sorts of operations that are performed on the graph.
 //
@@ -957,6 +963,30 @@ impl TermGraph {
         }
     }
 
+    fn validate_clause_id(&self, clause_id: ClauseId) -> &ClauseInfo {
+        assert!(clause_id.0 < self.clauses.len());
+        match &self.clauses[clause_id.0] {
+            None => panic!("clause {} is remapped", clause_id),
+            Some(info) => info,
+        }
+    }
+
+    // Checks that this clause contains a term from this group.
+    fn validate_clause_has_group(&self, clause_id: ClauseId, group_id: GroupId) {
+        let clause_info = self.validate_clause_id(clause_id);
+        for literal in &clause_info.literals {
+            let left_group = self.get_group_id(literal.left);
+            let right_group = self.get_group_id(literal.right);
+            if left_group == group_id || right_group == group_id {
+                return; // Found a term from the group
+            }
+        }
+        panic!(
+            "clause {} does not contain a term from group {}",
+            clause_id, group_id
+        );
+    }
+
     /// Panics if it finds a consistency problem.
     pub fn validate(&self) {
         for (term_id, term_info) in self.terms.iter().enumerate() {
@@ -965,6 +995,7 @@ impl TermGraph {
         }
 
         for (group_id, group_info) in self.groups.iter().enumerate() {
+            let group_id = GroupId(group_id as u32);
             let group_info = match group_info {
                 None => {
                     continue;
@@ -973,7 +1004,7 @@ impl TermGraph {
             };
             for term_id in &group_info.terms {
                 let term_group = self.terms[term_id.0 as usize].group;
-                assert_eq!(term_group, GroupId(group_id as u32));
+                assert_eq!(term_group, group_id);
             }
             for compound_id in &group_info.compounds {
                 let compound = &self.compounds[compound_id.0 as usize];
@@ -981,7 +1012,20 @@ impl TermGraph {
                     Some(compound) => compound,
                     None => continue,
                 };
-                assert!(compound.key.touches_group(GroupId(group_id as u32)));
+                assert!(compound.key.touches_group(group_id));
+            }
+
+            // Validate clauses
+            for (other_group_id, clause_ids) in &group_info.clauses {
+                // Check that the clause IDs are symmetric
+                let other_info = self.validate_group_id(*other_group_id);
+                let alt_clause_ids = other_info.clauses.get(&group_id).unwrap();
+                assert_eq!(clause_ids, alt_clause_ids);
+
+                // Check each clause contains terms from the current group
+                for clause_id in clause_ids {
+                    self.validate_clause_has_group(*clause_id, group_id);
+                }
             }
         }
 
@@ -1002,10 +1046,18 @@ impl TermGraph {
 // Methods for testing.
 impl TermGraph {
     #[cfg(test)]
-    fn insert_str(&mut self, s: &str) -> TermId {
+    fn insert_term_str(&mut self, s: &str) -> TermId {
         let id = self.insert_term(&Term::parse(s));
         self.validate();
         id
+    }
+
+    #[cfg(test)]
+    fn insert_clause_str(&mut self, s: &str, step: StepId) {
+        use crate::clause::Clause;
+        let clause = Clause::parse(s);
+        self.insert_clause(&clause, step);
+        self.validate();
     }
 
     #[cfg(test)]
@@ -1038,8 +1090,8 @@ mod tests {
     #[test]
     fn test_identifying_atomic_subterms() {
         let mut g = TermGraph::new();
-        let id1 = g.insert_str("c1(c2, c3)");
-        let id2 = g.insert_str("c1(c4, c3)");
+        let id1 = g.insert_term_str("c1(c2, c3)");
+        let id2 = g.insert_term_str("c1(c4, c3)");
         g.assert_ne(id1, id2);
         let c2id = g.get_str("c2");
         let c4id = g.get_str("c4");
@@ -1052,10 +1104,10 @@ mod tests {
     #[test]
     fn test_multilevel_cascade() {
         let mut g = TermGraph::new();
-        let term1 = g.insert_str("c1(c2(c3, c4), c2(c4, c3))");
-        let term2 = g.insert_str("c1(c5, c5)");
+        let term1 = g.insert_term_str("c1(c2(c3, c4), c2(c4, c3))");
+        let term2 = g.insert_term_str("c1(c5, c5)");
         g.assert_ne(term1, term2);
-        let sub1 = g.insert_str("c2(c3, c3)");
+        let sub1 = g.insert_term_str("c2(c3, c3)");
         let sub2 = g.get_str("c5");
         g.assert_ne(sub1, sub2);
         g.set_eq(sub1, sub2, StepId(0));
@@ -1070,8 +1122,8 @@ mod tests {
     #[test]
     fn test_identifying_heads() {
         let mut g = TermGraph::new();
-        let id1 = g.insert_str("c1(c2, c3)");
-        let id2 = g.insert_str("c4(c2, c3)");
+        let id1 = g.insert_term_str("c1(c2, c3)");
+        let id2 = g.insert_term_str("c4(c2, c3)");
         g.assert_ne(id1, id2);
         let c1 = g.get_str("c1");
         let c4 = g.get_str("c4");
@@ -1083,12 +1135,12 @@ mod tests {
     #[test]
     fn test_skipping_unneeded_steps() {
         let mut g = TermGraph::new();
-        let c0 = g.insert_str("c0");
-        let c1 = g.insert_str("c1");
-        let c2 = g.insert_str("c2");
-        let c3 = g.insert_str("c3");
-        let c4 = g.insert_str("c4");
-        let c5 = g.insert_str("c5");
+        let c0 = g.insert_term_str("c0");
+        let c1 = g.insert_term_str("c1");
+        let c2 = g.insert_term_str("c2");
+        let c3 = g.insert_term_str("c3");
+        let c4 = g.insert_term_str("c4");
+        let c5 = g.insert_term_str("c5");
         g.set_eq(c1, c2, StepId(0));
         g.set_eq(c4, c5, StepId(1));
         g.set_eq(c0, c1, StepId(2));
@@ -1101,8 +1153,8 @@ mod tests {
     #[test]
     fn test_finding_contradiction() {
         let mut g = TermGraph::new();
-        let term1 = g.insert_str("c1(c2, c3)");
-        let term2 = g.insert_str("c4(c5, c6)");
+        let term1 = g.insert_term_str("c1(c2, c3)");
+        let term2 = g.insert_term_str("c4(c5, c6)");
         g.set_terms_not_equal(term1, term2, StepId(0));
         assert!(!g.has_contradiction_trace());
         let c1 = g.get_str("c1");
@@ -1117,5 +1169,11 @@ mod tests {
         let c6 = g.get_str("c6");
         g.set_eq(c3, c6, StepId(3));
         assert!(g.has_contradiction_trace());
+    }
+
+    #[test]
+    fn test_basic_clause_stuff() {
+        let mut g = TermGraph::new();
+        g.insert_clause_str("c1 = c2 or c3 = c4", StepId(0));
     }
 }
