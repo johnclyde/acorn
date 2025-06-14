@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
 
@@ -114,8 +114,7 @@ struct GroupInfo {
 
     // The clauses that are related to this group.
     // Keyed by the group that is on the other side of the literal from this one.
-    // THis might include references to deleted clauses. They are only cleaned up lazily.
-    clauses: HashMap<GroupId, Vec<ClauseId>>,
+    clauses: HashMap<GroupId, HashSet<ClauseId>>,
 }
 
 impl GroupInfo {
@@ -541,8 +540,8 @@ impl TermGraph {
                 left_group_info
                     .clauses
                     .entry(right_group)
-                    .or_insert_with(Vec::new)
-                    .push(clause_id.clone());
+                    .or_insert_with(HashSet::new)
+                    .insert(clause_id);
             }
 
             // Add to right group's clauses, indexed by left group
@@ -550,8 +549,8 @@ impl TermGraph {
                 right_group_info
                     .clauses
                     .entry(left_group)
-                    .or_insert_with(Vec::new)
-                    .push(clause_id.clone());
+                    .or_insert_with(HashSet::new)
+                    .insert(clause_id);
             }
         }
 
@@ -643,7 +642,7 @@ impl TermGraph {
 
         // First, merge clauses from old_group into new_group and track which other groups need updates
         let mut other_groups_to_update = Vec::new();
-        for (other_group, mut clause_ids) in old_info.clauses {
+        for (other_group, clause_ids) in old_info.clauses {
             let key_group = if other_group == old_group {
                 // Self-referential: old_group -> old_group becomes new_group -> new_group
                 new_group
@@ -667,8 +666,8 @@ impl TermGraph {
             new_info
                 .clauses
                 .entry(key_group)
-                .or_insert_with(Vec::new)
-                .append(&mut clause_ids);
+                .or_insert_with(HashSet::new)
+                .extend(clause_ids);
         }
 
         // Now update the other groups to point to new_group instead of old_group
@@ -686,7 +685,7 @@ impl TermGraph {
                     other_info
                         .clauses
                         .entry(new_group)
-                        .or_insert_with(Vec::new)
+                        .or_insert_with(HashSet::new)
                         .extend(clauses);
                 }
             }
@@ -741,6 +740,13 @@ impl TermGraph {
             return;
         };
 
+        // Track which groups were involved before reduction
+        let mut old_groups = HashSet::new();
+        for literal in &clause_info.literals {
+            old_groups.insert(self.get_group_id(literal.left));
+            old_groups.insert(self.get_group_id(literal.right));
+        }
+
         let mut literals = vec![];
         std::mem::swap(&mut clause_info.literals, &mut literals);
         for literal in literals {
@@ -760,17 +766,50 @@ impl TermGraph {
             };
             if literal.positive == sides_equal {
                 // This literal is true, so the whole clause is redundant.
+                // Remove clause from all groups
+                for group_id in old_groups {
+                    if let Some(group_info) = self.groups[group_id.0 as usize].as_mut() {
+                        for (_, clause_ids) in group_info.clauses.iter_mut() {
+                            clause_ids.remove(&clause_id);
+                        }
+                    }
+                }
                 return;
             }
         }
 
         if clause_info.literals.len() >= 2 {
+            // Track which groups are involved after reduction
+            let mut new_groups = HashSet::new();
+            for literal in &clause_info.literals {
+                new_groups.insert(self.get_group_id(literal.left));
+                new_groups.insert(self.get_group_id(literal.right));
+            }
+            
+            // Remove clause from groups that are no longer involved
+            for group_id in old_groups.difference(&new_groups) {
+                if let Some(group_info) = self.groups[group_id.0 as usize].as_mut() {
+                    for (_, clause_ids) in group_info.clauses.iter_mut() {
+                        clause_ids.remove(&clause_id);
+                    }
+                }
+            }
+            
             // This clause is still valid. Put it back.
             self.clauses[clause_id.0] = Some(clause_info);
             return;
         }
 
         // This clause is toast, but now what?
+        
+        // Remove clause from all groups since it's being deleted
+        for group_id in old_groups {
+            if let Some(group_info) = self.groups[group_id.0 as usize].as_mut() {
+                for (_, clause_ids) in group_info.clauses.iter_mut() {
+                    clause_ids.remove(&clause_id);
+                }
+            }
+        }
 
         if clause_info.literals.len() == 1 {
             let literal = &clause_info.literals[0];
@@ -857,6 +896,14 @@ impl TermGraph {
             return;
         }
         info1.inequalities.insert(group2, (term1, term2, step));
+        
+        // Trigger reduction for clauses that involve both groups
+        if let Some(clause_ids) = info1.clauses.get(&group2) {
+            for &clause_id in clause_ids {
+                self.pending.push(SemanticOperation::ClauseReduction(clause_id));
+            }
+        }
+        
         let info2 = &mut self.groups[group2.0 as usize]
             .as_mut()
             .expect("group is remapped");
@@ -1018,6 +1065,7 @@ impl TermGraph {
                 return; // Found a term from the group
             }
         }
+        
         panic!(
             "clause {} does not contain a term from group {}",
             clause_id, group_id
