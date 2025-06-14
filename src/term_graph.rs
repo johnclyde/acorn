@@ -972,7 +972,7 @@ impl TermGraph {
     }
 
     // Checks that this clause contains a term from this group.
-    fn validate_clause_has_group(&self, clause_id: ClauseId, group_id: GroupId) {
+    fn check_clause_has_group(&self, clause_id: ClauseId, group_id: GroupId) {
         let clause_info = self.validate_clause_id(clause_id);
         for literal in &clause_info.literals {
             let left_group = self.get_group_id(literal.left);
@@ -985,6 +985,12 @@ impl TermGraph {
             "clause {} does not contain a term from group {}",
             clause_id, group_id
         );
+    }
+
+    fn check_group_has_clause(&self, group_id: GroupId, clause_id: ClauseId) {
+        let group_info = self.validate_group_id(group_id);
+        let ids = group_info.clauses.get(&group_id).unwrap();
+        assert!(ids.contains(&clause_id));
     }
 
     /// Panics if it finds a consistency problem.
@@ -1015,16 +1021,14 @@ impl TermGraph {
                 assert!(compound.key.touches_group(group_id));
             }
 
-            // Validate clauses
             for (other_group_id, clause_ids) in &group_info.clauses {
-                // Check that the clause IDs are symmetric
+                // The same clause ids should be stored in both direction
                 let other_info = self.validate_group_id(*other_group_id);
                 let alt_clause_ids = other_info.clauses.get(&group_id).unwrap();
                 assert_eq!(clause_ids, alt_clause_ids);
 
-                // Check each clause contains terms from the current group
                 for clause_id in clause_ids {
-                    self.validate_clause_has_group(*clause_id, group_id);
+                    self.check_clause_has_group(*clause_id, group_id);
                 }
             }
         }
@@ -1038,6 +1042,20 @@ impl TermGraph {
             for group in groups {
                 let info = self.validate_group_id(group);
                 assert!(info.compounds.contains(&CompoundId(compound_id as u32)));
+            }
+        }
+
+        for (clause_id, clause_info) in self.clauses.iter().enumerate() {
+            let clause_id = ClauseId(clause_id);
+            let Some(clause_info) = clause_info else {
+                continue;
+            };
+            assert!(clause_info.literals.len() > 1);
+            for literal in &clause_info.literals {
+                let left_group = self.get_group_id(literal.left);
+                self.check_group_has_clause(left_group, clause_id);
+                let right_group = self.get_group_id(literal.right);
+                self.check_group_has_clause(right_group, clause_id);
             }
         }
     }
