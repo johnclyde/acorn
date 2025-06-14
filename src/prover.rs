@@ -618,7 +618,7 @@ impl Prover {
         // to be aesthetically pleasing.
         // First regular contradictions (in the loop above), then term graph.
 
-        if let Some(contradiction) = self.active_set.graph.get_contradiction() {
+        if let Some(contradiction) = self.active_set.graph.get_contradiction_trace() {
             self.report_term_graph_contradiction(contradiction);
             return true;
         }

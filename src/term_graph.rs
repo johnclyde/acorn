@@ -50,6 +50,11 @@ pub struct RewriteStep {
 /// The goal of the TermGraph is to find a contradiction.
 /// When we do, we need to explain to the outside world why this is actually a contradiction.
 /// The TermGraphContradiction encodes this.
+///
+/// Warning!
+/// Currently this can only represent contradictions that come from a series of rewrites.
+/// In particular, it can't represent contradictions that use clause reduction.
+/// So, beware.
 #[derive(Debug, Eq, PartialEq)]
 pub struct TermGraphContradiction {
     /// Every contradiction is based on one inequality, plus a set of rewrites that turn
@@ -268,10 +273,15 @@ pub struct TermGraph {
     // The pending semantic operations on the graph.
     pending: Vec<SemanticOperation>,
 
-    // Set when we discover a contradiction.
-    // The provided step sets these terms to be unequal. However, the term graph also
-    // knows that they are equal. This is a contradiction.
-    contradiction: Option<(TermId, TermId, StepId)>,
+    // A flag for whether there is a contradiction.
+    // Separate from contradiction_info to encode the awkward case where we know there
+    // is a contradiction, but we don't know how to extract a trace for it.
+    has_contradiction: bool,
+
+    // Set when we discover a contradiction, if we know how to extract a trace for it.
+    // When set, this indicates that the provided step sets these terms to be unequal.
+    // But there is a chain of rewrites that proves that they are equal. This is a contradiction.
+    contradiction_info: Option<(TermId, TermId, StepId)>,
 }
 
 impl TermGraph {
@@ -284,7 +294,8 @@ impl TermGraph {
             compound_map: HashMap::new(),
             decompositions: HashMap::new(),
             pending: Vec::new(),
-            contradiction: None,
+            has_contradiction: false,
+            contradiction_info: None,
         }
     }
 
@@ -316,14 +327,20 @@ impl TermGraph {
         self.terms[term_id.0 as usize].group
     }
 
+    /// Whether there is any sort of contradiction at all.
     pub fn has_contradiction(&self) -> bool {
-        self.contradiction.is_some()
+        self.has_contradiction
+    }
+
+    /// Whether there is a contradiction with trace information.
+    pub fn has_contradiction_trace(&self) -> bool {
+        self.contradiction_info.is_some()
     }
 
     /// Used to explain which steps lead to a contradiction.
-    /// Returns None if there is no contradiction.
-    pub fn get_contradiction(&self) -> Option<TermGraphContradiction> {
-        let (term1, term2, inequality_id) = self.contradiction?;
+    /// Returns None if there is no contradiction trace.
+    pub fn get_contradiction_trace(&self) -> Option<TermGraphContradiction> {
+        let (term1, term2, inequality_id) = self.contradiction_info?;
         let mut rewrite_chain = vec![];
         self.expand_steps(term1, term2, &mut rewrite_chain);
         Some(TermGraphContradiction {
@@ -581,7 +598,8 @@ impl TermGraph {
                 .expect("inequality not there");
             if unequal_group == new_group {
                 // We found a contradiction.
-                self.contradiction = Some(value);
+                self.has_contradiction = true;
+                self.contradiction_info = Some(value);
             }
             if !unequal_info.inequalities.contains_key(&new_group) {
                 unequal_info.inequalities.insert(new_group, value);
@@ -662,7 +680,7 @@ impl TermGraph {
     fn process_pending(&mut self) {
         while let Some(operation) = self.pending.pop() {
             // We can stop processing when we find a contradiction.
-            if self.contradiction.is_some() {
+            if self.has_contradiction {
                 break;
             }
 
@@ -726,7 +744,7 @@ impl TermGraph {
                 self.set_terms_not_equal(literal.left, literal.right, clause_info.step);
             }
         } else {
-            todo!("handle contradiction");
+            self.has_contradiction = true;
         }
     }
 
@@ -779,7 +797,8 @@ impl TermGraph {
         let group1 = self.get_group_id(term1);
         let group2 = self.get_group_id(term2);
         if group1 == group2 {
-            self.contradiction = Some((term1, term2, step));
+            self.has_contradiction = true;
+            self.contradiction_info = Some((term1, term2, step));
             return;
         }
 
@@ -1085,18 +1104,18 @@ mod tests {
         let term1 = g.insert_str("c1(c2, c3)");
         let term2 = g.insert_str("c4(c5, c6)");
         g.set_terms_not_equal(term1, term2, StepId(0));
-        assert!(!g.has_contradiction());
+        assert!(!g.has_contradiction_trace());
         let c1 = g.get_str("c1");
         let c4 = g.get_str("c4");
         g.set_eq(c1, c4, StepId(1));
-        assert!(!g.has_contradiction());
+        assert!(!g.has_contradiction_trace());
         let c2 = g.get_str("c2");
         let c5 = g.get_str("c5");
         g.set_eq(c2, c5, StepId(2));
-        assert!(!g.has_contradiction());
+        assert!(!g.has_contradiction_trace());
         let c3 = g.get_str("c3");
         let c6 = g.get_str("c6");
         g.set_eq(c3, c6, StepId(3));
-        assert!(g.has_contradiction());
+        assert!(g.has_contradiction_trace());
     }
 }
