@@ -363,6 +363,10 @@ impl TermGraph {
         }
     }
 
+    fn get_clause_info(&self, clause_id: ClauseId) -> &Option<ClauseInfo> {
+        &self.clauses[clause_id.0]
+    }
+
     // Inserts the head of the provided term as an atom.
     // If it's already in the graph, return the existing term id.
     // Otherwise, make a new term id and give it a new group.
@@ -974,17 +978,12 @@ impl TermGraph {
         }
     }
 
-    fn validate_clause_id(&self, clause_id: ClauseId) -> &ClauseInfo {
-        assert!(clause_id.0 < self.clauses.len());
-        match &self.clauses[clause_id.0] {
-            None => panic!("clause {} is remapped", clause_id),
-            Some(info) => info,
-        }
-    }
-
     // Checks that this clause contains a term from this group.
+    // It's also okay if the clause has ceased to exist, because we clean up lazily.
     fn check_clause_has_group(&self, clause_id: ClauseId, group_id: GroupId) {
-        let clause_info = self.validate_clause_id(clause_id);
+        let Some(clause_info) = self.get_clause_info(clause_id) else {
+            return;
+        };
         for literal in &clause_info.literals {
             let left_group = self.get_group_id(literal.left);
             let right_group = self.get_group_id(literal.right);
