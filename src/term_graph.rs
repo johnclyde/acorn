@@ -775,9 +775,21 @@ impl TermGraph {
         if clause_info.literals.len() == 1 {
             let literal = &clause_info.literals[0];
             if literal.positive {
-                self.set_terms_equal(literal.left, literal.right, clause_info.step, None);
+                let step = RewriteStep {
+                    pattern_id: clause_info.step,
+                    inspiration_id: None,
+                };
+                self.pending.push(SemanticOperation::TermEquality(
+                    literal.left,
+                    literal.right,
+                    Some(step),
+                ));
             } else {
-                self.set_terms_not_equal(literal.left, literal.right, clause_info.step);
+                self.pending.push(SemanticOperation::TermInequality(
+                    literal.left,
+                    literal.right,
+                    clause_info.step,
+                ));
             }
         } else {
             self.has_contradiction = true;
@@ -1014,12 +1026,9 @@ impl TermGraph {
 
     /// Panics if it finds a consistency problem.
     pub fn validate(&self) {
-        // Validation should only be called when there are no pending operations
-        assert!(
-            self.pending.is_empty(),
-            "validate() called with {} pending operations",
-            self.pending.len()
-        );
+        if !self.has_contradiction {
+            assert!(self.pending.is_empty());
+        }
         for (term_id, term_info) in self.terms.iter().enumerate() {
             let info = self.validate_group_id(term_info.group);
             assert!(info.terms.contains(&TermId(term_id as u32)));
@@ -1228,8 +1237,8 @@ mod tests {
         g.insert_clause_str("c1 != c2", StepId(1));
         assert!(!g.has_contradiction);
         g.insert_clause_str("c3 = c4", StepId(2));
-        // assert!(!g.has_contradiction);
-        // g.insert_clause_str("c5 = c6", StepId(3));
-        // assert!(g.has_contradiction);
+        assert!(!g.has_contradiction);
+        g.insert_clause_str("c5 = c6", StepId(3));
+        assert!(g.has_contradiction);
     }
 }
