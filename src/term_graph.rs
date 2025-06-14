@@ -1201,8 +1201,15 @@ mod tests {
     }
 
     #[test]
-    fn test_basic_clause_stuff() {
+    fn test_clause_reduction() {
         let mut g = TermGraph::new();
-        g.insert_clause_str("c1 = c2 or c3 = c4", StepId(0));
+        g.insert_clause_str("c1 = c2 or c3 != c4 or c5 != c6", StepId(0));
+        assert!(!g.has_contradiction);
+        g.insert_clause_str("c1 != c2", StepId(1));
+        assert!(!g.has_contradiction);
+        g.insert_clause_str("c3 = c4", StepId(2));
+        // assert!(!g.has_contradiction);
+        // g.insert_clause_str("c5 = c6", StepId(3));
+        // assert!(g.has_contradiction);
     }
 }
