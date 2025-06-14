@@ -3,6 +3,7 @@ use std::fmt;
 use std::hash::Hash;
 
 use crate::atom::Atom;
+use crate::clause::Clause;
 use crate::term::Term;
 
 /// Each term has a unique id.
@@ -493,12 +494,22 @@ impl TermGraph {
     /// Inserts a clause into the graph.
     /// All terms in the clause are inserted if not already present.
     /// The clause is indexed by all groups that appear in its literals.
-    pub fn insert_clause(&mut self, clause: &crate::clause::Clause, step: StepId) {
+    /// Don't insert clauses with no literals.
+    pub fn insert_clause(&mut self, clause: &Clause, step: StepId) {
         // First, insert all terms and collect their IDs
         let mut literal_infos = Vec::new();
         for literal in &clause.literals {
             let left_id = self.insert_term(&literal.left);
             let right_id = self.insert_term(&literal.right);
+            if clause.literals.len() == 1 {
+                // If this is a single literal, we can just set the terms equal or not equal
+                if literal.positive {
+                    self.set_terms_equal(left_id, right_id, step, None);
+                } else {
+                    self.set_terms_not_equal(left_id, right_id, step);
+                }
+                return;
+            }
             literal_infos.push(LiteralInfo {
                 positive: literal.positive,
                 left: left_id,
