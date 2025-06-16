@@ -242,7 +242,7 @@ impl ActiveSet {
         }
 
         // Heuristics done. Let's unify.
-        let mut unifier = Unifier::new();
+        let mut unifier = Unifier::new(3);
 
         // The short clause is "left" scope and the long clause is "right" scope.
         // This is different from the "left" and "right" of the literals - unfortunately
@@ -406,7 +406,7 @@ impl ActiveSet {
                 let subterm_info = &self.subterms[subterm_id];
                 let subterm = &subterm_info.term;
 
-                let mut unifier = Unifier::new();
+                let mut unifier = Unifier::new(3);
                 if !unifier.unify(Scope::LEFT, s, Scope::RIGHT, subterm) {
                     continue;
                 }
@@ -475,7 +475,7 @@ impl ActiveSet {
             }
 
             // The variables are in the same scope, which we will call "left".
-            let mut unifier = Unifier::new();
+            let mut unifier = Unifier::new(3);
             if !unifier.unify(Scope::LEFT, &literal.left, Scope::LEFT, &literal.right) {
                 continue;
             }
@@ -569,7 +569,7 @@ impl ActiveSet {
 
                 for (_, u, v) in uv_literal.both_term_pairs() {
                     // The variables are all in the same scope, which we will call "left".
-                    let mut unifier = Unifier::new();
+                    let mut unifier = Unifier::new(3);
                     if !unifier.unify(Scope::LEFT, s, Scope::LEFT, u) {
                         continue;
                     }

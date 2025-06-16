@@ -39,9 +39,9 @@ struct Replacement<'a> {
 }
 
 impl Unifier {
-    pub fn new() -> Unifier {
+    pub fn new(num_scopes: usize) -> Unifier {
         Unifier {
-            maps: vec![vec![], vec![], vec![]],
+            maps: vec![vec![]; num_scopes],
         }
     }
 
@@ -457,7 +457,7 @@ mod tests {
         let bool1 = Term::atom(BOOL, Atom::Variable(1));
         let bool2 = Term::atom(BOOL, Atom::Variable(2));
         let fterm = bool_fn(Atom::GlobalConstant(0), vec![bool0.clone(), bool1.clone()]);
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
 
         // Replace x0 with x1 and x1 with x2.
         assert!(u.unify_variable(Scope::LEFT, 0, Scope::OUTPUT, &bool1));
@@ -473,7 +473,7 @@ mod tests {
         let bool2 = Term::atom(BOOL, Atom::Variable(2));
         let term1 = bool_fn(Atom::GlobalConstant(0), vec![bool0.clone(), bool1.clone()]);
         let term2 = bool_fn(Atom::GlobalConstant(0), vec![bool1.clone(), bool2.clone()]);
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
 
         u.assert_unify(Scope::LEFT, &term1, Scope::LEFT, &term2);
         let new1 = u.apply(Scope::LEFT, &term1);
@@ -489,7 +489,7 @@ mod tests {
         let bool2 = Term::atom(BOOL, Atom::Variable(2));
         let term1 = bool_fn(Atom::GlobalConstant(0), vec![bool0.clone(), bool1.clone()]);
         let term2 = bool_fn(Atom::GlobalConstant(0), vec![bool1.clone(), bool2.clone()]);
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
 
         u.assert_unify(Scope::LEFT, &term1, Scope::RIGHT, &term2);
         let new1 = u.apply(Scope::LEFT, &term1);
@@ -504,7 +504,7 @@ mod tests {
         let const_f_term = bool_fn(Atom::GlobalConstant(0), vec![bool0.clone()]);
         let var_f_term = bool_fn(Atom::Variable(1), vec![bool0.clone()]);
 
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         u.assert_unify(Scope::LEFT, &const_f_term, Scope::RIGHT, &var_f_term);
     }
 
@@ -512,7 +512,7 @@ mod tests {
     fn test_nested_functional_unify() {
         let left_term = Term::parse("x0(x0(c0))");
         let right_term = Term::parse("c1(x0(x1))");
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         u.assert_unify(Scope::LEFT, &left_term, Scope::RIGHT, &right_term);
         u.print();
         assert!(u.get_mapping(Scope::LEFT, 0).unwrap().to_string() == "c1");
@@ -529,7 +529,7 @@ mod tests {
         let target_path = &[0];
         let resolution_clause =
             Clause::parse("c1(c1(x0(x1))) != c1(x2(x3)) or c1(x0(x1)) = x2(x3)");
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         u.assert_unify(Scope::LEFT, &s, Scope::RIGHT, &u_subterm);
         u.print();
         let literals =
@@ -545,7 +545,7 @@ mod tests {
     fn test_mutual_containment_invalid_1() {
         let first = Term::parse("c0(x0, c0(x1, c1(x2)))");
         let second = Term::parse("c0(c0(x2, x1), x0)");
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         assert!(!u.unify(Scope::LEFT, &first, Scope::LEFT, &second));
     }
 
@@ -553,7 +553,7 @@ mod tests {
     fn test_mutual_containment_invalid_2() {
         let first = Term::parse("c0(c0(x0, c1(x1)), x2)");
         let second = Term::parse("c0(x2, c0(x1, x0))");
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         assert!(!u.unify(Scope::LEFT, &first, Scope::LEFT, &second));
     }
 
@@ -561,7 +561,7 @@ mod tests {
     fn test_recursive_reference_in_output() {
         let first = Term::parse("g2(x0, x0)");
         let second = Term::parse("g2(g2(g1(c0, x0), x0), g2(x1, x1))");
-        let mut u = Unifier::new();
+        let mut u = Unifier::new(3);
         assert!(!u.unify(Scope::LEFT, &first, Scope::RIGHT, &second));
     }
 }
