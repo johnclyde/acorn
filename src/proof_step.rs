@@ -240,7 +240,7 @@ pub struct ProofStep {
     pub printable: bool,
 
     // Information about this step that will let us reconstruct the variable mappings.
-    pub trace: Option<Vec<LiteralTrace>>,
+    pub trace: Vec<LiteralTrace>,
 }
 
 impl fmt::Display for ProofStep {
@@ -270,7 +270,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: false,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -288,7 +288,7 @@ impl ProofStep {
             proof_size: activated_step.proof_size + 1,
             depth,
             printable,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -311,7 +311,7 @@ impl ProofStep {
             proof_size: pattern_step.proof_size + 1,
             depth: pattern_step.depth,
             printable: true,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -353,7 +353,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -385,7 +385,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -440,7 +440,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -467,7 +467,7 @@ impl ProofStep {
             proof_size: 0,
             depth,
             printable: true,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -491,7 +491,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable: true,
-            trace: None,
+            trace: vec![],
         }
     }
 
@@ -511,7 +511,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: true,
-            trace: None,
+            trace: vec![],
         }
     }
 
