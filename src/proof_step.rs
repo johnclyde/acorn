@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::Atom;
-use crate::clause::Clause;
+use crate::clause::{Clause, LiteralTrace};
 use crate::literal::Literal;
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
@@ -570,13 +570,3 @@ impl ProofStep {
     }
 }
 
-// A record of what happened to a single literal during a single proof step.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum LiteralTrace {
-    // This literal is in the output clause.
-    Output { index: usize, flipped: bool },
-
-    // This literal was eliminated by combining with the given step.
-    // Step must be a single literal.
-    Eliminated { step: usize, flipped: bool },
-}

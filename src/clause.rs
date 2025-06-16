@@ -3,6 +3,20 @@ use std::fmt;
 use crate::atom::{Atom, AtomId};
 use crate::literal::Literal;
 
+// A record of what happened to a single literal during a single proof step.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum LiteralTrace {
+    // This literal is in the output clause.
+    Output { index: usize, flipped: bool },
+
+    // This literal was eliminated by combining with the given step.
+    // Step must be a single literal.
+    Eliminated { step: usize, flipped: bool },
+
+    // This literal was self-contradictory, of the form x != x.
+    Impossible,
+}
+
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
 /// We include the types of the universal variables it is quantified over.
 /// It cannot contain existential quantifiers.
@@ -41,6 +55,53 @@ impl Clause {
         let mut c = Clause { literals };
         c.normalize_var_ids();
         c
+    }
+
+    /// Normalizes literals into a clause, updating a trace of where each one is sent.
+    /// Note that this doesn't flip any literals. It only creates the "Output" and "Impossible"
+    /// type traces.
+    pub fn with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
+        let mut trace = vec![LiteralTrace::Impossible; literals.len()];
+
+        // Pair each literal with its initial index.
+        let mut indexed_literals: Vec<(Literal, usize)> = literals
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, lit)| {
+                if lit.is_impossible() {
+                    None
+                } else {
+                    Some((lit, i))
+                }
+            })
+            .collect();
+        indexed_literals.sort();
+
+        let mut output_literals = vec![];
+        for (literal, input_index) in indexed_literals {
+            if !output_literals.is_empty() {
+                let last_index = output_literals.len() - 1;
+                if literal == output_literals[last_index] {
+                    // This literal is a duplicate, but it is in the output.
+                    trace[input_index] = LiteralTrace::Output {
+                        index: last_index,
+                        flipped: false,
+                    };
+                    continue;
+                }
+            }
+            let output_index = output_literals.len();
+            output_literals.push(literal);
+            trace[input_index] = LiteralTrace::Output {
+                index: output_index,
+                flipped: false,
+            };
+        }
+        let mut c = Clause {
+            literals: output_literals,
+        };
+        c.normalize_var_ids();
+        (c, trace)
     }
 
     /// Normalizes the variable IDs in the literals.

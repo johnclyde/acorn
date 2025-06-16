@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::clause::Clause;
+use crate::clause::{Clause, LiteralTrace};
 use crate::fingerprint::FingerprintUnifier;
 use crate::literal::Literal;
 use crate::pattern_tree::LiteralSet;
-use crate::proof_step::{LiteralTrace, ProofStep, Rule, Truthiness};
+use crate::proof_step::{ProofStep, Rule, Truthiness};
 use crate::rewrite_tree::{Rewrite, RewriteTree};
 use crate::term::Term;
 use crate::term_graph::{StepId, TermGraph, TermId};
