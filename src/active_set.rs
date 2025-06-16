@@ -651,6 +651,7 @@ impl ActiveSet {
         let mut new_rules = vec![];
         let initial_num_literals = step.clause.literals.len();
         let mut output_literals = vec![];
+        let mut incremental_trace = vec![];
         for literal in std::mem::take(&mut step.clause.literals) {
             match self.evaluate_literal(&literal) {
                 Some((true, _)) => {
@@ -664,10 +665,16 @@ impl ActiveSet {
                     if let Some(id) = trace.step_id() {
                         new_rules.push((id, self.get_step(id)));
                     }
+                    incremental_trace.push(trace);
                     continue;
                 }
                 None => {
+                    let output_index = output_literals.len();
                     output_literals.push(literal);
+                    incremental_trace.push(LiteralTrace::Output {
+                        index: output_index,
+                        flipped: false,
+                    });
                 }
             }
         }
@@ -678,14 +685,15 @@ impl ActiveSet {
             return Some(step);
         }
 
-        let simplified_clause = Clause::new(output_literals);
-        if simplified_clause.is_tautology() {
+        let (clause, trace) =
+            Clause::composing_traces(output_literals, &step.trace, &incremental_trace);
+        if clause.is_tautology() {
             return None;
         }
-        if self.is_known_long_clause(&simplified_clause) {
+        if self.is_known_long_clause(&clause) {
             return None;
         }
-        Some(ProofStep::simplified(step, &new_rules, simplified_clause))
+        Some(ProofStep::simplified(step, &new_rules, clause, trace))
     }
 
     fn add_resolution_targets(

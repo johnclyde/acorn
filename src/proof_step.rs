@@ -363,6 +363,7 @@ impl ProofStep {
         long_step: ProofStep,
         short_steps: &[(usize, &ProofStep)],
         clause: Clause,
+        trace: Vec<LiteralTrace>,
     ) -> ProofStep {
         let mut truthiness = long_step.truthiness;
         let mut simplification_rules = long_step.simplification_rules;
@@ -385,7 +386,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: vec![],
+            trace,
         }
     }
 
@@ -569,4 +570,3 @@ impl ProofStep {
         false
     }
 }
-

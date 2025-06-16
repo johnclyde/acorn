@@ -142,6 +142,17 @@ impl Clause {
         c
     }
 
+    pub fn composing_traces(
+        literals: Vec<Literal>,
+        base_trace: &Vec<LiteralTrace>,
+        incremental_trace: &Vec<LiteralTrace>,
+    ) -> (Clause, Vec<LiteralTrace>) {
+        let mut trace = base_trace.clone();
+        compose_traces(&mut trace, incremental_trace);
+        let c = Clause::update_trace(literals, &mut trace);
+        (c, trace)
+    }
+
     /// Normalizes the variable IDs in the literals.
     /// If you reorder or modify the literals, you should call this.
     pub fn normalize_var_ids(&mut self) {
