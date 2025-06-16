@@ -37,18 +37,32 @@ impl Literal {
     // Normalizes the direction.
     // The larger term should be on the left of the literal.
     pub fn new(positive: bool, left: Term, right: Term) -> Literal {
+        let (lit, _) = Literal::new_with_flip(positive, left, right);
+        lit
+    }
+
+    // Normalizes the direction.
+    // The larger term should be on the left of the literal.
+    // Returns the literal and whether it was flipped.
+    pub fn new_with_flip(positive: bool, left: Term, right: Term) -> (Literal, bool) {
         if left.extended_kbo_cmp(&right) == Ordering::Less {
-            Literal {
-                positive,
-                left: right,
-                right: left,
-            }
+            (
+                Literal {
+                    positive,
+                    left: right,
+                    right: left,
+                },
+                true,
+            )
         } else {
-            Literal {
-                positive,
-                left,
-                right,
-            }
+            (
+                Literal {
+                    positive,
+                    left,
+                    right,
+                },
+                false,
+            )
         }
     }
 

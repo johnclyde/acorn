@@ -4,7 +4,7 @@ use crate::clause::Clause;
 use crate::fingerprint::FingerprintUnifier;
 use crate::literal::Literal;
 use crate::pattern_tree::LiteralSet;
-use crate::proof_step::{ProofStep, Rule, Truthiness};
+use crate::proof_step::{LiteralTrace, ProofStep, Rule, Truthiness};
 use crate::rewrite_tree::{Rewrite, RewriteTree};
 use crate::term::Term;
 use crate::term_graph::{StepId, TermGraph, TermId};
@@ -268,11 +268,24 @@ impl ActiveSet {
         }
 
         let mut literals = vec![];
+        let mut trace = vec![];
         for (i, literal) in long_clause.literals.iter().enumerate() {
             if i == long_index {
+                trace.push(LiteralTrace::Eliminated {
+                    step: short_id,
+                    flipped,
+                });
                 continue;
             }
-            literals.push(unifier.apply_to_literal(Scope::Right, literal));
+            let index = literals.len();
+            let left = unifier.apply(Scope::Right, &literal.left);
+            let right = unifier.apply(Scope::Right, &literal.right);
+            let (new_literal, new_flip) = Literal::new_with_flip(literal.positive, left, right);
+            literals.push(new_literal);
+            trace.push(LiteralTrace::Output {
+                index,
+                flipped: flipped ^ new_flip,
+            });
         }
 
         // Gather the output data
@@ -733,11 +746,16 @@ impl ActiveSet {
         equal: bool,
     ) {
         if equal {
-            self.graph
-                .set_terms_equal(term1, term2, StepId(pattern_id), inspiration_id.map(StepId));
+            self.graph.set_terms_equal(
+                term1,
+                term2,
+                StepId(pattern_id),
+                inspiration_id.map(StepId),
+            );
         } else {
             assert!(inspiration_id.is_none());
-            self.graph.set_terms_not_equal(term1, term2, StepId(pattern_id));
+            self.graph
+                .set_terms_not_equal(term1, term2, StepId(pattern_id));
         }
     }
 

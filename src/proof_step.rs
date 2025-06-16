@@ -557,3 +557,13 @@ impl ProofStep {
         false
     }
 }
+
+// A record of what happened to a single literal during a single proof step.
+pub enum LiteralTrace {
+    // This literal is in the output clause.
+    Output { index: usize, flipped: bool },
+
+    // This literal was eliminated by combining with the given step.
+    // Step must be a single literal.
+    Eliminated { step: usize, flipped: bool },
+}
