@@ -4,6 +4,7 @@ use std::hash::Hash;
 
 use crate::atom::Atom;
 use crate::clause::Clause;
+use crate::literal::Literal;
 use crate::term::Term;
 
 /// Each term has a unique id.
@@ -919,6 +920,41 @@ impl TermGraph {
             Decomposition::Compound(head, args) => (*head, args),
             _ => panic!("not a compound"),
         }
+    }
+
+    /// Returns the truth value of this literal, or None if it cannot be evaluated.
+    pub fn evaluate_literal(&self, literal: &Literal) -> Option<bool> {
+        // If the literal is positive, we check if the terms are equal.
+        // If the literal is negative, we check if the terms are not equal.
+        let left_id = self.get_term_id(&literal.left)?;
+        let right_id = self.get_term_id(&literal.right)?;
+
+        let left_group = self.get_group_id(left_id);
+        let right_group = self.get_group_id(right_id);
+
+        if left_group == right_group {
+            return Some(literal.positive);
+        }
+
+        let left_info = self.get_group_info(left_group);
+        if left_info.inequalities.contains_key(&right_group) {
+            return Some(!literal.positive);
+        }
+
+        None
+    }
+
+    /// Returns the truth value of this clause, or None if it cannot be evaluated.
+    pub fn evaluate_clause(&self, clause: &Clause) -> Option<bool> {
+        let mut answer = Some(false);
+        for literal in &clause.literals {
+            match self.evaluate_literal(literal) {
+                Some(true) => return Some(true),
+                Some(false) => {}
+                None => answer = None,
+            }
+        }
+        answer
     }
 
     // Gets a step of edges that demonstrate that term1 and term2 are equal.
