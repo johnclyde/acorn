@@ -289,8 +289,9 @@ impl ActiveSet {
         }
 
         // Gather the output data
-        let clause = Clause::new(literals);
-        let step = ProofStep::resolution(long_id, long_step, short_id, short_step, clause);
+        let clause = Clause::update_trace(literals, &mut trace);
+        let mut step = ProofStep::resolution(long_id, long_step, short_id, short_step, clause);
+        step.trace = Some(trace);
         Some(step)
     }
 

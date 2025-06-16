@@ -17,6 +17,29 @@ pub enum LiteralTrace {
     Impossible,
 }
 
+impl LiteralTrace {
+    fn flip(&mut self) {
+        match self {
+            LiteralTrace::Output { flipped, .. } => *flipped = !*flipped,
+            LiteralTrace::Eliminated { flipped, .. } => *flipped = !*flipped,
+            LiteralTrace::Impossible => {}
+        }
+    }
+}
+
+// Modifies the first trace in place.
+fn compose_traces(first: &mut Vec<LiteralTrace>, second: &Vec<LiteralTrace>) {
+    for i in 0..first.len() {
+        let LiteralTrace::Output { index, flipped } = first[i] else {
+            continue;
+        };
+        first[i] = second[index].clone();
+        if flipped {
+            first[i].flip();
+        }
+    }
+}
+
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
 /// We include the types of the universal variables it is quantified over.
 /// It cannot contain existential quantifiers.
@@ -57,7 +80,7 @@ impl Clause {
         c
     }
 
-    /// Normalizes literals into a clause, updating a trace of where each one is sent.
+    /// Normalizes literals into a clause, starting a trace of where each one is sent.
     /// Note that this doesn't flip any literals. It only creates the "Output" and "Impossible"
     /// type traces.
     pub fn with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
@@ -102,6 +125,14 @@ impl Clause {
         };
         c.normalize_var_ids();
         (c, trace)
+    }
+
+    /// Normalizes literals. Updates the provided trace so that it is still accurate after
+    /// normalization.
+    pub fn update_trace(literals: Vec<Literal>, trace: &mut Vec<LiteralTrace>) -> Clause {
+        let (c, new_trace) = Clause::with_trace(literals);
+        compose_traces(trace, &new_trace);
+        c
     }
 
     /// Normalizes the variable IDs in the literals.
