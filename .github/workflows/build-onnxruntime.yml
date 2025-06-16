@@ -18,6 +18,11 @@ jobs:
           repository: microsoft/onnxruntime
           ref: ${{ env.ONNXRUNTIME_VERSION }}
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11" # 3.10+ required
+          architecture: "x64"
+
       - name: Cache ONNX Runtime
         id: cache-onnxruntime
         uses: actions/cache@v4
