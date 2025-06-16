@@ -785,7 +785,7 @@ impl TermGraph {
                 new_groups.insert(self.get_group_id(literal.left));
                 new_groups.insert(self.get_group_id(literal.right));
             }
-            
+
             // Remove clause from groups that are no longer involved
             for group_id in old_groups.difference(&new_groups) {
                 if let Some(group_info) = self.groups[group_id.0 as usize].as_mut() {
@@ -794,14 +794,14 @@ impl TermGraph {
                     }
                 }
             }
-            
+
             // This clause is still valid. Put it back.
             self.clauses[clause_id.0] = Some(clause_info);
             return;
         }
 
         // This clause is toast, but now what?
-        
+
         // Remove clause from all groups since it's being deleted
         for group_id in old_groups {
             if let Some(group_info) = self.groups[group_id.0 as usize].as_mut() {
@@ -896,14 +896,15 @@ impl TermGraph {
             return;
         }
         info1.inequalities.insert(group2, (term1, term2, step));
-        
+
         // Trigger reduction for clauses that involve both groups
         if let Some(clause_ids) = info1.clauses.get(&group2) {
             for &clause_id in clause_ids {
-                self.pending.push(SemanticOperation::ClauseReduction(clause_id));
+                self.pending
+                    .push(SemanticOperation::ClauseReduction(clause_id));
             }
         }
-        
+
         let info2 = &mut self.groups[group2.0 as usize]
             .as_mut()
             .expect("group is remapped");
@@ -1065,7 +1066,7 @@ impl TermGraph {
                 return; // Found a term from the group
             }
         }
-        
+
         panic!(
             "clause {} does not contain a term from group {}",
             clause_id, group_id
@@ -1300,6 +1301,15 @@ mod tests {
         g.insert_clause_str("c3 = c4", StepId(2));
         assert!(!g.has_contradiction);
         g.insert_clause_str("c1 != c4", StepId(3));
+        assert!(g.has_contradiction);
+    }
+
+    #[test]
+    fn test_subterm_triggering_clause() {
+        let mut g = TermGraph::new();
+        g.insert_clause_str("c1(c2) != c1(c3) or c4(c2) != c4(c3)", StepId(0));
+        assert!(!g.has_contradiction);
+        g.insert_clause_str("c2 = c3", StepId(1));
         assert!(g.has_contradiction);
     }
 }
