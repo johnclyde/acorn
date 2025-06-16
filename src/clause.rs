@@ -25,6 +25,13 @@ impl LiteralTrace {
             LiteralTrace::Impossible => {}
         }
     }
+
+    pub fn step_id(&self) -> Option<usize> {
+        match self {
+            LiteralTrace::Eliminated { step, .. } => Some(*step),
+            _ => None,
+        }
+    }
 }
 
 // Modifies the first trace in place.

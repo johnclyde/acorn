@@ -679,7 +679,7 @@ impl<T> PatternTree<T> {
 
     pub fn find_clause<'a>(&'a self, clause: &Clause) -> Option<&'a T> {
         let flat = TermComponent::flatten_clause(clause);
-        let mut key = clause_key_prefix(clause);  // Use prefix, not complete key!
+        let mut key = clause_key_prefix(clause); // Use prefix, not complete key!
         match self.find_one_match(&mut key, &flat) {
             Some((value, _)) => Some(value),
             None => None,
@@ -709,8 +709,8 @@ impl PatternTree<()> {
 /// the set contains a generalization for a new literal.
 #[derive(Clone)]
 pub struct LiteralSet {
-    /// Stores (sign, id) for each literal.
-    tree: PatternTree<(bool, usize)>,
+    /// Stores (sign, id, flipped) for each literal.
+    tree: PatternTree<(bool, usize, bool)>,
 }
 
 impl LiteralSet {
@@ -729,10 +729,11 @@ impl LiteralSet {
     /// Overwrites if the negation already exists.
     pub fn insert(&mut self, literal: &Literal, id: usize) {
         self.tree
-            .insert_pair(&literal.left, &literal.right, (literal.positive, id));
+            .insert_pair(&literal.left, &literal.right, (literal.positive, id, false));
         if !literal.strict_kbo() {
             let (right, left) = literal.normalized_reversed();
-            self.tree.insert_pair(&right, &left, (literal.positive, id));
+            self.tree
+                .insert_pair(&right, &left, (literal.positive, id, true));
         }
     }
 
@@ -740,9 +741,10 @@ impl LiteralSet {
     /// If so, returns a pair with:
     ///   1. whether the sign of the generalization matches the literal
     ///   2. the id of the generalization
-    pub fn find_generalization(&self, literal: &Literal) -> Option<(bool, usize)> {
+    ///   3. whether this is a flip-match, meaning we swapped left and right
+    pub fn find_generalization(&self, literal: &Literal) -> Option<(bool, usize, bool)> {
         match self.tree.find_pair(&literal.left, &literal.right) {
-            Some(&(sign, id)) => Some((sign == literal.positive, id)),
+            Some(&(sign, id, flipped)) => Some((sign == literal.positive, id, flipped)),
             None => None,
         }
     }

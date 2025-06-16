@@ -618,15 +618,18 @@ impl ActiveSet {
             .filter(move |(_, step)| step.depends_on_active(id))
     }
 
-    /// Returns (value, id of clause) when this literal's value is known due to some existing clause.
-    /// No id is returned if this literal is "expr = expr".
-    fn evaluate_literal(&self, literal: &Literal) -> Option<(bool, Option<usize>)> {
+    /// Returns (value, trace) when this literal's value is known due to some existing clause.
+    /// The trace is either Eliminated, if the literal matched an existing one, or Impossible,
+    /// if the literal is self-evident.
+    fn evaluate_literal(&self, literal: &Literal) -> Option<(bool, LiteralTrace)> {
         literal.validate_type();
         if literal.left == literal.right {
-            return Some((literal.positive, None));
+            return Some((literal.positive, LiteralTrace::Impossible));
         }
         match self.literal_set.find_generalization(&literal) {
-            Some((positive, id)) => Some((positive, Some(id))),
+            Some((positive, step, flipped)) => {
+                Some((positive, LiteralTrace::Eliminated { step, flipped }))
+            }
             None => None,
         }
     }
@@ -655,10 +658,10 @@ impl ActiveSet {
                     // Thus, the whole clause is a tautology.
                     return None;
                 }
-                Some((false, id)) => {
+                Some((false, trace)) => {
                     // This literal is already known to be false.
                     // Thus, we can just omit it from the disjunction.
-                    if let Some(id) = id {
+                    if let Some(id) = trace.step_id() {
                         new_rules.push((id, self.get_step(id)));
                     }
                     continue;
