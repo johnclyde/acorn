@@ -4,25 +4,31 @@ use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Scope {
-    Left,
-    Right,
-    Output,
+pub struct Scope(usize);
+
+impl Scope {
+    pub const OUTPUT: Scope = Scope(0);
+    pub const LEFT: Scope = Scope(1);
+    pub const RIGHT: Scope = Scope(2);
+
+    pub fn get(&self) -> usize {
+        self.0
+    }
 }
 
 // A Unifier combines terms whose variables exist in different scopes.
-// There are two input scopes, the "left" and the "right".
+// There are normally two input scopes, the "left" and the "right".
 // For each scope we create a mapping from variable id to the term in the output scope.
 // We leave the mapping as "None" when we haven't had to map it to anything yet.
 //
 // The output scope is the scope of the final term.
+// Algorithmically, the output scope is treated slightly differently from the input scopes,
+// but any input scopes are treated the same way.
 // We do need a mapping for the output because we may have two complex terms in the output
 // scope that we need to unify, and during this unification we may discover that previously
 // unrelated variables now need to relate to each other.
 pub struct Unifier {
-    left: Vec<Option<Term>>,
-    right: Vec<Option<Term>>,
-    output: Vec<Option<Term>>,
+    maps: Vec<Vec<Option<Term>>>,
 }
 
 // Information for how to replace a subterm
@@ -35,26 +41,16 @@ struct Replacement<'a> {
 impl Unifier {
     pub fn new() -> Unifier {
         Unifier {
-            left: vec![],
-            right: vec![],
-            output: vec![],
+            maps: vec![vec![], vec![], vec![]],
         }
     }
 
     fn mut_map(&mut self, scope: Scope) -> &mut Vec<Option<Term>> {
-        match scope {
-            Scope::Left => &mut self.left,
-            Scope::Right => &mut self.right,
-            Scope::Output => &mut self.output,
-        }
+        &mut self.maps[scope.get()]
     }
 
     fn map(&self, scope: Scope) -> &Vec<Option<Term>> {
-        match scope {
-            Scope::Left => &self.left,
-            Scope::Right => &self.right,
-            Scope::Output => &self.output,
-        }
+        &self.maps[scope.get()]
     }
 
     fn has_mapping(&self, scope: Scope, i: AtomId) -> bool {
@@ -95,9 +91,9 @@ impl Unifier {
 
     pub fn print(&self) {
         let mut count = 0;
-        count += self.print_scope(Scope::Left);
-        count += self.print_scope(Scope::Right);
-        count += self.print_scope(Scope::Output);
+        count += self.print_scope(Scope::LEFT);
+        count += self.print_scope(Scope::RIGHT);
+        count += self.print_scope(Scope::OUTPUT);
         if count == 0 {
             println!("empty unifier");
         }
@@ -122,10 +118,10 @@ impl Unifier {
         // a variable that expands into a term with its own arguments.
         let mut answer = match &term.head {
             Atom::Variable(i) => {
-                if !self.has_mapping(scope, *i) && scope != Scope::Output {
+                if !self.has_mapping(scope, *i) && scope != Scope::OUTPUT {
                     // We need to create a new variable to send this one to.
-                    let var_id = self.output.len() as AtomId;
-                    self.output.push(None);
+                    let var_id = self.maps[Scope::OUTPUT.get()].len() as AtomId;
+                    self.maps[Scope::OUTPUT.get()].push(None);
                     let new_var = Term::new(
                         term.head_type,
                         term.head_type,
@@ -146,7 +142,7 @@ impl Unifier {
                     None => {
                         // The head is an output variable with no mapping.
                         // Just leave it as it is.
-                        assert!(scope == Scope::Output);
+                        assert!(scope == Scope::OUTPUT);
                         Term {
                             term_type: term.term_type,
                             head_type: term.head_type,
@@ -207,24 +203,25 @@ impl Unifier {
                 // Let's keep this id and remap the other one instead
                 let mut new_term = term.clone();
                 new_term.head = Atom::Variable(id);
-                return self.unify_variable(Scope::Output, other_id, Scope::Output, &new_term);
+                return self.unify_variable(Scope::OUTPUT, other_id, Scope::OUTPUT, &new_term);
             }
         }
-        let term = self.apply(Scope::Output, term);
+        let term = self.apply(Scope::OUTPUT, term);
         if term.has_variable(id) {
             // We can't remap this variable to a term that contains it.
             // This represents an un-unifiable condition like x0 = c0(x0).
             return false;
         }
 
-        for mapping in [&mut self.left, &mut self.right, &mut self.output] {
+        for i in 0..3 {
+            let mapping = &mut self.maps[i];
             for i in 0..mapping.len() {
                 if let Some(t) = &mapping[i] {
                     mapping[i] = Some(t.replace_variable(id, &term));
                 }
             }
         }
-        self.output[id as usize] = Some(term);
+        self.maps[Scope::OUTPUT.get()][id as usize] = Some(term);
         true
     }
 
@@ -236,20 +233,20 @@ impl Unifier {
         term_scope: Scope,
         term: &Term,
     ) -> bool {
-        if term_scope != Scope::Output {
+        if term_scope != Scope::OUTPUT {
             // Convert our term to the output scope and then unify.
             let term = self.apply(term_scope, term);
-            return self.unify_variable(var_scope, var_id, Scope::Output, &term);
+            return self.unify_variable(var_scope, var_id, Scope::OUTPUT, &term);
         }
 
         if self.has_mapping(var_scope, var_id) {
             // We already have a mapping for this variable.
             // Unify the existing mapping with the term.
             let existing = self.get_mapping(var_scope, var_id).unwrap().clone();
-            return self.unify(Scope::Output, &existing, Scope::Output, term);
+            return self.unify(Scope::OUTPUT, &existing, Scope::OUTPUT, term);
         }
 
-        if var_scope == Scope::Output {
+        if var_scope == Scope::OUTPUT {
             if term.atomic_variable() == Some(var_id) {
                 // We're unifying a variable with itself.
                 return true;
@@ -375,15 +372,15 @@ impl Unifier {
             (&res_literal.right, &res_literal.left)
         };
         let unified_u = self.apply_replace(
-            Scope::Right,
+            Scope::RIGHT,
             u,
             Some(Replacement {
                 path: &path,
-                scope: Scope::Left,
+                scope: Scope::LEFT,
                 term: t,
             }),
         );
-        let unified_v = self.apply(Scope::Right, &v);
+        let unified_v = self.apply(Scope::RIGHT, &v);
         Literal::new(res_literal.positive, unified_u, unified_v)
     }
 
@@ -422,7 +419,7 @@ impl Unifier {
             if i == res_literal_index {
                 continue;
             }
-            let unified_literal = self.apply_to_literal(Scope::Right, literal);
+            let unified_literal = self.apply_to_literal(Scope::RIGHT, literal);
             literals.push(unified_literal);
         }
 
@@ -431,7 +428,7 @@ impl Unifier {
             if i == pm_literal_index {
                 continue;
             }
-            let unified_literal = self.apply_to_literal(Scope::Left, literal);
+            let unified_literal = self.apply_to_literal(Scope::LEFT, literal);
             literals.push(unified_literal);
         }
 
@@ -463,9 +460,9 @@ mod tests {
         let mut u = Unifier::new();
 
         // Replace x0 with x1 and x1 with x2.
-        assert!(u.unify_variable(Scope::Left, 0, Scope::Output, &bool1));
-        assert!(u.unify_variable(Scope::Left, 1, Scope::Output, &bool2));
-        let term = u.apply(Scope::Left, &fterm);
+        assert!(u.unify_variable(Scope::LEFT, 0, Scope::OUTPUT, &bool1));
+        assert!(u.unify_variable(Scope::LEFT, 1, Scope::OUTPUT, &bool2));
+        let term = u.apply(Scope::LEFT, &fterm);
         assert_eq!(format!("{}", term), "g0(x1, x2)");
     }
 
@@ -478,10 +475,10 @@ mod tests {
         let term2 = bool_fn(Atom::GlobalConstant(0), vec![bool1.clone(), bool2.clone()]);
         let mut u = Unifier::new();
 
-        u.assert_unify(Scope::Left, &term1, Scope::Left, &term2);
-        let new1 = u.apply(Scope::Left, &term1);
+        u.assert_unify(Scope::LEFT, &term1, Scope::LEFT, &term2);
+        let new1 = u.apply(Scope::LEFT, &term1);
         assert_eq!(format!("{}", new1), "g0(x0, x0)");
-        let new2 = u.apply(Scope::Left, &term2);
+        let new2 = u.apply(Scope::LEFT, &term2);
         assert_eq!(format!("{}", new2), "g0(x0, x0)");
     }
 
@@ -494,10 +491,10 @@ mod tests {
         let term2 = bool_fn(Atom::GlobalConstant(0), vec![bool1.clone(), bool2.clone()]);
         let mut u = Unifier::new();
 
-        u.assert_unify(Scope::Left, &term1, Scope::Right, &term2);
-        let new1 = u.apply(Scope::Left, &term1);
+        u.assert_unify(Scope::LEFT, &term1, Scope::RIGHT, &term2);
+        let new1 = u.apply(Scope::LEFT, &term1);
         assert_eq!(format!("{}", new1), "g0(x0, x1)");
-        let new2 = u.apply(Scope::Right, &term2);
+        let new2 = u.apply(Scope::RIGHT, &term2);
         assert_eq!(format!("{}", new2), "g0(x0, x1)");
     }
 
@@ -508,7 +505,7 @@ mod tests {
         let var_f_term = bool_fn(Atom::Variable(1), vec![bool0.clone()]);
 
         let mut u = Unifier::new();
-        u.assert_unify(Scope::Left, &const_f_term, Scope::Right, &var_f_term);
+        u.assert_unify(Scope::LEFT, &const_f_term, Scope::RIGHT, &var_f_term);
     }
 
     #[test]
@@ -516,11 +513,11 @@ mod tests {
         let left_term = Term::parse("x0(x0(c0))");
         let right_term = Term::parse("c1(x0(x1))");
         let mut u = Unifier::new();
-        u.assert_unify(Scope::Left, &left_term, Scope::Right, &right_term);
+        u.assert_unify(Scope::LEFT, &left_term, Scope::RIGHT, &right_term);
         u.print();
-        assert!(u.get_mapping(Scope::Left, 0).unwrap().to_string() == "c1");
-        assert!(u.get_mapping(Scope::Right, 0).unwrap().to_string() == "c1");
-        assert!(u.get_mapping(Scope::Right, 1).unwrap().to_string() == "c0");
+        assert!(u.get_mapping(Scope::LEFT, 0).unwrap().to_string() == "c1");
+        assert!(u.get_mapping(Scope::RIGHT, 0).unwrap().to_string() == "c1");
+        assert!(u.get_mapping(Scope::RIGHT, 1).unwrap().to_string() == "c0");
     }
 
     #[test]
@@ -533,7 +530,7 @@ mod tests {
         let resolution_clause =
             Clause::parse("c1(c1(x0(x1))) != c1(x2(x3)) or c1(x0(x1)) = x2(x3)");
         let mut u = Unifier::new();
-        u.assert_unify(Scope::Left, &s, Scope::Right, &u_subterm);
+        u.assert_unify(Scope::LEFT, &s, Scope::RIGHT, &u_subterm);
         u.print();
         let literals =
             u.superpose_clauses(&t, &pm_clause, 0, target_path, &resolution_clause, 0, true);
@@ -549,7 +546,7 @@ mod tests {
         let first = Term::parse("c0(x0, c0(x1, c1(x2)))");
         let second = Term::parse("c0(c0(x2, x1), x0)");
         let mut u = Unifier::new();
-        assert!(!u.unify(Scope::Left, &first, Scope::Left, &second));
+        assert!(!u.unify(Scope::LEFT, &first, Scope::LEFT, &second));
     }
 
     #[test]
@@ -557,7 +554,7 @@ mod tests {
         let first = Term::parse("c0(c0(x0, c1(x1)), x2)");
         let second = Term::parse("c0(x2, c0(x1, x0))");
         let mut u = Unifier::new();
-        assert!(!u.unify(Scope::Left, &first, Scope::Left, &second));
+        assert!(!u.unify(Scope::LEFT, &first, Scope::LEFT, &second));
     }
 
     #[test]
@@ -565,6 +562,6 @@ mod tests {
         let first = Term::parse("g2(x0, x0)");
         let second = Term::parse("g2(g2(g1(c0, x0), x0), g2(x1, x1))");
         let mut u = Unifier::new();
-        assert!(!u.unify(Scope::Left, &first, Scope::Right, &second));
+        assert!(!u.unify(Scope::LEFT, &first, Scope::RIGHT, &second));
     }
 }

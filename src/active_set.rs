@@ -260,10 +260,10 @@ impl ActiveSet {
                 &long_clause.literals[long_index].right,
             )
         };
-        if !unifier.unify(Scope::Left, short_a, Scope::Right, long_a) {
+        if !unifier.unify(Scope::LEFT, short_a, Scope::RIGHT, long_a) {
             return None;
         }
-        if !unifier.unify(Scope::Left, short_b, Scope::Right, long_b) {
+        if !unifier.unify(Scope::LEFT, short_b, Scope::RIGHT, long_b) {
             return None;
         }
 
@@ -278,8 +278,8 @@ impl ActiveSet {
                 continue;
             }
             let index = literals.len();
-            let left = unifier.apply(Scope::Right, &literal.left);
-            let right = unifier.apply(Scope::Right, &literal.right);
+            let left = unifier.apply(Scope::RIGHT, &literal.left);
+            let right = unifier.apply(Scope::RIGHT, &literal.right);
             let (new_literal, new_flip) = Literal::new_with_flip(literal.positive, left, right);
             literals.push(new_literal);
             trace.push(LiteralTrace::Output {
@@ -407,10 +407,10 @@ impl ActiveSet {
                 let subterm = &subterm_info.term;
 
                 let mut unifier = Unifier::new();
-                if !unifier.unify(Scope::Left, s, Scope::Right, subterm) {
+                if !unifier.unify(Scope::LEFT, s, Scope::RIGHT, subterm) {
                     continue;
                 }
-                let new_subterm = unifier.apply(Scope::Left, t);
+                let new_subterm = unifier.apply(Scope::LEFT, t);
 
                 for location in &subterm_info.locations {
                     if location.target_id == pattern_id {
@@ -476,7 +476,7 @@ impl ActiveSet {
 
             // The variables are in the same scope, which we will call "left".
             let mut unifier = Unifier::new();
-            if !unifier.unify(Scope::Left, &literal.left, Scope::Left, &literal.right) {
+            if !unifier.unify(Scope::LEFT, &literal.left, Scope::LEFT, &literal.right) {
                 continue;
             }
 
@@ -484,7 +484,7 @@ impl ActiveSet {
             let mut new_literals = vec![];
             for (j, lit) in clause.literals.iter().enumerate() {
                 if j != i {
-                    new_literals.push(unifier.apply_to_literal(Scope::Left, lit));
+                    new_literals.push(unifier.apply_to_literal(Scope::LEFT, lit));
                 }
             }
 
@@ -570,19 +570,19 @@ impl ActiveSet {
                 for (_, u, v) in uv_literal.both_term_pairs() {
                     // The variables are all in the same scope, which we will call "left".
                     let mut unifier = Unifier::new();
-                    if !unifier.unify(Scope::Left, s, Scope::Left, u) {
+                    if !unifier.unify(Scope::LEFT, s, Scope::LEFT, u) {
                         continue;
                     }
                     let mut literals = vec![];
                     literals.push(Literal::not_equals(
-                        unifier.apply(Scope::Left, t),
-                        unifier.apply(Scope::Left, v),
+                        unifier.apply(Scope::LEFT, t),
+                        unifier.apply(Scope::LEFT, v),
                     ));
-                    literals.push(unifier.apply_to_literal(Scope::Left, uv_literal));
+                    literals.push(unifier.apply_to_literal(Scope::LEFT, uv_literal));
                     for j in 1..clause.literals.len() {
                         if j != i {
                             literals
-                                .push(unifier.apply_to_literal(Scope::Left, &clause.literals[j]));
+                                .push(unifier.apply_to_literal(Scope::LEFT, &clause.literals[j]));
                         }
                     }
                     let new_clause = Clause::new(literals);
