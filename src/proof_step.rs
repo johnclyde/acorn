@@ -238,6 +238,9 @@ pub struct ProofStep {
     // Unprintable proof steps are things like halfway resolved theorems, or expressions
     // that use anonymous skolem variables.
     pub printable: bool,
+
+    // Information about this step that will let us reconstruct the variable mappings.
+    pub trace: Option<Vec<LiteralTrace>>,
 }
 
 impl fmt::Display for ProofStep {
@@ -267,6 +270,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: false,
+            trace: None,
         }
     }
 
@@ -284,6 +288,7 @@ impl ProofStep {
             proof_size: activated_step.proof_size + 1,
             depth,
             printable,
+            trace: None,
         }
     }
 
@@ -306,6 +311,7 @@ impl ProofStep {
             proof_size: pattern_step.proof_size + 1,
             depth: pattern_step.depth,
             printable: true,
+            trace: None,
         }
     }
 
@@ -347,6 +353,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
+            trace: None,
         }
     }
 
@@ -378,6 +385,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
+            trace: None,
         }
     }
 
@@ -432,6 +440,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
+            trace: None,
         }
     }
 
@@ -458,6 +467,7 @@ impl ProofStep {
             proof_size: 0,
             depth,
             printable: true,
+            trace: None,
         }
     }
 
@@ -481,6 +491,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable: true,
+            trace: None,
         }
     }
 
@@ -500,6 +511,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: true,
+            trace: None,
         }
     }
 
@@ -559,6 +571,7 @@ impl ProofStep {
 }
 
 // A record of what happened to a single literal during a single proof step.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum LiteralTrace {
     // This literal is in the output clause.
     Output { index: usize, flipped: bool },
