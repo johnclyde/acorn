@@ -54,7 +54,7 @@ pub struct ClauseTrace {
     pub base_id: usize,
 
     /// What happened to each literal in the base clause.
-    pub trace: Vec<LiteralTrace>,
+    pub literals: Vec<LiteralTrace>,
 }
 
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
@@ -152,6 +152,8 @@ impl Clause {
         c
     }
 
+    /// Creates a new clause while also composing the traces.
+    /// The base_trace should be applicable to the provided literals.
     pub fn composing_traces(
         literals: Vec<Literal>,
         base_trace: &Vec<LiteralTrace>,

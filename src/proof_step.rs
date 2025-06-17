@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::Atom;
-use crate::clause::{Clause, LiteralTrace};
+use crate::clause::{Clause, ClauseTrace};
 use crate::literal::Literal;
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
@@ -240,7 +240,7 @@ pub struct ProofStep {
     pub printable: bool,
 
     // Information about this step that will let us reconstruct the variable mappings.
-    pub trace: Vec<LiteralTrace>,
+    pub trace: Option<ClauseTrace>,
 }
 
 impl fmt::Display for ProofStep {
@@ -270,7 +270,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: false,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -288,7 +288,7 @@ impl ProofStep {
             proof_size: activated_step.proof_size + 1,
             depth,
             printable,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -311,7 +311,7 @@ impl ProofStep {
             proof_size: pattern_step.proof_size + 1,
             depth: pattern_step.depth,
             printable: true,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -353,7 +353,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -363,7 +363,7 @@ impl ProofStep {
         long_step: ProofStep,
         short_steps: &[(usize, &ProofStep)],
         clause: Clause,
-        trace: Vec<LiteralTrace>,
+        trace: Option<ClauseTrace>,
     ) -> ProofStep {
         let mut truthiness = long_step.truthiness;
         let mut simplification_rules = long_step.simplification_rules;
@@ -441,7 +441,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -468,7 +468,7 @@ impl ProofStep {
             proof_size: 0,
             depth,
             printable: true,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -492,7 +492,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable: true,
-            trace: vec![],
+            trace: None,
         }
     }
 
@@ -512,7 +512,7 @@ impl ProofStep {
             proof_size: 0,
             depth: 0,
             printable: true,
-            trace: vec![],
+            trace: None,
         }
     }
 
