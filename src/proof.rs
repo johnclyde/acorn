@@ -89,6 +89,10 @@ struct ProofNode<'a> {
     // The goal is treated as a node rather than as a source, for the purpose of the graph.
     sources: Vec<&'a Source>,
 
+    // The concrete clauses, instances of this node, that are equivalent to this node
+    // for the purpose of this proof.
+    concrete: HashSet<Clause>,
+
     // From the ProofStep
     depth: u32,
     printable: bool,
@@ -217,6 +221,7 @@ impl<'a> Proof<'a> {
             premises: vec![],
             consequences: vec![],
             sources: vec![],
+            concrete: HashSet::new(),
             depth: 0,
             printable: false,
         };
@@ -240,6 +245,7 @@ impl<'a> Proof<'a> {
             consequences: vec![],
             sources: vec![],
             depth: step.depth,
+            concrete: HashSet::new(),
             printable: step.printable,
         });
 
@@ -640,19 +646,39 @@ impl<'a> Proof<'a> {
             }
         }
     }
+}
+
+/// The ConcreteProof is a series of concrete clauses, in string form, that can be checked
+/// with the checker.
+/// The forward clauses are true based on the existing environment, in this order.
+/// The backward clauses are true if we first assume the negated goal.
+pub struct ConcreteProof {
+    pub forward: Vec<String>,
+    pub backward: Vec<String>,
+}
+
+impl<'a> Proof<'a> {
+    // What are the inputs and outputs?
+    // The input is... nothing.
+    pub fn reconstruct_proof(
+        &self,
+        normalizer: &Normalizer,
+        bindings: &BindingMap,
+    ) -> Result<ConcreteProof, Error> {
+        todo!();
+    }
 
     // Given a concrete output of a proof step, reconstruct concrete inputs.
     // The concrete output is provided as a VariableMap that specializes the clause in the
     // ProofStep to something concrete.
     // When we reconstruct the inputs, we store them in two forms, as a variable map in
-    // the input maps, and as a concrete clause in concrete_clauses.
+    // the input maps, and as a concrete clause in the node graph.
     // If the step cannot be reconstructed, we return an error.
     fn reconstruct_step(
-        &self,
+        &mut self,
         step: &ProofStep,
         output_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<ProofStepId, HashSet<Clause>>,
     ) -> Result<(), Error> {
         let Some(trace) = step.trace.as_ref() else {
             return Err(Error::InternalError("proof step has no trace".to_string()));
@@ -722,14 +748,15 @@ impl<'a> Proof<'a> {
             let concrete = map.specialize_clause(generic);
             if concrete.has_any_variable() {
                 return Err(Error::InternalError(format!(
-                    "reconstructed clause {:?}: {} is not concrete",
-                    id, base_clause
+                    "reconstructed clause {:?} is not concrete",
+                    id
                 )));
             }
 
             // Store the results
             input_maps.entry(*id).or_default().insert(map);
-            concrete_clauses.entry(*id).or_default().insert(concrete);
+            let node_id = *self.id_map.get(id).unwrap();
+            self.nodes[node_id as usize].concrete.insert(concrete);
         }
 
         Ok(())
