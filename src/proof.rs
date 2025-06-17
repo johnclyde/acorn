@@ -622,3 +622,18 @@ impl<'a> Proof<'a> {
         }
     }
 }
+
+// struct ReconstructedStep {
+//     // The id lets us find the original step in the proof, which contains the original clause.
+//     // That clause may have variables in it.
+//     id: ProofStepId,
+
+//     // An instantiation of each of the variables in the original clause.
+//     variable_map: VariableMap,
+// }
+
+// impl<'a> Proof<'a> {
+//     fn concrete_clause(&self, step: &ReconstructedStep) -> Result<Clause, Error> {
+//         todo!();
+//     }
+// }

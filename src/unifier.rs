@@ -45,12 +45,25 @@ impl Unifier {
         }
     }
 
+    pub fn with_output_map(num_scopes: usize, output_map: Vec<Option<Term>>) -> Unifier {
+        let mut maps = vec![vec![]; num_scopes];
+        maps[Scope::OUTPUT.get()] = output_map;
+        Unifier { maps }
+    }
+
     fn mut_map(&mut self, scope: Scope) -> &mut Vec<Option<Term>> {
         &mut self.maps[scope.get()]
     }
 
     fn map(&self, scope: Scope) -> &Vec<Option<Term>> {
         &self.maps[scope.get()]
+    }
+
+    pub fn into_maps(self) -> impl Iterator<Item = (Scope, Vec<Option<Term>>)> {
+        self.maps
+            .into_iter()
+            .enumerate()
+            .map(|(i, map)| (Scope(i), map))
     }
 
     fn has_mapping(&self, scope: Scope, i: AtomId) -> bool {
