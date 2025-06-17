@@ -156,12 +156,16 @@ impl Clause {
     /// The base_trace should be applicable to the provided literals.
     pub fn composing_traces(
         literals: Vec<Literal>,
-        base_trace: &Vec<LiteralTrace>,
+        base_trace: &ClauseTrace,
         incremental_trace: &Vec<LiteralTrace>,
-    ) -> (Clause, Vec<LiteralTrace>) {
-        let mut trace = base_trace.clone();
+    ) -> (Clause, ClauseTrace) {
+        let mut trace = base_trace.literals.clone();
         compose_traces(&mut trace, incremental_trace);
         let c = Clause::update_trace(literals, &mut trace);
+        let trace = ClauseTrace {
+            base_id: base_trace.base_id,
+            literals: trace,
+        };
         (c, trace)
     }
 

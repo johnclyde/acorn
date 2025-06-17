@@ -690,18 +690,9 @@ impl ActiveSet {
 
         let (clause, trace) = match &step.trace {
             Some(clause_trace) => {
-                let (c, t) = Clause::composing_traces(
-                    output_literals,
-                    &clause_trace.literals,
-                    &incremental_trace,
-                );
-                (
-                    c,
-                    Some(ClauseTrace {
-                        base_id: clause_trace.base_id,
-                        literals: t,
-                    }),
-                )
+                let (c, t) =
+                    Clause::composing_traces(output_literals, &clause_trace, &incremental_trace);
+                (c, Some(t))
             }
             None => (Clause::new(output_literals), None),
         };
