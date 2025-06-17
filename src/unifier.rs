@@ -4,7 +4,7 @@ use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 use crate::variable_map::VariableMap;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Scope(usize);
 
 impl Scope {
@@ -294,6 +294,7 @@ impl Unifier {
         false
     }
 
+    // Unify two terms, which may be in different scopes.
     pub fn unify(&mut self, scope1: Scope, term1: &Term, scope2: Scope, term2: &Term) -> bool {
         if term1.term_type != term2.term_type {
             return false;
@@ -326,6 +327,26 @@ impl Unifier {
         }
 
         true
+    }
+
+    // Doesn't worry about literal sign.
+    pub fn unify_literals(
+        &mut self,
+        scope1: Scope,
+        literal1: &Literal,
+        scope2: Scope,
+        literal2: &Literal,
+        flipped: bool,
+    ) -> bool {
+        if flipped {
+            // If we're flipped, swap the literals.
+            self.unify(scope1, &literal1.right, scope2, &literal2.left)
+                && self.unify(scope1, &literal1.left, scope2, &literal2.right)
+        } else {
+            // If we're not flipped, keep the literals as they are.
+            self.unify(scope1, &literal1.left, scope2, &literal2.left)
+                && self.unify(scope1, &literal1.right, scope2, &literal2.right)
+        }
     }
 
     pub fn assert_unify(&mut self, scope1: Scope, term1: &Term, scope2: Scope, term2: &Term) {

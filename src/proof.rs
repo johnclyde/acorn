@@ -3,13 +3,13 @@ use std::fmt;
 
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
-use crate::clause::Clause;
+use crate::clause::{Clause, LiteralTrace};
 use crate::code_generator::{CodeGenerator, Error};
 use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
 use crate::source::{Source, SourceType};
-use crate::unifier::Unifier;
+use crate::unifier::{Scope, Unifier};
 use crate::variable_map::VariableMap;
 
 /// Ranking for how difficult the proof was to find.
@@ -466,6 +466,23 @@ impl<'a> Proof<'a> {
         }
     }
 
+    fn get_clause(&self, id: ProofStepId) -> Result<&Clause, Error> {
+        let node_id = self.id_map.get(&id).ok_or_else(|| {
+            Error::InternalError(format!(
+                "no node found for proof step {:?} in proof graph",
+                id
+            ))
+        })?;
+        if let NodeValue::Clause(clause) = &self.nodes[*node_id as usize].value {
+            Ok(clause)
+        } else {
+            Err(Error::InternalError(format!(
+                "no clause found for proof step {:?}",
+                id
+            )))
+        }
+    }
+
     /// Reduce the graph as much as possible.
     /// Call just once.
     pub fn condense(&mut self) {
@@ -628,18 +645,93 @@ impl<'a> Proof<'a> {
     // The concrete output is provided as a VariableMap that specializes the clause in the
     // ProofStep to something concrete.
     // When we reconstruct the inputs, we store them in two forms, as a variable map in
-    // the input maps, and as a concrete clause in clauses.
+    // the input maps, and as a concrete clause in concrete_clauses.
     // If the step cannot be reconstructed, we return an error.
     fn reconstruct_step(
         &self,
         step: &ProofStep,
         output_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        clauses: &mut HashMap<ProofStepId, Clause>,
+        concrete_clauses: &mut HashMap<ProofStepId, HashSet<Clause>>,
     ) -> Result<(), Error> {
-        // We use a unifier. We'll add more scopes as needed.
+        let Some(trace) = step.trace.as_ref() else {
+            return Err(Error::InternalError("proof step has no trace".to_string()));
+        };
+        let base_clause = self.get_clause(ProofStepId::Active(trace.base_id))?;
+
+        // The unifier will figure out the concrete clauses.
+        // The output gets the output scope...
         let mut unifier = Unifier::with_output_map(output_map);
 
-        todo!();
+        // ...and we will track all the other scopes.
+        let base_scope = unifier.add_scope();
+        let mut scopes: HashMap<ProofStepId, Scope> = HashMap::new();
+        scopes.insert(ProofStepId::Active(trace.base_id), base_scope);
+
+        if trace.literals.len() != base_clause.literals.len() {
+            return Err(Error::InternalError(
+                "trace with wrong number of literals".to_string(),
+            ));
+        }
+
+        // Do the multi-way unification according to the trace.
+        for (base_literal, trace) in base_clause.literals.iter().zip(&trace.literals) {
+            let (scope, literal, flipped) = match trace {
+                LiteralTrace::Eliminated { step, flipped } => {
+                    // This matches a one-literal clause.
+                    let step_id = ProofStepId::Active(*step);
+                    let scope = scopes.entry(step_id).or_insert_with(|| unifier.add_scope());
+                    let clause = self.get_clause(step_id)?;
+                    if clause.literals.len() != 1 {
+                        return Err(Error::InternalError(format!(
+                            "elimination step {} is not single-literal",
+                            step
+                        )));
+                    }
+                    (*scope, &clause.literals[0], *flipped)
+                }
+                LiteralTrace::Output { index, flipped } => {
+                    // The output literal is in the output scope.
+                    (Scope::OUTPUT, &step.clause.literals[*index], *flipped)
+                }
+                LiteralTrace::Impossible => {
+                    continue;
+                }
+            };
+            if !unifier.unify_literals(base_scope, base_literal, scope, literal, flipped) {
+                return Err(Error::InternalError(format!(
+                    "failed to unify base literal {} with trace literal {}",
+                    base_literal, literal
+                )));
+            }
+        }
+
+        // Now that we've unified, get the concrete clauses.
+        let ids: HashMap<Scope, ProofStepId> =
+            scopes.into_iter().map(|(id, scope)| (scope, id)).collect();
+
+        for (scope, map) in unifier.into_maps() {
+            if scope == Scope::OUTPUT {
+                // The output map is the one we started with.
+                // We don't need to store it again.
+                continue;
+            }
+
+            let id = ids.get(&scope).unwrap();
+            let generic = self.get_clause(*id)?;
+            let concrete = map.specialize_clause(generic);
+            if concrete.has_any_variable() {
+                return Err(Error::InternalError(format!(
+                    "reconstructed clause {:?}: {} is not concrete",
+                    id, base_clause
+                )));
+            }
+
+            // Store the results
+            input_maps.entry(*id).or_default().insert(map);
+            concrete_clauses.entry(*id).or_default().insert(concrete);
+        }
+
+        Ok(())
     }
 }
