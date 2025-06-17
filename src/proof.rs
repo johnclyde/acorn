@@ -9,6 +9,8 @@ use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
 use crate::source::{Source, SourceType};
+use crate::unifier::Unifier;
+use crate::variable_map::VariableMap;
 
 /// Ranking for how difficult the proof was to find.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -621,19 +623,23 @@ impl<'a> Proof<'a> {
             }
         }
     }
+
+    // Given a concrete output of a proof step, reconstruct concrete inputs.
+    // The concrete output is provided as a VariableMap that specializes the clause in the
+    // ProofStep to something concrete.
+    // When we reconstruct the inputs, we store them in two forms, as a variable map in
+    // the input maps, and as a concrete clause in clauses.
+    // If the step cannot be reconstructed, we return an error.
+    fn reconstruct_step(
+        &self,
+        step: &ProofStep,
+        output_map: VariableMap,
+        input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
+        clauses: &mut HashMap<ProofStepId, Clause>,
+    ) -> Result<(), Error> {
+        // We use a unifier. We'll add more scopes as needed.
+        let mut unifier = Unifier::with_output_map(output_map);
+
+        todo!();
+    }
 }
-
-// struct ReconstructedStep {
-//     // The id lets us find the original step in the proof, which contains the original clause.
-//     // That clause may have variables in it.
-//     id: ProofStepId,
-
-//     // An instantiation of each of the variables in the original clause.
-//     variable_map: VariableMap,
-// }
-
-// impl<'a> Proof<'a> {
-//     fn concrete_clause(&self, step: &ReconstructedStep) -> Result<Clause, Error> {
-//         todo!();
-//     }
-// }

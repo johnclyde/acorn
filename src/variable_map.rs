@@ -1,4 +1,6 @@
 use crate::atom::{Atom, AtomId};
+use crate::clause::Clause;
+use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 
 // A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
@@ -95,9 +97,10 @@ impl VariableMap {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (usize, &Term)> {
-        self.map.iter().enumerate().filter_map(|(i, opt)| {
-            opt.as_ref().map(|term| (i, term))
-        })
+        self.map
+            .iter()
+            .enumerate()
+            .filter_map(|(i, opt)| opt.as_ref().map(|term| (i, term)))
     }
 
     pub fn apply_to_all<F>(&mut self, mut f: F)
@@ -115,7 +118,7 @@ impl VariableMap {
         self.map.push(None);
     }
 
-    pub fn specialize(&self, term: &Term) -> Term {
+    fn specialize_term(&self, term: &Term) -> Term {
         // First apply to the head
         let mut answer = match &term.head {
             Atom::Variable(i) => {
@@ -135,9 +138,26 @@ impl VariableMap {
 
         // Recurse on the arguments
         for arg in &term.args {
-            answer.push_arg(self.specialize(arg));
+            answer.push_arg(self.specialize_term(arg));
         }
 
         answer
+    }
+
+    fn specialize_literal(&self, literal: &Literal) -> Literal {
+        Literal::new(
+            literal.positive,
+            self.specialize_term(&literal.left),
+            self.specialize_term(&literal.right),
+        )
+    }
+
+    pub fn specialize_clause(&self, clause: &Clause) -> Clause {
+        let specialized_literals = clause
+            .literals
+            .iter()
+            .map(|lit| self.specialize_literal(lit))
+            .collect();
+        Clause::new(specialized_literals)
     }
 }

@@ -47,6 +47,16 @@ fn compose_traces(first: &mut Vec<LiteralTrace>, second: &Vec<LiteralTrace>) {
     }
 }
 
+/// A record of how a clause was constructed.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct ClauseTrace {
+    /// The ID of the base clause that this trace is based on.
+    pub base_id: usize,
+
+    /// What happened to each literal in the base clause.
+    pub trace: Vec<LiteralTrace>,
+}
+
 /// A clause is a disjunction (an "or") of literals, universally quantified over some variables.
 /// We include the types of the universal variables it is quantified over.
 /// It cannot contain existential quantifiers.

@@ -48,17 +48,11 @@ impl Unifier {
         Unifier { maps }
     }
 
-    pub fn with_output_map(num_scopes: usize, output_map: VariableMap) -> Unifier {
-        let mut maps = Vec::with_capacity(num_scopes);
-        let mut output_map_opt = Some(output_map);
-        for i in 0..num_scopes {
-            if i == Scope::OUTPUT.get() {
-                maps.push(output_map_opt.take().unwrap());
-            } else {
-                maps.push(VariableMap::new());
-            }
+    /// Creates a single-scope unifier.
+    pub fn with_output_map(output_map: VariableMap) -> Unifier {
+        Unifier {
+            maps: vec![output_map],
         }
-        Unifier { maps }
     }
 
     fn mut_map(&mut self, scope: Scope) -> &mut VariableMap {
@@ -74,6 +68,12 @@ impl Unifier {
             .into_iter()
             .enumerate()
             .map(|(i, var_map)| (Scope(i), var_map))
+    }
+
+    pub fn add_scope(&mut self) -> Scope {
+        let scope = Scope(self.maps.len());
+        self.maps.push(VariableMap::new());
+        scope
     }
 
     fn has_mapping(&self, scope: Scope, i: AtomId) -> bool {
