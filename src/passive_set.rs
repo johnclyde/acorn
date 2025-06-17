@@ -5,8 +5,8 @@ use crate::literal::Literal;
 use crate::proof_step::ProofStep;
 use crate::score::Score;
 use crate::scorer::{default_scorer, Scorer};
-use crate::specializer::Specializer;
 use crate::term::Term;
+use crate::variable_map::VariableMap;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
@@ -49,12 +49,12 @@ pub struct PassiveSet {
     scorer: Arc<dyn Scorer + Send + Sync>,
 }
 
-// Whether (left1, right2) can be specialized to get (left2, right2).
+// Whether (left1, right1) can be mapped to (left2, right2) through variable substitution.
 // Only tries this direction.
 // Terms do not have to have variables normalized.
 fn pair_specializes(left1: &Term, right1: &Term, left2: &Term, right2: &Term) -> bool {
-    let mut s = Specializer::new();
-    s.match_terms(left1, left2) && s.match_terms(right1, right2)
+    let mut var_map = VariableMap::new();
+    var_map.match_terms(left1, left2) && var_map.match_terms(right1, right2)
 }
 
 // Tries both directions
@@ -70,7 +70,7 @@ fn pair_specializes_either_way(left: &Term, right: &Term, literal: &Literal) -> 
 
 // Makes a new clause by simplifying a bunch of literals with respect to a given literal.
 // left and right do not have to have variables normalized.
-// We already know literals[index] is a specialization of the given literal.
+// We already know literals[index] can be obtained from the given literal through variable substitution.
 // Returns None if the clause is tautologically implied by the literal we are simplifying with.
 fn make_simplified(
     left: &Term,

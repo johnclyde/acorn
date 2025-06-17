@@ -1,15 +1,15 @@
 use crate::atom::{Atom, AtomId};
 use crate::term::{Term, TypeId};
 
-// A Specializer finds substitutions that specialize, to turn a more general term
-// into a more specific one.
-pub struct Specializer {
+// A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
+// into a more specific one by substituting variables.
+pub struct VariableMap {
     map: Vec<Option<Term>>,
 }
 
-impl Specializer {
-    pub fn new() -> Specializer {
-        Specializer { map: Vec::new() }
+impl VariableMap {
+    pub fn new() -> VariableMap {
+        VariableMap { map: Vec::new() }
     }
 
     fn get_mapping(&self, i: AtomId) -> Option<&Term> {
@@ -48,7 +48,7 @@ impl Specializer {
             return false;
         }
 
-        // Handle the case where a general variable is specializing to the whole term
+        // Handle the case where a general variable is being mapped to the whole term
         if let Some(i) = general.atomic_variable() {
             return self.match_var(i, special);
         }

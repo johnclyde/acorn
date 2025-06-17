@@ -46,7 +46,6 @@ pub mod scorer;
 pub mod searcher;
 pub mod server;
 pub mod source;
-pub mod specializer;
 pub mod stack;
 pub mod statement;
 pub mod term;
@@ -57,6 +56,7 @@ pub mod token_map;
 pub mod type_unifier;
 pub mod unifier;
 pub mod unresolved_constant;
+pub mod variable_map;
 pub mod verifier;
 
 #[cfg(test)]
