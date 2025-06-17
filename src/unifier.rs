@@ -2,6 +2,7 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
+use crate::variable_map::VariableMap;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Scope(usize);
@@ -28,7 +29,7 @@ impl Scope {
 // scope that we need to unify, and during this unification we may discover that previously
 // unrelated variables now need to relate to each other.
 pub struct Unifier {
-    maps: Vec<Vec<Option<Term>>>,
+    maps: Vec<VariableMap>,
 }
 
 // Information for how to replace a subterm
@@ -40,64 +41,62 @@ struct Replacement<'a> {
 
 impl Unifier {
     pub fn new(num_scopes: usize) -> Unifier {
-        Unifier {
-            maps: vec![vec![]; num_scopes],
+        let mut maps = Vec::with_capacity(num_scopes);
+        for _ in 0..num_scopes {
+            maps.push(VariableMap::new());
         }
-    }
-
-    pub fn with_output_map(num_scopes: usize, output_map: Vec<Option<Term>>) -> Unifier {
-        let mut maps = vec![vec![]; num_scopes];
-        maps[Scope::OUTPUT.get()] = output_map;
         Unifier { maps }
     }
 
-    fn mut_map(&mut self, scope: Scope) -> &mut Vec<Option<Term>> {
+    pub fn with_output_map(num_scopes: usize, output_map: VariableMap) -> Unifier {
+        let mut maps = Vec::with_capacity(num_scopes);
+        let mut output_map_opt = Some(output_map);
+        for i in 0..num_scopes {
+            if i == Scope::OUTPUT.get() {
+                maps.push(output_map_opt.take().unwrap());
+            } else {
+                maps.push(VariableMap::new());
+            }
+        }
+        Unifier { maps }
+    }
+
+    fn mut_map(&mut self, scope: Scope) -> &mut VariableMap {
         &mut self.maps[scope.get()]
     }
 
-    fn map(&self, scope: Scope) -> &Vec<Option<Term>> {
+    fn map(&self, scope: Scope) -> &VariableMap {
         &self.maps[scope.get()]
     }
 
-    pub fn into_maps(self) -> impl Iterator<Item = (Scope, Vec<Option<Term>>)> {
+    pub fn into_maps(self) -> impl Iterator<Item = (Scope, VariableMap)> {
         self.maps
             .into_iter()
             .enumerate()
-            .map(|(i, map)| (Scope(i), map))
+            .map(|(i, var_map)| (Scope(i), var_map))
     }
 
     fn has_mapping(&self, scope: Scope, i: AtomId) -> bool {
-        let i = i as usize;
-        i < self.map(scope).len() && self.map(scope)[i].is_some()
+        self.map(scope).has_mapping(i)
     }
 
     fn set_mapping(&mut self, scope: Scope, i: AtomId, term: Term) {
-        let i = i as usize;
-        let map = self.mut_map(scope);
-        if i >= map.len() {
-            map.resize(i + 1, None);
-        }
-        map[i] = Some(term);
+        self.mut_map(scope).set(i, term);
     }
 
     fn get_mapping(&self, scope: Scope, i: AtomId) -> Option<&Term> {
-        match self.map(scope).get(i as usize) {
-            Some(t) => t.as_ref(),
-            None => None,
-        }
+        self.map(scope).get_mapping(i)
     }
 
     pub fn print_scope(&self, scope: Scope) -> i32 {
         let map = self.map(scope);
         let mut count = 0;
-        for (i, t) in map.iter().enumerate() {
-            if let Some(t) = t {
-                if count == 0 {
-                    println!("{:?} scope:", scope);
-                }
-                println!("x{} -> {}", i, t);
-                count += 1;
+        for (i, t) in map.iter() {
+            if count == 0 {
+                println!("{:?} scope:", scope);
             }
+            println!("x{} -> {}", i, t);
+            count += 1;
         }
         count
     }
@@ -134,7 +133,7 @@ impl Unifier {
                 if !self.has_mapping(scope, *i) && scope != Scope::OUTPUT {
                     // We need to create a new variable to send this one to.
                     let var_id = self.maps[Scope::OUTPUT.get()].len() as AtomId;
-                    self.maps[Scope::OUTPUT.get()].push(None);
+                    self.maps[Scope::OUTPUT.get()].push_none();
                     let new_var = Term::new(
                         term.head_type,
                         term.head_type,
@@ -227,14 +226,9 @@ impl Unifier {
         }
 
         for i in 0..3 {
-            let mapping = &mut self.maps[i];
-            for i in 0..mapping.len() {
-                if let Some(t) = &mapping[i] {
-                    mapping[i] = Some(t.replace_variable(id, &term));
-                }
-            }
+            self.maps[i].apply_to_all(|t| t.replace_variable(id, &term));
         }
-        self.maps[Scope::OUTPUT.get()][id as usize] = Some(term);
+        self.maps[Scope::OUTPUT.get()].set(id, term);
         true
     }
 

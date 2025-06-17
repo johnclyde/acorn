@@ -12,7 +12,7 @@ impl VariableMap {
         VariableMap { map: Vec::new() }
     }
 
-    fn get_mapping(&self, i: AtomId) -> Option<&Term> {
+    pub fn get_mapping(&self, i: AtomId) -> Option<&Term> {
         let i = i as usize;
         if i >= self.map.len() {
             None
@@ -71,6 +71,48 @@ impl VariableMap {
             }
         }
         true
+    }
+
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    pub fn get(&self, i: usize) -> Option<&Term> {
+        self.map.get(i).and_then(|opt| opt.as_ref())
+    }
+
+    pub fn set(&mut self, i: AtomId, term: Term) {
+        let i = i as usize;
+        if i >= self.map.len() {
+            self.map.resize(i + 1, None);
+        }
+        self.map[i] = Some(term);
+    }
+
+    pub fn has_mapping(&self, i: AtomId) -> bool {
+        let i = i as usize;
+        i < self.map.len() && self.map[i].is_some()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (usize, &Term)> {
+        self.map.iter().enumerate().filter_map(|(i, opt)| {
+            opt.as_ref().map(|term| (i, term))
+        })
+    }
+
+    pub fn apply_to_all<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Term) -> Term,
+    {
+        for opt in &mut self.map {
+            if let Some(term) = opt {
+                *term = f(term);
+            }
+        }
+    }
+
+    pub fn push_none(&mut self) {
+        self.map.push(None);
     }
 
     pub fn specialize(&self, term: &Term) -> Term {
