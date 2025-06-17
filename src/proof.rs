@@ -89,10 +89,6 @@ struct ProofNode<'a> {
     // The goal is treated as a node rather than as a source, for the purpose of the graph.
     sources: Vec<&'a Source>,
 
-    // The concrete clauses, instances of this node, that are equivalent to this node
-    // for the purpose of this proof.
-    concrete: HashSet<Clause>,
-
     // From the ProofStep
     depth: u32,
     printable: bool,
@@ -105,6 +101,14 @@ impl<'a> ProofNode<'a> {
             && !self.consequences.is_empty()
             && self.premises.is_empty()
             && self.sources.is_empty()
+    }
+
+    fn is_negated_goal(&self) -> bool {
+        matches!(self.value, NodeValue::NegatedGoal(_))
+    }
+
+    fn is_contradiction(&self) -> bool {
+        matches!(self.value, NodeValue::Contradiction)
     }
 
     /// Instead of removing nodes from the graph, we isolate them by removing all premises and
@@ -130,6 +134,28 @@ impl<'a> ProofNode<'a> {
                     CodeGenerator::new(&bindings).value_to_code(v)
                 }
             }
+        }
+    }
+
+    // Ignores the "negate" flag on the node.
+    fn to_concrete_code(
+        &self,
+        normalizer: &Normalizer,
+        bindings: &BindingMap,
+        is_true: bool,
+    ) -> Result<String, Error> {
+        match &self.value {
+            NodeValue::Clause(clause) => {
+                let mut value = normalizer.denormalize(clause);
+                if !is_true {
+                    value = value.pretty_negate();
+                }
+                CodeGenerator::new(&bindings).value_to_code(&value)
+            }
+            NodeValue::Contradiction => Err(Error::InternalError(
+                "should not concrete codegen for contradiction".to_string(),
+            )),
+            NodeValue::NegatedGoal(_) => Err(Error::ExplicitGoal),
         }
     }
 }
@@ -221,7 +247,6 @@ impl<'a> Proof<'a> {
             premises: vec![],
             consequences: vec![],
             sources: vec![],
-            concrete: HashSet::new(),
             depth: 0,
             printable: false,
         };
@@ -245,7 +270,6 @@ impl<'a> Proof<'a> {
             consequences: vec![],
             sources: vec![],
             depth: step.depth,
-            concrete: HashSet::new(),
             printable: step.printable,
         });
 
@@ -650,35 +674,142 @@ impl<'a> Proof<'a> {
 
 /// The ConcreteProof is a series of concrete clauses, in string form, that can be checked
 /// with the checker.
-/// The forward clauses are true based on the existing environment, in this order.
-/// The backward clauses are true if we first assume the negated goal.
 pub struct ConcreteProof {
-    pub forward: Vec<String>,
-    pub backward: Vec<String>,
+    /// The direct clauses are true based on the existing environment, in this order.
+    pub direct: Vec<String>,
+
+    /// The indirect clauses are true if we first assume the negated goal.
+    pub indirect: Vec<String>,
 }
 
 impl<'a> Proof<'a> {
-    // What are the inputs and outputs?
-    // The input is... nothing.
+    /// Create the concrete proof.
     pub fn reconstruct_proof(
-        &self,
+        &mut self,
         normalizer: &Normalizer,
         bindings: &BindingMap,
     ) -> Result<ConcreteProof, Error> {
-        todo!();
+        // First, reconstruct all the steps, working backwards.
+        let mut var_maps: HashMap<ProofStepId, HashSet<VariableMap>> = HashMap::new();
+        var_maps
+            .entry(ProofStepId::Final)
+            .or_default()
+            .insert(VariableMap::new());
+        let mut concrete_clauses = HashMap::new();
+        for (id, step) in self.all_steps.iter().rev() {
+            // Multiple concrete instantiations are possible
+            let multi_var_map = var_maps.remove(id).unwrap();
+            for var_map in multi_var_map {
+                self.reconstruct_step(step, var_map, &mut var_maps, &mut concrete_clauses)?;
+            }
+        }
+
+        // Generate code for the direct steps.
+        let mut direct = vec![];
+        let (direct_map, ordered_direct) = self.find_direct();
+        for (node_id, is_true) in ordered_direct {
+            let node = &self.nodes[node_id as usize];
+            let code = node.to_concrete_code(normalizer, bindings, is_true)?;
+            direct.push(code);
+        }
+
+        // Generate code for the indirect steps.
+        let mut indirect = vec![];
+        for (step_id, _) in &self.all_steps {
+            let node_id = *self.id_map.get(&step_id).unwrap();
+            if direct_map.contains_key(&node_id) {
+                continue;
+            }
+            let node = &self.nodes[node_id as usize];
+            if node.is_contradiction() || node.is_negated_goal() {
+                continue;
+            }
+            let code = node.to_concrete_code(normalizer, bindings, true)?;
+            indirect.push(code);
+        }
+        Ok(ConcreteProof { direct, indirect })
+    }
+
+    // Find all the proof steps that can either be proved directly from assumptions, or
+    // their negation can be proved directly from assumptions.
+    // The boolean flag is whether the step is true.
+    fn find_direct(&self) -> (HashMap<NodeId, bool>, Vec<(NodeId, bool)>) {
+        assert!(!self.condensed);
+
+        // We put a node in here whenever we use its deduction.
+        let mut used: HashSet<NodeId> = HashSet::new();
+
+        // We put a node in here whenever we can prove it directly.
+        // This can be different from using its deduction, because when we
+        // prove backwards, we use other nodes' deductions.
+        let mut answer: HashMap<NodeId, bool> = HashMap::new();
+
+        // Just like answer but we keep things in a logically sound order.
+        let mut ordered_answer: Vec<(NodeId, bool)> = vec![];
+
+        // The pending queue is the nodes to see if we can use the deduction.
+        // Let's be deterministic to aid debugging.
+        let mut pending: Vec<NodeId> = self.id_map.values().cloned().collect();
+        pending.sort();
+        pending.reverse();
+
+        while let Some(node_id) = pending.pop() {
+            if used.contains(&node_id) {
+                // We already used this node, so we can skip it.
+                continue;
+            }
+
+            let node = &self.nodes[node_id as usize];
+            if node.is_negated_goal() {
+                // We don't use this, that's the whole point.
+                continue;
+            }
+
+            let mut num_true_premises = 0;
+            let mut non_true_premise = None;
+            for premise_id in &node.premises {
+                if answer.get(premise_id) == Some(&true) {
+                    num_true_premises += 1;
+                } else {
+                    non_true_premise = Some(*premise_id);
+                }
+            }
+
+            if node.is_contradiction() || answer.get(&node_id) == Some(&false) {
+                if num_true_premises + 1 == node.premises.len() {
+                    // Backward reasoning, the last premise must be false.
+                    let false_id = non_true_premise.unwrap();
+                    answer.insert(false_id, false);
+                    ordered_answer.push((false_id, false));
+                    used.insert(node_id);
+                    pending.push(false_id);
+                }
+            } else if num_true_premises == node.premises.len() {
+                // Forward reasoning, this node is true.
+                answer.insert(node_id, true);
+                ordered_answer.push((node_id, true));
+                used.insert(node_id);
+                for consequence_id in &node.consequences {
+                    pending.push(*consequence_id);
+                }
+            }
+        }
+
+        (answer, ordered_answer)
     }
 
     // Given a concrete output of a proof step, reconstruct concrete inputs.
     // The concrete output is provided as a VariableMap that specializes the clause in the
     // ProofStep to something concrete.
     // When we reconstruct the inputs, we store them in two forms, as a variable map in
-    // the input maps, and as a concrete clause in the node graph.
+    // the input maps, and as a concrete clause.
     // If the step cannot be reconstructed, we return an error.
     fn reconstruct_step(
-        &mut self,
+        &self,
         step: &ProofStep,
         output_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
+        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
     ) -> Result<(), Error> {
         let Some(trace) = step.trace.as_ref() else {
             return Err(Error::InternalError("proof step has no trace".to_string()));
@@ -756,7 +887,10 @@ impl<'a> Proof<'a> {
             // Store the results
             input_maps.entry(*id).or_default().insert(map);
             let node_id = *self.id_map.get(id).unwrap();
-            self.nodes[node_id as usize].concrete.insert(concrete);
+            concrete_clauses
+                .entry(node_id)
+                .or_default()
+                .insert(concrete);
         }
 
         Ok(())
