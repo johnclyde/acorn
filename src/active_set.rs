@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::clause::{Clause, ClauseTrace, LiteralTrace};
+use crate::clause::{Clause, LiteralTrace};
 use crate::fingerprint::FingerprintUnifier;
 use crate::literal::Literal;
 use crate::pattern_tree::LiteralSet;
@@ -289,12 +289,9 @@ impl ActiveSet {
         }
 
         // Gather the output data
-        let (clause, trace) = Clause::new_with_trace(literals, incremental_trace);
+        let (clause, trace) = Clause::new_with_trace(literals, long_id, incremental_trace);
         let mut step = ProofStep::resolution(long_id, long_step, short_id, short_step, clause);
-        step.trace = Some(ClauseTrace {
-            base_id: long_id,
-            literals: trace,
-        });
+        step.trace = Some(trace);
         Some(step)
     }
 

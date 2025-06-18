@@ -149,10 +149,15 @@ impl Clause {
     /// trace of how they were created.
     pub fn new_with_trace(
         literals: Vec<Literal>,
+        base_id: usize,
         mut trace: Vec<LiteralTrace>,
-    ) -> (Clause, Vec<LiteralTrace>) {
+    ) -> (Clause, ClauseTrace) {
         let (c, incremental_trace) = Clause::normalize_with_trace(literals);
         compose_traces(&mut trace, &incremental_trace);
+        let trace = ClauseTrace {
+            base_id,
+            literals: trace,
+        };
         (c, trace)
     }
 
@@ -167,11 +172,7 @@ impl Clause {
             return (Clause::new(literals), None);
         };
         compose_traces(&mut base_trace.literals, incremental_trace);
-        let (c, trace) = Clause::new_with_trace(literals, base_trace.literals);
-        let trace = ClauseTrace {
-            base_id: base_trace.base_id,
-            literals: trace,
-        };
+        let (c, trace) = Clause::new_with_trace(literals, base_trace.base_id, base_trace.literals);
         (c, Some(trace))
     }
 
