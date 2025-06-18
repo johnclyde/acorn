@@ -58,10 +58,11 @@ pub fn prove_with_concrete(
     goal_name: &str,
 ) -> (Prover, Outcome, Result<ConcreteProof, Error>) {
     let (project, env, prover, outcome) = prove(project, module_name, goal_name);
-    let mut proof = match prover.get_and_print_proof(project, &env.bindings) {
+    let mut proof = match prover.get_uncondensed_proof(false) {
         Some(proof) => proof,
         None => return (prover, outcome, Err(Error::NoProof)),
     };
+    prover.print_proof(project, &env.bindings, &proof);
     let concrete = proof.make_concrete(&env.bindings);
     (prover, outcome, concrete)
 }

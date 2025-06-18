@@ -340,7 +340,12 @@ impl Prover {
                 return None;
             }
         };
+        self.print_proof(project, bindings, &proof);
+        Some(proof)
+    }
 
+    /// Prints the proof in a human-readable form.
+    pub fn print_proof(&self, project: &Project, bindings: &BindingMap, proof: &Proof) {
         println!(
             "in total, we activated {} proof steps.",
             self.active_set.len()
@@ -394,8 +399,6 @@ impl Prover {
             }
             println!();
         }
-
-        Some(proof)
     }
 
     /// get_uncondensed_proof gets a proof, if we have one.
@@ -403,7 +406,7 @@ impl Prover {
     /// We always include all of the steps that are mathematically necessary for the proof.
     /// The include_inspiration flag determines whether we include the "inspiration" steps,
     /// which the prover used to find the proof, but are not needed for the proof to be valid.
-    fn get_uncondensed_proof(&self, include_inspiration: bool) -> Option<Proof> {
+    pub fn get_uncondensed_proof(&self, include_inspiration: bool) -> Option<Proof> {
         let final_step = match &self.final_step {
             Some(step) => step,
             None => return None,
