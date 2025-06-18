@@ -1,4 +1,4 @@
-use crate::clause::Clause;
+use crate::clause::{Clause, ClauseTrace};
 use crate::features::Features;
 use crate::fingerprint::FingerprintSpecializer;
 use crate::literal::Literal;
@@ -76,8 +76,10 @@ fn make_simplified(
     left: &Term,
     right: &Term,
     positive: bool,
+    _flipped: bool,
     index: usize,
     literals: Vec<Literal>,
+    _trace: Option<ClauseTrace>,
 ) -> Option<Clause> {
     if literals[index].positive == positive {
         return None;
@@ -183,6 +185,7 @@ impl PassiveSet {
         self.queue.is_empty()
     }
 
+    // Simplifies any literals in the passive set that can be eliminated by this activated literal.
     // Checks just the left->right direction for simplification.
     fn simplify_one_direction(
         &mut self,
@@ -191,6 +194,7 @@ impl PassiveSet {
         left: &Term,
         right: &Term,
         positive: bool,
+        flipped: bool,
     ) {
         let mut new_steps = vec![];
         for &(clause_id, literal_index) in self.literals.find_specializing(left, right) {
@@ -230,8 +234,10 @@ impl PassiveSet {
                 left,
                 right,
                 positive,
+                flipped,
                 literal_index,
                 std::mem::take(&mut step.clause.literals),
+                std::mem::take(&mut step.trace),
             ) else {
                 continue;
             };
@@ -271,10 +277,11 @@ impl PassiveSet {
             &literal.left,
             &literal.right,
             literal.positive,
+            false,
         );
         if !literal.strict_kbo() {
             let (right, left) = literal.normalized_reversed();
-            self.simplify_one_direction(activated_id, &step, &right, &left, literal.positive);
+            self.simplify_one_direction(activated_id, &step, &right, &left, literal.positive, true);
         }
     }
 
