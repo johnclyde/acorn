@@ -807,6 +807,9 @@ impl<'a> Proof<'a> {
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
         concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
     ) -> Result<(), Error> {
+        if step.rule.is_assumption() {
+            return Ok(());
+        }
         let Some(trace) = step.trace.as_ref() else {
             return Err(Error::InternalError(format!(
                 "no trace for {}",
