@@ -686,7 +686,9 @@ impl<'a> Proof<'a> {
             if node.is_negated_goal() {
                 continue;
             }
-            let clauses = concrete_clauses.get(&node_id).unwrap();
+            let Some(clauses) = concrete_clauses.get(&node_id) else {
+                continue;
+            };
             for clause in clauses {
                 // If the node is negated, we need to negate the clause.
                 // Otherwise, we use the clause as is.
@@ -710,7 +712,9 @@ impl<'a> Proof<'a> {
             if node.is_contradiction() || node.is_negated_goal() {
                 continue;
             }
-            let clauses = concrete_clauses.get(&node_id).unwrap();
+            let Some(clauses) = concrete_clauses.get(&node_id) else {
+                continue;
+            };
             for clause in clauses {
                 let value = self.normalizer.denormalize(clause);
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
