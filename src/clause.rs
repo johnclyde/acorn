@@ -97,10 +97,10 @@ impl Clause {
         c
     }
 
-    /// Normalizes literals into a clause, starting a trace of where each one is sent.
+    /// Normalizes literals into a clause, creating a trace of where each one is sent.
     /// Note that this doesn't flip any literals. It only creates the "Output" and "Impossible"
     /// type traces.
-    pub fn with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
+    fn normalize_with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
         let mut trace = vec![LiteralTrace::Impossible; literals.len()];
 
         // Pair each literal with its initial index.
@@ -144,12 +144,15 @@ impl Clause {
         (c, trace)
     }
 
-    /// Normalizes literals. Updates the provided trace so that it is still accurate after
-    /// normalization.
-    pub fn update_trace(literals: Vec<Literal>, trace: &mut Vec<LiteralTrace>) -> Clause {
-        let (c, new_trace) = Clause::with_trace(literals);
-        compose_traces(trace, &new_trace);
-        c
+    /// Creates a new clause and a new trace, given a list of literals and a
+    /// trace of how they were created.
+    pub fn new_with_trace(
+        literals: Vec<Literal>,
+        mut trace: Vec<LiteralTrace>,
+    ) -> (Clause, Vec<LiteralTrace>) {
+        let (c, incremental_trace) = Clause::normalize_with_trace(literals);
+        compose_traces(&mut trace, &incremental_trace);
+        (c, trace)
     }
 
     /// Creates a new clause while also composing the traces.
@@ -161,7 +164,7 @@ impl Clause {
     ) -> (Clause, ClauseTrace) {
         let mut trace = base_trace.literals.clone();
         compose_traces(&mut trace, incremental_trace);
-        let c = Clause::update_trace(literals, &mut trace);
+        let (c, trace) = Clause::new_with_trace(literals, trace);
         let trace = ClauseTrace {
             base_id: base_trace.base_id,
             literals: trace,

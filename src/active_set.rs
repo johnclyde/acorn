@@ -268,10 +268,10 @@ impl ActiveSet {
         }
 
         let mut literals = vec![];
-        let mut trace = vec![];
+        let mut incremental_trace = vec![];
         for (i, literal) in long_clause.literals.iter().enumerate() {
             if i == long_index {
-                trace.push(LiteralTrace::Eliminated {
+                incremental_trace.push(LiteralTrace::Eliminated {
                     step: short_id,
                     flipped,
                 });
@@ -282,14 +282,14 @@ impl ActiveSet {
             let right = unifier.apply(Scope::RIGHT, &literal.right);
             let (new_literal, new_flip) = Literal::new_with_flip(literal.positive, left, right);
             literals.push(new_literal);
-            trace.push(LiteralTrace::Output {
+            incremental_trace.push(LiteralTrace::Output {
                 index,
                 flipped: flipped ^ new_flip,
             });
         }
 
         // Gather the output data
-        let clause = Clause::update_trace(literals, &mut trace);
+        let (clause, trace) = Clause::new_with_trace(literals, incremental_trace);
         let mut step = ProofStep::resolution(long_id, long_step, short_id, short_step, clause);
         step.trace = Some(ClauseTrace {
             base_id: long_id,
