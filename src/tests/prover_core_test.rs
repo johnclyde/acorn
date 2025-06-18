@@ -917,7 +917,7 @@ fn test_concrete_proof() {
         "#,
     );
 
-    let (_, outcome, concrete) = prove_with_concrete(&mut p, "main", "goal");
-    assert_eq!(outcome, Outcome::Success);
-    concrete.expect("concrete proof generation failed");
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["not g(y) or not f(y) or h(y)"]);
+    assert_eq!(c.indirect, Vec::<String>::new());
 }
