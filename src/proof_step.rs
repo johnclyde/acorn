@@ -3,7 +3,6 @@ use std::fmt;
 
 use crate::atom::Atom;
 use crate::clause::{Clause, ClauseTrace, LiteralTrace};
-use crate::literal::Literal;
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
 use crate::term::Term;
@@ -416,23 +415,14 @@ impl ProofStep {
         assert_eq!(target_step.clause.literals.len(), 1);
 
         let target_literal = &target_step.clause.literals[0];
-        let (u, v) = if target_left {
-            (&target_literal.left, &target_literal.right)
-        } else {
-            (&target_literal.right, &target_literal.left)
-        };
-        let new_u = u.replace_at_path(path, new_subterm.clone());
+        let (new_literal, flipped) =
+            target_literal.replace_at_path(target_left, path, new_subterm.clone());
 
-        // I think this should handle the case where we immediately reduce to a contradiction.
-        let (new_literal, flip) = Literal::new_with_flip(target_literal.positive, new_u, v.clone());
         let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
         let (clause, trace) = Clause::new_with_trace(
             vec![new_literal],
             target_id,
-            vec![LiteralTrace::Output {
-                index: 0,
-                flipped: flip,
-            }],
+            vec![LiteralTrace::Output { index: 0, flipped }],
         );
 
         let truthiness = pattern_step.truthiness.combine(target_step.truthiness);

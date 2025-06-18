@@ -236,6 +236,23 @@ impl Literal {
     pub fn flip(&mut self) {
         std::mem::swap(&mut self.left, &mut self.right);
     }
+
+    // Return a new literal, along with whether we flipped this during normalization.
+    pub fn replace_at_path(
+        &self,
+        left: bool,
+        path: &[usize],
+        new_subterm: Term,
+    ) -> (Literal, bool) {
+        let (u, v, flip1) = if left {
+            (&self.left, &self.right, false)
+        } else {
+            (&self.right, &self.left, true)
+        };
+        let new_u = u.replace_at_path(path, new_subterm);
+        let (new_literal, flip2) = Literal::new_with_flip(self.positive, new_u, v.clone());
+        (new_literal, flip1 ^ flip2)
+    }
 }
 
 // Literals are ordered so that you can normalize a clause by sorting its literals.
