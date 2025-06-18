@@ -820,6 +820,10 @@ impl<'a> Proof<'a> {
         if step.rule.is_assumption() {
             return Ok(());
         }
+        if step.rule.is_rewrite() {
+            todo!("reconstructing rewrite steps is not implemented yet");
+        }
+
         let Some(trace) = step.trace.as_ref() else {
             return Err(Error::InternalError(format!(
                 "no trace for {}",

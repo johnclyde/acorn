@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::Atom;
-use crate::clause::{Clause, ClauseTrace};
+use crate::clause::{Clause, ClauseTrace, LiteralTrace};
 use crate::literal::Literal;
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
@@ -402,6 +402,7 @@ impl ProofStep {
     // Note that the target step will always be a concrete single literal.
     // The pattern and the output may have variables in them.
     // A "forwards" rewrite goes left-to-right in the pattern.
+    // In terms of the trace, the "target" is the base.
     pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
@@ -421,7 +422,17 @@ impl ProofStep {
             (&target_literal.right, &target_literal.left)
         };
         let new_u = u.replace_at_path(path, new_subterm.clone());
-        let new_literal = Literal::new(target_literal.positive, new_u, v.clone());
+
+        // TODO: handle the case where we immediately reduce to a contradiction.
+        // The trace will be wrong in this case.
+        let (new_literal, flip) = Literal::new_with_flip(target_literal.positive, new_u, v.clone());
+        let trace = ClauseTrace {
+            base_id: target_id,
+            literals: vec![LiteralTrace::Output {
+                index: 0,
+                flipped: flip,
+            }],
+        };
         let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
         let clause = Clause::new(vec![new_literal]);
 
@@ -454,7 +465,7 @@ impl ProofStep {
             proof_size,
             depth,
             printable,
-            trace: None,
+            trace: Some(trace),
         }
     }
 
