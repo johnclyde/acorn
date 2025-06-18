@@ -688,14 +688,8 @@ impl ActiveSet {
             return Some(step);
         }
 
-        let (clause, trace) = match &step.trace {
-            Some(clause_trace) => {
-                let (c, t) =
-                    Clause::composing_traces(output_literals, &clause_trace, &incremental_trace);
-                (c, Some(t))
-            }
-            None => (Clause::new(output_literals), None),
-        };
+        let (clause, trace) =
+            Clause::new_composing_traces(output_literals, &step.trace, &incremental_trace);
         if clause.is_tautology() {
             return None;
         }

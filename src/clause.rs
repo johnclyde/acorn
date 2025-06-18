@@ -155,13 +155,16 @@ impl Clause {
         (c, trace)
     }
 
-    /// Creates a new clause while also composing the traces.
+    /// Creates a new clause. If a trace is provided, we compose the traces.
     /// The base_trace should be applicable to the provided literals.
-    pub fn composing_traces(
+    pub fn new_composing_traces(
         literals: Vec<Literal>,
-        base_trace: &ClauseTrace,
+        base_trace: &Option<ClauseTrace>,
         incremental_trace: &Vec<LiteralTrace>,
-    ) -> (Clause, ClauseTrace) {
+    ) -> (Clause, Option<ClauseTrace>) {
+        let Some(base_trace) = base_trace else {
+            return (Clause::new(literals), None);
+        };
         let mut trace = base_trace.literals.clone();
         compose_traces(&mut trace, incremental_trace);
         let (c, trace) = Clause::new_with_trace(literals, trace);
@@ -169,7 +172,7 @@ impl Clause {
             base_id: base_trace.base_id,
             literals: trace,
         };
-        (c, trace)
+        (c, Some(trace))
     }
 
     /// Normalizes the variable IDs in the literals.
