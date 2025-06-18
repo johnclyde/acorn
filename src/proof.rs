@@ -808,7 +808,10 @@ impl<'a> Proof<'a> {
         concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
     ) -> Result<(), Error> {
         let Some(trace) = step.trace.as_ref() else {
-            return Err(Error::InternalError("proof step has no trace".to_string()));
+            return Err(Error::InternalError(format!(
+                "no trace for {}",
+                &step.clause
+            )));
         };
         let base_clause = self.get_clause(ProofStepId::Active(trace.base_id))?;
 
