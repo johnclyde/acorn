@@ -1,4 +1,4 @@
-use crate::clause::{Clause, ClauseTrace};
+use crate::clause::{Clause, ClauseTrace, LiteralTrace};
 use crate::features::Features;
 use crate::fingerprint::FingerprintSpecializer;
 use crate::literal::Literal;
@@ -66,33 +66,52 @@ fn pair_specializes(left1: &Term, right1: &Term, left2: &Term, right2: &Term) ->
 // We already know literals[index] can be obtained from the given literal through variable substitution.
 // Returns None if the clause is tautologically implied by the literal we are simplifying with.
 fn make_simplified(
+    activated_id: usize,
     left: &Term,
     right: &Term,
     positive: bool,
-    _flipped: bool,
+    flipped: bool,
     index: usize,
     literals: Vec<Literal>,
-    _trace: Option<ClauseTrace>,
-) -> Option<Clause> {
+    trace: Option<ClauseTrace>,
+) -> Option<(Clause, Option<ClauseTrace>)> {
     if literals[index].positive == positive {
         return None;
     }
     let mut new_literals = vec![];
+    let mut incremental_trace = vec![];
     for (i, literal) in literals.into_iter().enumerate() {
-        if i == index {
-            continue;
-        }
-        if pair_specializes(left, right, &literal.left, &literal.right) {
+        let eliminated = if i == index {
+            true
+        } else if pair_specializes(left, right, &literal.left, &literal.right) {
             if literal.positive == positive {
                 // The whole clause is implied by the literal we are simplifying with.
                 return None;
             }
             // This specific literal is unsatisfiable.
-            continue;
+            true
+        } else {
+            false
+        };
+        if eliminated {
+            incremental_trace.push(LiteralTrace::Eliminated {
+                step: activated_id,
+                flipped,
+            });
+        } else {
+            let index = new_literals.len();
+            incremental_trace.push(LiteralTrace::Output {
+                index,
+                flipped: false,
+            });
+            new_literals.push(literal);
         }
-        new_literals.push(literal);
     }
-    Some(Clause::new(new_literals))
+    Some(Clause::new_composing_traces(
+        new_literals,
+        &trace,
+        &incremental_trace,
+    ))
 }
 
 impl PassiveSet {
@@ -223,7 +242,8 @@ impl PassiveSet {
                 // So it's just redundant. We can forget about it.
                 continue;
             }
-            let Some(new_clause) = make_simplified(
+            let Some((new_clause, trace)) = make_simplified(
+                activated_id,
                 left,
                 right,
                 positive,
@@ -235,7 +255,7 @@ impl PassiveSet {
                 continue;
             };
             let short_steps = &[(activated_id, activated_step)];
-            new_steps.push(ProofStep::simplified(step, short_steps, new_clause, None));
+            new_steps.push(ProofStep::simplified(step, short_steps, new_clause, trace));
         }
 
         self.push_batch(new_steps);
