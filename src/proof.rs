@@ -676,10 +676,18 @@ impl<'a> Proof<'a> {
             for var_map in multi_var_map {
                 self.reconstruct_step(step, var_map, &mut var_maps, &mut concrete_clauses)?;
             }
-
+        }
+        let mut skip_code = HashSet::new();
+        for (id, step) in &self.all_steps {
             // We don't need proof steps for concrete assumptions
             if step.rule.is_assumption() && !step.clause.has_any_variable() {
-                concrete_clauses.remove(&self.id_map[id]);
+                if let Some(clauses) = concrete_clauses.remove(&self.id_map[id]) {
+                    for clause in clauses {
+                        let value = self.normalizer.denormalize(&clause);
+                        let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
+                        skip_code.insert(code);
+                    }
+                }
             }
         }
 
@@ -702,7 +710,7 @@ impl<'a> Proof<'a> {
                     value = value.pretty_negate();
                 }
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                if !direct.contains(&code) {
+                if !skip_code.contains(&code) && !direct.contains(&code) {
                     direct.push(code);
                 }
             }
