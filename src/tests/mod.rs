@@ -8,7 +8,10 @@ mod env_parsing_test;
 mod env_typeclass_test;
 
 #[cfg(test)]
-mod prover_test;
+mod prover_core_test;
+
+#[cfg(test)]
+mod prover_language_test;
 
 #[cfg(test)]
 mod project_test;
