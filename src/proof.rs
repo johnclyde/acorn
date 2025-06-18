@@ -155,7 +155,9 @@ impl<'a> ProofNode<'a> {
             NodeValue::Contradiction => Err(Error::InternalError(
                 "should not concrete codegen for contradiction".to_string(),
             )),
-            NodeValue::NegatedGoal(_) => Err(Error::ExplicitGoal),
+            NodeValue::NegatedGoal(_) => Err(Error::InternalError(
+                "should not concrete codegen for negated goal".to_string(),
+            )),
         }
     }
 }
@@ -705,6 +707,9 @@ impl<'a> Proof<'a> {
         let (direct_map, ordered_direct) = self.find_direct();
         for (node_id, is_true) in ordered_direct {
             let node = &self.nodes[node_id as usize];
+            if node.is_negated_goal() {
+                continue;
+            }
             let code = node.to_concrete_code(&self.normalizer, bindings, is_true)?;
             direct.push(code);
         }
