@@ -892,3 +892,31 @@ fn test_useful_fact_extraction() {
     names.sort();
     assert_eq!(names, &["foo_bar", "foo_bar_imp_foo_baz"]);
 }
+
+#[test]
+fn test_concrete_proof() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+          foo
+        }
+            
+        let f: Foo -> Bool = axiom
+        let g: Foo -> Bool = axiom
+        let h: Foo -> Bool = axiom
+            
+        axiom rule(x: Foo) {
+          f(x) and g(x) implies h(x)
+        }
+            
+        theorem goal(y: Foo) {
+          f(y) and g(y) implies h(y)
+        }
+        "#,
+    );
+
+    let (_, outcome, _concrete) = prove_with_concrete(&mut p, "main", "goal");
+    assert_eq!(outcome, Outcome::Success);
+}
