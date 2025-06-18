@@ -917,6 +917,7 @@ fn test_concrete_proof() {
         "#,
     );
 
-    let (_, outcome, _concrete) = prove_with_concrete(&mut p, "main", "goal");
+    let (_, outcome, concrete) = prove_with_concrete(&mut p, "main", "goal");
     assert_eq!(outcome, Outcome::Success);
+    concrete.expect("concrete proof generation failed");
 }
