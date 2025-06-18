@@ -151,7 +151,7 @@ pub enum Rule {
 
 impl Rule {
     // The ids of the clauses that this rule mathematically depends on.
-    fn premises(&self) -> Vec<ProofStepId> {
+    pub fn premises(&self) -> Vec<ProofStepId> {
         match self {
             Rule::Assumption(_) => vec![],
             Rule::Resolution(info) => vec![

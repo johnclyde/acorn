@@ -1054,7 +1054,7 @@ fn test_concrete_proof_with_passive_contradiction() {
         "#,
     );
 
-    let _c = prove_concrete(&mut p, "main", "goal");
-    // assert_eq!(c.direct, vec!["todo: fill this in"]);
-    // assert_eq!(c.indirect, Vec::<String>::new());
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["f(Foo.foo) = g(Foo.foo)"]);
+    assert_eq!(c.indirect, Vec::<String>::new());
 }

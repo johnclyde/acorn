@@ -817,8 +817,22 @@ impl<'a> Proof<'a> {
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
         concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
     ) -> Result<(), Error> {
-        if step.rule.is_assumption() {
-            return Ok(());
+        // Some rules we can handle without the traces.
+        match &step.rule {
+            Rule::Assumption(_) => {
+                // We don't need to reconstruct assumptions.
+                return Ok(());
+            }
+            Rule::PassiveContradiction(_) => {
+                // Passive contradictions are just two literals that exactly oppose each other,
+                // so we can use the premises concretely.
+                for id in step.rule.premises() {
+                    let map = VariableMap::new();
+                    self.track_reconstruction(id, map, input_maps, concrete_clauses)?;
+                }
+                return Ok(());
+            }
+            _ => {}
         }
 
         let Some(trace) = step.trace.as_ref() else {
