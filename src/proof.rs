@@ -676,6 +676,11 @@ impl<'a> Proof<'a> {
             for var_map in multi_var_map {
                 self.reconstruct_step(step, var_map, &mut var_maps, &mut concrete_clauses)?;
             }
+
+            // We don't need proof steps for concrete assumptions
+            if step.rule.is_assumption() && !step.clause.has_any_variable() {
+                concrete_clauses.remove(&self.id_map[id]);
+            }
         }
 
         // Generate code for the direct steps.
