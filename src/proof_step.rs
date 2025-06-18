@@ -102,6 +102,13 @@ pub struct RewriteInfo {
     // Whether this is a forwards or backwards rewrite.
     // A forwards rewrite rewrites the left side of the pattern into the right.
     pub forwards: bool,
+
+    // The single-clause literal initially created by the rewrite.
+    // This is usually redundant, but not always, because the output clause can get simplified.
+    pub rewritten: Clause,
+
+    // Whether the literal was flipped during normalization
+    pub flipped: bool,
 }
 
 // Always a contradiction, found by rewriting one side of an inequality into the other.
@@ -400,8 +407,10 @@ impl ProofStep {
     // We are replacing a subterm of the target literal with a new subterm.
     // Note that the target step will always be a concrete single literal.
     // The pattern and the output may have variables in them.
+    //
     // A "forwards" rewrite goes left-to-right in the pattern.
-    // In terms of the trace, the "target" is the base.
+    //
+    // The trace will capture everything that happens *after* the rewrite.
     pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
@@ -419,10 +428,15 @@ impl ProofStep {
             target_literal.replace_at_path(target_left, path, new_subterm.clone());
 
         let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
+        // It's not really accurate to call target_id the base id. It's a placeholder that we'll
+        // swap out during reconstruction. So it would be nice to clean this up.
         let (clause, trace) = Clause::new_with_trace(
             vec![new_literal],
             target_id,
-            vec![LiteralTrace::Output { index: 0, flipped }],
+            vec![LiteralTrace::Output {
+                index: 0,
+                flipped: false,
+            }],
         );
 
         let truthiness = pattern_step.truthiness.combine(target_step.truthiness);
@@ -433,6 +447,8 @@ impl ProofStep {
             target_left,
             path: path.to_vec(),
             forwards,
+            rewritten: clause.clone(),
+            flipped,
         });
 
         let proof_size = pattern_step.proof_size + target_step.proof_size + 1;

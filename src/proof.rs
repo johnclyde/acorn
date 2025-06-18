@@ -828,23 +828,41 @@ impl<'a> Proof<'a> {
             )));
         };
 
-        // We need the base clause that represents the start of the trace.
-        // For rewrites, this is the post-rewrite clause.
-        let base_clause = match &step.rule {
-            Rule::Rewrite(_info) => {
+        // The original clause represents the start of the proof step.
+        let original_clause = self.get_clause(ProofStepId::Active(trace.base_id))?;
+        match &step.rule {
+            Rule::Rewrite(info) => {
+                // For rewrites, the trace applies to the rewritten clause.
+                self.reconstruct_trace(
+                    &info.rewritten,
+                    trace,
+                    &step.clause,
+                    output_map,
+                    input_maps,
+                    concrete_clauses,
+                )?;
+
+                // The data in trace.base_id is wrong, though.
+                // We just want to extract the variable maps for the rewritten clause.
+                let base_id = ProofStepId::Active(trace.base_id);
+                let node_id = *self.id_map.get(&base_id).unwrap();
+                let _var_maps = input_maps.remove(&base_id).unwrap();
+                concrete_clauses.remove(&node_id);
+
                 todo!("reconstructing rewrite steps is not implemented yet");
             }
-            _ => self.get_clause(ProofStepId::Active(trace.base_id))?,
+            _ => {
+                // For non-rewrites, the trace applies directly to the original clause.
+                return self.reconstruct_trace(
+                    original_clause,
+                    trace,
+                    &step.clause,
+                    output_map,
+                    input_maps,
+                    concrete_clauses,
+                );
+            }
         };
-
-        self.reconstruct_trace(
-            base_clause,
-            trace,
-            &step.clause,
-            output_map,
-            input_maps,
-            concrete_clauses,
-        )
     }
 
     // Reconstructs inputs given a base clause and trace.
