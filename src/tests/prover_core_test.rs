@@ -894,7 +894,7 @@ fn test_useful_fact_extraction() {
 }
 
 #[test]
-fn test_concrete_proof() {
+fn test_concrete_proof_with_active_resolution() {
     let mut p = Project::new_mock();
     p.mock(
         "/mock/main.ac",
@@ -919,5 +919,37 @@ fn test_concrete_proof() {
 
     let c = prove_concrete(&mut p, "main", "goal");
     assert_eq!(c.direct, vec!["not g(y) or not f(y) or h(y)"]);
+    assert_eq!(c.indirect, Vec::<String>::new());
+}
+
+#[test]
+fn test_concrete_proof_removes_duplicates() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+          foo
+        }
+            
+        let f: Foo -> Bool = axiom
+        let g: Foo -> Bool = axiom
+            
+        axiom rule1(x: Foo) {
+          f(x) implies g(x)
+        }
+
+        axiom rule2(x: Foo) {
+          f(x)
+        }
+            
+        theorem goal(y: Foo) {
+          g(y)
+        }
+        "#,
+    );
+
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["not f(y) or g(y)", "f(y)"]);
     assert_eq!(c.indirect, Vec::<String>::new());
 }

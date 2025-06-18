@@ -691,18 +691,20 @@ impl<'a> Proof<'a> {
             if node.is_negated_goal() {
                 continue;
             }
-            let Some(clauses) = concrete_clauses.get(&node_id) else {
+            let Some(clauses) = concrete_clauses.remove(&node_id) else {
                 continue;
             };
             for clause in clauses {
                 // If the node is negated, we need to negate the clause.
                 // Otherwise, we use the clause as is.
-                let mut value = self.normalizer.denormalize(clause);
+                let mut value = self.normalizer.denormalize(&clause);
                 if !is_true {
                     value = value.pretty_negate();
                 }
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                direct.push(code);
+                if !direct.contains(&code) {
+                    direct.push(code);
+                }
             }
         }
 
@@ -717,13 +719,15 @@ impl<'a> Proof<'a> {
             if node.is_contradiction() || node.is_negated_goal() {
                 continue;
             }
-            let Some(clauses) = concrete_clauses.get(&node_id) else {
+            let Some(clauses) = concrete_clauses.remove(&node_id) else {
                 continue;
             };
             for clause in clauses {
-                let value = self.normalizer.denormalize(clause);
+                let value = self.normalizer.denormalize(&clause);
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                indirect.push(code);
+                if !indirect.contains(&code) {
+                    indirect.push(code);
+                }
             }
         }
         Ok(ConcreteProof { direct, indirect })
