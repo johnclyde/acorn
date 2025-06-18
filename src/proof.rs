@@ -136,30 +136,6 @@ impl<'a> ProofNode<'a> {
             }
         }
     }
-
-    // Ignores the "negate" flag on the node.
-    fn to_concrete_code(
-        &self,
-        normalizer: &Normalizer,
-        bindings: &BindingMap,
-        is_true: bool,
-    ) -> Result<String, Error> {
-        match &self.value {
-            NodeValue::Clause(clause) => {
-                let mut value = normalizer.denormalize(clause);
-                if !is_true {
-                    value = value.pretty_negate();
-                }
-                CodeGenerator::new(&bindings).value_to_code(&value)
-            }
-            NodeValue::Contradiction => Err(Error::InternalError(
-                "should not concrete codegen for contradiction".to_string(),
-            )),
-            NodeValue::NegatedGoal(_) => Err(Error::InternalError(
-                "should not concrete codegen for negated goal".to_string(),
-            )),
-        }
-    }
 }
 
 /// A proof that was successfully found by the prover.
@@ -710,8 +686,17 @@ impl<'a> Proof<'a> {
             if node.is_negated_goal() {
                 continue;
             }
-            let code = node.to_concrete_code(&self.normalizer, bindings, is_true)?;
-            direct.push(code);
+            let clauses = concrete_clauses.get(&node_id).unwrap();
+            for clause in clauses {
+                // If the node is negated, we need to negate the clause.
+                // Otherwise, we use the clause as is.
+                let mut value = self.normalizer.denormalize(clause);
+                if !is_true {
+                    value = value.pretty_negate();
+                }
+                let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
+                direct.push(code);
+            }
         }
 
         // Generate code for the indirect steps.
@@ -725,8 +710,12 @@ impl<'a> Proof<'a> {
             if node.is_contradiction() || node.is_negated_goal() {
                 continue;
             }
-            let code = node.to_concrete_code(&self.normalizer, bindings, true)?;
-            indirect.push(code);
+            let clauses = concrete_clauses.get(&node_id).unwrap();
+            for clause in clauses {
+                let value = self.normalizer.denormalize(clause);
+                let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
+                indirect.push(code);
+            }
         }
         Ok(ConcreteProof { direct, indirect })
     }
