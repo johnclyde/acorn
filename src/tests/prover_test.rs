@@ -691,7 +691,7 @@ fn test_using_imported_axiom() {
             theorem goal(a: bar.Bar, b: bar.Bar) { bar.morph(a) = bar.morph(b) }
         "#,
     );
-    let (_, outcome, _) = prove(&mut p, "main", "goal");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "goal");
     assert_eq!(outcome, Outcome::Success);
 }
 
@@ -1199,7 +1199,7 @@ fn test_prove_with_imported_skolem() {
             }
         "#,
     );
-    let (_, outcome, _) = prove(&mut p, "main", "goal");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "goal");
     assert_eq!(outcome, Outcome::Success);
 }
 
@@ -1586,11 +1586,11 @@ fn test_prove_with_imported_generic_structure() {
             }
         "#,
     );
-    let (_, outcome, _) = prove(&mut p, "main", "check_first");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "check_first");
     assert_eq!(outcome, Outcome::Success);
-    let (_, outcome, _) = prove(&mut p, "main", "check_second");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "check_second");
     assert_eq!(outcome, Outcome::Success);
-    let (_, outcome, _) = prove(&mut p, "main", "check_new");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "check_new");
     assert_eq!(outcome, Outcome::Success);
 }
 
@@ -1660,7 +1660,7 @@ fn test_useful_fact_extraction() {
             }
         "#,
     );
-    let (prover, outcome, _) = prove(&mut p, "main", "goal");
+    let (prover, outcome, _) = prove_with_code(&mut p, "main", "goal");
     assert_eq!(outcome, Outcome::Success);
     let mut name_set = HashSet::new();
     prover.get_useful_source_names(&mut name_set);
@@ -2168,7 +2168,7 @@ fn test_proving_with_mixin_instance() {
             }
         "#,
     );
-    let (_, outcome, _) = prove(&mut p, "main", "goal");
+    let (_, outcome, _) = prove_with_code(&mut p, "main", "goal");
     assert_eq!(outcome, Outcome::Success);
 }
 

@@ -1,15 +1,16 @@
 use crate::code_generator::Error;
+use crate::environment::Environment;
 use crate::module::LoadState;
 use crate::project::Project;
+use crate::proof::ConcreteProof;
 use crate::prover::{Outcome, Prover};
 
-// Tries to prove one thing from the project.
-// If the proof is successful, try to generate the code.
-pub fn prove(
-    project: &mut Project,
+// Helper to do a proof for a particular goal.
+fn prove<'a>(
+    project: &'a mut Project,
     module_name: &str,
     goal_name: &str,
-) -> (Prover, Outcome, Result<Vec<String>, Error>) {
+) -> (&'a Project, &'a Environment, Prover, Outcome) {
     let module_id = project
         .load_module_by_name(module_name)
         .expect("load failed");
@@ -33,6 +34,17 @@ pub fn prove(
     if let Outcome::Error(s) = outcome {
         panic!("prover error: {}", s);
     }
+    (project, env, prover, outcome)
+}
+
+// Tries to prove one thing from the project.
+// If the proof is successful, try to generate the code.
+pub fn prove_with_code(
+    project: &mut Project,
+    module_name: &str,
+    goal_name: &str,
+) -> (Prover, Outcome, Result<Vec<String>, Error>) {
+    let (project, env, prover, outcome) = prove(project, module_name, goal_name);
     let code = match prover.get_and_print_proof(project, &env.bindings) {
         Some(proof) => proof.to_code(&env.bindings),
         None => Err(Error::NoProof),
@@ -40,10 +52,24 @@ pub fn prove(
     (prover, outcome, code)
 }
 
+pub fn prove_with_concrete(
+    project: &mut Project,
+    module_name: &str,
+    goal_name: &str,
+) -> (Prover, Outcome, Result<ConcreteProof, Error>) {
+    let (project, env, prover, outcome) = prove(project, module_name, goal_name);
+    let mut proof = match prover.get_and_print_proof(project, &env.bindings) {
+        Some(proof) => proof,
+        None => return (prover, outcome, Err(Error::NoProof)),
+    };
+    let concrete = proof.make_concrete(&env.bindings);
+    (prover, outcome, concrete)
+}
+
 pub fn prove_as_main(text: &str, goal_name: &str) -> (Prover, Outcome, Result<Vec<String>, Error>) {
     let mut project = Project::new_mock();
     project.mock("/mock/main.ac", text);
-    prove(&mut project, "main", goal_name)
+    prove_with_code(&mut project, "main", goal_name)
 }
 
 // Does one proof on the provided text.

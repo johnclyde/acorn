@@ -684,11 +684,7 @@ pub struct ConcreteProof {
 
 impl<'a> Proof<'a> {
     /// Create the concrete proof.
-    pub fn reconstruct_proof(
-        &mut self,
-        normalizer: &Normalizer,
-        bindings: &BindingMap,
-    ) -> Result<ConcreteProof, Error> {
+    pub fn make_concrete(&mut self, bindings: &BindingMap) -> Result<ConcreteProof, Error> {
         // First, reconstruct all the steps, working backwards.
         let mut var_maps: HashMap<ProofStepId, HashSet<VariableMap>> = HashMap::new();
         var_maps
@@ -709,7 +705,7 @@ impl<'a> Proof<'a> {
         let (direct_map, ordered_direct) = self.find_direct();
         for (node_id, is_true) in ordered_direct {
             let node = &self.nodes[node_id as usize];
-            let code = node.to_concrete_code(normalizer, bindings, is_true)?;
+            let code = node.to_concrete_code(&self.normalizer, bindings, is_true)?;
             direct.push(code);
         }
 
@@ -724,7 +720,7 @@ impl<'a> Proof<'a> {
             if node.is_contradiction() || node.is_negated_goal() {
                 continue;
             }
-            let code = node.to_concrete_code(normalizer, bindings, true)?;
+            let code = node.to_concrete_code(&self.normalizer, bindings, true)?;
             indirect.push(code);
         }
         Ok(ConcreteProof { direct, indirect })
