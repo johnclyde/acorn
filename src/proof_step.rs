@@ -87,11 +87,22 @@ pub struct SpecializationInfo {
 // Information about a rewrite inference.
 // Rewrites have two parts, the "pattern" that determines what gets rewritten into what,
 // and the "target" which contains the subterm that gets rewritten.
+// Both of these parts are single-literal clauses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteInfo {
     // Which clauses were used as the sources.
     pub pattern_id: usize,
     pub target_id: usize,
+
+    // Whether we rewrite the term on the left of the target literal. (As opposed to the right.)
+    pub target_left: bool,
+
+    // The path within the target term that we rewrite.
+    pub path: Vec<usize>,
+
+    // Whether this is a forwards or backwards rewrite.
+    // A forwards rewrite rewrites the left side of the pattern into the right.
+    pub forwards: bool,
 }
 
 // Always a contradiction, found by rewriting one side of an inequality into the other.
@@ -390,6 +401,7 @@ impl ProofStep {
     // We are replacing a subterm of the target literal with a new subterm.
     // Note that the target step will always be a concrete single literal.
     // The pattern and the output may have variables in them.
+    // A "forwards" rewrite goes left-to-right in the pattern.
     pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
@@ -397,6 +409,7 @@ impl ProofStep {
         target_step: &ProofStep,
         target_left: bool,
         path: &[usize],
+        forwards: bool,
         new_subterm: &Term,
     ) -> ProofStep {
         assert_eq!(target_step.clause.literals.len(), 1);
@@ -417,6 +430,9 @@ impl ProofStep {
         let rule = Rule::Rewrite(RewriteInfo {
             pattern_id,
             target_id,
+            target_left,
+            path: path.to_vec(),
+            forwards,
         });
 
         let proof_size = pattern_step.proof_size + target_step.proof_size + 1;

@@ -364,6 +364,7 @@ impl ActiveSet {
                         target_step,
                         target_left,
                         &path,
+                        rewrite.forwards,
                         &rewrite.term,
                     );
                     output.push(ps);
@@ -437,6 +438,7 @@ impl ActiveSet {
                         target_step,
                         location.left,
                         &location.path,
+                        forwards,
                         &new_subterm,
                     );
                     output.push(ps);
