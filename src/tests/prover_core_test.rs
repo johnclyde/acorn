@@ -986,7 +986,15 @@ fn test_concrete_proof_with_passive_resolution() {
         "#,
     );
 
-    let _c = prove_concrete(&mut p, "main", "goal");
-    // assert_eq!(c.direct, vec!["todo: fill this out"]);
-    // assert_eq!(c.indirect, Vec::<String>::new());
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(
+        c.direct,
+        vec![
+            "not h(y) or f(y)",
+            "not f(y) or not g(y)",
+            "g(y)",
+            "not f(y)"
+        ]
+    );
+    assert_eq!(c.indirect, Vec::<String>::new());
 }
