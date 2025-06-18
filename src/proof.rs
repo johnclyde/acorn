@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::acorn_value::AcornValue;
 use crate::binding_map::BindingMap;
-use crate::clause::{Clause, LiteralTrace};
+use crate::clause::{Clause, ClauseTrace, LiteralTrace};
 use crate::code_generator::{CodeGenerator, Error};
 use crate::display::DisplayClause;
 use crate::normalizer::Normalizer;
@@ -820,9 +820,6 @@ impl<'a> Proof<'a> {
         if step.rule.is_assumption() {
             return Ok(());
         }
-        if step.rule.is_rewrite() {
-            todo!("reconstructing rewrite steps is not implemented yet");
-        }
 
         let Some(trace) = step.trace.as_ref() else {
             return Err(Error::InternalError(format!(
@@ -830,8 +827,42 @@ impl<'a> Proof<'a> {
                 &step.clause
             )));
         };
-        let base_clause = self.get_clause(ProofStepId::Active(trace.base_id))?;
 
+        // We need the base clause that represents the start of the trace.
+        // For rewrites, this is the post-rewrite clause.
+        let base_clause = match &step.rule {
+            Rule::Rewrite(_info) => {
+                todo!("reconstructing rewrite steps is not implemented yet");
+            }
+            _ => self.get_clause(ProofStepId::Active(trace.base_id))?,
+        };
+
+        self.reconstruct_trace(
+            base_clause,
+            trace,
+            &step.clause,
+            output_map,
+            input_maps,
+            concrete_clauses,
+        )
+    }
+
+    // Reconstructs inputs given a base clause and trace.
+    //
+    // When we reconstruct the inputs, we store them in two forms.
+    // Form 1 is as a variable map in input_maps. The base generic clause is implicit.
+    // Form 2 is as a concrete clause.
+    //
+    // If the step cannot be reconstructed, we return an error.
+    fn reconstruct_trace(
+        &self,
+        base_clause: &Clause,
+        trace: &ClauseTrace,
+        output_clause: &Clause,
+        output_map: VariableMap,
+        input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
+        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
+    ) -> Result<(), Error> {
         // The unifier will figure out the concrete clauses.
         // The output gets the output scope...
         let mut unifier = Unifier::with_output_map(output_map);
@@ -865,7 +896,7 @@ impl<'a> Proof<'a> {
                 }
                 LiteralTrace::Output { index, flipped } => {
                     // The output literal is in the output scope.
-                    (Scope::OUTPUT, &step.clause.literals[*index], *flipped)
+                    (Scope::OUTPUT, &output_clause.literals[*index], *flipped)
                 }
                 LiteralTrace::Impossible => {
                     continue;
