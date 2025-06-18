@@ -226,15 +226,14 @@ impl PassiveSet {
                 // So it's just redundant. We can forget about it.
                 continue;
             }
-            let new_clause = match make_simplified(
+            let Some(new_clause) = make_simplified(
                 left,
                 right,
                 positive,
                 literal_index,
                 std::mem::take(&mut step.clause.literals),
-            ) {
-                Some(clause) => clause,
-                None => continue,
+            ) else {
+                continue;
             };
             let short_steps = &[(activated_id, activated_step)];
             new_steps.push(ProofStep::simplified(step, short_steps, new_clause, None));
