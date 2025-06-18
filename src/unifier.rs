@@ -3,6 +3,7 @@ use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
 use crate::variable_map::VariableMap;
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Scope(usize);
@@ -225,7 +226,7 @@ impl Unifier {
             return false;
         }
 
-        for i in 0..3 {
+        for i in 0..self.maps.len() {
             self.maps[i].apply_to_all(|t| t.replace_variable(id, &term));
         }
         self.maps[Scope::OUTPUT.get()].set(id, term);
@@ -461,6 +462,19 @@ impl Unifier {
         }
 
         literals
+    }
+}
+
+impl fmt::Display for Unifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Unifier:")?;
+        for (scope, map) in self.maps.iter().enumerate() {
+            write!(f, "  {:?}: {}", Scope(scope), map)?;
+            if scope < self.maps.len() - 1 {
+                writeln!(f)?;
+            }
+        }
+        Ok(())
     }
 }
 

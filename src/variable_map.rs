@@ -2,6 +2,7 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
+use std::fmt;
 
 // A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
 // into a more specific one by substituting variables.
@@ -160,5 +161,20 @@ impl VariableMap {
             .map(|lit| self.specialize_literal(lit))
             .collect();
         Clause::new(specialized_literals)
+    }
+}
+
+impl fmt::Display for VariableMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for (i, term) in self.iter() {
+            if !first {
+                write!(f, ", ")?;
+            }
+            write!(f, "x{} -> {}", i, term)?;
+            first = false;
+        }
+        write!(f, ")")
     }
 }
