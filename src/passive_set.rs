@@ -53,23 +53,16 @@ pub struct PassiveSet {
 // Only tries this direction.
 // Terms do not have to have variables normalized.
 fn pair_specializes(left1: &Term, right1: &Term, left2: &Term, right2: &Term) -> bool {
+    if left1.term_type != left2.term_type {
+        return false;
+    }
     let mut var_map = VariableMap::new();
     var_map.match_terms(left1, left2) && var_map.match_terms(right1, right2)
 }
 
-// Tries both directions
-fn pair_specializes_either_way(left: &Term, right: &Term, literal: &Literal) -> bool {
-    if left.term_type != literal.left.term_type {
-        return false;
-    }
-    if pair_specializes(left, right, &literal.left, &literal.right) {
-        return true;
-    }
-    pair_specializes(left, right, &literal.right, &literal.left)
-}
-
 // Makes a new clause by simplifying a bunch of literals with respect to a given literal.
 // left and right do not have to have variables normalized.
+// We only check against the left->right direction.
 // We already know literals[index] can be obtained from the given literal through variable substitution.
 // Returns None if the clause is tautologically implied by the literal we are simplifying with.
 fn make_simplified(
@@ -89,7 +82,7 @@ fn make_simplified(
         if i == index {
             continue;
         }
-        if pair_specializes_either_way(left, right, &literal) {
+        if pair_specializes(left, right, &literal.left, &literal.right) {
             if literal.positive == positive {
                 // The whole clause is implied by the literal we are simplifying with.
                 return None;
