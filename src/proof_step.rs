@@ -407,6 +407,7 @@ impl ProofStep {
     // We are replacing a subterm of the target literal with a new subterm.
     // Note that the target step will always be a concrete single literal.
     // The pattern and the output may have variables in them.
+    // It seems weird for the output to have variables, but it does.
     //
     // A "forwards" rewrite goes left-to-right in the pattern.
     //

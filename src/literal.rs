@@ -253,6 +253,14 @@ impl Literal {
         let (new_literal, flip2) = Literal::new_with_flip(self.positive, new_u, v.clone());
         (new_literal, flip1 ^ flip2)
     }
+
+    pub fn get_term_at_path(&self, left: bool, path: &[usize]) -> Option<&Term> {
+        if left {
+            self.left.get_term_at_path(path)
+        } else {
+            self.right.get_term_at_path(path)
+        }
+    }
 }
 
 // Literals are ordered so that you can normalize a clause by sorting its literals.

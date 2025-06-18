@@ -463,6 +463,10 @@ impl Unifier {
 
         literals
     }
+
+    pub fn into_one_map(self, scope: Scope) -> VariableMap {
+        self.maps.into_iter().nth(scope.get()).unwrap()
+    }
 }
 
 impl fmt::Display for Unifier {

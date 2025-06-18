@@ -846,10 +846,48 @@ impl<'a> Proof<'a> {
                 // We just want to extract the variable maps for the rewritten clause.
                 let base_id = ProofStepId::Active(trace.base_id);
                 let node_id = *self.id_map.get(&base_id).unwrap();
-                let _var_maps = input_maps.remove(&base_id).unwrap();
+                let var_maps = input_maps.remove(&base_id).unwrap();
                 concrete_clauses.remove(&node_id);
 
-                todo!("reconstructing rewrite steps is not implemented yet");
+                // The target is already concrete, and the output has been made concrete through
+                // its variable map. We need to unify the pattern.
+                let pattern_id = ProofStepId::Active(info.pattern_id);
+                let pattern_clause = &self.get_clause(pattern_id)?;
+                let pattern = &pattern_clause.literals[0];
+                let target_id = ProofStepId::Active(info.target_id);
+                let target_clause = &self.get_clause(target_id)?;
+                let target = &target_clause.literals[0];
+                let (from_pat, to_pat) = if info.forwards {
+                    (&pattern.left, &pattern.right)
+                } else {
+                    (&pattern.right, &pattern.left)
+                };
+                let target_term = if info.target_left {
+                    &target.left
+                } else {
+                    &target.right
+                };
+                let target_subterm = target_term.get_term_at_path(&info.path).unwrap();
+                let rewritten_term = if info.target_left ^ info.flipped {
+                    &info.rewritten.literals[0].left
+                } else {
+                    &info.rewritten.literals[0].right
+                };
+                let rewritten_subterm = rewritten_term.get_term_at_path(&info.path).unwrap();
+                for output_map in var_maps {
+                    let mut unifier = Unifier::with_output_map(output_map);
+                    let pattern_scope = unifier.add_scope();
+                    assert!(unifier.unify(pattern_scope, from_pat, Scope::OUTPUT, target_subterm));
+                    assert!(unifier.unify(pattern_scope, to_pat, Scope::OUTPUT, rewritten_subterm));
+
+                    // Report the concrete pattern
+                    let map = unifier.into_one_map(pattern_scope);
+                    self.track_reconstruction(pattern_id, map, input_maps, concrete_clauses)?;
+                }
+
+                // The target is already concrete
+                let map = VariableMap::new();
+                self.track_reconstruction(target_id, map, input_maps, concrete_clauses)?;
             }
             _ => {
                 // For non-rewrites, the trace applies directly to the original clause.
@@ -862,7 +900,8 @@ impl<'a> Proof<'a> {
                     concrete_clauses,
                 );
             }
-        };
+        }
+        Ok(())
     }
 
     // Reconstructs inputs given a base clause and trace.
@@ -940,24 +979,36 @@ impl<'a> Proof<'a> {
             }
 
             let id = ids.get(&scope).unwrap();
-            let generic = self.get_clause(*id)?;
-            let concrete = map.specialize_clause(generic);
-            if concrete.has_any_variable() {
-                return Err(Error::InternalError(format!(
-                    "reconstructed clause {:?} is not concrete",
-                    id
-                )));
-            }
-
-            // Store the results
-            input_maps.entry(*id).or_default().insert(map);
-            let node_id = *self.id_map.get(id).unwrap();
-            concrete_clauses
-                .entry(node_id)
-                .or_default()
-                .insert(concrete);
+            self.track_reconstruction(*id, map, input_maps, concrete_clauses)?;
         }
 
+        Ok(())
+    }
+
+    // Helper function to aggregate construction output
+    fn track_reconstruction(
+        &self,
+        id: ProofStepId,
+        map: VariableMap,
+        input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
+        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
+    ) -> Result<(), Error> {
+        let generic = self.get_clause(id)?;
+        let concrete = map.specialize_clause(generic);
+        if concrete.has_any_variable() {
+            return Err(Error::InternalError(format!(
+                "reconstructed clause {:?} is not concrete",
+                id
+            )));
+        }
+
+        // Store the results
+        input_maps.entry(id).or_default().insert(map);
+        let node_id = *self.id_map.get(&id).unwrap();
+        concrete_clauses
+            .entry(node_id)
+            .or_default()
+            .insert(concrete);
         Ok(())
     }
 }
