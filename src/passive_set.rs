@@ -109,7 +109,7 @@ fn make_simplified(
     }
     Some(Clause::new_composing_traces(
         new_literals,
-        &trace,
+        trace,
         &incremental_trace,
     ))
 }

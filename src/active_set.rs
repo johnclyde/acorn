@@ -689,7 +689,7 @@ impl ActiveSet {
         }
 
         let (clause, trace) =
-            Clause::new_composing_traces(output_literals, &step.trace, &incremental_trace);
+            Clause::new_composing_traces(output_literals, step.trace.clone(), &incremental_trace);
         if clause.is_tautology() {
             return None;
         }

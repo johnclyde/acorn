@@ -159,15 +159,14 @@ impl Clause {
     /// The base_trace should be applicable to the provided literals.
     pub fn new_composing_traces(
         literals: Vec<Literal>,
-        base_trace: &Option<ClauseTrace>,
+        base_trace: Option<ClauseTrace>,
         incremental_trace: &Vec<LiteralTrace>,
     ) -> (Clause, Option<ClauseTrace>) {
-        let Some(base_trace) = base_trace else {
+        let Some(mut base_trace) = base_trace else {
             return (Clause::new(literals), None);
         };
-        let mut trace = base_trace.literals.clone();
-        compose_traces(&mut trace, incremental_trace);
-        let (c, trace) = Clause::new_with_trace(literals, trace);
+        compose_traces(&mut base_trace.literals, incremental_trace);
+        let (c, trace) = Clause::new_with_trace(literals, base_trace.literals);
         let trace = ClauseTrace {
             base_id: base_trace.base_id,
             literals: trace,
