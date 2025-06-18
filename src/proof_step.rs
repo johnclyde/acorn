@@ -92,10 +92,6 @@ pub struct RewriteInfo {
     // Which clauses were used as the sources.
     pub pattern_id: usize,
     pub target_id: usize,
-
-    // The truthiness of the source clauses.
-    pattern_truthiness: Truthiness,
-    target_truthiness: Truthiness,
 }
 
 // Always a contradiction, found by rewriting one side of an inequality into the other.
@@ -421,8 +417,6 @@ impl ProofStep {
         let rule = Rule::Rewrite(RewriteInfo {
             pattern_id,
             target_id,
-            pattern_truthiness: pattern_step.truthiness,
-            target_truthiness: target_step.truthiness,
         });
 
         let proof_size = pattern_step.proof_size + target_step.proof_size + 1;
