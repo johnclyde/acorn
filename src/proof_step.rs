@@ -423,18 +423,17 @@ impl ProofStep {
         };
         let new_u = u.replace_at_path(path, new_subterm.clone());
 
-        // TODO: handle the case where we immediately reduce to a contradiction.
-        // The trace will be wrong in this case.
+        // I think this should handle the case where we immediately reduce to a contradiction.
         let (new_literal, flip) = Literal::new_with_flip(target_literal.positive, new_u, v.clone());
-        let trace = ClauseTrace {
-            base_id: target_id,
-            literals: vec![LiteralTrace::Output {
+        let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
+        let (clause, trace) = Clause::new_with_trace(
+            vec![new_literal],
+            target_id,
+            vec![LiteralTrace::Output {
                 index: 0,
                 flipped: flip,
             }],
-        };
-        let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
-        let clause = Clause::new(vec![new_literal]);
+        );
 
         let truthiness = pattern_step.truthiness.combine(target_step.truthiness);
 
