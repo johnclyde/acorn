@@ -804,8 +804,11 @@ impl<'a> Proof<'a> {
     // Given a concrete output of a proof step, reconstruct concrete inputs.
     // The concrete output is provided as a VariableMap that specializes the clause in the
     // ProofStep to something concrete.
-    // When we reconstruct the inputs, we store them in two forms, as a variable map in
-    // the input maps, and as a concrete clause.
+    //
+    // When we reconstruct the inputs, we store them in two forms.
+    // Form 1 is as a variable map in input_maps. The base generic clause is implicit.
+    // Form 2 is as a concrete clause.
+    //
     // If the step cannot be reconstructed, we return an error.
     fn reconstruct_step(
         &self,

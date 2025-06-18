@@ -48,6 +48,7 @@ fn compose_traces(first: &mut Vec<LiteralTrace>, second: &Vec<LiteralTrace>) {
 }
 
 /// A record of how a clause was constructed.
+/// These operations are logically after any rewrite that occurred.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ClauseTrace {
     /// The ID of the base clause that this trace is based on.

@@ -392,6 +392,8 @@ impl ProofStep {
 
     // Construct a new ProofStep via rewriting.
     // We are replacing a subterm of the target literal with a new subterm.
+    // Note that the target step will always be a concrete single literal.
+    // The pattern and the output may have variables in them.
     pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
@@ -402,6 +404,7 @@ impl ProofStep {
         new_subterm: &Term,
     ) -> ProofStep {
         assert_eq!(target_step.clause.literals.len(), 1);
+
         let target_literal = &target_step.clause.literals[0];
         let (u, v) = if target_left {
             (&target_literal.left, &target_literal.right)

@@ -998,3 +998,33 @@ fn test_concrete_proof_with_passive_resolution() {
     );
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_activating_rewrite_pattern() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: Foo -> Foo = axiom
+        let g: Foo -> Foo = axiom
+        let h: Foo -> Bool = axiom
+
+        axiom rule1(x: Foo) {
+            f(x) = g(x)
+        }
+            
+        theorem goal(y: Foo) {
+            h(f(y)) implies h(g(y))
+        }
+        "#,
+    );
+
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["g(y) = f(y)"]);
+    assert_eq!(c.indirect, Vec::<String>::new());
+}
