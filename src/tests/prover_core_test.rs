@@ -953,3 +953,40 @@ fn test_concrete_proof_removes_duplicates() {
     assert_eq!(c.direct, vec!["not f(y) or g(y)", "f(y)"]);
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_with_passive_resolution() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+        }
+            
+        let f: Foo -> Bool = axiom
+        let g: Foo -> Bool = axiom
+        let h: Foo -> Bool = axiom
+
+        axiom rule1(x: Foo) {
+            g(x)
+        }
+
+        axiom rule2(x: Foo) {
+            f(x) implies not g(x)
+        }
+
+        axiom rule3(x: Foo) {
+            h(x) implies f(x)
+        }
+            
+        theorem goal(y: Foo) {
+            not h(y)
+        }
+        "#,
+    );
+
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["todo: fill this out"]);
+    assert_eq!(c.indirect, Vec::<String>::new());
+}
