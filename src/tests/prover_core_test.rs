@@ -1058,3 +1058,32 @@ fn test_concrete_proof_with_passive_contradiction() {
     assert_eq!(c.direct, vec!["f(Foo.foo) = g(Foo.foo)"]);
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_with_multiple_rewrite() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: Foo -> Foo = axiom
+        let g: Foo -> Foo = axiom
+
+        axiom rule1(x: Foo) {
+            f(x) = g(x)
+        }
+            
+        theorem goal(y: Foo) {
+            f(f(f(y))) = g(g(g(y)))
+        }
+        "#,
+    );
+
+    let _c = prove_concrete(&mut p, "main", "goal");
+    // assert_eq!(c.direct, vec!["todo: fill out"]);
+    // assert_eq!(c.indirect, Vec::<String>::new());
+}
