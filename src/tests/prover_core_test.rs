@@ -1125,3 +1125,37 @@ fn test_concrete_proof_random_bug() {
     assert_eq!(c.direct, vec!["h(y) = f(y) or g(y) = f(y) or f(y) = z"]);
     assert_eq!(c.indirect, vec!["g(y) != f(y)"]);
 }
+
+#[test]
+fn test_concrete_proof_with_equality_factoring() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: Foo -> Foo = axiom
+        let g: Foo -> Foo = axiom
+        let h: Foo -> Foo = axiom
+
+        axiom rule1(x: Foo) {
+            f(x) != h(x)
+        }
+
+        axiom rule2(x: Foo) {
+            g(x) = h(x)
+        }
+            
+        theorem goal(y: Foo) {
+            not (f(y) = g(y) or f(y) = h(y))
+        }
+        "#,
+    );
+
+    let _c = prove_concrete(&mut p, "main", "goal");
+    // assert_eq!(c.direct, vec![""]);
+    // assert_eq!(c.indirect, vec![""]);
+}
