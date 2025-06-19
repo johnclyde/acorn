@@ -151,23 +151,31 @@ pub struct EFLiteralTrace {
 }
 
 impl EFLiteralTrace {
-    pub fn keep(index: usize, flipped: bool) -> EFLiteralTrace {
-        EFLiteralTrace::factor(
-            EFTermTrace { index, left: true },
-            EFTermTrace { index, left: false },
-            flipped,
-        )
+    pub fn to_index(index: usize, flipped: bool) -> EFLiteralTrace {
+        if flipped {
+            EFLiteralTrace::new(
+                EFTermTrace { index, left: false },
+                EFTermTrace { index, left: true },
+            )
+        } else {
+            EFLiteralTrace::new(
+                EFTermTrace { index, left: true },
+                EFTermTrace { index, left: false },
+            )
+        }
     }
 
-    pub fn factor(left: EFTermTrace, right: EFTermTrace, flipped: bool) -> EFLiteralTrace {
+    /// Trace a literal that goes to a provided output. Flip the input if flipped is provided.
+    pub fn to_out(left: EFTermTrace, right: EFTermTrace, flipped: bool) -> EFLiteralTrace {
         if flipped {
-            EFLiteralTrace {
-                left: right,
-                right: left,
-            }
+            EFLiteralTrace::new(right, left)
         } else {
-            EFLiteralTrace { left, right }
+            EFLiteralTrace::new(left, right)
         }
+    }
+
+    pub fn new(left: EFTermTrace, right: EFTermTrace) -> EFLiteralTrace {
+        EFLiteralTrace { left, right }
     }
 }
 
