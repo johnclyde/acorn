@@ -912,8 +912,8 @@ impl<'a> Proof<'a> {
                 let map = VariableMap::new();
                 self.track_reconstruction(target_id, map, input_maps, concrete_clauses)?;
             }
-            _ => {
-                // For non-rewrites, the trace applies directly to the original clause.
+            Rule::Resolution(_) | Rule::Specialization(_) => {
+                // For these rules, the trace applies directly to the original clause.
                 return self.reconstruct_trace(
                     original_clause,
                     trace,
@@ -922,6 +922,12 @@ impl<'a> Proof<'a> {
                     input_maps,
                     concrete_clauses,
                 );
+            }
+            rule => {
+                return Err(Error::InternalError(format!(
+                    "missing reconstruction method for rule {}",
+                    rule.name()
+                )));
             }
         }
         Ok(())
@@ -982,7 +988,7 @@ impl<'a> Proof<'a> {
                     continue;
                 }
             };
-            
+
             if !unifier.unify_literals(base_scope, base_literal, scope, literal, flipped) {
                 return Err(Error::InternalError(format!(
                     "failed to unify base literal {} with trace literal {}",

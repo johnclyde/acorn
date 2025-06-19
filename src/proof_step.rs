@@ -538,6 +538,10 @@ impl ProofStep {
     // Construct a ProofStep with fake heuristic data for testing
     pub fn mock(s: &str) -> ProofStep {
         let clause = Clause::parse(s);
+        Self::mock_from_clause(clause)
+    }
+
+    pub fn mock_from_clause(clause: Clause) -> ProofStep {
         let truthiness = Truthiness::Factual;
         let rule = Rule::Assumption(AssumptionInfo {
             source: Source::mock(),

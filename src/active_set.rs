@@ -476,7 +476,8 @@ impl ActiveSet {
     /// Specifically, when one first literal is of the form
     ///   u != v
     /// then if we can unify u and v, we can eliminate this literal from the clause.
-    pub fn equality_resolution(clause: &Clause) -> Vec<Clause> {
+    pub fn equality_resolution(activated_step: &ProofStep, activated_id: usize) -> Vec<ProofStep> {
+        let clause = &activated_step.clause;
         let mut answer = vec![];
 
         for i in 0..clause.literals.len() {
@@ -503,7 +504,11 @@ impl ActiveSet {
 
             let new_clause = Clause::new(new_literals);
             if !new_clause.is_tautology() {
-                answer.push(new_clause);
+                answer.push(ProofStep::direct(
+                    activated_step,
+                    Rule::EqualityResolution(EqualityResolutionInfo { id: activated_id }),
+                    new_clause,
+                ));
             }
         }
 
@@ -515,7 +520,8 @@ impl ActiveSet {
     /// It's pretty simple, though.
     /// When f(a, b, d) != f(a, c, d), that implies that b != c.
     /// We can run this operation on any negative literal in the clause.
-    pub fn function_elimination(clause: &Clause) -> Vec<Clause> {
+    pub fn function_elimination(activated_step: &ProofStep, activated_id: usize) -> Vec<ProofStep> {
+        let clause = &activated_step.clause;
         let mut answer = vec![];
 
         for (i, target) in clause.literals.iter().enumerate() {
@@ -548,7 +554,11 @@ impl ActiveSet {
                 let mut literals = clause.literals.clone();
                 literals[i] =
                     Literal::not_equals(target.left.args[j].clone(), target.right.args[j].clone());
-                answer.push(Clause::new(literals))
+                answer.push(ProofStep::direct(
+                    activated_step,
+                    Rule::FunctionElimination(FunctionEliminationInfo { id: activated_id }),
+                    Clause::new(literals),
+                ))
             }
         }
 
@@ -565,7 +575,8 @@ impl ActiveSet {
     /// "s = t" must be the first clause, but "u = v" can be any of them.
     ///
     /// I find this rule to be unintuitive, extracting an inequality from only equalities.
-    pub fn equality_factoring(clause: &Clause) -> Vec<Clause> {
+    pub fn equality_factoring(activated_step: &ProofStep, activated_id: usize) -> Vec<ProofStep> {
+        let clause = &activated_step.clause;
         let mut answer = vec![];
         let st_literal = &clause.literals[0];
         if !st_literal.positive {
@@ -597,7 +608,11 @@ impl ActiveSet {
                         }
                     }
                     let new_clause = Clause::new(literals);
-                    answer.push(new_clause);
+                    answer.push(ProofStep::direct(
+                        activated_step,
+                        Rule::EqualityFactoring(EqualityFactoringInfo { id: activated_id }),
+                        new_clause,
+                    ));
                 }
             }
         }
@@ -827,28 +842,16 @@ impl ActiveSet {
 
         // Unification-based inferences don't need to be done on specialization, because
         // they can operate directly on the general form.
-        for new_clause in ActiveSet::equality_resolution(&activated_step.clause) {
-            output.push(ProofStep::direct(
-                &activated_step,
-                Rule::EqualityResolution(EqualityResolutionInfo { id: activated_id }),
-                new_clause,
-            ));
+        for proof_step in ActiveSet::equality_resolution(&activated_step, activated_id) {
+            output.push(proof_step);
         }
 
-        for clause in ActiveSet::equality_factoring(&activated_step.clause) {
-            output.push(ProofStep::direct(
-                &activated_step,
-                Rule::EqualityFactoring(EqualityFactoringInfo { id: activated_id }),
-                clause,
-            ));
+        for proof_step in ActiveSet::equality_factoring(&activated_step, activated_id) {
+            output.push(proof_step);
         }
 
-        for clause in ActiveSet::function_elimination(&activated_step.clause) {
-            output.push(ProofStep::direct(
-                &activated_step,
-                Rule::FunctionElimination(FunctionEliminationInfo { id: activated_id }),
-                clause,
-            ));
+        for proof_step in ActiveSet::function_elimination(&activated_step, activated_id) {
+            output.push(proof_step);
         }
 
         self.find_resolutions(&activated_step, &mut output);
@@ -935,17 +938,19 @@ mod tests {
             Literal::not_equals(Term::parse("x0"), Term::parse("c0")),
             Literal::equals(Term::parse("x0"), Term::parse("c1")),
         ]);
-        let clauses = ActiveSet::equality_resolution(&old_clause);
-        assert_eq!(clauses.len(), 1);
-        assert!(clauses[0].len() == 1);
-        assert_eq!(format!("{}", clauses[0]), "c1 = c0".to_string());
+        let mock_step = ProofStep::mock_from_clause(old_clause);
+        let proof_steps = ActiveSet::equality_resolution(&mock_step, 0);
+        assert_eq!(proof_steps.len(), 1);
+        assert!(proof_steps[0].clause.len() == 1);
+        assert_eq!(format!("{}", proof_steps[0].clause), "c1 = c0".to_string());
     }
 
     #[test]
     fn test_mutually_recursive_equality_resolution() {
         // This is a bug we ran into. It shouldn't work
         let clause = Clause::parse("c0(x0, c0(x1, c1(x2))) != c0(c0(x2, x1), x0)");
-        assert!(ActiveSet::equality_resolution(&clause).is_empty());
+        let mock_step = ProofStep::mock_from_clause(clause);
+        assert!(ActiveSet::equality_resolution(&mock_step, 0).is_empty());
     }
 
     #[test]
@@ -954,10 +959,11 @@ mod tests {
             Literal::equals(Term::parse("x0"), Term::parse("c0")),
             Literal::equals(Term::parse("x1"), Term::parse("c0")),
         ]);
-        let new_clauses = ActiveSet::equality_factoring(&old_clause);
+        let mock_step = ProofStep::mock_from_clause(old_clause);
+        let proof_steps = ActiveSet::equality_factoring(&mock_step, 0);
         let expected = Clause::parse("c0 = x0");
-        for c in &new_clauses {
-            if *c == expected {
+        for ps in &proof_steps {
+            if ps.clause == expected {
                 return;
             }
         }
@@ -991,8 +997,9 @@ mod tests {
 
         // Trichotomy
         let clause = Clause::parse("c1(x0, x1) or c1(x1, x0) or x0 = x1");
-        let output = ActiveSet::equality_factoring(&clause);
-        assert_eq!(output[0].to_string(), "c1(x0, x0) or x0 = x0");
+        let mock_step = ProofStep::mock_from_clause(clause);
+        let output = ActiveSet::equality_factoring(&mock_step, 0);
+        assert_eq!(output[0].clause.to_string(), "c1(x0, x0) or x0 = x0");
     }
 
     #[test]
