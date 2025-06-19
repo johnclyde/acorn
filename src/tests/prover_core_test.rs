@@ -1195,3 +1195,36 @@ fn test_concrete_proof_with_equality_factoring_mixed_forwards() {
     assert_eq!(c.direct, vec!["g(y) = h(y)", "f(y) != h(y)"]);
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_with_equality_resolution() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: (Foo, Foo) -> Bool = axiom
+        let g: Foo -> Foo = axiom
+
+        axiom rule1(x: Foo, y: Foo) {
+            g(x) = g(y) implies f(x, y)
+        }
+
+        axiom rule2(x: Foo, y: Foo) {
+            f(x, y) implies f(g(x), y)
+        }
+            
+        theorem goal(x: Foo) {
+            f(g(g(x)), x) 
+        }
+        "#,
+    );
+
+    let _c = prove_concrete(&mut p, "main", "goal");
+    // assert_eq!(c.direct, vec!["todo"]);
+    // assert_eq!(c.indirect, Vec::<String>::new());
+}

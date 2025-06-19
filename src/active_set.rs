@@ -473,7 +473,7 @@ impl ActiveSet {
     }
 
     /// Tries to do inference using the equality resolution (ER) rule.
-    /// Specifically, when one first literal is of the form
+    /// Specifically, when one literal is of the form
     ///   u != v
     /// then if we can unify u and v, we can eliminate this literal from the clause.
     pub fn equality_resolution(activated_step: &ProofStep, activated_id: usize) -> Vec<ProofStep> {
