@@ -202,8 +202,11 @@ impl Unifier {
         self.apply_replace(scope, term, None)
     }
 
-    pub fn apply_to_literal(&mut self, scope: Scope, literal: &Literal) -> Literal {
-        literal.map(&mut |term| self.apply(scope, term))
+    /// Returns the resulting literal, and whether it was flipped.
+    pub fn apply_to_literal(&mut self, scope: Scope, literal: &Literal) -> (Literal, bool) {
+        let apply_left = self.apply(scope, &literal.left);
+        let apply_right = self.apply(scope, &literal.right);
+        Literal::new_with_flip(literal.positive, apply_left, apply_right)
     }
 
     // Replace variable i in the output scope with the given term (which is also in the output scope).
@@ -448,7 +451,7 @@ impl Unifier {
             if i == res_literal_index {
                 continue;
             }
-            let unified_literal = self.apply_to_literal(Scope::RIGHT, literal);
+            let (unified_literal, _) = self.apply_to_literal(Scope::RIGHT, literal);
             literals.push(unified_literal);
         }
 
@@ -457,7 +460,7 @@ impl Unifier {
             if i == pm_literal_index {
                 continue;
             }
-            let unified_literal = self.apply_to_literal(Scope::LEFT, literal);
+            let (unified_literal, _) = self.apply_to_literal(Scope::LEFT, literal);
             literals.push(unified_literal);
         }
 

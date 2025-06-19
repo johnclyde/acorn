@@ -133,6 +133,44 @@ pub struct AssumptionInfo {
     pub defined_atom: Option<Atom>,
 }
 
+/// Information about what happens to a term during equality factoring.
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub struct EFTermTrace {
+    /// Which literal it goes to
+    pub index: usize,
+
+    /// Whether it goes to the left of that literal
+    pub left: bool,
+}
+
+/// Information about what happens to a literal during equality factoring.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EFLiteralTrace {
+    pub left: EFTermTrace,
+    pub right: EFTermTrace,
+}
+
+impl EFLiteralTrace {
+    pub fn keep(index: usize, flipped: bool) -> EFLiteralTrace {
+        EFLiteralTrace::factor(
+            EFTermTrace { index, left: true },
+            EFTermTrace { index, left: false },
+            flipped,
+        )
+    }
+
+    pub fn factor(left: EFTermTrace, right: EFTermTrace, flipped: bool) -> EFLiteralTrace {
+        if flipped {
+            EFLiteralTrace {
+                left: right,
+                right: left,
+            }
+        } else {
+            EFLiteralTrace { left, right }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EqualityFactoringInfo {
     /// The id of the clause that was factored.
@@ -141,14 +179,8 @@ pub struct EqualityFactoringInfo {
     /// The literals that we got immediately after factoring.
     pub literals: Vec<Literal>,
 
-    /// Whether we flipped the "s = t" literal.
-    pub st_flip: bool,
-
-    /// The index we found the "u = v" literal at.
-    pub uv_index: usize,
-
-    /// Whether we flipped the "u = v" literal.
-    pub uv_flip: bool,
+    /// Parallel to literals. Tracks how we got them from the input clause.
+    pub ef_trace: Vec<EFLiteralTrace>,
 }
 
 /// Information about an equality resolution inference.

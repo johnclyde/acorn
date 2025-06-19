@@ -913,6 +913,37 @@ impl<'a> Proof<'a> {
                 let map = VariableMap::new();
                 self.track_reconstruction(target_id, map, input_maps, concrete_clauses)?;
             }
+            Rule::EqualityFactoring(info) => {
+                // For EF, the trace applies to the stored literals.
+                self.reconstruct_trace(
+                    &info.literals,
+                    trace,
+                    &step.clause,
+                    output_map,
+                    input_maps,
+                    concrete_clauses,
+                )?;
+
+                // The data in trace.base_id is wrong, though.
+                // We just want to extract the variable maps for the rewritten clause.
+                let base_id = ProofStepId::Active(trace.base_id);
+                let node_id = *self.id_map.get(&base_id).unwrap();
+                let var_maps = input_maps.remove(&base_id).unwrap();
+                concrete_clauses.remove(&node_id);
+
+                // Unify the pre-EF and post-EF literals.
+                let base_clause = &self.get_clause(base_id)?;
+                assert!(base_clause.literals.len() == info.literals.len());
+
+                for output_map in var_maps {
+                    let mut unifier = Unifier::with_output_map(output_map);
+                    let _base_scope = unifier.add_scope();
+
+                    // TODO: store information in a better way here
+                }
+
+                todo!("implement equality factoring reconstruction");
+            }
             Rule::Resolution(_) | Rule::Specialization(_) => {
                 // For these rules, the trace applies directly to the original clause.
                 return self.reconstruct_trace(
