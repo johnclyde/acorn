@@ -637,16 +637,7 @@ impl ActiveSet {
 
                     for j in 1..clause.literals.len() {
                         if i == j {
-                            // The j'th literal in the base clause maps u and v.
-                            // If uv_forwards is true, base left = u, base right = v
-                            // If uv_forwards is false, base left = v, base right = u
-                            if uv_forwards {
-                                // base left (u) -> u_out, base right (v) -> v_out
-                                ef_trace.push(EFLiteralTrace::to_out(u_out, v_out, false));
-                            } else {
-                                // base left (v) -> v_out, base right (u) -> u_out
-                                ef_trace.push(EFLiteralTrace::to_out(v_out, u_out, false));
-                            }
+                            ef_trace.push(EFLiteralTrace::to_out(u_out, v_out, !uv_forwards));
                         } else {
                             let (new_lit, j_flipped) =
                                 unifier.apply_to_literal(Scope::LEFT, &clause.literals[j]);

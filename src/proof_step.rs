@@ -152,17 +152,11 @@ pub struct EFLiteralTrace {
 
 impl EFLiteralTrace {
     pub fn to_index(index: usize, flipped: bool) -> EFLiteralTrace {
-        if flipped {
-            EFLiteralTrace::new(
-                EFTermTrace { index, left: false },
-                EFTermTrace { index, left: true },
-            )
-        } else {
-            EFLiteralTrace::new(
-                EFTermTrace { index, left: true },
-                EFTermTrace { index, left: false },
-            )
-        }
+        EFLiteralTrace::to_out(
+            EFTermTrace { index, left: true },
+            EFTermTrace { index, left: false },
+            flipped,
+        )
     }
 
     /// Trace a literal that goes to a provided output. Flip the input if flipped is provided.
