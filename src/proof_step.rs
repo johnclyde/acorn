@@ -3,6 +3,7 @@ use std::fmt;
 
 use crate::atom::Atom;
 use crate::clause::{Clause, ClauseTrace};
+use crate::literal::Literal;
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
 use crate::term::Term;
@@ -129,7 +130,20 @@ pub struct AssumptionInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EqualityFactoringInfo {
+    /// The id of the clause that was factored.
     pub id: usize,
+
+    /// The literals that we got immediately after factoring.
+    pub literals: Vec<Literal>,
+
+    /// Whether we flipped the "s = t" literal.
+    pub st_flip: bool,
+
+    /// The index we found the "u = v" literal at.
+    pub uv_index: usize,
+
+    /// Whether we flipped the "u = v" literal.
+    pub uv_flip: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -101,7 +101,7 @@ impl Clause {
     /// Normalizes literals into a clause, creating a trace of where each one is sent.
     /// Note that this doesn't flip any literals. It only creates the "Output" and "Impossible"
     /// type traces.
-    fn normalize_with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
+    pub fn normalize_with_trace(literals: Vec<Literal>) -> (Clause, Vec<LiteralTrace>) {
         let mut trace = vec![LiteralTrace::Impossible; literals.len()];
 
         // Pair each literal with its initial index.
@@ -154,8 +154,7 @@ impl Clause {
     ) -> (Clause, ClauseTrace) {
         let (c, incremental_trace) = Clause::normalize_with_trace(literals);
         compose_traces(&mut trace, &incremental_trace);
-        
-        
+
         let trace = ClauseTrace {
             base_id,
             literals: trace,

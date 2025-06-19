@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::clause::{Clause, LiteralTrace};
+use crate::clause::{Clause, ClauseTrace, LiteralTrace};
 use crate::fingerprint::FingerprintUnifier;
 use crate::literal::Literal;
 use crate::pattern_tree::LiteralSet;
@@ -582,14 +582,16 @@ impl ActiveSet {
         if !st_literal.positive {
             return answer;
         }
-        for (_, s, t) in st_literal.both_term_pairs() {
+        for (st_not_flipped, s, t) in st_literal.both_term_pairs() {
+            let st_flip = !st_not_flipped;  // both_term_pairs returns !flipped
             for i in 1..clause.literals.len() {
                 let uv_literal = &clause.literals[i];
                 if !uv_literal.positive {
                     continue;
                 }
 
-                for (_, u, v) in uv_literal.both_term_pairs() {
+                for (uv_not_flipped, u, v) in uv_literal.both_term_pairs() {
+                    let uv_flip = !uv_not_flipped;  // both_term_pairs returns !flipped
                     // The variables are all in the same scope, which we will call "left".
                     let mut unifier = Unifier::new(3);
                     if !unifier.unify(Scope::LEFT, s, Scope::LEFT, u) {
@@ -607,12 +609,30 @@ impl ActiveSet {
                                 .push(unifier.apply_to_literal(Scope::LEFT, &clause.literals[j]));
                         }
                     }
-                    let new_clause = Clause::new(literals);
-                    answer.push(ProofStep::direct(
+                    
+                    // Capture the literals before normalization
+                    let literals_before_normalization = literals.clone();
+                    
+                    // Create the new clause with trace
+                    let (new_clause, normalization_trace) = Clause::normalize_with_trace(literals);
+                    let trace = ClauseTrace {
+                        base_id: activated_id,
+                        literals: normalization_trace,
+                    };
+                    
+                    let mut step = ProofStep::direct(
                         activated_step,
-                        Rule::EqualityFactoring(EqualityFactoringInfo { id: activated_id }),
+                        Rule::EqualityFactoring(EqualityFactoringInfo { 
+                            id: activated_id,
+                            literals: literals_before_normalization,
+                            st_flip,
+                            uv_index: i,
+                            uv_flip,
+                        }),
                         new_clause,
-                    ));
+                    );
+                    step.trace = Some(trace);
+                    answer.push(step);
                 }
             }
         }
