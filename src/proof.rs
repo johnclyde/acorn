@@ -985,7 +985,12 @@ impl<'a> Proof<'a> {
                     for (i, base_lit) in base_clause.literals.iter().enumerate() {
                         if i == info.index {
                             assert!(!base_lit.positive);
-                            unifier.unify(base_scope, &base_lit.left, base_scope, &base_lit.right);
+                            assert!(unifier.unify(
+                                base_scope,
+                                &base_lit.left,
+                                base_scope,
+                                &base_lit.right
+                            ));
                             continue;
                         }
                         let (left, right) = if info.flipped[j] {
@@ -993,8 +998,9 @@ impl<'a> Proof<'a> {
                         } else {
                             (&info.literals[j].left, &info.literals[j].right)
                         };
-                        unifier.unify(base_scope, &base_lit.left, Scope::OUTPUT, left);
-                        unifier.unify(base_scope, &base_lit.right, Scope::OUTPUT, right);
+
+                        assert!(unifier.unify(base_scope, &base_lit.left, Scope::OUTPUT, left));
+                        assert!(unifier.unify(base_scope, &base_lit.right, Scope::OUTPUT, right));
                         j += 1;
                     }
 
