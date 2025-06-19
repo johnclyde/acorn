@@ -504,6 +504,15 @@ impl AcornValue {
         }
     }
 
+    pub fn into_and(self, output: &mut Vec<AcornValue>) {
+        if let AcornValue::Binary(BinaryOp::And, left, right) = self {
+            left.into_and(output);
+            right.into_and(output);
+        } else {
+            output.push(self);
+        }
+    }
+
     /// Negates this value
     pub fn negate(self) -> AcornValue {
         self.maybe_negate(true)

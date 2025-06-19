@@ -704,15 +704,12 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                // If the node is negated, we need to negate the clause.
-                // Otherwise, we use the clause as is.
-                let mut value = self.normalizer.denormalize(&clause);
-                if !is_true {
-                    value = value.pretty_negate();
-                }
-                let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                if !skip_code.contains(&code) && !direct.contains(&code) {
-                    direct.push(code);
+                let value = self.normalizer.denormalize(&clause);
+                let codes = CodeGenerator::new(&bindings).value_to_codes(value, !is_true)?;
+                for code in codes {
+                    if !skip_code.contains(&code) && !direct.contains(&code) {
+                        direct.push(code);
+                    }
                 }
             }
         }

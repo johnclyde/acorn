@@ -130,6 +130,20 @@ impl CodeGenerator<'_> {
         Ok(expr.to_string())
     }
 
+    /// Convert to a string, but if this is an "and" node, convert it to multiple strings.
+    pub fn value_to_codes(&mut self, mut value: AcornValue, negate: bool) -> Result<Vec<String>> {
+        if negate {
+            value = value.pretty_negate();
+        }
+        let mut subvalues = vec![];
+        value.into_and(&mut subvalues);
+        let mut codes = vec![];
+        for subvalue in subvalues {
+            codes.push(self.value_to_code(&subvalue)?);
+        }
+        Ok(codes)
+    }
+
     fn type_to_code(&mut self, acorn_type: &AcornType) -> Result<String> {
         let expr = self.type_to_expr(acorn_type)?;
         Ok(expr.to_string())
@@ -320,7 +334,8 @@ impl CodeGenerator<'_> {
                                 if let AcornType::Data(datatype, _) = &receiver_type {
                                     if self.bindings.is_instance_of(datatype, typeclass) {
                                         // Check if the datatype has its own attribute with the same name
-                                        let datatype_attr_name = DefinedName::datatype_attr(datatype, &attr);
+                                        let datatype_attr_name =
+                                            DefinedName::datatype_attr(datatype, &attr);
                                         !self.bindings.constant_name_in_use(&datatype_attr_name)
                                     } else {
                                         false
@@ -393,7 +408,8 @@ impl CodeGenerator<'_> {
                     if let ConstantName::TypeclassAttribute(typeclass, attr_name) = &c.name {
                         if let AcornType::Data(datatype, _) = &receiver_type {
                             if self.bindings.is_instance_of(datatype, typeclass) {
-                                let datatype_attr_name = DefinedName::datatype_attr(datatype, attr_name);
+                                let datatype_attr_name =
+                                    DefinedName::datatype_attr(datatype, attr_name);
                                 // If the datatype has its own attribute, don't infer parameters
                                 !self.bindings.constant_name_in_use(&datatype_attr_name)
                             } else {
@@ -460,7 +476,8 @@ impl CodeGenerator<'_> {
                             if let AcornType::Data(datatype, _) = &c.params[0] {
                                 if self.bindings.is_instance_of(datatype, typeclass) {
                                     // Check if the datatype has its own attribute with the same name
-                                    let datatype_attr_name = DefinedName::datatype_attr(datatype, &attr);
+                                    let datatype_attr_name =
+                                        DefinedName::datatype_attr(datatype, &attr);
                                     if !self.bindings.constant_name_in_use(&datatype_attr_name) {
                                         // Generate DataType.attribute instead of Typeclass.attribute<DataType>
                                         // only if the datatype doesn't override this attribute
