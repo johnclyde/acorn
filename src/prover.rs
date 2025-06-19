@@ -463,7 +463,8 @@ impl Prover {
         let inequality_step = self.active_set.get_step(contradiction.inequality_id);
         let mut truthiness = inequality_step.truthiness;
         for step in contradiction.rewrite_chain {
-            let rewrite_step = self.active_set.get_step(step.source.pattern_id.get());
+            let pattern_id = step.source.pattern_id.get();
+            let rewrite_step = self.active_set.get_step(pattern_id);
             truthiness = truthiness.combine(rewrite_step.truthiness);
 
             // Check whether we need to explicitly add a specialized clause to the proof.
@@ -479,9 +480,9 @@ impl Prover {
 
             // Create a new proof step, without activating it, to express the
             // specific equality used by this rewrite.
-            let (literal, _flipped) =
+            let (literal, flipped) =
                 Literal::new_with_flip(true, step.input_term, step.output_term);
-            let clause = Clause::new(vec![literal]);
+            let (clause, trace) = Clause::from_literal(literal, pattern_id, flipped);
             if new_clauses.contains(&clause) {
                 // We already created a step for this equality
                 // TODO: is it really okay to not insert any sort of id here?
@@ -493,6 +494,7 @@ impl Prover {
                 inspiration_id,
                 rewrite_step,
                 clause,
+                trace,
             );
             max_depth = max_depth.max(step.depth);
             let passive_id = self.useful_passive.len() as u32;

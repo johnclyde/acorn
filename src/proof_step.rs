@@ -311,6 +311,7 @@ impl ProofStep {
         inspiration_id: usize,
         pattern_step: &ProofStep,
         clause: Clause,
+        trace: ClauseTrace,
     ) -> ProofStep {
         let info = SpecializationInfo {
             pattern_id,
@@ -324,7 +325,7 @@ impl ProofStep {
             proof_size: pattern_step.proof_size + 1,
             depth: pattern_step.depth,
             printable: true,
-            trace: None,
+            trace: Some(trace),
         }
     }
 
