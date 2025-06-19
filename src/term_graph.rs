@@ -36,9 +36,9 @@ impl fmt::Display for StepId {
     }
 }
 
-/// The rationale for a single rewrite step.
+/// Information about a rewrite that was added to the term graph externally.
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
-pub struct RewriteStep {
+pub struct RewriteSource {
     /// The id of the rule used for this rewrite.
     /// We know this rewrite is true based on the pattern step alone.
     pub pattern_id: StepId,
@@ -70,7 +70,7 @@ pub struct TermGraphContradiction {
     pub inequality_id: usize,
 
     /// The rewrites that turn one side of the inequality into the other.
-    pub rewrite_chain: Vec<(Term, Term, RewriteStep)>,
+    pub rewrite_chain: Vec<(Term, Term, RewriteSource)>,
 }
 
 // Each term has a Decomposition that describes how it is created.
@@ -91,7 +91,7 @@ struct TermInfo {
 
     // The terms that this one can be directly turned into.
     // When the step id is not provided, we concluded it from composition.
-    adjacent: Vec<(TermId, Option<RewriteStep>)>,
+    adjacent: Vec<(TermId, Option<RewriteSource>)>,
 }
 
 // Each term belongs to a group.
@@ -250,7 +250,7 @@ impl fmt::Display for ClauseId {
 #[derive(Clone)]
 enum SemanticOperation {
     // A term equality that comes from a rewrite pattern.
-    Rewrite(RewriteStep),
+    Rewrite(RewriteSource),
 
     // A term equality that comes indirectly from a logical deduction.
     TermEquality(TermId, TermId),
@@ -573,7 +573,7 @@ impl TermGraph {
         old_group: GroupId,
         new_term: TermId,
         new_group: GroupId,
-        step: Option<RewriteStep>,
+        source: Option<RewriteSource>,
     ) {
         let old_info = self.groups[old_group.0 as usize]
             .take()
@@ -714,10 +714,10 @@ impl TermGraph {
 
         self.terms[old_term.0 as usize]
             .adjacent
-            .push((new_term, step));
+            .push((new_term, source));
         self.terms[new_term.0 as usize]
             .adjacent
-            .push((old_term, step));
+            .push((old_term, source));
     }
 
     fn process_pending(&mut self) {
@@ -728,8 +728,8 @@ impl TermGraph {
             }
 
             match operation {
-                SemanticOperation::Rewrite(step) => {
-                    self.set_terms_equal_once(step.left, step.right, Some(step));
+                SemanticOperation::Rewrite(source) => {
+                    self.set_terms_equal_once(source.left, source.right, Some(source));
                 }
                 SemanticOperation::TermEquality(term1, term2) => {
                     self.set_terms_equal_once(term1, term2, None);
@@ -825,13 +825,13 @@ impl TermGraph {
         if clause_info.literals.len() == 1 {
             let literal = &clause_info.literals[0];
             if literal.positive {
-                let step = RewriteStep {
+                let source = RewriteSource {
                     pattern_id: clause_info.step,
                     inspiration_id: None,
                     left: literal.left,
                     right: literal.right,
                 };
-                self.pending.push(SemanticOperation::Rewrite(step));
+                self.pending.push(SemanticOperation::Rewrite(source));
             } else {
                 self.pending.push(SemanticOperation::TermInequality(
                     literal.left,
@@ -847,7 +847,7 @@ impl TermGraph {
     // Set two terms to be equal.
     // Doesn't repeat to find the logical closure.
     // For that, use identify_terms.
-    fn set_terms_equal_once(&mut self, term1: TermId, term2: TermId, step: Option<RewriteStep>) {
+    fn set_terms_equal_once(&mut self, term1: TermId, term2: TermId, source: Option<RewriteSource>) {
         let group1 = self.get_group_id(term1);
         let group2 = self.get_group_id(term2);
         if group1 == group2 {
@@ -859,9 +859,9 @@ impl TermGraph {
 
         // Keep around the smaller number, as a tiebreak
         if (info1.heuristic_size(), group2) < (info2.heuristic_size(), group1) {
-            self.remap_group(term1, group1, term2, group2, step)
+            self.remap_group(term1, group1, term2, group2, source)
         } else {
-            self.remap_group(term2, group2, term1, group1, step)
+            self.remap_group(term2, group2, term1, group1, source)
         };
     }
 
@@ -875,13 +875,13 @@ impl TermGraph {
         pattern_id: StepId,
         inspiration_id: Option<StepId>,
     ) {
-        let step = RewriteStep {
+        let source = RewriteSource {
             pattern_id,
             inspiration_id,
             left,
             right,
         };
-        self.pending.push(SemanticOperation::Rewrite(step));
+        self.pending.push(SemanticOperation::Rewrite(source));
         self.process_pending();
     }
 
@@ -972,7 +972,11 @@ impl TermGraph {
     // Gets a step of edges that demonstrate that term1 and term2 are equal.
     // The step is None if the edge is composite.
     // Panics if there is no path.
-    fn get_path(&self, term1: TermId, term2: TermId) -> Vec<(TermId, TermId, Option<RewriteStep>)> {
+    fn get_path(
+        &self,
+        term1: TermId,
+        term2: TermId,
+    ) -> Vec<(TermId, TermId, Option<RewriteSource>)> {
         if term1 == term2 {
             return vec![];
         }
@@ -986,12 +990,12 @@ impl TermGraph {
         let mut queue = vec![term2];
         'outer: loop {
             let term_b = queue.pop().expect("no path between terms");
-            for (term_a, step) in &self.terms[term_b.0 as usize].adjacent {
+            for (term_a, source) in &self.terms[term_b.0 as usize].adjacent {
                 if next_edge.contains_key(term_a) {
                     // We already have a way to get from term_a to term2
                     continue;
                 }
-                next_edge.insert(*term_a, (term_b, *step));
+                next_edge.insert(*term_a, (term_b, *source));
                 if *term_a == term1 {
                     break 'outer;
                 }
@@ -1002,8 +1006,8 @@ impl TermGraph {
         let mut answer = vec![];
         let mut term_a = term1;
         while term_a != term2 {
-            let (term_b, step) = next_edge[&term_a];
-            answer.push((term_a, term_b, step));
+            let (term_b, source) = next_edge[&term_a];
+            answer.push((term_a, term_b, source));
             term_a = term_b;
         }
         answer
@@ -1019,14 +1023,14 @@ impl TermGraph {
         &self,
         term1: TermId,
         term2: TermId,
-        output: &mut Vec<(Term, Term, RewriteStep)>,
+        output: &mut Vec<(Term, Term, RewriteSource)>,
     ) {
         if term1 == term2 {
             return;
         }
         let path = self.get_path(term1, term2);
-        for (a_id, b_id, step) in path {
-            if step.is_none() {
+        for (a_id, b_id, source) in path {
+            if source.is_none() {
                 // We have a compound relationship between a_id and b_id
                 let (head_a, args_a) = self.as_compound(a_id);
                 let (head_b, args_b) = self.as_compound(b_id);
@@ -1040,8 +1044,8 @@ impl TermGraph {
             let term_a = self.get_term(a_id);
             let term_b = self.get_term(b_id);
 
-            if let Some(step) = step {
-                output.push((term_a.clone(), term_b.clone(), step));
+            if let Some(source) = source {
+                output.push((term_a.clone(), term_b.clone(), source));
             }
         }
     }
@@ -1051,10 +1055,10 @@ impl TermGraph {
             return;
         }
         let path = self.get_path(term1, term2);
-        for (term_a, term_b, step) in path {
-            match step {
-                Some(step) => {
-                    output.insert(step.pattern_id);
+        for (term_a, term_b, source) in path {
+            match source {
+                Some(source) => {
+                    output.insert(source.pattern_id);
                 }
                 None => {
                     let (head_a, args_a) = self.as_compound(term_a);
