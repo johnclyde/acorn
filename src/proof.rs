@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
 
 use crate::acorn_value::AcornValue;
@@ -702,7 +702,7 @@ impl<'a> Proof<'a> {
             let Some(clauses) = concrete_clauses.remove(&node_id) else {
                 continue;
             };
-            for clause in clauses {
+            for clause in clauses.into_iter().rev() {
                 // If the node is negated, we need to negate the clause.
                 // Otherwise, we use the clause as is.
                 let mut value = self.normalizer.denormalize(&clause);
@@ -730,7 +730,7 @@ impl<'a> Proof<'a> {
             let Some(clauses) = concrete_clauses.remove(&node_id) else {
                 continue;
             };
-            for clause in clauses {
+            for clause in clauses.into_iter().rev() {
                 let value = self.normalizer.denormalize(&clause);
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
                 if !indirect.contains(&code) {
@@ -823,7 +823,7 @@ impl<'a> Proof<'a> {
         step: &ProofStep,
         output_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
+        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         // Some rules we can handle without the traces.
         match &step.rule {
@@ -941,7 +941,7 @@ impl<'a> Proof<'a> {
         output_clause: &Clause,
         output_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
+        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         // The unifier will figure out the concrete clauses.
         // The output gets the output scope...
@@ -1014,7 +1014,7 @@ impl<'a> Proof<'a> {
         id: ProofStepId,
         map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, HashSet<Clause>>,
+        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         let generic = self.get_clause(id)?;
         let concrete = map.specialize_clause(generic);
