@@ -462,16 +462,16 @@ impl Prover {
         let mut max_depth = 0;
         let inequality_step = self.active_set.get_step(contradiction.inequality_id);
         let mut truthiness = inequality_step.truthiness;
-        for (left, right, rewrite_info) in contradiction.rewrite_chain {
-            let rewrite_step = self.active_set.get_step(rewrite_info.pattern_id.get());
+        for step in contradiction.rewrite_chain {
+            let rewrite_step = self.active_set.get_step(step.source.pattern_id.get());
             truthiness = truthiness.combine(rewrite_step.truthiness);
 
             // Check whether we need to explicitly add a specialized clause to the proof.
-            let inspiration_id = match rewrite_info.inspiration_id {
+            let inspiration_id = match step.source.inspiration_id {
                 Some(id) => id.get(),
                 None => {
                     // No extra specialized clause needed
-                    active_ids.push(rewrite_info.pattern_id.get());
+                    active_ids.push(step.source.pattern_id.get());
                     max_depth = max_depth.max(rewrite_step.depth);
                     continue;
                 }
@@ -479,7 +479,7 @@ impl Prover {
 
             // Create a new proof step, without activating it, to express the
             // specific equality used by this rewrite.
-            let literal = Literal::equals(left, right);
+            let literal = Literal::equals(step.input_term, step.output_term);
             let clause = Clause::new(vec![literal]);
             if new_clauses.contains(&clause) {
                 // We already created a step for this equality
@@ -488,7 +488,7 @@ impl Prover {
             }
             new_clauses.insert(clause.clone());
             let step = ProofStep::specialization(
-                rewrite_info.pattern_id.get(),
+                step.source.pattern_id.get(),
                 inspiration_id,
                 rewrite_step,
                 clause,

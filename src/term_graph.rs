@@ -56,6 +56,7 @@ pub struct RewriteSource {
 }
 
 /// Information provided externally to describe one step in a chain of rewrites.
+#[derive(Debug, Eq, PartialEq)]
 pub struct RewriteStep {
     pub source: RewriteSource,
 
@@ -84,7 +85,7 @@ pub struct TermGraphContradiction {
     pub inequality_id: usize,
 
     /// The rewrites that turn one side of the inequality into the other.
-    pub rewrite_chain: Vec<(Term, Term, RewriteSource)>,
+    pub rewrite_chain: Vec<RewriteStep>,
 }
 
 // Each term has a Decomposition that describes how it is created.
@@ -1038,12 +1039,7 @@ impl TermGraph {
     // the rewrites for the subterms.
     // The compound rewrites have a step id of None.
     // The rewritten subterms have a step id with the rule that they are based on.
-    fn expand_steps(
-        &self,
-        term1: TermId,
-        term2: TermId,
-        output: &mut Vec<(Term, Term, RewriteSource)>,
-    ) {
+    fn expand_steps(&self, term1: TermId, term2: TermId, output: &mut Vec<RewriteStep>) {
         if term1 == term2 {
             return;
         }
@@ -1064,7 +1060,20 @@ impl TermGraph {
             let term_b = self.get_term(b_id);
 
             if let Some(source) = source {
-                output.push((term_a.clone(), term_b.clone(), source));
+                let forwards = if a_id == source.left && b_id == source.right {
+                    true
+                } else if a_id == source.right && b_id == source.left {
+                    false
+                } else {
+                    panic!("source does not match terms");
+                };
+                let step = RewriteStep {
+                    source,
+                    input_term: term_a.clone(),
+                    output_term: term_b.clone(),
+                    forwards,
+                };
+                output.push(step);
             }
         }
     }
