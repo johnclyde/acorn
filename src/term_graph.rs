@@ -49,10 +49,24 @@ pub struct RewriteSource {
     pub inspiration_id: Option<StepId>,
 
     /// The term that was originally on the left side of the pattern.
-    pub left: TermId,
+    left: TermId,
 
     /// The term that was originally on the right side of the pattern.
-    pub right: TermId,
+    right: TermId,
+}
+
+/// Information provided externally to describe one step in a chain of rewrites.
+pub struct RewriteStep {
+    pub source: RewriteSource,
+
+    /// The term that existed before the rewrite.
+    pub input_term: Term,
+
+    /// The term that the input term was rewritten info.
+    pub output_term: Term,
+
+    /// A forwards rewrite is the "left -> right" direction.
+    pub forwards: bool,
 }
 
 /// The goal of the TermGraph is to find a contradiction.
@@ -847,7 +861,12 @@ impl TermGraph {
     // Set two terms to be equal.
     // Doesn't repeat to find the logical closure.
     // For that, use identify_terms.
-    fn set_terms_equal_once(&mut self, term1: TermId, term2: TermId, source: Option<RewriteSource>) {
+    fn set_terms_equal_once(
+        &mut self,
+        term1: TermId,
+        term2: TermId,
+        source: Option<RewriteSource>,
+    ) {
         let group1 = self.get_group_id(term1);
         let group2 = self.get_group_id(term2);
         if group1 == group2 {
