@@ -496,20 +496,32 @@ impl ActiveSet {
 
             // We can do equality resolution
             let mut new_literals = vec![];
+            let mut flipped = vec![];
             for (j, lit) in clause.literals.iter().enumerate() {
                 if j != i {
-                    let (new_lit, _) = unifier.apply_to_literal(Scope::LEFT, lit);
+                    let (new_lit, j_flipped) = unifier.apply_to_literal(Scope::LEFT, lit);
                     new_literals.push(new_lit);
+                    flipped.push(j_flipped);
                 }
             }
-
-            let new_clause = Clause::new(new_literals);
+            let literals = new_literals.clone();
+            let (new_clause, trace) = Clause::normalize_with_trace(new_literals);
             if !new_clause.is_tautology() {
-                answer.push(ProofStep::direct(
+                let mut step = ProofStep::direct(
                     activated_step,
-                    Rule::EqualityResolution(EqualityResolutionInfo { id: activated_id }),
+                    Rule::EqualityResolution(EqualityResolutionInfo {
+                        id: activated_id,
+                        index: i,
+                        literals,
+                        flipped,
+                    }),
                     new_clause,
-                ));
+                );
+                step.trace = Some(ClauseTrace {
+                    base_id: activated_id,
+                    literals: trace,
+                });
+                answer.push(step);
             }
         }
 

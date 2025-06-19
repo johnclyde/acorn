@@ -190,6 +190,15 @@ pub struct EqualityFactoringInfo {
 pub struct EqualityResolutionInfo {
     /// The id of the clause that was resolved.
     pub id: usize,
+
+    // Which literal in the input clause got resolved away.
+    pub index: usize,
+
+    // The literals that we got immediately after resolution.
+    pub literals: Vec<Literal>,
+
+    // Parallel to literals. Tracks whether they were flipped or not.
+    pub flipped: Vec<bool>,
 }
 
 /// Information about a function elimination inference.
