@@ -1155,7 +1155,7 @@ fn test_concrete_proof_with_equality_factoring() {
         "#,
     );
 
-    // let _c = prove_concrete(&mut p, "main", "goal");
+    let _c = prove_concrete(&mut p, "main", "goal");
     // assert_eq!(c.direct, vec![""]);
     // assert_eq!(c.indirect, vec![""]);
 }

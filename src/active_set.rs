@@ -604,36 +604,58 @@ impl ActiveSet {
                         unifier.apply(Scope::LEFT, t),
                         unifier.apply(Scope::LEFT, v),
                     );
-                    literals.push(tv_lit);
                     let (uv_out, uv_out_flip) = unifier.apply_to_literal(Scope::LEFT, uv_literal);
+                    
+                    literals.push(tv_lit);
                     literals.push(uv_out);
 
                     // Figure out where the factored terms went.
-                    // s goes to u
+                    // The output has two literals:
+                    // literals[0] = t != v (the new inequality)
+                    // literals[1] = u = v (the preserved equality, with s unified to u)
+                    
+                    // s and u both go to the same place (they were unified)
+                    // From the debug output: when uv_out_flip is false, u is on the right
                     let s_out = EFTermTrace {
                         index: 1,
-                        left: !uv_out_flip,
+                        left: uv_out_flip,  // false means u is on right, true means u is on left
                     };
-                    // t goes to t
+                    // t goes to the left of the inequality
                     let t_out = EFTermTrace {
                         index: 0,
                         left: !tv_flip,
                     };
-                    // u goes to u
-                    let u_out = EFTermTrace {
-                        index: 1,
-                        left: !uv_out_flip,
-                    };
-                    // There are two v's that should be the same, let's pick the first one
+                    // u goes to the same place as s
+                    let u_out = s_out;
+                    // v goes to the right of the inequality
                     let v_out = EFTermTrace {
                         index: 0,
                         left: tv_flip,
                     };
-                    ef_trace.push(EFLiteralTrace::factor(s_out, t_out, !st_forwards));
+                    
+                    // The first literal in the base clause maps s and t.
+                    // If st_forwards is true, base left = s, base right = t
+                    // If st_forwards is false, base left = t, base right = s
+                    if st_forwards {
+                        // base left (s) -> s_out, base right (t) -> t_out
+                        ef_trace.push(EFLiteralTrace::factor(s_out, t_out, false));
+                    } else {
+                        // base left (t) -> t_out, base right (s) -> s_out
+                        ef_trace.push(EFLiteralTrace::factor(t_out, s_out, false));
+                    }
 
                     for j in 1..clause.literals.len() {
                         if i == j {
-                            ef_trace.push(EFLiteralTrace::factor(u_out, v_out, !uv_forwards));
+                            // The j'th literal in the base clause maps u and v.
+                            // If uv_forwards is true, base left = u, base right = v
+                            // If uv_forwards is false, base left = v, base right = u
+                            if uv_forwards {
+                                // base left (u) -> u_out, base right (v) -> v_out
+                                ef_trace.push(EFLiteralTrace::factor(u_out, v_out, false));
+                            } else {
+                                // base left (v) -> v_out, base right (u) -> u_out
+                                ef_trace.push(EFLiteralTrace::factor(v_out, u_out, false));
+                            }
                         } else {
                             let (new_lit, j_flipped) =
                                 unifier.apply_to_literal(Scope::LEFT, &clause.literals[j]);
