@@ -937,12 +937,27 @@ impl<'a> Proof<'a> {
 
                 for output_map in var_maps {
                     let mut unifier = Unifier::with_output_map(output_map);
-                    let _base_scope = unifier.add_scope();
+                    let base_scope = unifier.add_scope();
 
-                    // TODO: store information in a better way here
+                    for (base_lit, lit_trace) in base_clause.literals.iter().zip(&info.ef_trace) {
+                        for (base_term, term_trace) in [
+                            (&base_lit.left, &lit_trace.left),
+                            (&base_lit.right, &lit_trace.right),
+                        ] {
+                            let out_lit = &info.literals[term_trace.index];
+                            let out_term = if term_trace.left {
+                                &out_lit.left
+                            } else {
+                                &out_lit.right
+                            };
+                            assert!(unifier.unify(base_scope, base_term, Scope::OUTPUT, out_term));
+                        }
+                    }
+
+                    // Report the concrete base
+                    let map = unifier.into_one_map(base_scope);
+                    self.track_reconstruction(base_id, map, input_maps, concrete_clauses)?;
                 }
-
-                todo!("implement equality factoring reconstruction");
             }
             Rule::Resolution(_) | Rule::Specialization(_) => {
                 // For these rules, the trace applies directly to the original clause.
