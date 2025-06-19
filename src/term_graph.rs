@@ -48,10 +48,11 @@ pub struct RewriteStep {
     /// This isn't mathematically necessary to prove the step, but it is necessary to recreate this rule.
     pub inspiration_id: Option<StepId>,
 
-    /// If true, the pattern is a single literal, rewritten left-to-right.
-    /// If false, it was applied backwards (right-to-left).
-    /// If this is None, the pattern id isn't a single literal at all.
-    pub forwards: Option<bool>,
+    /// The term that was originally on the left side of the pattern.
+    pub left: TermId,
+
+    /// The term that was originally on the right side of the pattern.
+    pub right: TermId,
 }
 
 /// The goal of the TermGraph is to find a contradiction.
@@ -248,8 +249,11 @@ impl fmt::Display for ClauseId {
 // operations in this queue. The SemanticOperation represents an element in this queue.
 #[derive(Clone)]
 enum SemanticOperation {
-    // We have discovered that two terms are equal.
-    TermEquality(TermId, TermId, Option<RewriteStep>),
+    // A term equality that comes from a rewrite pattern.
+    Rewrite(RewriteStep),
+
+    // A term equality that comes indirectly from a logical deduction.
+    TermEquality(TermId, TermId),
 
     // We have discovered that two terms are not equal.
     TermInequality(TermId, TermId, StepId),
@@ -450,7 +454,6 @@ impl TermGraph {
                 self.pending.push(SemanticOperation::TermEquality(
                     existing_result_term,
                     result_term,
-                    None,
                 ));
             }
             return;
@@ -605,7 +608,6 @@ impl TermGraph {
                 self.pending.push(SemanticOperation::TermEquality(
                     compound.result_term,
                     existing_result_term,
-                    None,
                 ));
                 self.compounds[compound_id.0 as usize] = None;
             } else {
@@ -726,8 +728,11 @@ impl TermGraph {
             }
 
             match operation {
-                SemanticOperation::TermEquality(term1, term2, step) => {
-                    self.set_terms_equal_once(term1, term2, step);
+                SemanticOperation::Rewrite(step) => {
+                    self.set_terms_equal_once(step.left, step.right, Some(step));
+                }
+                SemanticOperation::TermEquality(term1, term2) => {
+                    self.set_terms_equal_once(term1, term2, None);
                 }
                 SemanticOperation::TermInequality(term1, term2, step) => {
                     self.set_terms_not_equal_once(term1, term2, step);
@@ -823,13 +828,10 @@ impl TermGraph {
                 let step = RewriteStep {
                     pattern_id: clause_info.step,
                     inspiration_id: None,
-                    forwards: None,
+                    left: literal.left,
+                    right: literal.right,
                 };
-                self.pending.push(SemanticOperation::TermEquality(
-                    literal.left,
-                    literal.right,
-                    Some(step),
-                ));
+                self.pending.push(SemanticOperation::Rewrite(step));
             } else {
                 self.pending.push(SemanticOperation::TermInequality(
                     literal.left,
@@ -876,10 +878,10 @@ impl TermGraph {
         let step = RewriteStep {
             pattern_id,
             inspiration_id,
-            forwards: None,
+            left,
+            right,
         };
-        self.pending
-            .push(SemanticOperation::TermEquality(left, right, Some(step)));
+        self.pending.push(SemanticOperation::Rewrite(step));
         self.process_pending();
     }
 
