@@ -127,6 +127,21 @@ pub struct AssumptionInfo {
     pub defined_atom: Option<Atom>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EqualityFactoringInfo {
+    pub id: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EqualityResolutionInfo {
+    pub id: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionEliminationInfo {
+    pub id: usize,
+}
+
 // The rules that can generate new clauses, along with the clause ids used to generate.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Rule {
@@ -138,9 +153,9 @@ pub enum Rule {
     Specialization(SpecializationInfo),
 
     // Rules with only one source clause
-    EqualityFactoring(usize),
-    EqualityResolution(usize),
-    FunctionElimination(usize),
+    EqualityFactoring(EqualityFactoringInfo),
+    EqualityResolution(EqualityResolutionInfo),
+    FunctionElimination(FunctionEliminationInfo),
 
     // A contradiction found by repeatedly rewriting identical terms.
     MultipleRewrite(MultipleRewriteInfo),
@@ -162,9 +177,9 @@ impl Rule {
                 ProofStepId::Active(info.pattern_id),
                 ProofStepId::Active(info.target_id),
             ],
-            Rule::EqualityFactoring(rewritten)
-            | Rule::EqualityResolution(rewritten)
-            | Rule::FunctionElimination(rewritten) => vec![ProofStepId::Active(*rewritten)],
+            Rule::EqualityFactoring(info) => vec![ProofStepId::Active(info.id)],
+            Rule::EqualityResolution(info) => vec![ProofStepId::Active(info.id)],
+            Rule::FunctionElimination(info) => vec![ProofStepId::Active(info.id)],
             Rule::Specialization(info) => vec![ProofStepId::Active(info.pattern_id)],
             Rule::MultipleRewrite(multi_rewrite_info) => {
                 let mut answer = vec![ProofStepId::Active(multi_rewrite_info.inequality_id)];

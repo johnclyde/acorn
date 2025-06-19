@@ -288,10 +288,14 @@ impl Prover {
                 answer.push(("target".to_string(), ProofStepId::Active(info.target_id)));
                 answer.push(("pattern".to_string(), ProofStepId::Active(info.pattern_id)));
             }
-            Rule::EqualityFactoring(source)
-            | Rule::EqualityResolution(source)
-            | Rule::FunctionElimination(source) => {
-                answer.push(("source".to_string(), ProofStepId::Active(*source)));
+            Rule::EqualityFactoring(info) => {
+                answer.push(("source".to_string(), ProofStepId::Active(info.id)));
+            }
+            Rule::EqualityResolution(info) => {
+                answer.push(("source".to_string(), ProofStepId::Active(info.id)));
+            }
+            Rule::FunctionElimination(info) => {
+                answer.push(("source".to_string(), ProofStepId::Active(info.id)));
             }
             Rule::Specialization(info) => {
                 answer.push(("pattern".to_string(), ProofStepId::Active(info.pattern_id)));

@@ -4,7 +4,10 @@ use crate::clause::{Clause, LiteralTrace};
 use crate::fingerprint::FingerprintUnifier;
 use crate::literal::Literal;
 use crate::pattern_tree::LiteralSet;
-use crate::proof_step::{ProofStep, Rule, Truthiness};
+use crate::proof_step::{
+    EqualityFactoringInfo, EqualityResolutionInfo, FunctionEliminationInfo, ProofStep, Rule,
+    Truthiness,
+};
 use crate::rewrite_tree::{Rewrite, RewriteTree};
 use crate::term::Term;
 use crate::term_graph::{StepId, TermGraph, TermId};
@@ -827,7 +830,7 @@ impl ActiveSet {
         for new_clause in ActiveSet::equality_resolution(&activated_step.clause) {
             output.push(ProofStep::direct(
                 &activated_step,
-                Rule::EqualityResolution(activated_id),
+                Rule::EqualityResolution(EqualityResolutionInfo { id: activated_id }),
                 new_clause,
             ));
         }
@@ -835,7 +838,7 @@ impl ActiveSet {
         for clause in ActiveSet::equality_factoring(&activated_step.clause) {
             output.push(ProofStep::direct(
                 &activated_step,
-                Rule::EqualityFactoring(activated_id),
+                Rule::EqualityFactoring(EqualityFactoringInfo { id: activated_id }),
                 clause,
             ));
         }
@@ -843,7 +846,7 @@ impl ActiveSet {
         for clause in ActiveSet::function_elimination(&activated_step.clause) {
             output.push(ProofStep::direct(
                 &activated_step,
-                Rule::FunctionElimination(activated_id),
+                Rule::FunctionElimination(FunctionEliminationInfo { id: activated_id }),
                 clause,
             ));
         }
