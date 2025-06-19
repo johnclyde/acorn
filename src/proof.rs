@@ -831,9 +831,9 @@ impl<'a> Proof<'a> {
                 // We don't need to reconstruct assumptions.
                 return Ok(());
             }
-            Rule::PassiveContradiction(_) => {
-                // Passive contradictions are just two literals that exactly oppose each other,
-                // so we can use the premises concretely.
+            Rule::PassiveContradiction(_) | Rule::MultipleRewrite(_) => {
+                // These rules always use concrete premises, so we can track them without
+                // reconstruction logic.
                 for id in step.rule.premises() {
                     let map = VariableMap::new();
                     self.track_reconstruction(id, map, input_maps, concrete_clauses)?;
