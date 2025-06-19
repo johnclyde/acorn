@@ -47,6 +47,11 @@ pub struct RewriteStep {
     /// If it was just the rewrite pattern that inspired this step, this is None.
     /// This isn't mathematically necessary to prove the step, but it is necessary to recreate this rule.
     pub inspiration_id: Option<StepId>,
+
+    /// If true, the pattern is a single literal, rewritten left-to-right.
+    /// If false, it was applied backwards (right-to-left).
+    /// If this is None, the pattern id isn't a single literal at all.
+    pub forwards: Option<bool>,
 }
 
 /// The goal of the TermGraph is to find a contradiction.
@@ -818,6 +823,7 @@ impl TermGraph {
                 let step = RewriteStep {
                     pattern_id: clause_info.step,
                     inspiration_id: None,
+                    forwards: None,
                 };
                 self.pending.push(SemanticOperation::TermEquality(
                     literal.left,
@@ -857,19 +863,23 @@ impl TermGraph {
         };
     }
 
+    /// Sets two terms to be equal, repeating to find the logical closure.
+    /// left and right must be specializations of a literal in pattern_id.
+    /// TODO: track which literal it is, when the pattern clause is long.
     pub fn set_terms_equal(
         &mut self,
-        term1: TermId,
-        term2: TermId,
+        left: TermId,
+        right: TermId,
         pattern_id: StepId,
         inspiration_id: Option<StepId>,
     ) {
         let step = RewriteStep {
             pattern_id,
             inspiration_id,
+            forwards: None,
         };
         self.pending
-            .push(SemanticOperation::TermEquality(term1, term2, Some(step)));
+            .push(SemanticOperation::TermEquality(left, right, Some(step)));
         self.process_pending();
     }
 

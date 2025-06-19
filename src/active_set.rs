@@ -323,7 +323,14 @@ impl ActiveSet {
                     let id1 = self.graph.insert_term(&u_subterm);
                     for rewrite in &rewrites {
                         let id2 = self.graph.insert_term(&rewrite.term);
-                        self.add_to_term_graph(rewrite.pattern_id, Some(target_id), id1, id2, true);
+                        self.add_to_term_graph(
+                            rewrite.pattern_id,
+                            Some(target_id),
+                            id1,
+                            id2,
+                            rewrite.forwards,
+                            true,
+                        );
                     }
 
                     // Populate the subterm info.
@@ -449,6 +456,7 @@ impl ActiveSet {
                     Some(subterm_info.inspiration_id),
                     id1,
                     id2,
+                    forwards,
                     true,
                 );
 
@@ -751,25 +759,29 @@ impl ActiveSet {
         self.steps.len()
     }
 
+    // term1 and term2 are specializations of pattern_id.
+    // If forwards, the pattern is term1 = term2. Otherwise, it is term2 = term1.
     fn add_to_term_graph(
         &mut self,
         pattern_id: usize,
         inspiration_id: Option<usize>,
         term1: TermId,
         term2: TermId,
+        forwards: bool,
         equal: bool,
     ) {
+        let (left, right) = if forwards {
+            (term1, term2)
+        } else {
+            (term2, term1)
+        };
         if equal {
-            self.graph.set_terms_equal(
-                term1,
-                term2,
-                StepId(pattern_id),
-                inspiration_id.map(StepId),
-            );
+            self.graph
+                .set_terms_equal(left, right, StepId(pattern_id), inspiration_id.map(StepId));
         } else {
             assert!(inspiration_id.is_none());
             self.graph
-                .set_terms_not_equal(term1, term2, StepId(pattern_id));
+                .set_terms_not_equal(left, right, StepId(pattern_id));
         }
     }
 
@@ -785,7 +797,7 @@ impl ActiveSet {
             let left = self.graph.insert_term(&literal.left);
             let right = self.graph.insert_term(&literal.right);
 
-            self.add_to_term_graph(activated_id, None, left, right, literal.positive);
+            self.add_to_term_graph(activated_id, None, left, right, true, literal.positive);
 
             // The activated step could be rewritten immediately.
             self.activate_rewrite_target(activated_id, &activated_step, output);
