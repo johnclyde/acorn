@@ -1120,6 +1120,12 @@ impl<'a> Proof<'a> {
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
         concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
+        if map.output_has_any_variable() {
+            return Err(Error::InternalError(format!(
+                "reconstructed map {:?} has variables",
+                map
+            )));
+        }
         let generic = self.get_clause(id)?;
         let concrete = map.specialize_clause(generic);
         if concrete.has_any_variable() {

@@ -162,6 +162,17 @@ impl VariableMap {
             .collect();
         Clause::new(specialized_literals)
     }
+
+    pub fn output_has_any_variable(&self) -> bool {
+        for term in &self.map {
+            if let Some(term) = term {
+                if term.has_any_variable() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 
 impl fmt::Display for VariableMap {
