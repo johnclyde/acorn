@@ -1094,3 +1094,34 @@ fn test_concrete_proof_with_multiple_rewrite() {
     );
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_random_bug() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: Foo -> Foo = axiom
+        let g: Foo -> Foo = axiom
+        let h: Foo -> Foo = axiom
+        let z: Foo = axiom
+
+        axiom rule1(x: Foo) {
+            f(x) = g(x) or f(x) = h(x) or f(x) = z
+        }
+            
+        theorem goal(y: Foo) {
+            g(y) = h(y) implies f(y) = h(y) or f(y) = z
+        }
+        "#,
+    );
+
+    let _c = prove_concrete(&mut p, "main", "goal");
+    // assert_eq!(c.direct, vec!["todo: fill this out"]);
+    // assert_eq!(c.indirect, Vec::<String>::new());
+}
