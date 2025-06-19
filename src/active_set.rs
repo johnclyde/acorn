@@ -604,7 +604,11 @@ impl ActiveSet {
                         unifier.apply(Scope::LEFT, t),
                         unifier.apply(Scope::LEFT, v),
                     );
-                    let (uv_out, uv_out_flip) = unifier.apply_to_literal(Scope::LEFT, uv_literal);
+                    let (uv_out, uv_out_flip) = Literal::new_with_flip(
+                        true,
+                        unifier.apply(Scope::LEFT, u),
+                        unifier.apply(Scope::LEFT, v),
+                    );
 
                     literals.push(tv_lit);
                     literals.push(uv_out);
@@ -614,20 +618,19 @@ impl ActiveSet {
                     // literals[0] = t != v (the new inequality)
                     // literals[1] = u = v (the preserved equality, with s unified to u)
 
-                    // s and u both go to the same place (they were unified)
-                    // From the debug output: when uv_out_flip is false, u is on the right
+                    // s and u both go to the left of u = v (they were unified)
                     let s_out = EFTermTrace {
                         index: 1,
-                        left: uv_out_flip, // false means u is on right, true means u is on left
+                        left: !uv_out_flip,
                     };
-                    // t goes to the left of the inequality
+                    // t goes to the left of t != v
                     let t_out = EFTermTrace {
                         index: 0,
                         left: !tv_flip,
                     };
                     // u goes to the same place as s
                     let u_out = s_out;
-                    // v goes to the right of the inequality
+                    // v goes to the right of t != v
                     let v_out = EFTermTrace {
                         index: 0,
                         left: tv_flip,
