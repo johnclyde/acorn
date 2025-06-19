@@ -81,22 +81,29 @@ fn make_simplified(
     let mut new_literals = vec![];
     let mut incremental_trace = vec![];
     for (i, literal) in literals.into_iter().enumerate() {
-        let eliminated = if i == index {
-            true
+        let (eliminated, literal_flipped) = if i == index {
+            (true, flipped)
         } else if pair_specializes(left, right, &literal.left, &literal.right) {
             if literal.positive == positive {
                 // The whole clause is implied by the literal we are simplifying with.
                 return None;
             }
             // This specific literal is unsatisfiable.
-            true
+            (true, false)
+        } else if pair_specializes(left, right, &literal.right, &literal.left) {
+            if literal.positive == positive {
+                // The whole clause is implied by the literal we are simplifying with.
+                return None;
+            }
+            // This specific literal is unsatisfiable with flipped matching.
+            (true, true)
         } else {
-            false
+            (false, false)
         };
         if eliminated {
             incremental_trace.push(LiteralTrace::Eliminated {
                 step: activated_id,
-                flipped,
+                flipped: literal_flipped,
             });
         } else {
             let index = new_literals.len();

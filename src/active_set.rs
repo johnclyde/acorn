@@ -284,7 +284,7 @@ impl ActiveSet {
             literals.push(new_literal);
             incremental_trace.push(LiteralTrace::Output {
                 index,
-                flipped: flipped ^ new_flip,
+                flipped: new_flip,
             });
         }
 

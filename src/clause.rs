@@ -154,6 +154,8 @@ impl Clause {
     ) -> (Clause, ClauseTrace) {
         let (c, incremental_trace) = Clause::normalize_with_trace(literals);
         compose_traces(&mut trace, &incremental_trace);
+        
+        
         let trace = ClauseTrace {
             base_id,
             literals: trace,

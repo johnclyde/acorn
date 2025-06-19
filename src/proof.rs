@@ -982,6 +982,7 @@ impl<'a> Proof<'a> {
                     continue;
                 }
             };
+            
             if !unifier.unify_literals(base_scope, base_literal, scope, literal, flipped) {
                 return Err(Error::InternalError(format!(
                     "failed to unify base literal {} with trace literal {}",
