@@ -8,17 +8,17 @@ use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
 use crate::term::Term;
 
-// The different sorts of proof steps.
+/// The different sorts of proof steps.
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ProofStepId {
-    // A proof step that was activated and exists in the active set.
+    /// A proof step that was activated and exists in the active set.
     Active(usize),
 
-    // A proof step that was never activated, but was used to find a contradiction.
+    /// A proof step that was never activated, but was used to find a contradiction.
     Passive(u32),
 
-    // The final step of a proof.
-    // No active id because it never gets inserted into the active set.
+    /// The final step of a proof.
+    /// No active id because it never gets inserted into the active set.
     Final,
 }
 
@@ -31,25 +31,25 @@ impl ProofStepId {
     }
 }
 
-// The "truthiness" categorizes the different types of true statements, relative to a proof.
+/// The "truthiness" categorizes the different types of true statements, relative to a proof.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Truthiness {
-    // A "factual" truth is true globally, regardless of this particular proof.
+    /// A "factual" truth is true globally, regardless of this particular proof.
     Factual,
 
-    // A "hypothetical" truth is something that we are assuming true in the context of this proof.
-    // For example, we might assume that a and b are nonzero, and then prove that a * b != 0.
+    /// A "hypothetical" truth is something that we are assuming true in the context of this proof.
+    /// For example, we might assume that a and b are nonzero, and then prove that a * b != 0.
     Hypothetical,
 
-    // When we want to prove a goal G, we tell the prover that !G is true, and search
-    // for contradictions.
-    // A "counterfactual" truth is this negated goal, or something derived from it, that we expect
-    // to lead to a contradiction.
+    /// When we want to prove a goal G, we tell the prover that !G is true, and search
+    /// for contradictions.
+    /// A "counterfactual" truth is this negated goal, or something derived from it, that we expect
+    /// to lead to a contradiction.
     Counterfactual,
 }
 
 impl Truthiness {
-    // When combining truthinesses, the result is the "most untruthy" of the two.
+    /// When combining truthinesses, the result is the "most untruthy" of the two.
     pub fn combine(&self, other: Truthiness) -> Truthiness {
         match (self, other) {
             (Truthiness::Counterfactual, _) => Truthiness::Counterfactual,
@@ -61,70 +61,75 @@ impl Truthiness {
     }
 }
 
-// Information about a resolution inference.
+/// Information about a resolution inference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolutionInfo {
-    // Which clauses were used as the sources.
-    // The short clause must have only one literal.
+    /// Which clauses were used as the sources.
+    /// The short clause must have only one literal.
     pub short_id: usize,
 
-    // The long clause will usually have more than one literal. It can have just one literal
-    // if we're finding a contradiction.
+    /// The long clause will usually have more than one literal. It can have just one literal
+    /// if we're finding a contradiction.
     pub long_id: usize,
 }
 
-// Information about a specialization.
+/// Information about a specialization.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpecializationInfo {
-    // The specialization is taking the pattern and substituting in particular values.
+    /// The specialization is taking the pattern and substituting in particular values.
     pub pattern_id: usize,
 
-    // The inspiration isn't mathematically necessary for the specialization to be true,
-    // but we used it to decide which substitutions to make.
+    /// The inspiration isn't mathematically necessary for the specialization to be true,
+    /// but we used it to decide which substitutions to make.
     pub inspiration_id: usize,
 }
 
-// Information about a rewrite inference.
-// Rewrites have two parts, the "pattern" that determines what gets rewritten into what,
-// and the "target" which contains the subterm that gets rewritten.
-// Both of these parts are single-literal clauses.
+/// Information about a rewrite inference.
+/// Rewrites have two parts, the "pattern" that determines what gets rewritten into what,
+/// and the "target" which contains the subterm that gets rewritten.
+/// Both of these parts are single-literal clauses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RewriteInfo {
-    // Which clauses were used as the sources.
+    /// Which clauses were used as the sources.
     pub pattern_id: usize,
     pub target_id: usize,
 
-    // Whether we rewrite the term on the left of the target literal. (As opposed to the right.)
+    /// Whether we rewrite the term on the left of the target literal. (As opposed to the right.)
     pub target_left: bool,
 
-    // The path within the target term that we rewrite.
+    /// The path within the target term that we rewrite.
     pub path: Vec<usize>,
 
-    // Whether this is a forwards or backwards rewrite.
-    // A forwards rewrite rewrites the left side of the pattern into the right.
+    /// Whether this is a forwards or backwards rewrite.
+    /// A forwards rewrite rewrites the left side of the pattern into the right.
     pub forwards: bool,
 
-    // The single-clause literal initially created by the rewrite.
-    // This is usually redundant, but not always, because the output clause can get simplified.
+    /// The single-clause literal initially created by the rewrite.
+    /// This is usually redundant, but not always, because the output clause can get simplified.
     pub rewritten: Clause,
 
-    // Whether the literal was flipped during normalization
+    /// Whether the literal was flipped during normalization
     pub flipped: bool,
 }
 
-// Always a contradiction, found by rewriting one side of an inequality into the other.
+/// Information about a contradiction found by rewriting one side of an inequality into the other.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MultipleRewriteInfo {
+    /// The id of the inequality clause.
     pub inequality_id: usize,
+    /// The ids of active clauses used in the rewrite chain.
     pub active_ids: Vec<usize>,
+    /// The ids of passive clauses used in the rewrite chain.
     pub passive_ids: Vec<u32>,
 }
 
+/// Information about an assumption.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssumptionInfo {
+    /// The source of the assumption.
     pub source: Source,
 
-    // If this assumption is the definition of a particular atom, this is the atom.
+    /// If this assumption is the definition of a particular atom, this is the atom.
     pub defined_atom: Option<Atom>,
 }
 
@@ -146,40 +151,44 @@ pub struct EqualityFactoringInfo {
     pub uv_flip: bool,
 }
 
+/// Information about an equality resolution inference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EqualityResolutionInfo {
+    /// The id of the clause that was resolved.
     pub id: usize,
 }
 
+/// Information about a function elimination inference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionEliminationInfo {
+    /// The id of the clause that had a function eliminated.
     pub id: usize,
 }
 
-// The rules that can generate new clauses, along with the clause ids used to generate.
+/// The rules that can generate new clauses, along with the clause ids used to generate.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Rule {
     Assumption(AssumptionInfo),
 
-    // Rules based on multiple source clauses
+    /// Rules based on multiple source clauses
     Resolution(ResolutionInfo),
     Rewrite(RewriteInfo),
     Specialization(SpecializationInfo),
 
-    // Rules with only one source clause
+    /// Rules with only one source clause
     EqualityFactoring(EqualityFactoringInfo),
     EqualityResolution(EqualityResolutionInfo),
     FunctionElimination(FunctionEliminationInfo),
 
-    // A contradiction found by repeatedly rewriting identical terms.
+    /// A contradiction found by repeatedly rewriting identical terms.
     MultipleRewrite(MultipleRewriteInfo),
 
-    // A contradiction between a number of passive clauses.
+    /// A contradiction between a number of passive clauses.
     PassiveContradiction(u32),
 }
 
 impl Rule {
-    // The ids of the clauses that this rule mathematically depends on.
+    /// The ids of the clauses that this rule mathematically depends on.
     pub fn premises(&self) -> Vec<ProofStepId> {
         match self {
             Rule::Assumption(_) => vec![],
@@ -209,7 +218,7 @@ impl Rule {
         }
     }
 
-    // Human-readable.
+    /// Returns a human-readable name for this rule.
     pub fn name(&self) -> &str {
         match self {
             Rule::Assumption(_) => "Assumption",
@@ -246,42 +255,42 @@ impl Rule {
     }
 }
 
-// A proof is made up of ProofSteps.
-// Each ProofStep contains an output clause, plus a bunch of information we track about it.
+/// A proof is made up of ProofSteps.
+/// Each ProofStep contains an output clause, plus a bunch of information we track about it.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ProofStep {
-    // The proof step is primarily defined by a clause that it proves.
-    // Semantically, this clause is implied by the input clauses (activated and existing).
+    /// The proof step is primarily defined by a clause that it proves.
+    /// Semantically, this clause is implied by the input clauses (activated and existing).
     pub clause: Clause,
 
-    // Whether this clause is the normal sort of true, or just something we're hypothesizing for
-    // the sake of the proof.
+    /// Whether this clause is the normal sort of true, or just something we're hypothesizing for
+    /// the sake of the proof.
     pub truthiness: Truthiness,
 
-    // How this clause was generated.
+    /// How this clause was generated.
     pub rule: Rule,
 
-    // Clauses that we used for additional simplification.
+    /// Clauses that we used for additional simplification.
     pub simplification_rules: Vec<usize>,
 
-    // The number of proof steps that this proof step depends on.
-    // The size includes this proof step itself, but does not count assumptions and definitions.
-    // So the size for any assumption or definition is zero.
-    // This does not deduplicate among different branches, so it may be an overestimate.
+    /// The number of proof steps that this proof step depends on.
+    /// The size includes this proof step itself, but does not count assumptions and definitions.
+    /// So the size for any assumption or definition is zero.
+    /// This does not deduplicate among different branches, so it may be an overestimate.
     pub proof_size: u32,
 
-    // Not every proof step counts toward depth.
-    // When we use a new long clause to resolve against, that counts toward depth, because
-    // it roughly corresponds to "using a theorem".
-    // When we use a rewrite backwards, increasing KBO, that also counts toward depth.
+    /// Not every proof step counts toward depth.
+    /// When we use a new long clause to resolve against, that counts toward depth, because
+    /// it roughly corresponds to "using a theorem".
+    /// When we use a rewrite backwards, increasing KBO, that also counts toward depth.
     pub depth: u32,
 
-    // A printable proof step is one that we are willing to turn into a line of code in a proof.
-    // Unprintable proof steps are things like halfway resolved theorems, or expressions
-    // that use anonymous skolem variables.
+    /// A printable proof step is one that we are willing to turn into a line of code in a proof.
+    /// Unprintable proof steps are things like halfway resolved theorems, or expressions
+    /// that use anonymous skolem variables.
     pub printable: bool,
 
-    // Information about this step that will let us reconstruct the variable mappings.
+    /// Information about this step that will let us reconstruct the variable mappings.
     pub trace: Option<ClauseTrace>,
 }
 
@@ -292,8 +301,8 @@ impl fmt::Display for ProofStep {
 }
 
 impl ProofStep {
-    // Construct a new assumption ProofStep that is not dependent on any other steps.
-    // Assumptions are always depth zero, but eventually we may have to revisit that.
+    /// Construct a new assumption ProofStep that is not dependent on any other steps.
+    /// Assumptions are always depth zero, but eventually we may have to revisit that.
     pub fn assumption(
         proposition: &MonomorphicProposition,
         clause: Clause,
@@ -316,8 +325,8 @@ impl ProofStep {
         }
     }
 
-    // Construct a new ProofStep that is a direct implication of a single activated step,
-    // not requiring any other clauses.
+    /// Construct a new ProofStep that is a direct implication of a single activated step,
+    /// not requiring any other clauses.
     pub fn direct(activated_step: &ProofStep, rule: Rule, clause: Clause) -> ProofStep {
         // Direct implication does not add to depth.
         let depth = activated_step.depth;
@@ -334,7 +343,7 @@ impl ProofStep {
         }
     }
 
-    // Construct a ProofStep that is a specialization of a general pattern.
+    /// Construct a ProofStep that is a specialization of a general pattern.
     pub fn specialization(
         pattern_id: usize,
         inspiration_id: usize,
@@ -358,7 +367,7 @@ impl ProofStep {
         }
     }
 
-    // Construct a new ProofStep via resolution.
+    /// Construct a new ProofStep via resolution.
     pub fn resolution(
         long_id: usize,
         long_step: &ProofStep,
@@ -400,8 +409,8 @@ impl ProofStep {
         }
     }
 
-    // Create a replacement for this clause that has extra simplification rules.
-    // The long step doesn't have an id because it isn't activated.
+    /// Create a replacement for this clause that has extra simplification rules.
+    /// The long step doesn't have an id because it isn't activated.
     pub fn simplified(
         long_step: ProofStep,
         short_steps: &[(usize, &ProofStep)],
@@ -433,15 +442,15 @@ impl ProofStep {
         }
     }
 
-    // Construct a new ProofStep via rewriting.
-    // We are replacing a subterm of the target literal with a new subterm.
-    // Note that the target step will always be a concrete single literal.
-    // The pattern and the output may have variables in them.
-    // It seems weird for the output to have variables, but it does.
-    //
-    // A "forwards" rewrite goes left-to-right in the pattern.
-    //
-    // The trace will capture everything that happens *after* the rewrite.
+    /// Construct a new ProofStep via rewriting.
+    /// We are replacing a subterm of the target literal with a new subterm.
+    /// Note that the target step will always be a concrete single literal.
+    /// The pattern and the output may have variables in them.
+    /// It seems weird for the output to have variables, but it does.
+    ///
+    /// A "forwards" rewrite goes left-to-right in the pattern.
+    ///
+    /// The trace will capture everything that happens *after* the rewrite.
     pub fn rewrite(
         pattern_id: usize,
         pattern_step: &ProofStep,
@@ -498,7 +507,7 @@ impl ProofStep {
         }
     }
 
-    // A proof step for finding a contradiction via a series of rewrites.
+    /// A proof step for finding a contradiction via a series of rewrites.
     pub fn multiple_rewrite(
         inequality_id: usize,
         active_ids: Vec<usize>,
@@ -525,7 +534,7 @@ impl ProofStep {
         }
     }
 
-    // Assumes the provided steps are indexed by passive id, and that we use all of them.
+    /// Assumes the provided steps are indexed by passive id, and that we use all of them.
     pub fn passive_contradiction(passive_steps: &[ProofStep]) -> ProofStep {
         let rule = Rule::PassiveContradiction(passive_steps.len() as u32);
         let mut truthiness = Truthiness::Factual;
@@ -549,7 +558,7 @@ impl ProofStep {
         }
     }
 
-    // Construct a ProofStep with fake heuristic data for testing
+    /// Construct a ProofStep with fake heuristic data for testing
     pub fn mock(s: &str) -> ProofStep {
         let clause = Clause::parse(s);
         Self::mock_from_clause(clause)
@@ -573,7 +582,7 @@ impl ProofStep {
         }
     }
 
-    // The ids of the other clauses that this clause depends on.
+    /// The ids of the other clauses that this clause depends on.
     pub fn dependencies(&self) -> Vec<ProofStepId> {
         let mut answer = self.rule.premises();
         for rule in &self.simplification_rules {
@@ -582,7 +591,7 @@ impl ProofStep {
         answer
     }
 
-    // include_inspiration is whether we should include the inspiration clause in the dependencies.
+    /// include_inspiration is whether we should include the inspiration clause in the dependencies.
     pub fn active_dependencies(&self, include_inspiration: bool) -> Vec<usize> {
         let mut answer: Vec<_> = self
             .dependencies()
@@ -606,7 +615,7 @@ impl ProofStep {
             .any(|i| *i == ProofStepId::Active(id))
     }
 
-    // Whether this is the last step of the proof
+    /// Whether this is the last step of the proof
     pub fn finishes_proof(&self) -> bool {
         self.clause.is_impossible()
     }

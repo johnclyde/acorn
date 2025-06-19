@@ -6,6 +6,7 @@ use crate::binding_map::BindingMap;
 use crate::clause::{Clause, ClauseTrace, LiteralTrace};
 use crate::code_generator::{CodeGenerator, Error};
 use crate::display::DisplayClause;
+use crate::literal::Literal;
 use crate::normalizer::Normalizer;
 use crate::proof_step::{ProofStep, ProofStepId, Rule};
 use crate::source::{Source, SourceType};
@@ -857,7 +858,7 @@ impl<'a> Proof<'a> {
             Rule::Rewrite(info) => {
                 // For rewrites, the trace applies to the rewritten clause.
                 self.reconstruct_trace(
-                    &info.rewritten,
+                    &info.rewritten.literals,
                     trace,
                     &step.clause,
                     output_map,
@@ -915,7 +916,7 @@ impl<'a> Proof<'a> {
             Rule::Resolution(_) | Rule::Specialization(_) => {
                 // For these rules, the trace applies directly to the original clause.
                 return self.reconstruct_trace(
-                    original_clause,
+                    &original_clause.literals,
                     trace,
                     &step.clause,
                     output_map,
@@ -942,7 +943,7 @@ impl<'a> Proof<'a> {
     // If the step cannot be reconstructed, we return an error.
     fn reconstruct_trace(
         &self,
-        base_clause: &Clause,
+        base_literals: &[Literal],
         trace: &ClauseTrace,
         output_clause: &Clause,
         output_map: VariableMap,
@@ -958,14 +959,14 @@ impl<'a> Proof<'a> {
         let mut scopes: HashMap<ProofStepId, Scope> = HashMap::new();
         scopes.insert(ProofStepId::Active(trace.base_id), base_scope);
 
-        if trace.literals.len() != base_clause.literals.len() {
+        if trace.literals.len() != base_literals.len() {
             return Err(Error::InternalError(
                 "trace with wrong number of literals".to_string(),
             ));
         }
 
         // Do the multi-way unification according to the trace.
-        for (base_literal, trace) in base_clause.literals.iter().zip(&trace.literals) {
+        for (base_literal, trace) in base_literals.iter().zip(&trace.literals) {
             let (scope, literal, flipped) = match trace {
                 LiteralTrace::Eliminated { step, flipped } => {
                     // This matches a one-literal clause.
