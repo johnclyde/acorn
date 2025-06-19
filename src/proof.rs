@@ -956,6 +956,53 @@ impl<'a> Proof<'a> {
                     self.track_reconstruction(base_id, map, input_maps, concrete_clauses)?;
                 }
             }
+            Rule::EqualityResolution(info) => {
+                // For ER, the trace applies to the stored literals.
+                self.reconstruct_trace(
+                    &info.literals,
+                    trace,
+                    &step.clause,
+                    output_map,
+                    input_maps,
+                    concrete_clauses,
+                )?;
+
+                // The data in trace.base_id is wrong, though.
+                // We just want to extract the variable maps for the rewritten clause.
+                let base_id = ProofStepId::Active(trace.base_id);
+                let node_id = *self.id_map.get(&base_id).unwrap();
+                let var_maps = input_maps.remove(&base_id).unwrap();
+                concrete_clauses.remove(&node_id);
+
+                // Unify the pre-ER and post-ER literals.
+                let base_clause = &self.get_clause(base_id)?;
+                assert!(base_clause.literals.len() == info.literals.len() + 1);
+
+                for output_map in var_maps {
+                    let mut unifier = Unifier::with_output_map(output_map);
+                    let base_scope = unifier.add_scope();
+                    let mut j = 0;
+                    for (i, base_lit) in base_clause.literals.iter().enumerate() {
+                        if i == info.index {
+                            assert!(!base_lit.positive);
+                            unifier.unify(base_scope, &base_lit.left, base_scope, &base_lit.right);
+                            continue;
+                        }
+                        let (left, right) = if info.flipped[j] {
+                            (&info.literals[j].right, &info.literals[j].left)
+                        } else {
+                            (&info.literals[j].left, &info.literals[j].right)
+                        };
+                        unifier.unify(base_scope, &base_lit.left, Scope::OUTPUT, left);
+                        unifier.unify(base_scope, &base_lit.right, Scope::OUTPUT, right);
+                        j += 1;
+                    }
+
+                    // Report the concrete base
+                    let map = unifier.into_one_map(base_scope);
+                    self.track_reconstruction(base_id, map, input_maps, concrete_clauses)?;
+                }
+            }
             Rule::Resolution(_) | Rule::Specialization(_) => {
                 // For these rules, the trace applies directly to the original clause.
                 return self.reconstruct_trace(
