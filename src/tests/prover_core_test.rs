@@ -1121,7 +1121,7 @@ fn test_concrete_proof_random_bug() {
         "#,
     );
 
-    let _c = prove_concrete(&mut p, "main", "goal");
-    // assert_eq!(c.direct, vec!["todo: fill this out"]);
-    // assert_eq!(c.indirect, Vec::<String>::new());
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(c.direct, vec!["h(y) = f(y) or g(y) = f(y) or f(y) = z"]);
+    assert_eq!(c.indirect, vec!["g(y) != f(y)"]);
 }
