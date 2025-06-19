@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use crate::atom::Atom;
-use crate::clause::{Clause, ClauseTrace, LiteralTrace};
+use crate::clause::{Clause, ClauseTrace};
 use crate::proposition::MonomorphicProposition;
 use crate::source::{Source, SourceType};
 use crate::term::Term;
@@ -431,14 +431,7 @@ impl ProofStep {
         let simplifying = new_literal.extended_kbo_cmp(&target_literal) == Ordering::Less;
         // It's not really accurate to call target_id the base id. It's a placeholder that we'll
         // swap out during reconstruction. So it would be nice to clean this up.
-        let (clause, trace) = Clause::new_with_trace(
-            vec![new_literal],
-            target_id,
-            vec![LiteralTrace::Output {
-                index: 0,
-                flipped: false,
-            }],
-        );
+        let (clause, trace) = Clause::from_literal(new_literal, target_id, false);
 
         let truthiness = pattern_step.truthiness.combine(target_step.truthiness);
 

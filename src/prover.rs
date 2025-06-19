@@ -479,7 +479,8 @@ impl Prover {
 
             // Create a new proof step, without activating it, to express the
             // specific equality used by this rewrite.
-            let literal = Literal::equals(step.input_term, step.output_term);
+            let (literal, _flipped) =
+                Literal::new_with_flip(true, step.input_term, step.output_term);
             let clause = Clause::new(vec![literal]);
             if new_clauses.contains(&clause) {
                 // We already created a step for this equality

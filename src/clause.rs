@@ -176,6 +176,14 @@ impl Clause {
         (c, Some(trace))
     }
 
+    pub fn from_literal(literal: Literal, base_id: usize, flipped: bool) -> (Clause, ClauseTrace) {
+        Clause::new_with_trace(
+            vec![literal],
+            base_id,
+            vec![LiteralTrace::Output { index: 0, flipped }],
+        )
+    }
+
     /// Normalizes the variable IDs in the literals.
     /// If you reorder or modify the literals, you should call this.
     pub fn normalize_var_ids(&mut self) {
