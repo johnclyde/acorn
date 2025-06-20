@@ -1224,7 +1224,15 @@ fn test_concrete_proof_with_equality_resolution() {
         "#,
     );
 
-    let _c = prove_concrete(&mut p, "main", "goal");
-    // assert_eq!(c.direct, vec!["todo"]);
-    // assert_eq!(c.indirect, Vec::<String>::new());
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(
+        c.direct,
+        vec![
+            "not f(x, x) or f(g(x), x)",
+            "not f(g(x), x) or f(g(g(x)), x)",
+            "f(x, x)",
+            "f(g(x), x)"
+        ]
+    );
+    assert_eq!(c.indirect, Vec::<String>::new());
 }
