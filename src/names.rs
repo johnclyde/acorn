@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::acorn_type::{Datatype, Typeclass};
+use crate::atom::AtomId;
 use crate::module::ModuleId;
 
 /// An instance name is something like Ring.add<Int>.
@@ -42,6 +43,9 @@ pub enum ConstantName {
 
     /// A name for a constant that is not an attribute.
     Unqualified(ModuleId, String),
+
+    /// A skolem constant, created by the normalizer to eliminate existential variables.
+    Skolem(AtomId),
 }
 
 impl ConstantName {
@@ -64,6 +68,7 @@ impl ConstantName {
             }
             ConstantName::TypeclassAttribute(tc, attr) => Some((tc.module_id, &tc.name, attr)),
             ConstantName::Unqualified(..) => None,
+            ConstantName::Skolem(_) => None,
         }
     }
 
@@ -77,6 +82,9 @@ impl ConstantName {
             }
             ConstantName::Unqualified(module_id, name) => {
                 DefinedName::unqualified(*module_id, name)
+            }
+            ConstantName::Skolem(i) => {
+                DefinedName::unqualified(ModuleId::SKOLEM, &format!("s{}", i))
             }
         }
     }
@@ -93,6 +101,7 @@ impl ConstantName {
             ConstantName::DatatypeAttribute(datatype, _) => datatype.module_id,
             ConstantName::TypeclassAttribute(tc, _) => tc.module_id,
             ConstantName::Unqualified(module_id, _) => *module_id,
+            ConstantName::Skolem(_) => ModuleId::SKOLEM,
         }
     }
 
@@ -114,6 +123,7 @@ impl fmt::Display for ConstantName {
                 write!(f, "{}.{}", tc.name, attr)
             }
             ConstantName::Unqualified(_, name) => write!(f, "{}", name),
+            ConstantName::Skolem(i) => write!(f, "s{}", i),
         }
     }
 }
