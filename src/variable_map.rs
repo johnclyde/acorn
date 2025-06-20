@@ -127,7 +127,9 @@ impl VariableMap {
                 // Expand the head to a full term.
                 // Its term type isn't correct, though.
                 // Note that the variable must be in the map, or the rewrite doesn't make sense.
-                let replacement = self.get_mapping(*i).unwrap();
+                let replacement = self
+                    .get_mapping(*i)
+                    .expect("tried to specialize but a variable is missing");
                 Term::new(
                     term.get_term_type(),
                     replacement.head_type,
