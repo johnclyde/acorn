@@ -665,19 +665,36 @@ impl<'a> Proof<'a> {
     /// Create the concrete proof.
     pub fn make_concrete(&mut self, bindings: &BindingMap) -> Result<ConcreteProof, Error> {
         // First, reconstruct all the steps, working backwards.
-        let mut var_maps: HashMap<ProofStepId, HashSet<VariableMap>> = HashMap::new();
-        var_maps
+        let mut var_map_map: HashMap<ProofStepId, HashSet<VariableMap>> = HashMap::new();
+        var_map_map
             .entry(ProofStepId::Final)
             .or_default()
             .insert(VariableMap::new());
-        let mut concrete_clauses = HashMap::new();
         for (id, step) in self.all_steps.iter().rev() {
             // Multiple concrete instantiations are possible
-            let multi_var_map = var_maps.remove(id).unwrap();
-            for var_map in multi_var_map {
-                self.reconstruct_step(step, var_map, &mut var_maps, &mut concrete_clauses)?;
+            let var_maps: Vec<_> = var_map_map.get(id).unwrap().iter().cloned().collect();
+            for var_map in var_maps {
+                self.reconstruct_step(step, var_map, &mut var_map_map)?;
             }
         }
+
+        // Construct the concrete clauses
+        let mut concrete_clauses: HashMap<NodeId, BTreeSet<Clause>> = HashMap::new();
+        for (id, var_maps) in var_map_map {
+            if id == ProofStepId::Final {
+                continue;
+            }
+            for var_map in var_maps {
+                let generic = self.get_clause(id)?;
+                let concrete = var_map.specialize_clause(generic);
+                let node_id = *self.id_map.get(&id).unwrap();
+                concrete_clauses
+                    .entry(node_id)
+                    .or_default()
+                    .insert(concrete);
+            }
+        }
+
         let mut skip_code = HashSet::new();
         for (id, step) in &self.all_steps {
             // We don't need proof steps for concrete assumptions
@@ -821,7 +838,6 @@ impl<'a> Proof<'a> {
         step: &ProofStep,
         conclusion_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         // Some rules we can handle without the traces.
         match &step.rule {
@@ -834,7 +850,7 @@ impl<'a> Proof<'a> {
                 // reconstruction logic.
                 for id in step.rule.premises() {
                     let map = VariableMap::new();
-                    self.track_reconstruction(id, map, input_maps, concrete_clauses)?;
+                    input_maps.entry(id).or_default().insert(map);
                 }
                 return Ok(());
             }
@@ -860,15 +876,12 @@ impl<'a> Proof<'a> {
                     &step.clause,
                     conclusion_map,
                     input_maps,
-                    concrete_clauses,
                 )?;
 
                 // The data in trace.base_id is wrong, though.
                 // We just want to extract the variable maps for the rewritten clause.
                 let base_id = ProofStepId::Active(trace.base_id);
-                let node_id = *self.id_map.get(&base_id).unwrap();
                 let var_maps = input_maps.remove(&base_id).unwrap();
-                concrete_clauses.remove(&node_id);
 
                 // The target is already concrete, and the conclusion has been made concrete through
                 // its variable map. We need to unify the pattern.
@@ -903,12 +916,12 @@ impl<'a> Proof<'a> {
 
                     // Report the concrete pattern
                     let map = unifier.into_one_map(pattern_scope);
-                    self.track_reconstruction(pattern_id, map, input_maps, concrete_clauses)?;
+                    input_maps.entry(pattern_id).or_default().insert(map);
                 }
 
                 // The target is already concrete
                 let map = VariableMap::new();
-                self.track_reconstruction(target_id, map, input_maps, concrete_clauses)?;
+                input_maps.entry(target_id).or_default().insert(map);
             }
             Rule::EqualityFactoring(info) => {
                 // For EF, the trace applies to the stored literals.
@@ -918,15 +931,12 @@ impl<'a> Proof<'a> {
                     &step.clause,
                     conclusion_map,
                     input_maps,
-                    concrete_clauses,
                 )?;
 
                 // The data in trace.base_id is wrong, though.
                 // We just want to extract the variable maps for the rewritten clause.
                 let base_id = ProofStepId::Active(trace.base_id);
-                let node_id = *self.id_map.get(&base_id).unwrap();
                 let var_maps = input_maps.remove(&base_id).unwrap();
-                concrete_clauses.remove(&node_id);
 
                 // Unify the pre-EF and post-EF literals.
                 let base_clause = &self.get_clause(base_id)?;
@@ -953,7 +963,7 @@ impl<'a> Proof<'a> {
 
                     // Report the concrete base
                     let map = unifier.into_one_map(base_scope);
-                    self.track_reconstruction(base_id, map, input_maps, concrete_clauses)?;
+                    input_maps.entry(base_id).or_default().insert(map);
                 }
             }
             Rule::EqualityResolution(info) => {
@@ -964,15 +974,12 @@ impl<'a> Proof<'a> {
                     &step.clause,
                     conclusion_map,
                     input_maps,
-                    concrete_clauses,
                 )?;
 
                 // The data in trace.base_id is wrong, though.
                 // We just want to extract the variable maps for the rewritten clause.
                 let base_id = ProofStepId::Active(trace.base_id);
-                let node_id = *self.id_map.get(&base_id).unwrap();
                 let var_maps = input_maps.remove(&base_id).unwrap();
-                concrete_clauses.remove(&node_id);
 
                 // Unify the pre-ER and post-ER literals.
                 let base_clause = &self.get_clause(base_id)?;
@@ -1006,7 +1013,7 @@ impl<'a> Proof<'a> {
 
                     // Report the concrete base
                     let map = unifier.into_one_map(base_scope);
-                    self.track_reconstruction(base_id, map, input_maps, concrete_clauses)?;
+                    input_maps.entry(base_id).or_default().insert(map);
                 }
             }
             Rule::Resolution(_) | Rule::Specialization(_) => {
@@ -1017,7 +1024,6 @@ impl<'a> Proof<'a> {
                     &step.clause,
                     conclusion_map,
                     input_maps,
-                    concrete_clauses,
                 );
             }
             rule => {
@@ -1044,7 +1050,6 @@ impl<'a> Proof<'a> {
         conclusion: &Clause,
         conc_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         // The unifier will figure out the concrete clauses.
         // The conclusion gets its own scope...
@@ -1105,42 +1110,9 @@ impl<'a> Proof<'a> {
             }
 
             let id = ids.get(&scope).unwrap();
-            self.track_reconstruction(*id, map, input_maps, concrete_clauses)?;
+            input_maps.entry(*id).or_default().insert(map);
         }
 
-        Ok(())
-    }
-
-    // Helper function to aggregate construction output
-    fn track_reconstruction(
-        &self,
-        id: ProofStepId,
-        map: VariableMap,
-        input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
-        concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
-    ) -> Result<(), Error> {
-        if map.output_has_any_variable() {
-            return Err(Error::InternalError(format!(
-                "reconstructed map {:?} has variables",
-                map
-            )));
-        }
-        let generic = self.get_clause(id)?;
-        let concrete = map.specialize_clause(generic);
-        if concrete.has_any_variable() {
-            return Err(Error::InternalError(format!(
-                "reconstructed clause {:?} is not concrete",
-                id
-            )));
-        }
-
-        // Store the results
-        input_maps.entry(id).or_default().insert(map);
-        let node_id = *self.id_map.get(&id).unwrap();
-        concrete_clauses
-            .entry(node_id)
-            .or_default()
-            .insert(concrete);
         Ok(())
     }
 }

@@ -6,7 +6,7 @@ use std::fmt;
 
 // A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
 // into a more specific one by substituting variables.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct VariableMap {
     map: Vec<Option<Term>>,
 }
