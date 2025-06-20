@@ -977,7 +977,7 @@ impl<'a> Proof<'a> {
                 )?;
 
                 // The data in trace.base_id is wrong, though.
-                // We just want to extract the variable maps for the rewritten clause.
+                // We just want to extract the variable maps for the info.literals.
                 let base_id = ProofStepId::Active(trace.base_id);
                 let var_maps = input_maps.remove(&base_id).unwrap();
 
@@ -1009,6 +1009,63 @@ impl<'a> Proof<'a> {
                         assert!(unifier.unify(base_scope, &base_lit.left, conc_scope, left));
                         assert!(unifier.unify(base_scope, &base_lit.right, conc_scope, right));
                         j += 1;
+                    }
+
+                    // Report the concrete base
+                    let map = unifier.into_one_map(base_scope);
+                    input_maps.entry(base_id).or_default().insert(map);
+                }
+            }
+            Rule::FunctionElimination(info) => {
+                // For FE, the trace applies to the stored literals.
+                self.reconstruct_trace(
+                    &info.literals,
+                    trace,
+                    &step.clause,
+                    conclusion_map,
+                    input_maps,
+                )?;
+
+                // The data in trace.base_id is wrong, though.
+                // We just want to extract the variable maps for the info.literals.
+                let base_id = ProofStepId::Active(trace.base_id);
+                let var_maps = input_maps.remove(&base_id).unwrap();
+
+                // Unify the pre-FE and post-FE literals.
+                let base_clause = &self.get_clause(base_id)?;
+                assert!(base_clause.literals.len() == info.literals.len());
+
+                for conc_map in var_maps {
+                    let (mut unifier, conc_scope) = Unifier::with_map(conc_map);
+                    let base_scope = unifier.add_scope();
+
+                    for (i, (base_lit, info_lit)) in
+                        base_clause.literals.iter().zip(&info.literals).enumerate()
+                    {
+                        if i == info.index {
+                            let base_left = &base_lit.left.args[info.arg];
+                            let base_right = &base_lit.right.args[info.arg];
+                            let (left, right) = if info.flipped {
+                                (&info_lit.right, &info_lit.left)
+                            } else {
+                                (&info_lit.left, &info_lit.right)
+                            };
+                            assert!(unifier.unify(base_scope, base_left, conc_scope, left));
+                            assert!(unifier.unify(base_scope, base_right, conc_scope, right));
+                        } else {
+                            assert!(unifier.unify(
+                                base_scope,
+                                &base_lit.left,
+                                conc_scope,
+                                &info_lit.left
+                            ));
+                            assert!(unifier.unify(
+                                base_scope,
+                                &base_lit.right,
+                                conc_scope,
+                                &info_lit.right
+                            ));
+                        }
                     }
 
                     // Report the concrete base
