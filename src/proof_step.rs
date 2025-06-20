@@ -382,10 +382,22 @@ impl ProofStep {
 
     /// Construct a new ProofStep that is a direct implication of a single activated step,
     /// not requiring any other clauses.
-    pub fn direct(activated_step: &ProofStep, rule: Rule, clause: Clause) -> ProofStep {
+    pub fn direct(
+        activated_id: usize,
+        activated_step: &ProofStep,
+        rule: Rule,
+        clause: Clause,
+        literal_traces: Vec<crate::clause::LiteralTrace>,
+    ) -> ProofStep {
         // Direct implication does not add to depth.
         let depth = activated_step.depth;
         let printable = clause.is_printable();
+        
+        let trace = ClauseTrace {
+            base_id: activated_id,
+            literals: literal_traces,
+        };
+        
         ProofStep {
             clause,
             truthiness: activated_step.truthiness,
@@ -394,7 +406,7 @@ impl ProofStep {
             proof_size: activated_step.proof_size + 1,
             depth,
             printable,
-            trace: None,
+            trace: Some(trace),
         }
     }
 
