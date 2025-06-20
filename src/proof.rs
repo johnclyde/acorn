@@ -932,8 +932,8 @@ impl<'a> Proof<'a> {
                 let base_clause = &self.get_clause(base_id)?;
                 assert!(base_clause.literals.len() == info.literals.len());
 
-                for output_map in var_maps {
-                    let mut unifier = Unifier::with_output_map(output_map);
+                for conc_map in var_maps {
+                    let (mut unifier, conc_scope) = Unifier::with_map(conc_map);
                     let base_scope = unifier.add_scope();
 
                     for (base_lit, lit_trace) in base_clause.literals.iter().zip(&info.ef_trace) {
@@ -947,7 +947,7 @@ impl<'a> Proof<'a> {
                             } else {
                                 &out_lit.right
                             };
-                            assert!(unifier.unify(base_scope, base_term, Scope::OUTPUT, out_term));
+                            assert!(unifier.unify(base_scope, base_term, conc_scope, out_term));
                         }
                     }
 
