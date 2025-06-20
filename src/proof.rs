@@ -978,8 +978,8 @@ impl<'a> Proof<'a> {
                 let base_clause = &self.get_clause(base_id)?;
                 assert!(base_clause.literals.len() == info.literals.len() + 1);
 
-                for output_map in var_maps {
-                    let mut unifier = Unifier::with_output_map(output_map);
+                for conc_map in var_maps {
+                    let (mut unifier, conc_scope) = Unifier::with_map(conc_map);
                     let base_scope = unifier.add_scope();
                     let mut j = 0;
                     for (i, base_lit) in base_clause.literals.iter().enumerate() {
@@ -999,8 +999,8 @@ impl<'a> Proof<'a> {
                             (&info.literals[j].left, &info.literals[j].right)
                         };
 
-                        assert!(unifier.unify(base_scope, &base_lit.left, Scope::OUTPUT, left));
-                        assert!(unifier.unify(base_scope, &base_lit.right, Scope::OUTPUT, right));
+                        assert!(unifier.unify(base_scope, &base_lit.left, conc_scope, left));
+                        assert!(unifier.unify(base_scope, &base_lit.right, conc_scope, right));
                         j += 1;
                     }
 
