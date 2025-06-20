@@ -578,11 +578,14 @@ impl ActiveSet {
                     literals: literals.clone(),
                     flipped,
                 };
-                answer.push(ProofStep::direct(
-                    activated_step,
-                    Rule::FunctionElimination(info),
-                    Clause::new(literals),
-                ))
+                let (clause, trace) = Clause::normalize_with_trace(literals);
+                let mut step =
+                    ProofStep::direct(activated_step, Rule::FunctionElimination(info), clause);
+                step.trace = Some(ClauseTrace {
+                    base_id: activated_id,
+                    literals: trace,
+                });
+                answer.push(step);
             }
         }
 
