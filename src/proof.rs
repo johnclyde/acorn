@@ -672,7 +672,10 @@ impl<'a> Proof<'a> {
             .insert(VariableMap::new());
         for (id, step) in self.all_steps.iter().rev() {
             // Multiple concrete instantiations are possible
-            let var_maps: Vec<_> = var_map_map.get(id).unwrap().iter().cloned().collect();
+            let var_maps: Vec<_> = match var_map_map.get(id) {
+                Some(items) => items.iter().cloned().collect(),
+                None => continue,
+            };
             for var_map in var_maps {
                 self.reconstruct_step(step, var_map, &mut var_map_map)?;
             }
