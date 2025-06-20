@@ -1041,16 +1041,16 @@ impl<'a> Proof<'a> {
         &self,
         base_literals: &[Literal],
         trace: &ClauseTrace,
-        output_clause: &Clause,
-        output_map: VariableMap,
+        conclusion: &Clause,
+        conc_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
         concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
         // The unifier will figure out the concrete clauses.
-        // The output gets the output scope...
-        let mut unifier = Unifier::with_output_map(output_map);
+        // The conclusion gets its own scope...
+        let (mut unifier, conc_scope) = Unifier::with_map(conc_map);
 
-        // ...and we will track all the other scopes.
+        // ...and so do all the inputs.
         let base_scope = unifier.add_scope();
         let mut scopes: HashMap<ProofStepId, Scope> = HashMap::new();
         scopes.insert(ProofStepId::Active(trace.base_id), base_scope);
@@ -1078,8 +1078,8 @@ impl<'a> Proof<'a> {
                     (*scope, &clause.literals[0], *flipped)
                 }
                 LiteralTrace::Output { index, flipped } => {
-                    // The output literal is in the output scope.
-                    (Scope::OUTPUT, &output_clause.literals[*index], *flipped)
+                    // The output literal is in the conclusion scope.
+                    (conc_scope, &conclusion.literals[*index], *flipped)
                 }
                 LiteralTrace::Impossible => {
                     continue;
@@ -1099,9 +1099,8 @@ impl<'a> Proof<'a> {
             scopes.into_iter().map(|(id, scope)| (scope, id)).collect();
 
         for (scope, map) in unifier.into_maps() {
-            if scope == Scope::OUTPUT {
-                // The output map is the one we started with.
-                // We don't need to store it again.
+            if scope == Scope::OUTPUT || scope == conc_scope {
+                // We only need to store the scopes for inputs.
                 continue;
             }
 
