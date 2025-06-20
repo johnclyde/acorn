@@ -807,8 +807,8 @@ impl<'a> Proof<'a> {
         (answer, ordered_answer)
     }
 
-    // Given a concrete output of a proof step, reconstruct concrete inputs.
-    // The concrete output is provided as a VariableMap that specializes the clause in the
+    // Given a concrete conclusion of a proof step, reconstruct concrete inputs.
+    // The concrete conclusion is provided as a VariableMap that specializes the clause in the
     // ProofStep to something concrete.
     //
     // When we reconstruct the inputs, we store them in two forms.
@@ -819,7 +819,7 @@ impl<'a> Proof<'a> {
     fn reconstruct_step(
         &self,
         step: &ProofStep,
-        output_map: VariableMap,
+        conclusion_map: VariableMap,
         input_maps: &mut HashMap<ProofStepId, HashSet<VariableMap>>,
         concrete_clauses: &mut HashMap<NodeId, BTreeSet<Clause>>,
     ) -> Result<(), Error> {
@@ -858,7 +858,7 @@ impl<'a> Proof<'a> {
                     &info.rewritten.literals,
                     trace,
                     &step.clause,
-                    output_map,
+                    conclusion_map,
                     input_maps,
                     concrete_clauses,
                 )?;
@@ -870,7 +870,7 @@ impl<'a> Proof<'a> {
                 let var_maps = input_maps.remove(&base_id).unwrap();
                 concrete_clauses.remove(&node_id);
 
-                // The target is already concrete, and the output has been made concrete through
+                // The target is already concrete, and the conclusion has been made concrete through
                 // its variable map. We need to unify the pattern.
                 let pattern_id = ProofStepId::Active(info.pattern_id);
                 let pattern_clause = &self.get_clause(pattern_id)?;
@@ -895,11 +895,11 @@ impl<'a> Proof<'a> {
                     &info.rewritten.literals[0].right
                 };
                 let rewritten_subterm = rewritten_term.get_term_at_path(&info.path).unwrap();
-                for output_map in var_maps {
-                    let mut unifier = Unifier::with_output_map(output_map);
+                for conc_map in var_maps {
+                    let (mut unifier, conc_scope) = Unifier::with_map(conc_map);
                     let pattern_scope = unifier.add_scope();
-                    assert!(unifier.unify(pattern_scope, from_pat, Scope::OUTPUT, target_subterm));
-                    assert!(unifier.unify(pattern_scope, to_pat, Scope::OUTPUT, rewritten_subterm));
+                    assert!(unifier.unify(pattern_scope, from_pat, conc_scope, target_subterm));
+                    assert!(unifier.unify(pattern_scope, to_pat, conc_scope, rewritten_subterm));
 
                     // Report the concrete pattern
                     let map = unifier.into_one_map(pattern_scope);
@@ -916,7 +916,7 @@ impl<'a> Proof<'a> {
                     &info.literals,
                     trace,
                     &step.clause,
-                    output_map,
+                    conclusion_map,
                     input_maps,
                     concrete_clauses,
                 )?;
@@ -962,7 +962,7 @@ impl<'a> Proof<'a> {
                     &info.literals,
                     trace,
                     &step.clause,
-                    output_map,
+                    conclusion_map,
                     input_maps,
                     concrete_clauses,
                 )?;
@@ -1015,7 +1015,7 @@ impl<'a> Proof<'a> {
                     &original_clause.literals,
                     trace,
                     &step.clause,
-                    output_map,
+                    conclusion_map,
                     input_maps,
                     concrete_clauses,
                 );

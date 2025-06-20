@@ -50,10 +50,19 @@ impl Unifier {
     }
 
     /// Creates a single-scope unifier.
+    /// TODO: I think this is fundamentally buggy.
     pub fn with_output_map(output_map: VariableMap) -> Unifier {
         Unifier {
             maps: vec![output_map],
         }
+    }
+
+    /// Creates a single-scope unifier.
+    pub fn with_map(map: VariableMap) -> (Unifier, Scope) {
+        let unifier = Unifier {
+            maps: vec![VariableMap::new(), map],
+        };
+        (unifier, Scope(1))
     }
 
     fn mut_map(&mut self, scope: Scope) -> &mut VariableMap {
