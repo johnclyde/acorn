@@ -206,6 +206,18 @@ pub struct EqualityResolutionInfo {
 pub struct FunctionEliminationInfo {
     /// The id of the clause that had a function eliminated.
     pub id: usize,
+
+    /// The literal that was eliminated.
+    pub index: usize,
+
+    /// The literals that we got immediately after function elimination.
+    pub literals: Vec<Literal>,
+
+    /// Whether the function-eliminated literal was flipped.
+    pub flipped: bool,
+
+    /// The argument to the eliminated function that we kept.
+    pub arg: usize,
 }
 
 /// The rules that can generate new clauses, along with the clause ids used to generate.

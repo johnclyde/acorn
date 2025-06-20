@@ -565,11 +565,22 @@ impl ActiveSet {
             if let Some(j) = different_index {
                 // Looks like we can eliminate the functions from this literal
                 let mut literals = clause.literals.clone();
-                literals[i] =
-                    Literal::not_equals(target.left.args[j].clone(), target.right.args[j].clone());
+                let (new_literal, flipped) = Literal::new_with_flip(
+                    false,
+                    target.left.args[j].clone(),
+                    target.right.args[j].clone(),
+                );
+                literals[i] = new_literal;
+                let info = FunctionEliminationInfo {
+                    id: activated_id,
+                    index: i,
+                    arg: j,
+                    literals: literals.clone(),
+                    flipped,
+                };
                 answer.push(ProofStep::direct(
                     activated_step,
-                    Rule::FunctionElimination(FunctionEliminationInfo { id: activated_id }),
+                    Rule::FunctionElimination(info),
                     Clause::new(literals),
                 ))
             }
