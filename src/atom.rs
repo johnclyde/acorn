@@ -87,6 +87,17 @@ impl Atom {
         }
     }
 
+    // Converts from[i] to xi, and shifts existing variables to make room.
+    pub fn convert_to_variable(&self, from: &[Atom]) -> Atom {
+        match self {
+            Atom::Variable(i) => Atom::Variable(i + from.len() as AtomId),
+            a => match from.iter().position(|x| x == a) {
+                Some(i) => Atom::Variable(i as AtomId),
+                None => *a,
+            },
+        }
+    }
+
     // Replaces x_i with x_{var_map[i]}.
     pub fn remap_variables(&self, var_map: &Vec<AtomId>) -> Atom {
         match self {
