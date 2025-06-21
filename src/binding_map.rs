@@ -455,10 +455,7 @@ impl BindingMap {
             ConstantName::TypeclassAttribute(typeclass, attr) => self
                 .resolve_typeclass_attr(typeclass, attr)
                 .map(|(module_id, name)| (module_id, name)),
-            ConstantName::Skolem(_) => {
-                // Skolem constants are always defined in the SKOLEM module
-                Some((ModuleId::SKOLEM, name.clone()))
-            }
+            ConstantName::Skolem(_) => None,
         }
     }
 
