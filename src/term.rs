@@ -347,6 +347,22 @@ impl Term {
         }
     }
 
+    /// Converts atoms from the given list to variables, and shifts existing variables to make room.
+    pub fn convert_to_variable(&self, from: &[Atom]) -> Term {
+        let new_head = self.head.convert_to_variable(from);
+        let new_args = self
+            .args
+            .iter()
+            .map(|arg| arg.convert_to_variable(from))
+            .collect();
+        Term {
+            term_type: self.term_type,
+            head_type: self.head_type,
+            head: new_head,
+            args: new_args,
+        }
+    }
+
     pub fn replace_args(&self, new_args: Vec<Term>) -> Term {
         Term {
             term_type: self.term_type,

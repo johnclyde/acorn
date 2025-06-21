@@ -287,4 +287,16 @@ impl Clause {
         }
         true
     }
+
+    /// Converts atoms from the given list to variables, and shifts existing variables to make room.
+    pub fn convert_to_variable(&self, from: &[Atom]) -> Clause {
+        let new_literals = self
+            .literals
+            .iter()
+            .map(|lit| lit.convert_to_variable(from))
+            .collect();
+        Clause {
+            literals: new_literals,
+        }
+    }
 }

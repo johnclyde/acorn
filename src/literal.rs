@@ -284,3 +284,12 @@ impl Ord for Literal {
         self.partial_cmp(other).unwrap()
     }
 }
+
+impl Literal {
+    /// Converts atoms from the given list to variables, and shifts existing variables to make room.
+    pub fn convert_to_variable(&self, from: &[Atom]) -> Literal {
+        let new_left = self.left.convert_to_variable(from);
+        let new_right = self.right.convert_to_variable(from);
+        Literal::new(self.positive, new_left, new_right)
+    }
+}

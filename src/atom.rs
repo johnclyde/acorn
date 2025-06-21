@@ -88,6 +88,7 @@ impl Atom {
     }
 
     // Converts from[i] to xi, and shifts existing variables to make room.
+    // Keeps all the types the same.
     pub fn convert_to_variable(&self, from: &[Atom]) -> Atom {
         match self {
             Atom::Variable(i) => Atom::Variable(i + from.len() as AtomId),
