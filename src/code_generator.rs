@@ -166,8 +166,7 @@ impl CodeGenerator<'_> {
     /// Given a constant instance, find an expression that refers to it.
     /// This does *not* include the parameters.
     fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
-        // We can't do skolems
-        if ci.name.module_id() == ModuleId::SKOLEM {
+        if ci.name.is_skolem() {
             return Err(Error::skolem(&ci.name.to_string()));
         }
 
@@ -244,27 +243,25 @@ impl CodeGenerator<'_> {
 
         // Refer to this constant using its module
         match self.bindings.get_name_for_module_id(ci.name.module_id()) {
-            Some(module_name) => {
-                match &ci.name {
-                    ConstantName::Unqualified(_, name) => {
-                        let parts: Vec<&str> = vec![module_name, name];
-                        Ok(Expression::generate_identifier_chain(&parts))
-                    }
-                    ConstantName::DatatypeAttribute(datatype, attr) => {
-                        let parts: Vec<&str> = vec![module_name, &datatype.name, attr];
-                        Ok(Expression::generate_identifier_chain(&parts))
-                    }
-                    ConstantName::TypeclassAttribute(tc, attr) => {
-                        let parts: Vec<&str> = vec![module_name, &tc.name, attr];
-                        Ok(Expression::generate_identifier_chain(&parts))
-                    }
-                    ConstantName::Skolem(i) => {
-                        let skolem_name = format!("s{}", i);
-                        let parts: Vec<&str> = vec![module_name, &skolem_name];
-                        Ok(Expression::generate_identifier_chain(&parts))
-                    }
+            Some(module_name) => match &ci.name {
+                ConstantName::Unqualified(_, name) => {
+                    let parts: Vec<&str> = vec![module_name, name];
+                    Ok(Expression::generate_identifier_chain(&parts))
                 }
-            }
+                ConstantName::DatatypeAttribute(datatype, attr) => {
+                    let parts: Vec<&str> = vec![module_name, &datatype.name, attr];
+                    Ok(Expression::generate_identifier_chain(&parts))
+                }
+                ConstantName::TypeclassAttribute(tc, attr) => {
+                    let parts: Vec<&str> = vec![module_name, &tc.name, attr];
+                    Ok(Expression::generate_identifier_chain(&parts))
+                }
+                ConstantName::Skolem(i) => {
+                    let skolem_name = format!("s{}", i);
+                    let parts: Vec<&str> = vec![module_name, &skolem_name];
+                    Ok(Expression::generate_identifier_chain(&parts))
+                }
+            },
             None => Err(Error::UnimportedModule(
                 ci.name.module_id(),
                 ci.name.to_string(),
