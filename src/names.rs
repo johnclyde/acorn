@@ -96,6 +96,13 @@ impl ConstantName {
         }
     }
 
+    pub fn is_skolem(&self) -> bool {
+        match self {
+            ConstantName::Skolem(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn module_id(&self) -> ModuleId {
         match self {
             ConstantName::DatatypeAttribute(datatype, _) => datatype.module_id,

@@ -4,7 +4,6 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::fact::Fact;
 use crate::literal::Literal;
-use crate::module::ModuleId;
 use crate::monomorphizer::Monomorphizer;
 use crate::names::ConstantName;
 use crate::normalization_map::NormalizationMap;
@@ -73,8 +72,7 @@ impl Normalizer {
     fn new_skolem_value(&mut self, acorn_type: AcornType) -> AcornValue {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
-        // Hacky. Turn the int into an s-name
-        let name = ConstantName::unqualified(ModuleId::SKOLEM, &format!("s{}", skolem_index));
+        let name = ConstantName::Skolem(skolem_index);
         AcornValue::constant(name, vec![], acorn_type)
     }
 
@@ -197,11 +195,9 @@ impl Normalizer {
                 if c.params.is_empty() {
                     check_normalized_type(&c.instance_type)?;
                     let type_id = self.normalization_map.add_type(&c.instance_type);
-                    let constant_atom = if c.name.module_id() == ModuleId::SKOLEM {
-                        // Hacky. Turn the s-name back to an int
-                        Atom::Skolem(c.name.to_string()[1..].parse().unwrap())
-                    } else {
-                        self.normalization_map.add_constant(c.name.clone(), local)
+                    let constant_atom = match &c.name {
+                        ConstantName::Skolem(i) => Atom::Skolem(*i),
+                        _ => self.normalization_map.add_constant(c.name.clone(), local),
                     };
                     Ok(Term::new(type_id, type_id, constant_atom, vec![]))
                 } else {
@@ -439,7 +435,7 @@ impl Normalizer {
             }
             Atom::Skolem(i) => {
                 let acorn_type = self.skolem_types[*i as usize].clone();
-                let name = ConstantName::unqualified(ModuleId::SKOLEM, &format!("s{}", i));
+                let name = ConstantName::Skolem(*i);
                 AcornValue::constant(name, vec![], acorn_type)
             }
         }
