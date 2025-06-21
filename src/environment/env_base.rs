@@ -525,7 +525,7 @@ impl Environment {
 impl Environment {
     /// Create a test version of the environment.
     pub fn test() -> Self {
-        Environment::new(ModuleId::FIRST_NORMAL)
+        Environment::new(ModuleId(0))
     }
 
     /// Adds a possibly multi-line statement to the environment.

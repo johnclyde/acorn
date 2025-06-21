@@ -15,13 +15,6 @@ impl ModuleId {
     pub const fn get(&self) -> u16 {
         self.0
     }
-
-    // Some entities that are created for the prover get their own modules.
-    // Skolem functions are created during normalization to replace "exists" quantifiers.
-    pub const UNUSED: ModuleId = ModuleId(0);
-
-    // The regular module ids start here.
-    pub const FIRST_NORMAL: ModuleId = ModuleId(1);
 }
 
 impl fmt::Display for ModuleId {
@@ -47,14 +40,6 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn default_modules() -> Vec<Module> {
-        let mut modules = vec![];
-        while modules.len() < ModuleId::FIRST_NORMAL.get() as usize {
-            modules.push(Module::anonymous());
-        }
-        modules
-    }
-
     pub fn anonymous() -> Module {
         Module {
             descriptor: ModuleDescriptor::Anonymous,

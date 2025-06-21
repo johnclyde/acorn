@@ -158,7 +158,7 @@ impl Project {
             library_root,
             use_filesystem: true,
             open_files: HashMap::new(),
-            modules: Module::default_modules(),
+            modules: vec![],
             module_map: HashMap::new(),
             targets: HashSet::new(),
             build_cache,
@@ -253,7 +253,7 @@ impl Project {
     // Dropping existing modules lets you update the project for new data.
     // TODO: do this incrementally instead of dropping everything.
     fn drop_modules(&mut self) {
-        self.modules = Module::default_modules();
+        self.modules = vec![];
         self.module_map = HashMap::new();
     }
 
@@ -1376,9 +1376,6 @@ impl Project {
     // If "open" is passed, then we cache this file's content in open files.
     fn load_module(&mut self, descriptor: &ModuleDescriptor) -> Result<ModuleId, ImportError> {
         if let Some(module_id) = self.module_map.get(&descriptor) {
-            if *module_id < ModuleId::FIRST_NORMAL {
-                panic!("module {} should not be loadable", module_id);
-            }
             if let LoadState::Loading = self.get_module_by_id(*module_id) {
                 return Err(ImportError::Circular(*module_id));
             }

@@ -84,7 +84,6 @@ pub struct BindingMap {
 
 impl BindingMap {
     pub fn new(module: ModuleId) -> Self {
-        assert!(module >= ModuleId::FIRST_NORMAL);
         let mut answer = BindingMap {
             module_id: module,
             constant_defs: HashMap::new(),

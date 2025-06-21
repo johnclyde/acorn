@@ -355,7 +355,6 @@ impl<'a> Evaluator<'a> {
         Ok(value)
     }
 
-
     /// Evaluates a name scoped by a datatype, like Nat.range
     fn evaluate_datatype_attr(
         &self,
@@ -363,7 +362,8 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        let (module_id, const_name) = match self.bindings.resolve_datatype_attr(datatype, attr_name) {
+        let (module_id, const_name) = match self.bindings.resolve_datatype_attr(datatype, attr_name)
+        {
             Ok((module_id, const_name)) => (module_id, const_name),
             Err(err) => return Err(source.error(&err)),
         };
@@ -387,7 +387,6 @@ impl<'a> Evaluator<'a> {
         Ok(value)
     }
 
-
     /// Evalutes a name scoped by a typeclass name, like Group.foo
     fn evaluate_typeclass_attr(
         &self,
@@ -395,7 +394,8 @@ impl<'a> Evaluator<'a> {
         attr_name: &str,
         source: &dyn ErrorSource,
     ) -> compilation::Result<PotentialValue> {
-        if let Some((module_id, name)) = self.bindings.resolve_typeclass_attr(typeclass, attr_name) {
+        if let Some((module_id, name)) = self.bindings.resolve_typeclass_attr(typeclass, attr_name)
+        {
             // Get the bindings from the module where this attribute was actually defined
             let bindings = self.get_bindings(module_id);
             let defined_name = DefinedName::Constant(name);
@@ -1121,7 +1121,7 @@ mod tests {
     #[test]
     fn test_evaluator_types() {
         let p = Project::new_mock();
-        let bindings = BindingMap::new(ModuleId::FIRST_NORMAL);
+        let bindings = BindingMap::new(ModuleId(0));
         let mut e = Evaluator::new(&bindings, &p, None);
         e.assert_type_ok("Bool");
         e.assert_type_ok("Bool -> Bool");
