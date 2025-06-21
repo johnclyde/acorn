@@ -129,12 +129,6 @@ impl Literal {
         self.left.is_higher_order() || self.right.is_higher_order()
     }
 
-    pub fn num_quantifiers(&self) -> AtomId {
-        self.left
-            .least_unused_variable()
-            .max(self.right.least_unused_variable())
-    }
-
     pub fn var_type(&self, i: AtomId) -> Option<AtomId> {
         self.left.var_type(i).or_else(|| self.right.var_type(i))
     }

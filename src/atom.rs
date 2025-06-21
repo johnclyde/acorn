@@ -78,13 +78,6 @@ impl Atom {
         }
     }
 
-    pub fn shift_variables(self, shift: u16) -> Atom {
-        match self {
-            Atom::Variable(i) => Atom::Variable(i + shift),
-            _ => self,
-        }
-    }
-
     // Orders two atoms, but considers all references the same, so that the ordering
     // is stable under variable renaming.
     pub fn stable_partial_order(&self, other: &Atom) -> Ordering {

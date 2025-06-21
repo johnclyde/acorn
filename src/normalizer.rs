@@ -69,11 +69,12 @@ impl Normalizer {
         }
     }
 
-    fn new_skolem_value(&mut self, acorn_type: AcornType) -> AcornValue {
+    fn new_skolem_value(&mut self, acorn_type: AcornType) -> (AtomId, AcornValue) {
         let skolem_index = self.skolem_types.len() as AtomId;
         self.skolem_types.push(acorn_type.clone());
         let name = ConstantName::Skolem(skolem_index);
-        AcornValue::constant(name, vec![], acorn_type)
+        let value = AcornValue::constant(name, vec![], acorn_type);
+        (skolem_index, value)
     }
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
@@ -97,12 +98,12 @@ impl Normalizer {
     /// But there's a redundant arg here. The simpler form is just
     ///   forall(x, f(x) & g(skolem()))
     /// which is what we get if we don't convert to prenex first.
-    pub fn skolemize(&mut self, stack: &Vec<AcornType>, value: AcornValue) -> Result<AcornValue> {
+    pub fn skolemize(&mut self, stack: &Vec<AcornType>, value: AcornValue, created: &mut Vec<AtomId>) -> Result<AcornValue> {
         Ok(match value {
             AcornValue::ForAll(quants, subvalue) => {
                 let mut new_stack = stack.clone();
                 new_stack.extend(quants.clone());
-                let new_subvalue = self.skolemize(&new_stack, *subvalue)?;
+                let new_subvalue = self.skolemize(&new_stack, *subvalue, created)?;
                 AcornValue::ForAll(quants, Box::new(new_subvalue))
             }
 
@@ -118,7 +119,8 @@ impl Normalizer {
                 let mut replacements = vec![];
                 for quant in quants {
                     let skolem_type = AcornType::functional(stack.clone(), quant);
-                    let skolem_fn = self.new_skolem_value(skolem_type);
+                    let (skolem_id, skolem_fn) = self.new_skolem_value(skolem_type);
+                    created.push(skolem_id);
                     let replacement = AcornValue::apply(skolem_fn, args.clone());
                     replacements.push(replacement);
                 }
@@ -128,18 +130,19 @@ impl Normalizer {
                 return self.skolemize(
                     stack,
                     subvalue.bind_values(stack_size, stack_size, &replacements),
+                    created,
                 );
             }
 
             AcornValue::Binary(BinaryOp::And, left, right) => {
-                let left = self.skolemize(stack, *left)?;
-                let right = self.skolemize(stack, *right)?;
+                let left = self.skolemize(stack, *left, created)?;
+                let right = self.skolemize(stack, *right, created)?;
                 AcornValue::Binary(BinaryOp::And, Box::new(left), Box::new(right))
             }
 
             AcornValue::Binary(BinaryOp::Or, left, right) => {
-                let left = self.skolemize(stack, *left)?;
-                let right = self.skolemize(stack, *right)?;
+                let left = self.skolemize(stack, *left, created)?;
+                let right = self.skolemize(stack, *right, created)?;
                 AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
             }
 
@@ -334,7 +337,8 @@ impl Normalizer {
         let value = value.replace_if();
         let value = value.move_negation_inwards(true, false);
         // println!("negin'd: {}", value);
-        let value = self.skolemize(&vec![], value)?;
+        let mut created_skolems = vec![];
+        let value = self.skolemize(&vec![], value, &mut created_skolems)?;
         // println!("skolemized: {}", value);
 
         self.normalize_cnf(value, local)

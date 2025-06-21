@@ -208,14 +208,6 @@ impl Clause {
         )
     }
 
-    pub fn num_quantifiers(&self) -> AtomId {
-        let mut answer = 0;
-        for literal in &self.literals {
-            answer = answer.max(literal.num_quantifiers());
-        }
-        answer
-    }
-
     pub fn is_tautology(&self) -> bool {
         // Find the index of the first positive literal
         if let Some(first_pos) = self.literals.iter().position(|x| x.positive) {
@@ -260,6 +252,14 @@ impl Clause {
 
     pub fn num_positive_literals(&self) -> usize {
         self.literals.iter().filter(|x| x.positive).count()
+    }
+
+    pub fn least_unused_variable(&self) -> AtomId {
+        self.literals
+            .iter()
+            .map(|x| x.least_unused_variable())
+            .max()
+            .unwrap_or(0)
     }
 
     /// Whether every literal in this clause is exactly contained by the other clause.
