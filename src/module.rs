@@ -18,7 +18,7 @@ impl ModuleId {
 
     // Some entities that are created for the prover get their own modules.
     // Skolem functions are created during normalization to replace "exists" quantifiers.
-    pub const SKOLEM: ModuleId = ModuleId(0);
+    pub const UNUSED: ModuleId = ModuleId(0);
 
     // The regular module ids start here.
     pub const FIRST_NORMAL: ModuleId = ModuleId(1);
@@ -131,7 +131,7 @@ impl ModuleDescriptor {
     }
 
     /// Returns true if this module has an authoritative name for the given type or typeclass name.
-    /// A module is authoritative if its name (stripped of underscores and dots) matches 
+    /// A module is authoritative if its name (stripped of underscores and dots) matches
     /// the lowercased type or typeclass name.
     pub fn is_authoritative_name(&self, name: &str) -> bool {
         match self {

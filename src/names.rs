@@ -95,7 +95,7 @@ impl ConstantName {
             ConstantName::DatatypeAttribute(datatype, _) => datatype.module_id,
             ConstantName::TypeclassAttribute(tc, _) => tc.module_id,
             ConstantName::Unqualified(module_id, _) => *module_id,
-            ConstantName::Skolem(_) => ModuleId::SKOLEM,
+            ConstantName::Skolem(_) => panic!("skolem constants do not have a module id"),
         }
     }
 
