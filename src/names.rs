@@ -73,20 +73,7 @@ impl ConstantName {
     }
 
     pub fn to_defined(&self) -> DefinedName {
-        match self {
-            ConstantName::DatatypeAttribute(datatype, attr) => {
-                DefinedName::Constant(ConstantName::datatype_attr(datatype.clone(), attr))
-            }
-            ConstantName::TypeclassAttribute(tc, attr) => {
-                DefinedName::Constant(ConstantName::typeclass_attr(tc.clone(), attr))
-            }
-            ConstantName::Unqualified(module_id, name) => {
-                DefinedName::unqualified(*module_id, name)
-            }
-            ConstantName::Skolem(i) => {
-                DefinedName::unqualified(ModuleId::SKOLEM, &format!("s{}", i))
-            }
-        }
+        DefinedName::Constant(self.clone())
     }
 
     pub fn is_typeclass_attr(&self) -> bool {
