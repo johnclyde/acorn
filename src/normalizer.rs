@@ -98,7 +98,12 @@ impl Normalizer {
     /// But there's a redundant arg here. The simpler form is just
     ///   forall(x, f(x) & g(skolem()))
     /// which is what we get if we don't convert to prenex first.
-    pub fn skolemize(&mut self, stack: &Vec<AcornType>, value: AcornValue, created: &mut Vec<AtomId>) -> Result<AcornValue> {
+    pub fn skolemize(
+        &mut self,
+        stack: &Vec<AcornType>,
+        value: AcornValue,
+        created: &mut Vec<AtomId>,
+    ) -> Result<AcornValue> {
         Ok(match value {
             AcornValue::ForAll(quants, subvalue) => {
                 let mut new_stack = stack.clone();
@@ -336,12 +341,25 @@ impl Normalizer {
         let value = value.replace_match();
         let value = value.replace_if();
         let value = value.move_negation_inwards(true, false);
-        // println!("negin'd: {}", value);
-        let mut created_skolems = vec![];
-        let value = self.skolemize(&vec![], value, &mut created_skolems)?;
-        // println!("skolemized: {}", value);
 
-        self.normalize_cnf(value, local)
+        // println!("pre-skolemize: {}", value);
+        let mut created_ids = vec![];
+        let value = self.skolemize(&vec![], value, &mut created_ids)?;
+        // println!("post-skolemize: {}", value);
+
+        let clauses = self.normalize_cnf(value, local)?;
+        if !created_ids.is_empty() {
+            let skolem_atoms: Vec<_> = created_ids.iter().map(|id| Atom::Skolem(*id)).collect();
+            // The first skolem_atom.len() variables are existential, the rest universal.
+            // This is implicit, though, because the list of clauses doesn't itself differentiate.
+            let _generic: Vec<_> = clauses
+                .iter()
+                .map(|c| c.convert_to_variable(&skolem_atoms))
+                .collect();
+            // TODO: track the genericized form of the clause that we skolemized.
+        }
+
+        Ok(clauses)
     }
 
     /// Converts a value to CNF: Conjunctive Normal Form.
