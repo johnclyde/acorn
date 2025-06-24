@@ -5,12 +5,17 @@ use crate::project::Project;
 use crate::prover::{Outcome, Prover};
 use crate::verifier::ProverMode;
 
+pub enum SearchTarget {
+    Line(u32),
+    Name(String),
+}
+
 pub struct Searcher {
     /// The target module or file to search in.
-    target: String,
+    module: String,
 
-    /// The line number to search at (1-based, as provided by the user).
-    line_number: u32,
+    /// What we're searching for - either a line number or theorem name
+    target: SearchTarget,
 
     /// The starting path to find the acorn library from.
     start_path: PathBuf,
@@ -20,10 +25,19 @@ pub struct Searcher {
 }
 
 impl Searcher {
-    pub fn new(start_path: PathBuf, mode: ProverMode, target: String, line_number: u32) -> Self {
+    pub fn new_by_line(start_path: PathBuf, mode: ProverMode, module: String, line_number: u32) -> Self {
         Self {
-            target,
-            line_number,
+            module,
+            target: SearchTarget::Line(line_number),
+            start_path,
+            mode,
+        }
+    }
+
+    pub fn new_by_name(start_path: PathBuf, mode: ProverMode, module: String, theorem_name: String) -> Self {
+        Self {
+            module,
+            target: SearchTarget::Name(theorem_name),
             start_path,
             mode,
         }
@@ -36,29 +50,71 @@ impl Searcher {
             Err(e) => return Err(format!("Error: {}", e)),
         };
 
-        // Convert from 1-based (external) to 0-based (internal) line number
-        let internal_line_number = self.line_number - 1;
-
         let module_id = project
-            .load_module_by_name(&self.target)
-            .map_err(|e| format!("Failed to load module '{}': {}", self.target, e))?;
+            .load_module_by_name(&self.module)
+            .map_err(|e| format!("Failed to load module '{}': {}", self.module, e))?;
 
         let env = project
             .get_env_by_id(module_id)
-            .ok_or_else(|| format!("No environment found for module '{}'", self.target))?;
+            .ok_or_else(|| format!("No environment found for module '{}'", self.module))?;
 
-        let path = env.path_for_line(internal_line_number).map_err(|s| {
-            format!(
-                "no proposition for line {} in {}: {}",
-                self.line_number, self.target, s
-            )
-        })?;
+        // Get the cursor based on the search target
+        let cursor = match &self.target {
+            SearchTarget::Line(line_number) => {
+                // Convert from 1-based (external) to 0-based (internal) line number
+                let internal_line_number = line_number - 1;
+                
+                let path = env.path_for_line(internal_line_number).map_err(|s| {
+                    format!(
+                        "no proposition for line {} in {}: {}",
+                        line_number, self.module, s
+                    )
+                })?;
+                
+                NodeCursor::from_path(env, &path)
+            }
+            SearchTarget::Name(theorem_name) => {
+                // Find the node by theorem name
+                match env.iter_goals().find(|node| {
+                    node.goal_context()
+                        .map(|ctx| ctx.description == *theorem_name)
+                        .unwrap_or(false)
+                }) {
+                    Some(cursor) => cursor,
+                    None => {
+                        // List available theorems to help the user
+                        let available: Vec<String> = env.iter_goals()
+                            .filter_map(|node| {
+                                node.goal_context()
+                                    .ok()
+                                    .map(|ctx| ctx.description)
+                            })
+                            .collect();
+                        
+                        if available.is_empty() {
+                            return Err(format!(
+                                "No theorem named '{}' found in module '{}'. No theorems found in this module.",
+                                theorem_name, self.module
+                            ));
+                        } else {
+                            return Err(format!(
+                                "No theorem named '{}' found in module '{}'. Available theorems:\n  {}",
+                                theorem_name, self.module, available.join("\n  ")
+                            ));
+                        }
+                    }
+                }
+            }
+        };
 
-        let cursor = NodeCursor::from_path(env, &path);
         let goal_context = cursor.goal_context().map_err(|e| {
             format!(
-                "Error getting goal at line {} in {}: {}",
-                self.line_number, self.target, e
+                "Error getting goal for {}: {}",
+                match &self.target {
+                    SearchTarget::Line(n) => format!("line {}", n),
+                    SearchTarget::Name(n) => format!("theorem '{}'", n),
+                },
+                e
             )
         })?;
 
@@ -82,71 +138,56 @@ impl Searcher {
                     filtered_prover
                 }
                 None => {
-                    return Err(format!(
-                        "Cannot create filtered prover: no cached premises found for {} at line {}. \
-                        Run verification in standard mode first to build the cache.",
-                        block_name,
-                        self.line_number
-                    ));
+                    println!("filtered prover failed, using full prover");
+                    Prover::new(&project, verbose)
                 }
             }
         } else {
-            // Use full prover in other modes
-            let mut prover = Prover::new(&project, verbose);
-            for fact in cursor.usable_facts(&project) {
-                prover.add_fact(fact);
-            }
-            prover
+            Prover::new(&project, verbose)
         };
 
-        prover.verbose = verbose;
-        prover.strict_codegen = true;
+        for fact in cursor.usable_facts(&project) {
+            prover.add_fact(fact);
+        }
+
         prover.set_goal(&goal_context);
+        let outcome = prover.full_search();
 
-        loop {
-            let outcome = prover.partial_search();
-
-            match outcome {
-                Outcome::Success => {
-                    println!("success!");
-
-                    prover.get_and_print_proof(&project, &env.bindings);
-                    let proof = prover.get_condensed_proof().unwrap();
-                    match proof.to_code(&env.bindings) {
+        match outcome {
+            Outcome::Success => {
+                println!("success!");
+                let proof = prover.get_and_print_proof(&project, &env.bindings);
+                if let Some(p) = proof {
+                    match p.to_code(&env.bindings) {
                         Ok(code) => {
-                            println!("generated code:\n");
-                            for line in &code {
-                                println!("{}", line);
+                            for line in code {
+                                println!("  {}", line);
                             }
                         }
                         Err(e) => {
-                            eprintln!("\nerror generating code: {}", e);
+                            println!("code generation error: {:?}", e);
                         }
                     }
                 }
-                Outcome::Inconsistent => {
-                    println!("Found inconsistency!");
-                    prover.get_and_print_proof(&project, &env.bindings);
-                }
-                Outcome::Exhausted => {
-                    println!("All possibilities have been exhausted.");
-                }
-                Outcome::Timeout => {
-                    println!("activated {} steps", prover.num_activated());
-                    continue;
-                }
-                Outcome::Interrupted => {
-                    println!("Interrupted.");
-                }
-                Outcome::Constrained => {
-                    println!("Constrained.");
-                }
-                Outcome::Error(s) => {
-                    println!("Error: {}", s);
-                }
             }
-
-            break;
+            Outcome::Exhausted => {
+                println!("proof search exhausted");
+            }
+            Outcome::Inconsistent => {
+                println!("inconsistent axioms");
+            }
+            Outcome::Constrained => {
+                println!("proof attempt was constrained by typechecking");
+            }
+            Outcome::Timeout => {
+                println!("timeout");
+            }
+            Outcome::Interrupted => {
+                println!("interrupted");
+            }
+            Outcome::Error(e) => {
+                println!("error: {}", e);
+            }
         }
 
         Ok(())
