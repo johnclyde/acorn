@@ -6,7 +6,7 @@ on:
     - cron: "0 10 * * *"
 
 env:
-  ONNXRUNTIME_VERSION: v1.17.3
+  ONNXRUNTIME_VERSION: 0699df66382d7316287725501ef65dac95f97fb2
 
 jobs:
   build-onnxruntime:
