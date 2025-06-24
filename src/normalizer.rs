@@ -60,6 +60,30 @@ pub struct Normalizer {
     normalization_map: NormalizationMap,
 }
 
+/// A normalized representation of an existential statement that we skolemized.
+/// This lets us look up to see if we have skolemized an exact value before.
+struct SkolemKey {
+    /// CNF form of the proposition that we skolemized.
+    clauses: Vec<Clause>,
+
+    /// The first `num_existential` variables in the clauses are existential.
+    num_existential: usize,
+}
+
+/// Information about a particular skolem function that we created.
+/// We will need to look this up both by skolem key, and by atom id.
+struct SkolemInfo {
+    /// The type of the skolem function.
+    /// Usually a function, but it could be a constant.
+    atom_type: AcornType,
+
+    /// CNF form of the proposition that we skolemized.
+    clauses: Vec<Clause>,
+
+    /// Which skolem atoms were created along with this one.
+    ids: Vec<AtomId>,
+}
+
 impl Normalizer {
     pub fn new() -> Normalizer {
         Normalizer {
@@ -69,20 +93,13 @@ impl Normalizer {
         }
     }
 
-    fn new_skolem_value(&mut self, acorn_type: AcornType) -> (AtomId, AcornValue) {
-        let skolem_index = self.skolem_types.len() as AtomId;
-        self.skolem_types.push(acorn_type.clone());
-        let name = ConstantName::Skolem(skolem_index);
-        let value = AcornValue::constant(name, vec![], acorn_type);
-        (skolem_index, value)
-    }
-
     pub fn is_skolem(&self, atom: &Atom) -> bool {
         matches!(atom, Atom::Skolem(_))
     }
 
     /// The input should already have negations moved inwards.
     /// The stack must be entirely universal quantifiers.
+    /// Outputs the new skolem atoms that were created.
     ///
     /// The value does *not* need to be in prenex normal form.
     /// I.e., it can still have quantifier nodes, either "exists" or "forall", inside of
@@ -99,16 +116,18 @@ impl Normalizer {
     ///   forall(x, f(x) & g(skolem()))
     /// which is what we get if we don't convert to prenex first.
     pub fn skolemize(
-        &mut self,
+        &self,
         stack: &Vec<AcornType>,
         value: AcornValue,
-        created: &mut Vec<AtomId>,
+        next_skolem_id: &mut AtomId,
+        created: &mut Vec<(AtomId, AcornType)>,
     ) -> Result<AcornValue> {
         Ok(match value {
             AcornValue::ForAll(quants, subvalue) => {
                 let mut new_stack = stack.clone();
                 new_stack.extend(quants.clone());
-                let new_subvalue = self.skolemize(&new_stack, *subvalue, created)?;
+                let new_subvalue =
+                    self.skolemize(&new_stack, *subvalue, next_skolem_id, created)?;
                 AcornValue::ForAll(quants, Box::new(new_subvalue))
             }
 
@@ -123,10 +142,14 @@ impl Normalizer {
                 // Each one will be a skolem function applied to the current stack.
                 let mut replacements = vec![];
                 for quant in quants {
+                    // Make a new skolem atom
                     let skolem_type = AcornType::functional(stack.clone(), quant);
-                    let (skolem_id, skolem_fn) = self.new_skolem_value(skolem_type);
-                    created.push(skolem_id);
-                    let replacement = AcornValue::apply(skolem_fn, args.clone());
+                    let skolem_name = ConstantName::Skolem(*next_skolem_id);
+                    let skolem_value =
+                        AcornValue::constant(skolem_name, vec![], skolem_type.clone());
+                    created.push((*next_skolem_id, skolem_type));
+                    *next_skolem_id += 1;
+                    let replacement = AcornValue::apply(skolem_value, args.clone());
                     replacements.push(replacement);
                 }
 
@@ -135,19 +158,20 @@ impl Normalizer {
                 return self.skolemize(
                     stack,
                     subvalue.bind_values(stack_size, stack_size, &replacements),
+                    next_skolem_id,
                     created,
                 );
             }
 
             AcornValue::Binary(BinaryOp::And, left, right) => {
-                let left = self.skolemize(stack, *left, created)?;
-                let right = self.skolemize(stack, *right, created)?;
+                let left = self.skolemize(stack, *left, next_skolem_id, created)?;
+                let right = self.skolemize(stack, *right, next_skolem_id, created)?;
                 AcornValue::Binary(BinaryOp::And, Box::new(left), Box::new(right))
             }
 
             AcornValue::Binary(BinaryOp::Or, left, right) => {
-                let left = self.skolemize(stack, *left, created)?;
-                let right = self.skolemize(stack, *right, created)?;
+                let left = self.skolemize(stack, *left, next_skolem_id, created)?;
+                let right = self.skolemize(stack, *right, next_skolem_id, created)?;
                 AcornValue::Binary(BinaryOp::Or, Box::new(left), Box::new(right))
             }
 
@@ -343,13 +367,20 @@ impl Normalizer {
         let value = value.move_negation_inwards(true, false);
 
         // println!("pre-skolemize: {}", value);
-        let mut created_ids = vec![];
-        let value = self.skolemize(&vec![], value, &mut created_ids)?;
+        let mut next_skolem_id = self.skolem_types.len() as AtomId;
+        let mut created = vec![];
+        let value = self.skolemize(&vec![], value, &mut next_skolem_id, &mut created)?;
         // println!("post-skolemize: {}", value);
 
         let clauses = self.normalize_cnf(value, local)?;
-        if !created_ids.is_empty() {
-            let skolem_atoms: Vec<_> = created_ids.iter().map(|id| Atom::Skolem(*id)).collect();
+
+        if !created.is_empty() {
+            let mut skolem_atoms = vec![];
+            for (skolem_id, skolem_type) in created {
+                self.skolem_types.push(skolem_type);
+                skolem_atoms.push(Atom::Skolem(skolem_id));
+            }
+
             // The first skolem_atom.len() variables are existential, the rest universal.
             // This is implicit, though, because the list of clauses doesn't itself differentiate.
             let _generic: Vec<_> = clauses
