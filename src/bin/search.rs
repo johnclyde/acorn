@@ -2,10 +2,17 @@
 //
 // This is the CLI equivalent of what the IDE runs when you click on a proposition.
 //
-// The user passes the line in externally-visible line number, which starts at 1.
+// The user can pass either:
+// - A line number (for backwards compatibility)
+// - A theorem name (new feature)
+//
 // Don't forget that the release build is much faster than debug.
 
-const USAGE: &str = "cargo run --release --bin=search <module name> <line number>";
+const USAGE: &str = "Usage: cargo run --release --bin=search <module name> <line number or theorem name>
+
+Examples:
+  cargo run --release --bin=search my_module 42         # Search at line 42
+  cargo run --release --bin=search my_module my_theorem  # Search for theorem named 'my_theorem'";
 
 use acorn::searcher::Searcher;
 use acorn::verifier::ProverMode;
@@ -14,8 +21,21 @@ use acorn::verifier::ProverMode;
 async fn main() {
     // Parse command line arguments
     let mut args = std::env::args().skip(1);
-    let module_name = args.next().expect(USAGE);
-    let line_number = args.next().expect(USAGE).parse::<u32>().expect(USAGE);
+    let module_name = match args.next() {
+        Some(name) => name,
+        None => {
+            eprintln!("{}", USAGE);
+            std::process::exit(1);
+        }
+    };
+    
+    let target = match args.next() {
+        Some(target) => target,
+        None => {
+            eprintln!("{}", USAGE);
+            std::process::exit(1);
+        }
+    };
 
     let current_dir = match std::env::current_dir() {
         Ok(dir) => dir,
@@ -25,7 +45,18 @@ async fn main() {
         }
     };
 
-    let searcher = Searcher::new(current_dir, ProverMode::Full, module_name, line_number);
+    // Try to parse as a line number first
+    let searcher = match target.parse::<u32>() {
+        Ok(line_number) => {
+            // It's a line number (backwards compatibility)
+            Searcher::new_by_line(current_dir, ProverMode::Full, module_name, line_number)
+        }
+        Err(_) => {
+            // It's a theorem name
+            Searcher::new_by_name(current_dir, ProverMode::Full, module_name, target)
+        }
+    };
+    
     if let Err(e) = searcher.run() {
         eprintln!("{}", e);
         std::process::exit(1);
