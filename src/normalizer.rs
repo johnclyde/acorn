@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::acorn_type::AcornType;
@@ -68,10 +68,6 @@ impl Normalizer {
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
         matches!(atom, Atom::Skolem(_))
-    }
-
-        pub fn get_skolem_info(&self, id: AtomId) -> &SkolemInfo {
-        &self.skolem_info[id as usize]
     }
 
     /// The input should already have negations moved inwards.
@@ -524,6 +520,26 @@ impl Normalizer {
             answer = AcornValue::or(subvalue, answer);
         }
         AcornValue::forall(var_types, answer)
+    }
+
+    /// Given a list of atom ids for skolems that we need to define, find a set
+    /// of skolem information that covers them.
+    /// The output may have skolems that aren't used in the input.
+    /// The input doesn't have to be in order.
+    pub fn find_skolem_info(&self, ids: &[AtomId]) -> Vec<Arc<SkolemInfo>> {
+        let mut covered = HashSet::new();
+        let mut output = vec![];
+        for id in ids {
+            if covered.contains(id) {
+                continue;
+            }
+            let info = self.skolem_info[*id as usize].clone();
+            for skolem_id in &info.ids {
+                covered.insert(*skolem_id);
+            }
+            output.push(info);
+        }
+        output
     }
 
     pub fn atom_str(&self, atom: &Atom) -> String {
