@@ -349,18 +349,31 @@ impl Normalizer {
 
         if !created.is_empty() {
             let mut skolem_atoms = vec![];
+            let mut ids = vec![];
             for (skolem_id, skolem_type) in created {
                 self.skolem_types.push(skolem_type);
                 skolem_atoms.push(Atom::Skolem(skolem_id));
+                ids.push(skolem_id);
             }
 
             // The first skolem_atom.len() variables are existential, the rest universal.
             // This is implicit, though, because the list of clauses doesn't itself differentiate.
-            let _generic: Vec<_> = clauses
+            let generic: Vec<_> = clauses
                 .iter()
                 .map(|c| c.convert_to_variable(&skolem_atoms))
                 .collect();
-            // TODO: track the genericized form of the clause that we skolemized.
+            let key = SkolemKey {
+                clauses: generic.clone(),
+                num_existential: skolem_atoms.len(),
+            };
+            let info = Arc::new(SkolemInfo {
+                clauses: generic,
+                ids,
+            });
+            for _ in &skolem_atoms {
+                self.skolem_info.push(info.clone());
+            }
+            self.skolem_map.insert(key, info);
         }
 
         Ok(clauses)
@@ -824,6 +837,9 @@ mod tests {
         );
         let mut norm = Normalizer::new();
         norm.check(&env, "goal", &["addx(s0, zero) = one"]);
+        assert_eq!(norm.skolem_types.len(), 1);
+        assert_eq!(norm.skolem_info.len(), 1);
+        assert_eq!(norm.skolem_map.len(), 1);
     }
 
     #[test]
