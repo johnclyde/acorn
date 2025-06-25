@@ -47,12 +47,12 @@ struct SkolemKey {
 
 /// Information about a particular skolem function that we created.
 /// We will need to look this up both by skolem key, and by atom id.
-struct SkolemInfo {
+pub struct SkolemInfo {
     /// CNF form of the proposition that we skolemized.
-    clauses: Vec<Clause>,
+    pub clauses: Vec<Clause>,
 
     /// Which skolem atoms were created along with this one.
-    ids: Vec<AtomId>,
+    pub ids: Vec<AtomId>,
 }
 
 impl Normalizer {
@@ -68,6 +68,10 @@ impl Normalizer {
 
     pub fn is_skolem(&self, atom: &Atom) -> bool {
         matches!(atom, Atom::Skolem(_))
+    }
+
+        pub fn get_skolem_info(&self, id: AtomId) -> &SkolemInfo {
+        &self.skolem_info[id as usize]
     }
 
     /// The input should already have negations moved inwards.
