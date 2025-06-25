@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use crate::acorn_type::AcornType;
 use crate::acorn_value::{AcornValue, BinaryOp, FunctionApplication};
 use crate::atom::{Atom, AtomId};
@@ -13,42 +16,6 @@ use crate::term::{Term, TypeId};
 
 type Result<T> = std::result::Result<T, String>;
 
-/// Returns an error if a type is not normalized.
-fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
-    match acorn_type {
-        AcornType::Function(function_type) => {
-            if function_type.arg_types.len() == 0 {
-                return Err(format!("Function type {} has no arguments", function_type));
-            }
-            for arg_type in &function_type.arg_types {
-                check_normalized_type(&arg_type)?;
-            }
-            if function_type.return_type.is_functional() {
-                return Err(format!(
-                    "Function type has a functional return type: {}",
-                    function_type
-                ));
-            }
-            check_normalized_type(&function_type.return_type)
-        }
-        AcornType::Bool => Ok(()),
-        AcornType::Data(_, params) => {
-            for param in params {
-                check_normalized_type(&param)?;
-            }
-            Ok(())
-        }
-        AcornType::Variable(..) => {
-            return Err(format!(
-                "Type variables should be monomorphized before normalization: {}",
-                acorn_type
-            ));
-        }
-        AcornType::Empty => Ok(()),
-        AcornType::Arbitrary(..) => Ok(()),
-    }
-}
-
 #[derive(Clone)]
 pub struct Normalizer {
     monomorphizer: Monomorphizer,
@@ -57,11 +24,19 @@ pub struct Normalizer {
     /// Some of them are just constants, so we store an AcornType rather than a FunctionType
     skolem_types: Vec<AcornType>,
 
+    /// skolem_info[id] contains the information about why this skolem function was created.
+    skolem_info: Vec<Arc<SkolemInfo>>,
+
+    /// Same information as `skolem_info`, but indexed by SkolemKey.
+    /// This is used to avoid creating the same skolem function multiple times.
+    skolem_map: HashMap<SkolemKey, Arc<SkolemInfo>>,
+
     normalization_map: NormalizationMap,
 }
 
 /// A normalized representation of an existential statement that we skolemized.
 /// This lets us look up to see if we have skolemized an exact value before.
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct SkolemKey {
     /// CNF form of the proposition that we skolemized.
     clauses: Vec<Clause>,
@@ -73,10 +48,6 @@ struct SkolemKey {
 /// Information about a particular skolem function that we created.
 /// We will need to look this up both by skolem key, and by atom id.
 struct SkolemInfo {
-    /// The type of the skolem function.
-    /// Usually a function, but it could be a constant.
-    atom_type: AcornType,
-
     /// CNF form of the proposition that we skolemized.
     clauses: Vec<Clause>,
 
@@ -89,6 +60,8 @@ impl Normalizer {
         Normalizer {
             monomorphizer: Monomorphizer::new(),
             skolem_types: vec![],
+            skolem_info: vec![],
+            skolem_map: HashMap::new(),
             normalization_map: NormalizationMap::new(),
         }
     }
@@ -367,7 +340,7 @@ impl Normalizer {
         let value = value.move_negation_inwards(true, false);
 
         // println!("pre-skolemize: {}", value);
-        let mut next_skolem_id = self.skolem_types.len() as AtomId;
+        let mut next_skolem_id = self.skolem_info.len() as AtomId;
         let mut created = vec![];
         let value = self.skolemize(&vec![], value, &mut next_skolem_id, &mut created)?;
         // println!("post-skolemize: {}", value);
@@ -610,6 +583,42 @@ impl Normalizer {
             }
         }
         panic!("no theorem named {}", name);
+    }
+}
+
+/// Returns an error if a type is not normalized.
+fn check_normalized_type(acorn_type: &AcornType) -> Result<()> {
+    match acorn_type {
+        AcornType::Function(function_type) => {
+            if function_type.arg_types.len() == 0 {
+                return Err(format!("Function type {} has no arguments", function_type));
+            }
+            for arg_type in &function_type.arg_types {
+                check_normalized_type(&arg_type)?;
+            }
+            if function_type.return_type.is_functional() {
+                return Err(format!(
+                    "Function type has a functional return type: {}",
+                    function_type
+                ));
+            }
+            check_normalized_type(&function_type.return_type)
+        }
+        AcornType::Bool => Ok(()),
+        AcornType::Data(_, params) => {
+            for param in params {
+                check_normalized_type(&param)?;
+            }
+            Ok(())
+        }
+        AcornType::Variable(..) => {
+            return Err(format!(
+                "Type variables should be monomorphized before normalization: {}",
+                acorn_type
+            ));
+        }
+        AcornType::Empty => Ok(()),
+        AcornType::Arbitrary(..) => Ok(()),
     }
 }
 
