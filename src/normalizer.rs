@@ -7,6 +7,7 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::fact::Fact;
 use crate::literal::Literal;
+use crate::module::ModuleId;
 use crate::monomorphizer::Monomorphizer;
 use crate::names::ConstantName;
 use crate::normalization_map::NormalizationMap;
@@ -540,6 +541,16 @@ impl Normalizer {
             output.push(info);
         }
         output
+    }
+
+    /// Given the skolem information that we want to normalize, create values.
+    pub fn denormalize_skolems(
+        &self,
+        infos: &[Arc<SkolemInfo>],
+        module_id: ModuleId,
+        names: &HashMap<AtomId, String>,
+    ) -> AcornValue {
+        todo!();
     }
 
     pub fn atom_str(&self, atom: &Atom) -> String {
