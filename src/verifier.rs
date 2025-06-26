@@ -80,7 +80,12 @@ impl Verifier {
         };
 
         if let Some(target) = &self.target {
-            if target.ends_with(".ac") {
+            if target == "-" {
+                let path = PathBuf::from("<stdin>");
+                if let Err(e) = project.add_target_by_path(&path) {
+                    return Err(format!("{}", e));
+                }
+            } else if target.ends_with(".ac") {
                 // Looks like a filename
                 let path = PathBuf::from(&target);
                 if let Err(e) = project.add_target_by_path(&path) {
