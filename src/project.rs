@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -1383,9 +1384,22 @@ impl Project {
         }
 
         let path = self.path_from_descriptor(descriptor)?;
-        let text = self
-            .read_file(&path)
-            .map_err(|e| ImportError::NotFound(e.to_string()))?;
+        let mut text = String::new();
+        if path.to_str() == Some("<stdin>") {
+            if io::stdin().is_terminal() {
+                // Throws an error if it is in a terminal
+                return Err(ImportError::NotFound(String::from("cannot read stdin in an active terminal")));
+            }
+            let _ = io::stdin().lock();
+            for line in io::stdin().lines() {
+                text.push_str(&line.unwrap());
+                text.push('\n');
+            }
+        } else {
+            text = self
+                .read_file(&path)
+                .map_err(|e| ImportError::NotFound(e.to_string()))?;
+        }
 
         // Give this module an id before parsing it, so that we can catch circular imports.
         let module_id = ModuleId(self.modules.len() as u16);
