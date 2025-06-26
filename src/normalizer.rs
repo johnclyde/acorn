@@ -7,7 +7,6 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::fact::Fact;
 use crate::literal::Literal;
-use crate::module::ModuleId;
 use crate::monomorphizer::Monomorphizer;
 use crate::names::ConstantName;
 use crate::normalization_map::NormalizationMap;
@@ -509,7 +508,7 @@ impl Normalizer {
     }
 
     /// Converts backwards, from a clause to a value.
-    /// This will panic on a skolem.
+    /// The resulting value may have skolem atoms in it.
     pub fn denormalize(&self, clause: &Clause) -> AcornValue {
         let mut var_types = vec![];
         let mut denormalized_literals = vec![];
@@ -526,7 +525,7 @@ impl Normalizer {
     /// Given a list of atom ids for skolems that we need to define, find a set
     /// of skolem information that covers them.
     /// The output may have skolems that aren't used in the input.
-    /// The input doesn't have to be in order.
+    /// The input doesn't have to be in order and may contain duplicates.
     pub fn find_skolem_info(&self, ids: &[AtomId]) -> Vec<Arc<SkolemInfo>> {
         let mut covered = HashSet::new();
         let mut output = vec![];
@@ -541,16 +540,6 @@ impl Normalizer {
             output.push(info);
         }
         output
-    }
-
-    /// Given the skolem information that we want to normalize, create values.
-    pub fn denormalize_skolems(
-        &self,
-        infos: &[Arc<SkolemInfo>],
-        module_id: ModuleId,
-        names: &HashMap<AtomId, String>,
-    ) -> AcornValue {
-        todo!();
     }
 
     pub fn atom_str(&self, atom: &Atom) -> String {

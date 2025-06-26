@@ -662,6 +662,18 @@ pub struct ConcreteProof {
 }
 
 impl<'a> Proof<'a> {
+    // This can generate multiple lines because it will generate skolem statements if needed.
+    fn generate_codes(
+        &self,
+        bindings: &BindingMap,
+        clause: &Clause,
+        negate: bool,
+    ) -> Result<Vec<String>, Error> {
+        let value = self.normalizer.denormalize(&clause);
+        let codes = CodeGenerator::new(&bindings).value_to_codes(value, negate)?;
+        Ok(codes)
+    }
+
     /// Create the concrete proof.
     pub fn make_concrete(&mut self, bindings: &BindingMap) -> Result<ConcreteProof, Error> {
         // First, reconstruct all the steps, working backwards.
@@ -751,7 +763,7 @@ impl<'a> Proof<'a> {
             for clause in clauses.into_iter().rev() {
                 let value = self.normalizer.denormalize(&clause);
                 let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                if !indirect.contains(&code) {
+                if !direct.contains(&code) && !indirect.contains(&code) {
                     indirect.push(code);
                 }
             }

@@ -1604,6 +1604,20 @@ impl AcornValue {
         }
     }
 
+    /// Finds all skolem ids in this value.
+    /// May contain duplicates.
+    pub fn find_skolems(&self) -> Vec<AtomId> {
+        let mut consts = vec![];
+        self.find_constants(&|c| c.name.is_skolem(), &mut consts);
+        let mut answer = vec![];
+        for c in consts {
+            if let ConstantName::Skolem(id) = c.name {
+                answer.push(id);
+            }
+        }
+        answer
+    }
+
     /// Converts all the type variables to arbitrary types.
     pub fn to_arbitrary(&self) -> AcornValue {
         match self {
