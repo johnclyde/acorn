@@ -662,17 +662,6 @@ pub struct ConcreteProof {
 }
 
 impl<'a> Proof<'a> {
-    // This can generate multiple lines because it will generate skolem statements if needed.
-    fn generate_codes(
-        &self,
-        bindings: &BindingMap,
-        clause: &Clause,
-        negate: bool,
-    ) -> Result<Vec<String>, Error> {
-        let value = self.normalizer.denormalize(&clause);
-        let codes = CodeGenerator::new(&bindings).value_to_codes(value, negate)?;
-        Ok(codes)
-    }
 
     /// Create the concrete proof.
     pub fn make_concrete(&mut self, bindings: &BindingMap) -> Result<ConcreteProof, Error> {
@@ -716,7 +705,8 @@ impl<'a> Proof<'a> {
             if step.rule.is_assumption() && !step.clause.has_any_variable() {
                 if let Some(clauses) = concrete_clauses.remove(&self.id_map[id]) {
                     for clause in clauses {
-                        let codes = self.generate_codes(&bindings, &clause, false)?;
+                        let mut generator = CodeGenerator::new(&bindings);
+                        let codes = generator.clause_to_code(&clause, false, self.normalizer)?;
                         for code in codes {
                             skip_code.insert(code);
                         }
@@ -737,7 +727,8 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let codes = self.generate_codes(&bindings, &clause, !is_true)?;
+                let mut generator = CodeGenerator::new(&bindings);
+                let codes = generator.clause_to_code(&clause, !is_true, self.normalizer)?;
                 for code in codes {
                     if !skip_code.contains(&code) && !direct.contains(&code) {
                         direct.push(code);
@@ -761,7 +752,8 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let codes = self.generate_codes(&bindings, &clause, false)?;
+                let mut generator = CodeGenerator::new(&bindings);
+                let codes = generator.clause_to_code(&clause, false, self.normalizer)?;
                 for code in codes {
                     if !direct.contains(&code) && !indirect.contains(&code) {
                         indirect.push(code);
