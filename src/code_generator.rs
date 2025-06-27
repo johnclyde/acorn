@@ -5,9 +5,11 @@ use tower_lsp::lsp_types::{LanguageString, MarkedString};
 use crate::acorn_type::{AcornType, Datatype, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
 use crate::binding_map::BindingMap;
+use crate::clause::Clause;
 use crate::expression::{Declaration, Expression};
 use crate::module::ModuleId;
 use crate::names::{ConstantName, DefinedName};
+use crate::normalizer::Normalizer;
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
 
@@ -141,6 +143,19 @@ impl CodeGenerator<'_> {
         for subvalue in subvalues {
             codes.push(self.value_to_code(&subvalue)?);
         }
+        Ok(codes)
+    }
+
+    /// Convert to a clause to code strings.
+    /// This will generate skolem definitions if necessary.
+    pub fn clause_to_code(
+        &mut self,
+        clause: &Clause,
+        negate: bool,
+        normalizer: &Normalizer,
+    ) -> Result<Vec<String>> {
+        let value = normalizer.denormalize(&clause);
+        let codes = self.value_to_codes(value, negate)?;
         Ok(codes)
     }
 
