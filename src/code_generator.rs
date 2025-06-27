@@ -132,8 +132,15 @@ impl CodeGenerator<'_> {
         Ok(expr.to_string())
     }
 
-    /// Convert to a string, but if this is an "and" node, convert it to multiple strings.
-    pub fn value_to_codes(&mut self, mut value: AcornValue, negate: bool) -> Result<Vec<String>> {
+    /// Convert to a clause to code strings.
+    /// This will generate skolem definitions if necessary.
+    pub fn clause_to_code(
+        &mut self,
+        clause: &Clause,
+        negate: bool,
+        normalizer: &Normalizer,
+    ) -> Result<Vec<String>> {
+        let mut value = normalizer.denormalize(&clause);
         if negate {
             value = value.pretty_negate();
         }
@@ -143,19 +150,6 @@ impl CodeGenerator<'_> {
         for subvalue in subvalues {
             codes.push(self.value_to_code(&subvalue)?);
         }
-        Ok(codes)
-    }
-
-    /// Convert to a clause to code strings.
-    /// This will generate skolem definitions if necessary.
-    pub fn clause_to_code(
-        &mut self,
-        clause: &Clause,
-        negate: bool,
-        normalizer: &Normalizer,
-    ) -> Result<Vec<String>> {
-        let value = normalizer.denormalize(&clause);
-        let codes = self.value_to_codes(value, negate)?;
         Ok(codes)
     }
 
