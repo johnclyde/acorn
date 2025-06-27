@@ -662,9 +662,10 @@ pub struct ConcreteProof {
 }
 
 impl<'a> Proof<'a> {
-
     /// Create the concrete proof.
     pub fn make_concrete(&mut self, bindings: &BindingMap) -> Result<ConcreteProof, Error> {
+        let mut generator = CodeGenerator::new(&bindings);
+
         // First, reconstruct all the steps, working backwards.
         let mut var_map_map: HashMap<ProofStepId, HashSet<VariableMap>> = HashMap::new();
         var_map_map
@@ -705,7 +706,6 @@ impl<'a> Proof<'a> {
             if step.rule.is_assumption() && !step.clause.has_any_variable() {
                 if let Some(clauses) = concrete_clauses.remove(&self.id_map[id]) {
                     for clause in clauses {
-                        let mut generator = CodeGenerator::new(&bindings);
                         let codes = generator.clause_to_code(&clause, false, self.normalizer)?;
                         for code in codes {
                             skip_code.insert(code);
@@ -727,7 +727,6 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let mut generator = CodeGenerator::new(&bindings);
                 let codes = generator.clause_to_code(&clause, !is_true, self.normalizer)?;
                 for code in codes {
                     if !skip_code.contains(&code) && !direct.contains(&code) {
@@ -752,7 +751,6 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let mut generator = CodeGenerator::new(&bindings);
                 let codes = generator.clause_to_code(&clause, false, self.normalizer)?;
                 for code in codes {
                     if !direct.contains(&code) && !indirect.contains(&code) {
