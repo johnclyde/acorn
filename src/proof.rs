@@ -716,9 +716,10 @@ impl<'a> Proof<'a> {
             if step.rule.is_assumption() && !step.clause.has_any_variable() {
                 if let Some(clauses) = concrete_clauses.remove(&self.id_map[id]) {
                     for clause in clauses {
-                        let value = self.normalizer.denormalize(&clause);
-                        let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                        skip_code.insert(code);
+                        let codes = self.generate_codes(&bindings, &clause, false)?;
+                        for code in codes {
+                            skip_code.insert(code);
+                        }
                     }
                 }
             }
@@ -736,8 +737,7 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let value = self.normalizer.denormalize(&clause);
-                let codes = CodeGenerator::new(&bindings).value_to_codes(value, !is_true)?;
+                let codes = self.generate_codes(&bindings, &clause, !is_true)?;
                 for code in codes {
                     if !skip_code.contains(&code) && !direct.contains(&code) {
                         direct.push(code);
@@ -761,10 +761,11 @@ impl<'a> Proof<'a> {
                 continue;
             };
             for clause in clauses.into_iter().rev() {
-                let value = self.normalizer.denormalize(&clause);
-                let code = CodeGenerator::new(&bindings).value_to_code(&value)?;
-                if !direct.contains(&code) && !indirect.contains(&code) {
-                    indirect.push(code);
+                let codes = self.generate_codes(&bindings, &clause, false)?;
+                for code in codes {
+                    if !direct.contains(&code) && !indirect.contains(&code) {
+                        indirect.push(code);
+                    }
                 }
             }
         }
