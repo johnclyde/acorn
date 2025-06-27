@@ -198,6 +198,22 @@ impl ConstantInstance {
         }
         None
     }
+
+    /// Returns None if this is not a skolem, or if its id is not in the map.
+    fn replace_skolem(
+        &self,
+        module_id: ModuleId,
+        skolem_names: &HashMap<AtomId, String>,
+    ) -> Option<ConstantInstance> {
+        let id = self.name.skolem_id()?;
+        let name = skolem_names.get(&id)?;
+        assert!(self.params.is_empty());
+        Some(ConstantInstance {
+            name: ConstantName::unqualified(module_id, name),
+            params: vec![],
+            instance_type: self.instance_type.clone(),
+        })
+    }
 }
 
 /// Two AcornValue compare to equal if they are structurally identical.
@@ -1377,6 +1393,20 @@ impl AcornValue {
                 AcornValue::Match(Box::new(new_scrutinee), new_cases)
             }
         }
+    }
+
+    pub fn replace_skolems(
+        &self,
+        module_id: ModuleId,
+        map: &HashMap<AtomId, String>,
+    ) -> AcornValue {
+        self.replace_constants(0, &|old_ci| {
+            if let Some(new_ci) = old_ci.replace_skolem(module_id, &map) {
+                Some(AcornValue::Constant(new_ci))
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns an error string if this is not a valid top-level value.

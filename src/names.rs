@@ -90,6 +90,13 @@ impl ConstantName {
         }
     }
 
+    pub fn skolem_id(&self) -> Option<AtomId> {
+        match self {
+            ConstantName::Skolem(id) => Some(*id),
+            _ => None,
+        }
+    }
+
     pub fn module_id(&self) -> ModuleId {
         match self {
             ConstantName::DatatypeAttribute(datatype, _) => datatype.module_id,

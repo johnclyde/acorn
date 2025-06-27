@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 
 use tower_lsp::lsp_types::{LanguageString, MarkedString};
@@ -25,6 +26,9 @@ pub struct CodeGenerator<'a> {
     /// We use variables named k0, k1, k2, etc for existential variables.
     next_k: u32,
 
+    /// We use variables named s0, s1, s2, etc for skolem variables.
+    next_s: u32,
+
     /// The names we have assigned to indexed variables so far.
     var_names: Vec<String>,
 }
@@ -36,6 +40,7 @@ impl CodeGenerator<'_> {
             bindings,
             next_x: 0,
             next_k: 0,
+            next_s: 0,
             var_names: vec![],
         }
     }
@@ -144,9 +149,49 @@ impl CodeGenerator<'_> {
         if negate {
             value = value.pretty_negate();
         }
-        let mut subvalues = vec![];
-        value.into_and(&mut subvalues);
         let mut codes = vec![];
+
+        // Handle skolems
+        let skolem_ids = value.find_skolems();
+        let infos = normalizer.find_skolem_info(&skolem_ids);
+        let mut skolem_names = HashMap::new();
+        for info in &infos {
+            let mut decl = vec![];
+            for id in &info.ids {
+                // Create a name for each skolem variable.
+                // TODO: reuse if they already exist.
+                let name = self.bindings.next_indexed_var('s', &mut self.next_s);
+                skolem_names.insert(*id, name.clone());
+                decl.push((name, normalizer.get_skolem_type(*id).clone()));
+            }
+
+            // Create code for the declaration
+            let mut decl_parts = vec![];
+            for (name, ty) in decl {
+                let ty_code = self.type_to_code(&ty)?;
+                decl_parts.push(format!("{}: {}", name, ty_code));
+            }
+            let decl = if decl_parts.len() > 1 {
+                format!("({})", decl_parts.join(", "))
+            } else {
+                decl_parts.join("")
+            };
+
+            // Create code for the condition
+            let mut cond_parts = vec![];
+            for clause in &info.clauses {
+                let val = normalizer.denormalize(&clause);
+                cond_parts.push(self.value_to_code(&val)?);
+            }
+            let cond = cond_parts.join(" and ");
+
+            let let_statement = format!("let {} satisfy {{ {} }}", decl, cond);
+            codes.push(let_statement);
+        }
+
+        let mut subvalues = vec![];
+        value = value.replace_skolems(self.bindings.module_id(), &skolem_names);
+        value.into_and(&mut subvalues);
         for subvalue in subvalues {
             codes.push(self.value_to_code(&subvalue)?);
         }

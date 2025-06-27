@@ -70,6 +70,10 @@ impl Normalizer {
         matches!(atom, Atom::Skolem(_))
     }
 
+    pub fn get_skolem_type(&self, id: AtomId) -> &AcornType {
+        &self.skolem_types[id as usize]
+    }
+
     /// The input should already have negations moved inwards.
     /// The stack must be entirely universal quantifiers.
     /// Outputs the new skolem atoms that were created.
