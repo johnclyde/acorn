@@ -5,6 +5,7 @@ use tower_lsp::lsp_types::{LanguageString, MarkedString};
 
 use crate::acorn_type::{AcornType, Datatype, PotentialType, Typeclass};
 use crate::acorn_value::{AcornValue, ConstantInstance};
+use crate::atom::AtomId;
 use crate::binding_map::BindingMap;
 use crate::clause::Clause;
 use crate::expression::{Declaration, Expression};
@@ -132,8 +133,8 @@ impl CodeGenerator<'_> {
 
     /// If this value cannot be expressed in a single chunk of code, returns an error.
     /// For example, it might refer to a constant that is not in scope.
-    pub fn value_to_code(&mut self, value: &AcornValue) -> Result<String> {
-        let expr = self.value_to_expr(value, false)?;
+    pub fn value_to_code(&mut self, value: &AcornValue, skolem_names: Option<&HashMap<AtomId, String>>) -> Result<String> {
+        let expr = self.value_to_expr(value, false, skolem_names)?;
         Ok(expr.to_string())
     }
 
@@ -181,7 +182,7 @@ impl CodeGenerator<'_> {
             let mut cond_parts = vec![];
             for clause in &info.clauses {
                 let val = normalizer.denormalize(&clause);
-                let cond_part = self.value_to_code(&val)?;
+                let cond_part = self.value_to_code(&val, Some(&skolem_names))?;
                 cond_parts.push(cond_part);
             }
             let cond = cond_parts.join(" and ");
@@ -194,7 +195,7 @@ impl CodeGenerator<'_> {
         value = value.replace_skolems(self.bindings.module_id(), &skolem_names);
         value.into_and(&mut subvalues);
         for subvalue in subvalues {
-            codes.push(self.value_to_code(&subvalue)?);
+            codes.push(self.value_to_code(&subvalue, Some(&skolem_names))?);
         }
         Ok(codes)
     }
@@ -206,7 +207,7 @@ impl CodeGenerator<'_> {
 
     /// Create a marked-up string to display information for this value.
     pub fn value_to_marked(&mut self, value: &AcornValue) -> Result<MarkedString> {
-        let value_code = self.value_to_code(value)?;
+        let value_code = self.value_to_code(value, None)?;
         let type_code = self.type_to_code(&value.get_type())?;
         let code = format!("{}: {}", value_code, type_code);
         Ok(Self::marked(code))
@@ -220,8 +221,15 @@ impl CodeGenerator<'_> {
 
     /// Given a constant instance, find an expression that refers to it.
     /// This does *not* include the parameters.
-    fn const_to_expr(&self, ci: &ConstantInstance) -> Result<Expression> {
+    fn const_to_expr(&self, ci: &ConstantInstance, skolem_names: Option<&HashMap<AtomId, String>>) -> Result<Expression> {
         if ci.name.is_skolem() {
+            if let Some(map) = skolem_names {
+                if let Some(id) = ci.name.skolem_id() {
+                    if let Some(skolem_name) = map.get(&id) {
+                        return Ok(Expression::generate_identifier(skolem_name));
+                    }
+                }
+            }
             return Err(Error::skolem(&ci.name.to_string()));
         }
 
@@ -331,6 +339,7 @@ impl CodeGenerator<'_> {
         quants: &Vec<AcornType>,
         value: &AcornValue,
         use_x: bool,
+        skolem_names: Option<&HashMap<AtomId, String>>,
     ) -> Result<Expression> {
         let initial_var_names_len = self.var_names.len();
         let mut decls = vec![];
@@ -347,7 +356,7 @@ impl CodeGenerator<'_> {
             let decl = var_name;
             decls.push(decl);
         }
-        let subresult = self.value_to_expr(value, false)?;
+        let subresult = self.value_to_expr(value, false, skolem_names)?;
         self.var_names.truncate(initial_var_names_len);
         Ok(Expression::Binder(
             token_type.generate(),
@@ -362,7 +371,7 @@ impl CodeGenerator<'_> {
     /// We automatically generate variable names sometimes, using next_x and next_k.
     /// "inferrable" is true if the type of this value can be inferred, which means
     /// we don't need top level parameters.
-    fn value_to_expr(&mut self, value: &AcornValue, inferrable: bool) -> Result<Expression> {
+    fn value_to_expr(&mut self, value: &AcornValue, inferrable: bool, skolem_names: Option<&HashMap<AtomId, String>>) -> Result<Expression> {
         match value {
             AcornValue::Variable(i, _) => {
                 if *i >= self.var_names.len() as u16 {
@@ -381,7 +390,7 @@ impl CodeGenerator<'_> {
                     // We currently never infer the type of arguments from the type of the function.
                     // Inference only goes the other way.
                     // We could improve this at some point.
-                    args.push(self.value_to_expr(arg, false)?);
+                    args.push(self.value_to_expr(arg, false, skolem_names)?);
                 }
 
                 // Check if we could replace this with receiver+attribute syntax
@@ -483,7 +492,7 @@ impl CodeGenerator<'_> {
                 } else {
                     true
                 };
-                let f = self.value_to_expr(&fa.function, inferrable)?;
+                let f = self.value_to_expr(&fa.function, inferrable, skolem_names)?;
                 let grouped_args = Expression::generate_paren_grouping(args);
                 Ok(Expression::Concatenation(
                     Box::new(f),
@@ -491,23 +500,23 @@ impl CodeGenerator<'_> {
                 ))
             }
             AcornValue::Binary(op, left, right) => {
-                let left = self.value_to_expr(left, false)?;
-                let right = self.value_to_expr(right, false)?;
+                let left = self.value_to_expr(left, false, skolem_names)?;
+                let right = self.value_to_expr(right, false, skolem_names)?;
                 let token = op.token_type().generate();
                 Ok(Expression::Binary(Box::new(left), token, Box::new(right)))
             }
             AcornValue::Not(x) => {
-                let x = self.value_to_expr(x, false)?;
+                let x = self.value_to_expr(x, false, skolem_names)?;
                 Ok(Expression::generate_unary(TokenType::Not, x))
             }
             AcornValue::ForAll(quants, value) => {
-                self.generate_quantifier_expr(TokenType::ForAll, quants, value, true)
+                self.generate_quantifier_expr(TokenType::ForAll, quants, value, true, skolem_names)
             }
             AcornValue::Exists(quants, value) => {
-                self.generate_quantifier_expr(TokenType::Exists, quants, value, false)
+                self.generate_quantifier_expr(TokenType::Exists, quants, value, false, skolem_names)
             }
             AcornValue::Lambda(quants, value) => {
-                self.generate_quantifier_expr(TokenType::Function, quants, value, true)
+                self.generate_quantifier_expr(TokenType::Function, quants, value, true, skolem_names)
             }
             AcornValue::Bool(b) => {
                 let token = if *b {
@@ -550,7 +559,7 @@ impl CodeGenerator<'_> {
                     }
                 }
 
-                let const_expr = self.const_to_expr(&c)?;
+                let const_expr = self.const_to_expr(&c, skolem_names)?;
 
                 if !inferrable && !c.params.is_empty() {
                     self.parametrize_expr(const_expr, &c.params)
@@ -560,9 +569,9 @@ impl CodeGenerator<'_> {
                 }
             }
             AcornValue::IfThenElse(condition, if_value, else_value) => {
-                let condition = self.value_to_expr(condition, false)?;
-                let if_value = self.value_to_expr(if_value, false)?;
-                let else_value = self.value_to_expr(else_value, false)?;
+                let condition = self.value_to_expr(condition, false, skolem_names)?;
+                let if_value = self.value_to_expr(if_value, false, skolem_names)?;
+                let else_value = self.value_to_expr(else_value, false, skolem_names)?;
                 Ok(Expression::IfThenElse(
                     TokenType::If.generate(),
                     Box::new(condition),
@@ -579,7 +588,7 @@ impl CodeGenerator<'_> {
 
     /// For testing. Panics if generating code for this value does not give expected.
     pub fn expect(bindings: &BindingMap, input: &str, value: &AcornValue, expected: &str) {
-        let output = match CodeGenerator::new(bindings).value_to_code(&value) {
+        let output = match CodeGenerator::new(bindings).value_to_code(&value, None) {
             Ok(output) => output,
             Err(e) => panic!("code generation error: {}", e),
         };

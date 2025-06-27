@@ -743,7 +743,7 @@ impl Prover {
     /// Attempts to convert this clause to code, but shows the clause form if that's all we can.
     fn clause_to_code(&self, bindings: &BindingMap, clause: &Clause) -> String {
         let denormalized = self.normalizer.denormalize(clause);
-        match CodeGenerator::new(bindings).value_to_code(&denormalized) {
+        match CodeGenerator::new(bindings).value_to_code(&denormalized, None) {
             Ok(code) => return code,
             Err(Error::Skolem(_)) => {
                 // This is a known problem - our code generator doesn't handle skolems.

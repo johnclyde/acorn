@@ -125,14 +125,14 @@ impl<'a> ProofNode<'a> {
                 if self.negated {
                     value = value.pretty_negate();
                 }
-                CodeGenerator::new(&bindings).value_to_code(&value)
+                CodeGenerator::new(&bindings).value_to_code(&value, None)
             }
             NodeValue::Contradiction => Ok("false".to_string()),
             NodeValue::NegatedGoal(v) => {
                 if self.negated {
                     Err(Error::ExplicitGoal)
                 } else {
-                    CodeGenerator::new(&bindings).value_to_code(v)
+                    CodeGenerator::new(&bindings).value_to_code(v, None)
                 }
             }
         }
