@@ -181,7 +181,8 @@ impl CodeGenerator<'_> {
             let mut cond_parts = vec![];
             for clause in &info.clauses {
                 let val = normalizer.denormalize(&clause);
-                cond_parts.push(self.value_to_code(&val)?);
+                let cond_part = self.value_to_code(&val)?;
+                cond_parts.push(cond_part);
             }
             let cond = cond_parts.join(" and ");
 
