@@ -1811,7 +1811,7 @@ impl BindingMap {
             .evaluate_value(&expression, None)
             .expect("evaluate_value failed");
         let output_code = CodeGenerator::new(self)
-            .value_to_code(&value, None)
+            .value_to_code(&value)
             .expect("value_to_code failed");
         assert_eq!(input_code, output_code);
     }

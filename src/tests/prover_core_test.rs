@@ -1294,7 +1294,14 @@ fn test_concrete_proof_with_skolem() {
         "#,
     );
 
-    let _c = prove_concrete(&mut p, "main", "goal");
-    // assert_eq!(c.direct, Vec::<String>::new());
-    // assert_eq!(c.indirect, Vec::<String>::new());
+    let c = prove_concrete(&mut p, "main", "goal");
+    assert_eq!(
+        c.direct,
+        vec![
+            "let s0: Foo -> Foo satisfy { forall(x0: Foo) { not f(x0) or g(x0, s0(x0)) } }",
+            "not f(x) or g(x, s0(x))",
+            "g(x, s0(x))"
+        ]
+    );
+    assert_eq!(c.indirect, Vec::<String>::new());
 }

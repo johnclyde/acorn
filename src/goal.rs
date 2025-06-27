@@ -74,13 +74,13 @@ impl GoalContext {
                 match proposition.theorem_name() {
                     Some(name) => name.to_string(),
                     None => CodeGenerator::new(&env.bindings)
-                        .value_to_code(&proposition.value, None)
+                        .value_to_code(&proposition.value)
                         .unwrap_or("<goal>".to_string()),
                 }
             }
             Goal::Solve(value, _) => {
                 let value_str = CodeGenerator::new(&env.bindings)
-                    .value_to_code(value, None)
+                    .value_to_code(value)
                     .unwrap_or("<goal>".to_string());
                 format!("solve {}", value_str)
             }
