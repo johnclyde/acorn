@@ -39,6 +39,8 @@ pub struct Normalizer {
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 struct SkolemKey {
     /// CNF form of the proposition that we skolemized.
+    /// Here, the skolem constants have been turned into variables.
+    /// This lets us to a lookup when we want to check if any skolem ids match.
     clauses: Vec<Clause>,
 
     /// The first `num_existential` variables in the clauses are existential.
@@ -49,9 +51,11 @@ struct SkolemKey {
 /// We will need to look this up both by skolem key, and by atom id.
 pub struct SkolemInfo {
     /// CNF form of the proposition that we skolemized.
+    /// Here, the skolem constants exist in the clauses.
     pub clauses: Vec<Clause>,
 
-    /// Which skolem atoms were created along with this one.
+    /// Which skolem atoms were created in this skolemization.
+    /// Each of these should be present in clauses.
     pub ids: Vec<AtomId>,
 }
 
@@ -371,7 +375,7 @@ impl Normalizer {
                 num_existential: skolem_atoms.len(),
             };
             let info = Arc::new(SkolemInfo {
-                clauses: generic,
+                clauses: clauses.clone(),
                 ids,
             });
             for _ in &skolem_atoms {
