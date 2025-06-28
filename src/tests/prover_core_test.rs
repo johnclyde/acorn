@@ -1305,3 +1305,36 @@ fn test_concrete_proof_with_skolem() {
     );
     assert_eq!(c.indirect, Vec::<String>::new());
 }
+
+#[test]
+fn test_concrete_proof_with_free_variable() {
+    let mut p = Project::new_mock();
+    p.mock(
+        "/mock/main.ac",
+        r#"
+        inductive Foo {
+            foo
+            bar
+        }
+            
+        let f: Foo -> Bool = axiom
+        let g: Bool = axiom
+
+        axiom rule1(x: Foo) {
+            f(x)
+        }
+
+        axiom rule2(x: Foo) {
+            f(x) implies g
+        }
+            
+        theorem goal {
+            g
+        }
+        "#,
+    );
+
+    // let _c = prove_concrete(&mut p, "main", "goal");
+    // assert_eq!(c.direct, Vec::<String>::new());
+    // assert_eq!(c.indirect, Vec::<String>::new());
+}
