@@ -2,6 +2,7 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
+use std::collections::HashMap;
 use std::fmt;
 
 // A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
@@ -163,6 +164,41 @@ impl VariableMap {
             .map(|lit| self.specialize_literal(lit))
             .collect();
         Clause::new(specialized_literals)
+    }
+
+    fn unmapped_in_term(&self, term: &Term, unmapped: &mut HashMap<AtomId, TypeId>) {
+        if let Some(i) = term.atomic_variable() {
+            if !self.has_mapping(i) {
+                unmapped.insert(i, term.head_type);
+            }
+        } else {
+            for arg in &term.args {
+                self.unmapped_in_term(arg, unmapped);
+            }
+        }
+    }
+
+    fn keep_unmapped_in_term(&mut self, term: &Term) {
+        if let Some(i) = term.atomic_variable() {
+            if !self.has_mapping(i) {
+                self.set(i, term.clone());
+            }
+        } else {
+            for arg in &term.args {
+                self.keep_unmapped_in_term(arg);
+            }
+        }
+    }
+
+    fn keep_unmapped_in_literal(&mut self, literal: &Literal) {
+        self.keep_unmapped_in_term(&literal.left);
+        self.keep_unmapped_in_term(&literal.right);
+    }
+
+    pub fn keep_unmapped_in_clause(&mut self, clause: &Clause) {
+        for literal in &clause.literals {
+            self.keep_unmapped_in_literal(literal);
+        }
     }
 
     pub fn output_has_any_variable(&self) -> bool {
