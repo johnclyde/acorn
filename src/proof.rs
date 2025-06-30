@@ -689,8 +689,9 @@ impl<'a> Proof<'a> {
             if id == ProofStepId::Final {
                 continue;
             }
-            for var_map in var_maps {
+            for mut var_map in var_maps {
                 let generic = self.get_clause(id)?;
+                var_map.keep_unmapped_in_clause(&generic);
                 let concrete = var_map.specialize_clause(generic);
                 let node_id = *self.id_map.get(&id).unwrap();
                 concrete_clauses

@@ -2,7 +2,6 @@ use crate::atom::{Atom, AtomId};
 use crate::clause::Clause;
 use crate::literal::Literal;
 use crate::term::{Term, TypeId};
-use std::collections::HashMap;
 use std::fmt;
 
 // A VariableMap maintains a mapping from variables to terms, allowing us to turn a more general term
@@ -164,18 +163,6 @@ impl VariableMap {
             .map(|lit| self.specialize_literal(lit))
             .collect();
         Clause::new(specialized_literals)
-    }
-
-    fn unmapped_in_term(&self, term: &Term, unmapped: &mut HashMap<AtomId, TypeId>) {
-        if let Some(i) = term.atomic_variable() {
-            if !self.has_mapping(i) {
-                unmapped.insert(i, term.head_type);
-            }
-        } else {
-            for arg in &term.args {
-                self.unmapped_in_term(arg, unmapped);
-            }
-        }
     }
 
     fn keep_unmapped_in_term(&mut self, term: &Term) {
