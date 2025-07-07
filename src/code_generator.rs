@@ -12,6 +12,7 @@ use crate::expression::{Declaration, Expression};
 use crate::module::ModuleId;
 use crate::names::{ConstantName, DefinedName};
 use crate::normalizer::Normalizer;
+use crate::term::{Term, TypeId};
 use crate::token::TokenType;
 use crate::type_unifier::TypeclassRegistry;
 
@@ -35,6 +36,9 @@ pub struct CodeGenerator<'a> {
 
     /// The names we have assigned to skolem variables so far.
     skolem_names: HashMap<AtomId, String>,
+
+    /// The names for whenever we need an arbitrary member of a type.
+    arbitrary_names: HashMap<TypeId, String>,
 }
 
 impl CodeGenerator<'_> {
@@ -47,6 +51,7 @@ impl CodeGenerator<'_> {
             next_s: 0,
             var_names: vec![],
             skolem_names: HashMap::new(),
+            arbitrary_names: HashMap::new(),
         }
     }
 
@@ -211,6 +216,29 @@ impl CodeGenerator<'_> {
     fn type_to_code(&mut self, acorn_type: &AcornType) -> Result<String> {
         let expr = self.type_to_expr(acorn_type)?;
         Ok(expr.to_string())
+    }
+
+    fn add_arbitrary_for_term(&mut self, term: &Term) {
+        if term.is_variable() {
+            let type_id = term.head_type;
+            if !self.arbitrary_names.contains_key(&type_id) {
+                // Generate a name for this arbitrary variable
+                let name = self.bindings.next_indexed_var('s', &mut self.next_s);
+                self.arbitrary_names.insert(type_id, name);
+            }
+        }
+        for arg in &term.args {
+            self.add_arbitrary_for_term(arg);
+        }
+    }
+
+    /// For any variables in this clause, add an arbitrary variable.
+    pub fn add_arbitrary_for_clause(&mut self, clause: &Clause) {
+        for literal in &clause.literals {
+            for term in [&literal.left, &literal.right] {
+                self.add_arbitrary_for_term(term);
+            }
+        }
     }
 
     /// Create a marked-up string to display information for this value.
