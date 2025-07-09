@@ -9,7 +9,7 @@ There are several ways to use Acorn.
 If you are using Acorn for your own project, all you need is the Acorn extension for VS Code. You don't need this repository.
 
 If you are contributing mathematics to the Acorn Library, you only need the
-[acornlib repository](https://github.com://acornprover/acornlib). You don't need this repository.
+[acornlib repository](https://github.com/acornprover/acornlib). You don't need this repository.
 
 If you are making changes to the Acorn language, its theorem prover, or to the UI of the VS Code extension, then keep reading.
 
